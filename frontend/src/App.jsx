@@ -143,30 +143,17 @@ function Layout({ children }) {
           <span className="text-gray-500 dark:text-gray-400">{user?.name}님 환영합니다</span>
           <button onClick={logout} className="text-blue-600 dark:text-blue-400 hover:underline">로그아웃</button>
         </div>
-        <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900 mb-2">
-          Memoir Lens
+        <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900 dark:text-white mb-2">
+          Orgcell
         </h1>
-        <p className="text-xl md:text-2xl text-gray-600 font-medium mb-4">
-          엉클어진 추억을 질서있게
+        <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 font-medium mb-4">
+          AI 기반 가족 사진 자동 정리 플랫폼
         </p>
-        <div className="bg-gray-100 rounded-lg p-3 inline-block">
-          <p className="text-sm font-semibold text-gray-700">
-            🔒 고객보호를 위해 본 앱에는 사진을 보관하는 기능이 없습니다 (Your photos never leave your device)
+        <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 inline-block">
+          <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+            Your photos never leave your device
           </p>
         </div>
-
-        {/* Navigation Buttons (Always Visible) */}
-        <nav className="flex flex-col md:flex-row gap-4 mt-8 justify-center">
-          <button className="px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-lg shadow-sm transition-colors cursor-pointer">
-            추억을 영원히
-          </button>
-          <button className="px-6 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-lg shadow-sm transition-colors cursor-pointer">
-            추억을 질서있게
-          </button>
-          <button className="px-6 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold text-lg shadow-sm transition-colors cursor-pointer">
-            추억을 나눕니다
-          </button>
-        </nav>
       </header>
 
       {/* Main Workspace Area */}

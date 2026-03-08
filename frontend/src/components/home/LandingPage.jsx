@@ -18,10 +18,10 @@ function LandingPage() {
             {/* Hero Section */}
             <div className="max-w-4xl w-full text-center space-y-6 mb-16">
                 <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-gray-900 dark:text-white">
-                    Memoir Lens
+                    Orgcell
                 </h1>
                 <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-                    가족의 역사를 AI가 자동으로 정리합니다. 가장 안전한 사진 보관 및 공유 플랫폼.
+                    AI 기반 가족 사진 자동 정리 플랫폼. 가장 안전한 사진 보관 및 공유.
                 </p>
             </div>
 
@@ -108,7 +108,7 @@ function LandingPage() {
             {/* Footer Disclaimer */}
             <div className="mt-16 text-center text-sm text-gray-500 dark:text-gray-400 pb-8">
                 <p>🔒 고객보호를 위해 본 앱에는 사진 원본을 볼 수 있는 권한이 서버에 존재하지 않습니다.</p>
-                <p className="mt-1">© 2026 Memoir Lens. All rights reserved.</p>
+                <p className="mt-1">© 2026 Orgcell. All rights reserved.</p>
             </div>
         </div>
     );
