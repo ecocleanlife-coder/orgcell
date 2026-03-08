@@ -5,12 +5,26 @@ import { computeDHash } from '../../utils/hashUtils';
 import { encryptFile } from '../../utils/cryptoUtils';
 import useCryptoStore from '../../store/cryptoStore';
 import useUiStore from '../../store/uiStore';
-import { CheckCircle, Clock, Loader2, Lock, FileImage, AlertCircle } from 'lucide-react';
+import useAuthStore from '../../store/authStore';
+import axios from 'axios';
+import { toast } from 'react-hot-toast';
+import { CheckCircle, Clock, Loader2, Lock, FileImage, AlertCircle, CloudUpload } from 'lucide-react';
 
 // Initialize Pica with Web Worker support
 const pica = new Pica({
     features: ['js', 'wasm', 'ww']
 });
+
+const retryAxiosPost = async (url, data, config, retries = 3) => {
+    for (let i = 0; i < retries; i++) {
+        try {
+            return await axios.post(url, data, config);
+        } catch (err) {
+            if (i === retries - 1) throw err;
+            await new Promise(res => setTimeout(res, 1000 * (i + 1))); // Exponential-ish backoff
+        }
+    }
+};
 
 export default function PhotoUploader({ onUploadComplete }) {
     const { uploadsInProgress, addUpload, updateUploadStatus } = useUiStore();
@@ -77,6 +91,71 @@ export default function PhotoUploader({ onUploadComplete }) {
                         } catch (encErr) {
                             console.error("Encryption failed for", file.name, encErr);
                         }
+                    }
+
+                    // Phase 12 BYOS: Upload to Google Drive and Save Metadata
+                    const { driveConnected } = useAuthStore.getState();
+                    if (driveConnected) {
+                        updateUploadStatus(uploadId, 'drive_upload', 90);
+                        try {
+                            // 1. Upload original encrypted file to Drive
+                            const originalFormData = new FormData();
+                            originalFormData.append('file', finalFile, 'enc_' + file.name);
+                            originalFormData.append('mimeType', 'application/octet-stream'); // it's encrypted
+
+                            const driveOriginalRes = await retryAxiosPost('/api/drive/upload', originalFormData, {
+                                headers: { 'Content-Type': 'multipart/form-data' }
+                            }, 3);
+
+                            if (!driveOriginalRes.data?.success) throw new Error('Original Drive upload failed');
+                            const drive_file_id = driveOriginalRes.data.data.id;
+
+                            // 2. Upload thumbnail to Drive
+                            const thumbFormData = new FormData();
+                            thumbFormData.append('file', thumbBlob, 'thumb_' + file.name);
+                            thumbFormData.append('mimeType', 'image/jpeg');
+
+                            const driveThumbRes = await retryAxiosPost('/api/drive/upload', thumbFormData, {
+                                headers: { 'Content-Type': 'multipart/form-data' }
+                            }, 3);
+
+                            if (!driveThumbRes.data?.success) throw new Error('Thumbnail Drive upload failed');
+                            const drive_thumbnail_id = driveThumbRes.data.data.id;
+
+                            // 3. Save photo metadata to Postgres DB
+                            const metaRes = await axios.post('/api/photos/upload', {
+                                filename: 'enc_' + file.name,
+                                original_name: file.name,
+                                mime_type: file.type,
+                                file_size: finalFile.size,
+                                width: dstWidth,
+                                height: dstHeight,
+                                drive_file_id,
+                                drive_thumbnail_id,
+                                dhash: dHash
+                            });
+
+                            if (!metaRes.data?.success) throw new Error('Metadata save failed');
+
+                            toast.success(`'${file.name}' 클라우드 백업 완료!`);
+                        } catch (driveErr) {
+                            console.error("Drive upload error", driveErr);
+                            // If it's a 409 Conflict (Duplicate dHash)
+                            if (driveErr.response?.status === 409) {
+                                toast.error(`'${file.name}' 이미 등록된 사진입니다 (중복).`);
+                                // Reject to prevent adding to local gallery duplicates
+                                updateUploadStatus(uploadId, 'error', 0);
+                                reject(driveErr);
+                                URL.revokeObjectURL(img.src);
+                                return;
+                            } else {
+                                toast.error(`'${file.name}' 업로드 실패. 로컬에 임시 보관됩니다.`);
+                            }
+                        }
+                    } else {
+                        // Not connected.
+                        // For the Manager's note: "Drive 미연결 시 → 로컬 브라우저에만 보관 + 안내"
+                        toast.error(`[${file.name}] Drive가 연결되지 않아 브라우저에 임시 보관됩니다.`, { duration: 4000 });
                     }
 
                     updateUploadStatus(uploadId, 'done', 100);
@@ -149,6 +228,7 @@ export default function PhotoUploader({ onUploadComplete }) {
             case 'resizing': return <FileImage size={16} className="text-blue-500 animate-pulse" />;
             case 'scanning': return <Loader2 size={16} className="text-purple-500 animate-spin" />;
             case 'encrypting': return <Lock size={16} className="text-emerald-500 animate-bounce" />;
+            case 'drive_upload': return <CloudUpload size={16} className="text-blue-600 animate-pulse" />;
             case 'done': return <CheckCircle size={16} className="text-green-500" />;
             case 'error': return <AlertCircle size={16} className="text-red-500" />;
             default: return <Clock size={16} />;
@@ -161,6 +241,7 @@ export default function PhotoUploader({ onUploadComplete }) {
             case 'resizing': return '리사이징';
             case 'scanning': return 'dHash 스캔';
             case 'encrypting': return 'E2E 암호화';
+            case 'drive_upload': return 'Drive 업로드';
             case 'done': return '완료';
             case 'error': return '오류';
             default: return '준비';

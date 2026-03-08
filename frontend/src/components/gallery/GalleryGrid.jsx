@@ -1,4 +1,5 @@
 import React from 'react';
+import DriveImage from './DriveImage';
 
 export default function GalleryGrid({ photos, onPhotoSelect }) {
     if (!photos || photos.length === 0) {
@@ -14,16 +15,25 @@ export default function GalleryGrid({ photos, onPhotoSelect }) {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {photos.map((photo, idx) => (
                 <div
-                    key={idx}
+                    key={photo.id || idx}
                     className="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer border"
                     onClick={() => onPhotoSelect && onPhotoSelect(photo)}
                 >
-                    <img
-                        src={photo.thumbUrl}
-                        alt={photo.name || `Photo ${idx}`}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        loading="lazy"
-                    />
+                    {photo.drive_thumbnail_id ? (
+                        <DriveImage
+                            fileId={photo.drive_thumbnail_id}
+                            alt={photo.filename || photo.original_name || `Photo ${idx}`}
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            fallbackSrc={photo.thumbUrl}
+                        />
+                    ) : (
+                        <img
+                            src={photo.thumbUrl || photo.thumbnail_url}
+                            alt={photo.filename || photo.original_name || `Photo ${idx}`}
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            loading="lazy"
+                        />
+                    )}
 
                     {/* Hover Overlay */}
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2">

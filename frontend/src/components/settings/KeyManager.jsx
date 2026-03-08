@@ -1,10 +1,16 @@
 import React, { useState } from 'react';
 import useCryptoStore from '../../store/cryptoStore';
+import useAuthStore from '../../store/authStore';
+import axios from 'axios';
+import { toast } from 'react-hot-toast';
 
 export default function KeyManager() {
     const { masterKey, exportMasterKey, importMasterKey, clearKey } = useCryptoStore();
+    const driveConnected = useAuthStore(state => state.driveConnected);
+    const disconnectDrive = useAuthStore(state => state.disconnectDrive);
     const [importStr, setImportStr] = useState('');
     const [status, setStatus] = useState('');
+    const [isConnecting, setIsConnecting] = useState(false);
 
     const handleExport = async () => {
         try {
@@ -92,6 +98,60 @@ export default function KeyManager() {
                     </button>
                 </div>
             </div>
+
+            {/* Google Drive Integration Section */}
+            <h3 className="font-bold text-gray-800 mt-8 mb-2 flex items-center gap-2">
+                <span>☁️</span> Google Drive 백업 연동 (BYOS)
+            </h3>
+            <p className="text-xs text-gray-500 mb-4">
+                사진 원본을 서버가 아닌 회원님의 Google Drive에 직접 안전하게 보관합니다.
+                <br />연동하지 않아도 로컬 브라우저에서 사용할 수 있지만 백업을 권장합니다.
+            </p>
+
+            <div className="flex items-center gap-2 mb-4 p-2 bg-gray-50 rounded border">
+                <span className="font-medium w-24">Drive 상태:</span>
+                {driveConnected ? (
+                    <span className="text-green-600 font-bold flex items-center gap-1">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div> 연동됨 ✓
+                    </span>
+                ) : (
+                    <span className="text-gray-500">연결되지 않음</span>
+                )}
+            </div>
+
+            <div className="flex flex-col gap-3">
+                {driveConnected ? (
+                    <button
+                        onClick={() => disconnectDrive()}
+                        className="py-2 px-4 bg-gray-600 text-white rounded font-medium hover:bg-gray-700 transition"
+                    >
+                        Google Drive 연결 해제
+                    </button>
+                ) : (
+                    <button
+                        onClick={async () => {
+                            setIsConnecting(true);
+                            try {
+                                const res = await axios.get('/api/drive/auth');
+                                if (res.data?.success && res.data?.authUrl) {
+                                    window.location.href = res.data.authUrl;
+                                } else {
+                                    throw new Error('인증 URL을 가져오지 못했습니다.');
+                                }
+                            } catch (err) {
+                                console.error(err);
+                                toast.error('Google Drive 연결 요청에 실패했습니다.');
+                                setIsConnecting(false);
+                            }
+                        }}
+                        disabled={isConnecting}
+                        className="py-2 px-4 bg-blue-600 text-white rounded font-medium hover:bg-blue-700 disabled:opacity-50 transition"
+                    >
+                        {isConnecting ? '요청 중...' : 'Google Drive 연결하기'}
+                    </button>
+                )}
+            </div>
+
         </div>
     );
 }

@@ -12,10 +12,12 @@ const PhotoUploader = lazy(() => import('./components/gallery/PhotoUploader'));
 const GalleryGrid = lazy(() => import('./components/gallery/GalleryGrid'));
 const FaceRegistration = lazy(() => import('./components/face/FaceRegistration'));
 const AlbumView = lazy(() => import('./components/gallery/AlbumView'));
+const PhotoViewer = lazy(() => import('./components/gallery/PhotoViewer'));
 const FriendCall = lazy(() => import('./components/sync/FriendCall'));
 const RoomWorkspace = lazy(() => import('./components/sync/RoomWorkspace'));
 const KeyManager = lazy(() => import('./components/settings/KeyManager'));
 const LandingPage = lazy(() => import('./components/home/LandingPage'));
+const DriveCallback = lazy(() => import('./components/settings/DriveCallback'));
 
 // A Loading Fallback Component
 const PageLoader = () => (
@@ -26,6 +28,7 @@ const PageLoader = () => (
 
 function Layout({ children }) {
   const [photos, setPhotos] = useState([]);
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
   const logout = useAuthStore(state => state.logout);
   const user = useAuthStore(state => state.user);
   const registeredFaces = useAuthStore(state => state.registeredFaces);
@@ -82,6 +85,47 @@ function Layout({ children }) {
       workerRef.current.postMessage({ type: 'SET_LABELS', payload: registeredFaces });
     }
   }, [registeredFaces]);
+
+  const handleDeletePhoto = async (photoToDelete) => {
+    try {
+      // 1. Delete from Drive if connected
+      const { driveConnected } = useAuthStore.getState();
+      if (driveConnected) {
+        if (photoToDelete.drive_thumbnail_id) {
+          await axios.delete(`/api/drive/file/${photoToDelete.drive_thumbnail_id}`).catch(console.warn);
+        }
+        if (photoToDelete.drive_file_id) {
+          await axios.delete(`/api/drive/file/${photoToDelete.drive_file_id}`).catch(console.warn);
+        }
+      }
+
+      // 2. Delete from DB (if it exists remotely)
+      if (photoToDelete.id) {
+        await axios.delete(`/api/photos/${photoToDelete.id}`);
+      }
+
+      // 3. Remove locally
+      setPhotos(prev => prev.filter(p => p !== photoToDelete));
+      setSelectedPhoto(null);
+      toast.success('사진이 영구 삭제되었습니다.');
+    } catch (err) {
+      console.error('Failed to delete photo', err);
+      toast.error('사진을 삭제하는 중 오류가 발생했습니다.');
+    }
+  };
+
+  // Fetch photos from DB when user enters the gallery tab
+  useEffect(() => {
+    if (activeTab === 'gallery' && token) {
+      axios.get('/api/photos')
+        .then(res => {
+          if (res.data?.success) {
+            setPhotos(res.data.data);
+          }
+        })
+        .catch(err => console.error('Failed to fetch photos from DB', err));
+    }
+  }, [activeTab, token]);
 
   return (
     <div className="min-h-screen flex flex-col items-center w-full max-w-7xl mx-auto p-4 md:p-8 transition-colors duration-200 dark:bg-gray-900">
@@ -174,7 +218,10 @@ function Layout({ children }) {
               }}
             />
             <div className="flex-1 overflow-y-auto">
-              <GalleryGrid photos={photos} />
+              <GalleryGrid
+                photos={photos}
+                onPhotoSelect={(photo) => setSelectedPhoto(photo)}
+              />
             </div>
           </div>
 
@@ -186,6 +233,15 @@ function Layout({ children }) {
             <div className="mt-8 pt-4 border-t dark:border-gray-700 border-dashed">
               <AlbumView />
             </div>
+
+            {/* Full Screen Photo Viewer Modal */}
+            {selectedPhoto && (
+              <PhotoViewer
+                photo={selectedPhoto}
+                onClose={() => setSelectedPhoto(null)}
+                onDeleteClick={handleDeletePhoto}
+              />
+            )}
           </div>
         </Suspense>
       </main>
@@ -235,6 +291,14 @@ function App() {
                 <LandingPage />
               </Suspense>
             )
+          }
+        />
+        <Route
+          path="/drive-callback"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <DriveCallback />
+            </Suspense>
           }
         />
       </Routes>

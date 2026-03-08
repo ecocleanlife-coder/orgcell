@@ -82,6 +82,8 @@ const useAuthStore = create((set) => ({
             const res = await axios.get('/api/auth/me');
             if (res.data?.data) {
                 set({ user: res.data.data });
+                // Also check drive status
+                useAuthStore.getState().checkDriveStatus();
             } else {
                 throw new Error('Invalid user data');
             }
@@ -96,6 +98,32 @@ const useAuthStore = create((set) => ({
             set({ error: err.message });
         } finally {
             set({ isLoading: false });
+        }
+    },
+
+    driveConnected: false,
+
+    checkDriveStatus: async () => {
+        try {
+            const res = await axios.get('/api/drive/status');
+            if (res.data?.success) {
+                set({ driveConnected: res.data.connected });
+            }
+        } catch (err) {
+            console.error('Check drive status failed', err);
+        }
+    },
+
+    disconnectDrive: async () => {
+        try {
+            const res = await axios.post('/api/drive/disconnect');
+            if (res.data?.success) {
+                set({ driveConnected: false });
+                toast.success('Google Drive 연결이 해제되었습니다.');
+            }
+        } catch (err) {
+            console.error('Disconnect drive failed', err);
+            toast.error('연결 해제에 실패했습니다.');
         }
     }
 }));
