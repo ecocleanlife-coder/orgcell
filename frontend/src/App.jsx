@@ -35,6 +35,7 @@ function Layout({ children }) {
   const [photos, setPhotos] = useState([]);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [galleryView, setGalleryView] = useState('grid');
+  const token = useAuthStore(state => state.token);
   const logout = useAuthStore(state => state.logout);
   const user = useAuthStore(state => state.user);
   const registeredFaces = useAuthStore(state => state.registeredFaces);
