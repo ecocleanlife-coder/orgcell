@@ -9,8 +9,8 @@ import useUiStore, { initTheme } from './store/uiStore';
 import useCryptoStore from './store/cryptoStore';
 
 // Lazy loading heavy components for performance code-splitting
-const PhotoUploader = lazy(() => import('./components/gallery/PhotoUploader'));
 const GalleryGrid = lazy(() => import('./components/gallery/GalleryGrid'));
+const TimelineView = lazy(() => import('./components/gallery/TimelineView'));
 const FaceRegistration = lazy(() => import('./components/face/FaceRegistration'));
 const AlbumView = lazy(() => import('./components/gallery/AlbumView'));
 const PhotoViewer = lazy(() => import('./components/gallery/PhotoViewer'));
@@ -27,9 +27,12 @@ const PageLoader = () => (
   </div>
 );
 
+const PhotoUploader = lazy(() => import('./components/gallery/PhotoUploader'));
+
 function Layout({ children }) {
   const [photos, setPhotos] = useState([]);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [galleryView, setGalleryView] = useState('grid');
   const logout = useAuthStore(state => state.logout);
   const user = useAuthStore(state => state.user);
   const registeredFaces = useAuthStore(state => state.registeredFaces);
@@ -182,7 +185,30 @@ function Layout({ children }) {
 
           {/* Center Column (Workspace) */}
           <div className={`w-full md:w-2/4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-4 min-h-[500px] flex-col gap-4 ${activeTab === 'gallery' ? 'flex' : 'hidden md:flex'}`}>
-            <h2 className="text-lg font-bold border-b dark:border-gray-700 pb-2 text-center dark:text-gray-100">Workspace (Gallery)</h2>
+            <div className="flex items-center justify-between border-b dark:border-gray-700 pb-2">
+              <h2 className="text-lg font-bold dark:text-gray-100">Workspace (Gallery)</h2>
+              <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg shadow-inner">
+                <button
+                  onClick={() => setGalleryView('grid')}
+                  className={`px-3 py-1 text-sm font-semibold rounded-md transition-all ${galleryView === 'grid' ? 'bg-white shadow-sm text-purple-600' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}
+                >
+                  그리드
+                </button>
+                <button
+                  onClick={() => setGalleryView('timeline')}
+                  className={`px-3 py-1 text-sm font-semibold rounded-md transition-all ${galleryView === 'timeline' ? 'bg-white shadow-sm text-purple-600' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}
+                >
+                  타임라인
+                </button>
+                <button
+                  onClick={() => setGalleryView('map')}
+                  className={`px-3 py-1 text-sm font-semibold rounded-md transition-all ${galleryView === 'map' ? 'bg-white shadow-sm text-purple-600' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}
+                >
+                  지도
+                </button>
+              </div>
+            </div>
+
             <PhotoUploader
               onUploadComplete={(newPhotos) => {
                 setPhotos((prev) => {
@@ -218,11 +244,23 @@ function Layout({ children }) {
                 });
               }}
             />
-            <div className="flex-1 overflow-y-auto">
-              <GalleryGrid
-                photos={photos}
-                onPhotoSelect={(photo) => setSelectedPhoto(photo)}
-              />
+            <div className="flex-1 overflow-y-auto mb-2 custom-scrollbar">
+              {galleryView === 'grid' && (
+                <GalleryGrid
+                  photos={photos}
+                  onPhotoSelect={(photo) => setSelectedPhoto(photo)}
+                />
+              )}
+              {galleryView === 'timeline' && (
+                <TimelineView
+                  onPhotoSelect={(photo) => setSelectedPhoto(photo)}
+                />
+              )}
+              {galleryView === 'map' && (
+                <div className="h-full w-full flex items-center justify-center text-gray-500 bg-gray-50 rounded-lg border border-dashed">
+                  지도 뷰 준비 중...
+                </div>
+              )}
             </div>
           </div>
 
