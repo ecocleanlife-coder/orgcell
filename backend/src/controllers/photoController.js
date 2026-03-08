@@ -180,6 +180,88 @@ exports.getMonths = async (req, res) => {
     }
 };
 
+// @desc    Get single photo with full metadata (including ownership proof)
+// @route   GET /api/photos/:id
+exports.getPhoto = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { id } = req.params;
+
+        const { rows } = await db.query(
+            `SELECT id, filename, original_name, mime_type, file_size,
+                    width, height, thumbnail_url, drive_file_id, drive_thumbnail_id,
+                    taken_at, location, dhash, metadata, created_at
+             FROM photos WHERE id = $1 AND user_id = $2`,
+            [id, userId]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Photo not found' });
+        }
+
+        res.json({ success: true, data: rows[0] });
+    } catch (error) {
+        console.error('getPhoto Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch photo' });
+    }
+};
+
+// @desc    Verify ownership proof of a photo
+// @route   POST /api/photos/:id/verify
+exports.verifyOwnership = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { fileHash } = req.body;
+
+        if (!fileHash) {
+            return res.status(400).json({ success: false, message: 'fileHash required' });
+        }
+
+        const { rows } = await db.query(
+            `SELECT id, metadata, created_at, user_id FROM photos WHERE id = $1`,
+            [id]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Photo not found' });
+        }
+
+        const photo = rows[0];
+        const metadata = typeof photo.metadata === 'string' ? JSON.parse(photo.metadata) : photo.metadata;
+        const proof = metadata?.ownership_proof;
+
+        if (!proof) {
+            return res.json({
+                success: true,
+                verified: false,
+                reason: 'No ownership proof recorded for this photo',
+            });
+        }
+
+        const hashMatch = proof.payload?.fileHash === fileHash;
+
+        // Get owner info
+        const owner = await db.query(
+            `SELECT name, email FROM users WHERE id = $1`, [photo.user_id]
+        );
+
+        res.json({
+            success: true,
+            verified: hashMatch,
+            proof: {
+                fileHash: proof.payload?.fileHash,
+                owner: owner.rows[0]?.email,
+                ownerName: owner.rows[0]?.name,
+                registeredAt: proof.payload?.timestamp,
+                photoCreatedAt: photo.created_at,
+            },
+        });
+    } catch (error) {
+        console.error('verifyOwnership Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to verify ownership' });
+    }
+};
+
 // @desc    Delete photo
 // @route   DELETE /api/photos/:id
 exports.deletePhoto = async (req, res) => {
