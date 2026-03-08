@@ -10,7 +10,7 @@ exports.getPhotos = async (req, res) => {
         let query = `SELECT id, filename, original_name, mime_type, file_size,
                             width, height, thumbnail_url, drive_file_id, drive_thumbnail_id,
                             taken_at, location, dhash, created_at
-                     FROM photos WHERE user_id = $1`;
+                     FROM photos WHERE user_id = $1 AND created_at >= (TIMESTAMPTZ '2026-03-07 13:00:00+09')`;
         const params = [userId];
         let idx = 2;
 
@@ -20,7 +20,7 @@ exports.getPhotos = async (req, res) => {
                             p.taken_at, p.location, p.dhash, p.created_at
                      FROM photos p
                      JOIN photo_albums pa ON p.id = pa.photo_id
-                     WHERE p.user_id = $1 AND pa.album_id = $${idx++}`;
+                     WHERE p.user_id = $1 AND pa.album_id = $${idx++} AND p.created_at >= (TIMESTAMPTZ '2026-03-07 13:00:00+09')`;
             params.push(album_id);
         }
 
@@ -31,7 +31,7 @@ exports.getPhotos = async (req, res) => {
 
         // Get total count
         const countResult = await db.query(
-            `SELECT COUNT(*) FROM photos WHERE user_id = $1`,
+            `SELECT COUNT(*) FROM photos WHERE user_id = $1 AND created_at >= (TIMESTAMPTZ '2026-03-07 13:00:00+09')`,
             [userId]
         );
 
@@ -89,9 +89,9 @@ exports.uploadPhoto = async (req, res) => {
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
              RETURNING *`,
             [userId, filename, original_name, mime_type, file_size,
-             width, height, thumbnail_url, drive_file_id, drive_thumbnail_id,
-             taken_at || null, location ? JSON.stringify(location) : null,
-             dhash || null, metadata ? JSON.stringify(metadata) : null]
+                width, height, thumbnail_url, drive_file_id, drive_thumbnail_id,
+                taken_at || null, location ? JSON.stringify(location) : null,
+                dhash || null, metadata ? JSON.stringify(metadata) : null]
         );
 
         res.status(201).json({ success: true, data: rows[0] });
@@ -120,7 +120,7 @@ exports.getTimeline = async (req, res) => {
                 ) AS photos,
                 COUNT(*) AS count
              FROM photos
-             WHERE user_id = $1
+             WHERE user_id = $1 AND created_at >= (TIMESTAMPTZ '2026-03-07 13:00:00+09')
              GROUP BY month
              ORDER BY month DESC`,
             [userId]
@@ -144,7 +144,7 @@ exports.getMapPhotos = async (req, res) => {
                     drive_thumbnail_id, drive_file_id,
                     taken_at, created_at, location
              FROM photos
-             WHERE user_id = $1 AND location IS NOT NULL
+             WHERE user_id = $1 AND location IS NOT NULL AND created_at >= (TIMESTAMPTZ '2026-03-07 13:00:00+09')
              ORDER BY COALESCE(taken_at, created_at) DESC`,
             [userId]
         );
@@ -167,7 +167,7 @@ exports.getMonths = async (req, res) => {
                 TO_CHAR(COALESCE(taken_at, created_at), 'YYYY-MM') AS month,
                 COUNT(*) AS count
              FROM photos
-             WHERE user_id = $1
+             WHERE user_id = $1 AND created_at >= (TIMESTAMPTZ '2026-03-07 13:00:00+09')
              GROUP BY month
              ORDER BY month DESC`,
             [userId]
