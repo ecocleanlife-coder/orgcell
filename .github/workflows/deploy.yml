@@ -98,7 +98,7 @@ jobs:
                 networks:
                   - orgcell-network
                 healthcheck:
-                  test: ["CMD", "curl", "-f", "http://localhost:5001/api/health"]
+                  test: ["CMD-SHELL", "wget -qO- http://localhost:5001/api/health || exit 1"]
                   interval: 30s
                   timeout: 5s
                   start_period: 15s
