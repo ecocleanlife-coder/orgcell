@@ -7,6 +7,9 @@ const {
     driveStatus,
     setupDriveFolder,
     uploadToDrive,
+    downloadFromDrive,
+    deleteFromDrive,
+    disconnectDrive,
 } = require('../controllers/driveController');
 const { protect } = require('../middlewares/authMiddleware');
 
@@ -22,5 +25,8 @@ router.post('/callback', driveCallback);
 router.get('/status', driveStatus);
 router.post('/setup', setupDriveFolder);
 router.post('/upload', upload.single('file'), uploadToDrive);
+router.get('/download/:fileId', downloadFromDrive);
+router.delete('/file/:fileId', deleteFromDrive);
+router.post('/disconnect', disconnectDrive);
 
 module.exports = router;

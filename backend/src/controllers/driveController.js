@@ -168,9 +168,83 @@ exports.uploadToDrive = async (req, res) => {
             fields: 'id, name, size, webViewLink',
         });
 
+        // Update photo record with Drive file ID
+        if (req.body.photoId) {
+            const field = req.body.type === 'thumbnail' ? 'drive_thumbnail_id' : 'drive_file_id';
+            await db.query(
+                `UPDATE photos SET ${field} = $1 WHERE id = $2 AND user_id = $3`,
+                [response.data.id, req.body.photoId, req.user.id]
+            );
+        }
+
         res.json({ success: true, data: response.data });
     } catch (error) {
         console.error('uploadToDrive Error:', error);
         res.status(500).json({ success: false, message: 'Failed to upload to Drive' });
+    }
+};
+
+// @desc    Download file from user's Drive
+// @route   GET /api/drive/download/:fileId
+exports.downloadFromDrive = async (req, res) => {
+    try {
+        const { rows } = await db.query(
+            `SELECT google_drive_token FROM users WHERE id = $1`,
+            [req.user.id]
+        );
+
+        if (!rows[0]?.google_drive_token) {
+            return res.status(400).json({ success: false, message: 'Google Drive not connected' });
+        }
+
+        const drive = getDriveClient(rows[0].google_drive_token);
+        const response = await drive.files.get(
+            { fileId: req.params.fileId, alt: 'media' },
+            { responseType: 'stream' }
+        );
+
+        res.setHeader('Content-Type', response.headers['content-type'] || 'application/octet-stream');
+        response.data.pipe(res);
+    } catch (error) {
+        console.error('downloadFromDrive Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to download from Drive' });
+    }
+};
+
+// @desc    Delete file from user's Drive
+// @route   DELETE /api/drive/file/:fileId
+exports.deleteFromDrive = async (req, res) => {
+    try {
+        const { rows } = await db.query(
+            `SELECT google_drive_token FROM users WHERE id = $1`,
+            [req.user.id]
+        );
+
+        if (!rows[0]?.google_drive_token) {
+            return res.status(400).json({ success: false, message: 'Google Drive not connected' });
+        }
+
+        const drive = getDriveClient(rows[0].google_drive_token);
+        await drive.files.delete({ fileId: req.params.fileId });
+
+        res.json({ success: true, message: 'File deleted from Drive' });
+    } catch (error) {
+        console.error('deleteFromDrive Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete from Drive' });
+    }
+};
+
+// @desc    Disconnect Google Drive
+// @route   POST /api/drive/disconnect
+exports.disconnectDrive = async (req, res) => {
+    try {
+        await db.query(
+            `UPDATE users SET google_drive_token = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+            [req.user.id]
+        );
+        res.json({ success: true, message: 'Google Drive disconnected' });
+    } catch (error) {
+        console.error('disconnectDrive Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to disconnect Drive' });
     }
 };
