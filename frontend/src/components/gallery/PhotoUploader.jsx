@@ -3,6 +3,7 @@ import { useDropzone } from 'react-dropzone';
 import Pica from 'pica';
 import { computeDHash } from '../../utils/hashUtils';
 import { encryptFile } from '../../utils/cryptoUtils';
+import { extractExif } from '../../utils/exifUtils';
 import useCryptoStore from '../../store/cryptoStore';
 import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
@@ -38,6 +39,10 @@ export default function PhotoUploader({ onUploadComplete }) {
             img.onload = async () => {
                 try {
                     updateUploadStatus(uploadId, 'resizing', 10);
+
+                    // 0. Extract EXIF data BEFORE resizing strips it
+                    const exifData = await extractExif(file);
+
                     // Create source canvas
                     const srcCanvas = document.createElement('canvas');
                     srcCanvas.width = img.width;
@@ -139,7 +144,10 @@ export default function PhotoUploader({ onUploadComplete }) {
                                 height: dstHeight,
                                 drive_file_id,
                                 drive_thumbnail_id,
-                                dhash: dHash
+                                dhash: dHash,
+                                taken_at: exifData.takenAt,
+                                location: exifData.location,
+                                metadata: exifData.metadata
                             });
 
                             if (!metaRes.data?.success) throw new Error('Metadata save failed');
@@ -177,7 +185,8 @@ export default function PhotoUploader({ onUploadComplete }) {
                         width: dstWidth,
                         height: dstHeight,
                         name: file.name,
-                        dHash
+                        dHash,
+                        exif: exifData
                     });
 
                 } catch (err) {
