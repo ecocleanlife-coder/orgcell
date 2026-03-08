@@ -18,10 +18,10 @@ function LandingPage() {
             {/* Hero Section */}
             <div className="max-w-4xl w-full text-center space-y-6 mb-16">
                 <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-gray-900 dark:text-white">
-                    Orgcell
+                    Memoir Lens
                 </h1>
                 <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-                    AI 기반 가족 사진 자동 정리 플랫폼. 가장 안전한 사진 보관 및 공유.
+                    가족의 역사를 AI가 자동으로 정리합니다. 가장 안전한 사진 보관 및 공유 플랫폼.
                 </p>
             </div>
 
@@ -84,7 +84,6 @@ function LandingPage() {
                         onChange={e => setName(e.target.value)}
                         className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none dark:text-white transition-all"
                         placeholder="이름"
-                        aria-label="테스트 계정 이름 입력"
                     />
                     <input
                         type="email"
@@ -92,12 +91,10 @@ function LandingPage() {
                         onChange={e => setEmail(e.target.value)}
                         className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none dark:text-white transition-all"
                         placeholder="이메일"
-                        aria-label="테스트 계정 이메일 입력"
                     />
                     <button
                         onClick={handleDevLogin}
                         disabled={isLoading}
-                        aria-label={isLoading ? '로그인 처리 중입니다' : '테스트 계정으로 로그인 버튼'}
                         className="w-full py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold hover:bg-gray-800 dark:hover:bg-gray-100 disabled:opacity-50 transition-colors"
                     >
                         {isLoading ? '로그인 중...' : '테스트 계정으로 로그인'}
@@ -108,7 +105,7 @@ function LandingPage() {
             {/* Footer Disclaimer */}
             <div className="mt-16 text-center text-sm text-gray-500 dark:text-gray-400 pb-8">
                 <p>🔒 고객보호를 위해 본 앱에는 사진 원본을 볼 수 있는 권한이 서버에 존재하지 않습니다.</p>
-                <p className="mt-1">© 2026 Orgcell. All rights reserved.</p>
+                <p className="mt-1">© 2026 Memoir Lens. All rights reserved.</p>
             </div>
         </div>
     );

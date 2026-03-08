@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 
 const useUiStore = create((set) => ({
-    // Mobile Tab Navigation ('gallery', 'people', 'sync', 'settings')
-    activeTab: 'gallery',
+    // Mobile Tab Navigation ('people', 'sync', 'gallery', 'settings')
+    activeTab: 'people',
     setActiveTab: (tab) => set({ activeTab: tab }),
 
     // Dark Mode (persists to localStorage)

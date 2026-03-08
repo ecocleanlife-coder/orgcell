@@ -161,8 +161,8 @@ function Layout({ children }) {
         <ErrorBoundary>
           <Suspense fallback={<PageLoader />}>
             {/* Left Column (AI Chronicle & Settings) */}
-            <div className={`w-full md:w-1/4 flex-col gap-6 ${activeTab === 'people' || activeTab === 'settings' ? 'flex' : 'hidden md:flex'}`}>
-              <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-4 min-h-[400px] ${activeTab === 'people' ? 'block' : 'hidden md:block'}`}>
+            <div className={`w-full md:w-1/4 flex-col gap-6 ${activeTab === 'gallery' || activeTab === 'settings' ? 'flex' : 'hidden md:flex'}`}>
+              <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-4 min-h-[400px] ${activeTab === 'gallery' ? 'block' : 'hidden md:block'}`}>
                 <h2 className="text-lg font-bold border-b dark:border-gray-700 pb-2 mb-4 text-center dark:text-gray-100">AI Chronicle</h2>
                 <div className="flex flex-col items-center justify-center h-full">
                   <FaceRegistration onRegisterComplete={() => console.log('Face registered')} />
@@ -175,7 +175,7 @@ function Layout({ children }) {
             </div>
 
             {/* Center Column (Workspace) */}
-            <div className={`w-full md:w-2/4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-4 min-h-[500px] flex-col gap-4 ${activeTab === 'gallery' ? 'flex' : 'hidden md:flex'}`}>
+            <div className={`w-full md:w-2/4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-4 min-h-[500px] flex-col gap-4 ${activeTab === 'gallery' || activeTab === 'people' ? 'flex' : 'hidden md:flex'}`}>
               <div className="flex items-center justify-between border-b dark:border-gray-700 pb-2">
                 <h2 className="text-lg font-bold dark:text-gray-100">Workspace (Gallery)</h2>
                 <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg shadow-inner">
@@ -252,6 +252,11 @@ function Layout({ children }) {
                     onPhotoSelect={(photo) => setSelectedPhoto(photo)}
                   />
                 )}
+                {activeTab === 'people' && (
+                  <div className="mt-2 w-full">
+                    <AlbumView />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -259,10 +264,6 @@ function Layout({ children }) {
             <div className={`w-full md:w-1/4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-4 min-h-[500px] flex-col ${activeTab === 'sync' ? 'flex' : 'hidden md:flex'}`}>
               <FriendCall localPhotos={photos} />
               <RoomWorkspace workerRef={workerRef} localPhotos={photos} />
-
-              <div className="mt-8 pt-4 border-t dark:border-gray-700 border-dashed">
-                <AlbumView />
-              </div>
 
               {/* Full Screen Photo Viewer Modal */}
               {selectedPhoto && (
@@ -277,19 +278,18 @@ function Layout({ children }) {
         </ErrorBoundary>
       </main>
 
-      {/* Mobile Tab Bar (Bottom) */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around p-3 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-        <button onClick={() => setActiveTab('gallery')} className={`flex flex-col items-center ${activeTab === 'gallery' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
-          <ImageIcon size={24} />
-          <span className="text-[10px] mt-1 font-medium">갤러리</span>
-        </button>
         <button onClick={() => setActiveTab('people')} className={`flex flex-col items-center ${activeTab === 'people' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
           <Users size={24} />
-          <span className="text-[10px] mt-1 font-medium">인물</span>
+          <span className="text-[10px] mt-1 font-medium">스마트 앨범</span>
         </button>
         <button onClick={() => setActiveTab('sync')} className={`flex flex-col items-center ${activeTab === 'sync' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
           <RefreshCcw size={24} />
-          <span className="text-[10px] mt-1 font-medium">공유</span>
+          <span className="text-[10px] mt-1 font-medium">사진 공유</span>
+        </button>
+        <button onClick={() => setActiveTab('gallery')} className={`flex flex-col items-center ${activeTab === 'gallery' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
+          <ImageIcon size={24} />
+          <span className="text-[10px] mt-1 font-medium">모든 사진</span>
         </button>
         <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center ${activeTab === 'settings' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
           <Settings size={24} />
