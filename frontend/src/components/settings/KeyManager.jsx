@@ -3,6 +3,7 @@ import useCryptoStore from '../../store/cryptoStore';
 import useAuthStore from '../../store/authStore';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import { getNotificationPermission, requestNotificationPermission } from '../../utils/notificationUtils';
 
 export default function KeyManager() {
     const { masterKey, exportMasterKey, importMasterKey, clearKey } = useCryptoStore();
@@ -172,7 +173,6 @@ export default function KeyManager() {
                         const perm = await requestNotificationPermission();
                         if (perm === 'granted') {
                             toast.success('푸시 알림이 허용되었습니다!');
-                            // Refresh component by triggering a fake state update
                             setStatus('푸시 알림 권한 갱신됨');
                             setTimeout(() => setStatus(''), 2000);
                         } else {

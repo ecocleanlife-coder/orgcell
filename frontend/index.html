@@ -15,6 +15,17 @@
 
 <body>
   <div id="root"></div>
+  <script>
+    // Force clear old service worker caches on deploy
+    if ('serviceWorker' in navigator) {
+      caches.keys().then(function(names) {
+        for (var name of names) caches.delete(name);
+      });
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (var reg of registrations) reg.unregister();
+      });
+    }
+  </script>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 

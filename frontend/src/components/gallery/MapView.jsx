@@ -117,9 +117,7 @@ export default function MapView({ onPhotoSelect }) {
                         const count = cluster.getChildCount();
                         // Basic custom cluster icon
                         return L.divIcon({
-                            html: `< div class="w-12 h-12 flex items-center justify-center bg-indigo-600/90 backdrop-blur-sm text-white font-bold rounded-full border-[3px] border-white shadow-lg shadow-indigo-500/30 text-sm ring-4 ring-indigo-100/50 transition-transform hover:scale-110" >
-    ${count}
-                                   </div > `,
+                            html: `<div class="w-12 h-12 flex items-center justify-center bg-indigo-600 text-white font-bold rounded-full border-[3px] border-white shadow-lg text-sm">${count}</div>`,
                             className: 'custom-cluster-icon',
                             iconSize: L.point(48, 48, true),
                         });
@@ -172,20 +170,20 @@ export default function MapView({ onPhotoSelect }) {
             </MapContainer>
 
             {/* Added custom style block targeting the popup to look seamless */}
-            <style jsx="true">{`
-    .leaflet - popup - content - wrapper {
-    border - radius: 12px;
-    box - shadow: 0 10px 25px - 5px rgba(0, 0, 0, 0.1), 0 8px 10px - 6px rgba(0, 0, 0, 0.1);
-    padding: 0;
-}
-                .leaflet - popup - content {
-    margin: 12px;
-    line - height: 1.4;
-}
-                .custom - cluster - icon {
-    background: transparent;
-    border: none;
-}
+            <style>{`
+    .leaflet-popup-content-wrapper {
+        border-radius: 12px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        padding: 0;
+    }
+    .leaflet-popup-content {
+        margin: 12px;
+        line-height: 1.4;
+    }
+    .custom-cluster-icon {
+        background: transparent;
+        border: none;
+    }
 `}</style>
         </div>
     );
