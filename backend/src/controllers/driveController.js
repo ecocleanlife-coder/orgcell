@@ -204,6 +204,7 @@ exports.downloadFromDrive = async (req, res) => {
         );
 
         res.setHeader('Content-Type', response.headers['content-type'] || 'application/octet-stream');
+        res.setHeader('Cache-Control', 'private, max-age=86400');
         response.data.pipe(res);
     } catch (error) {
         console.error('downloadFromDrive Error:', error);
@@ -234,10 +235,30 @@ exports.deleteFromDrive = async (req, res) => {
     }
 };
 
-// @desc    Disconnect Google Drive
+// @desc    Disconnect Google Drive (revoke tokens + remove from DB)
 // @route   POST /api/drive/disconnect
 exports.disconnectDrive = async (req, res) => {
     try {
+        // Get current tokens to revoke
+        const { rows } = await db.query(
+            `SELECT google_drive_token FROM users WHERE id = $1`,
+            [req.user.id]
+        );
+
+        if (rows[0]?.google_drive_token) {
+            try {
+                const oauth2Client = new google.auth.OAuth2(
+                    process.env.GOOGLE_CLIENT_ID,
+                    process.env.GOOGLE_CLIENT_SECRET
+                );
+                oauth2Client.setCredentials(rows[0].google_drive_token);
+                await oauth2Client.revokeCredentials();
+            } catch (revokeErr) {
+                // Token revocation may fail if already expired — continue cleanup
+                console.warn('Token revocation failed (may already be expired):', revokeErr.message);
+            }
+        }
+
         await db.query(
             `UPDATE users SET google_drive_token = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
             [req.user.id]

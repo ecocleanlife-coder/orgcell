@@ -8,16 +8,16 @@ exports.getPhotos = async (req, res) => {
         const { album_id, limit = 50, offset = 0 } = req.query;
 
         let query = `SELECT id, filename, original_name, mime_type, file_size,
-                            width, height, thumbnail_url, taken_at, location,
-                            created_at
+                            width, height, thumbnail_url, drive_file_id, drive_thumbnail_id,
+                            taken_at, location, dhash, created_at
                      FROM photos WHERE user_id = $1`;
         const params = [userId];
         let idx = 2;
 
         if (album_id) {
             query = `SELECT p.id, p.filename, p.original_name, p.mime_type, p.file_size,
-                            p.width, p.height, p.thumbnail_url, p.taken_at, p.location,
-                            p.created_at
+                            p.width, p.height, p.thumbnail_url, p.drive_file_id, p.drive_thumbnail_id,
+                            p.taken_at, p.location, p.dhash, p.created_at
                      FROM photos p
                      JOIN photo_albums pa ON p.id = pa.photo_id
                      WHERE p.user_id = $1 AND pa.album_id = $${idx++}`;
