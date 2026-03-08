@@ -29,6 +29,7 @@ const PageLoader = () => (
 );
 
 const PhotoUploader = lazy(() => import('./components/gallery/PhotoUploader'));
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 function Layout({ children }) {
   const [photos, setPhotos] = useState([]);
@@ -169,121 +170,123 @@ function Layout({ children }) {
 
       {/* Main Workspace Area */}
       <main className="w-full flex-1 flex flex-col md:flex-row gap-6 pb-20 md:pb-6">
-        <Suspense fallback={<PageLoader />}>
-          {/* Left Column (AI Chronicle & Settings) */}
-          <div className={`w-full md:w-1/4 flex-col gap-6 ${activeTab === 'people' || activeTab === 'settings' ? 'flex' : 'hidden md:flex'}`}>
-            <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-4 min-h-[400px] ${activeTab === 'people' ? 'block' : 'hidden md:block'}`}>
-              <h2 className="text-lg font-bold border-b dark:border-gray-700 pb-2 mb-4 text-center dark:text-gray-100">AI Chronicle</h2>
-              <div className="flex flex-col items-center justify-center h-full">
-                <FaceRegistration onRegisterComplete={() => console.log('Face registered')} />
+        <ErrorBoundary>
+          <Suspense fallback={<PageLoader />}>
+            {/* Left Column (AI Chronicle & Settings) */}
+            <div className={`w-full md:w-1/4 flex-col gap-6 ${activeTab === 'people' || activeTab === 'settings' ? 'flex' : 'hidden md:flex'}`}>
+              <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-4 min-h-[400px] ${activeTab === 'people' ? 'block' : 'hidden md:block'}`}>
+                <h2 className="text-lg font-bold border-b dark:border-gray-700 pb-2 mb-4 text-center dark:text-gray-100">AI Chronicle</h2>
+                <div className="flex flex-col items-center justify-center h-full">
+                  <FaceRegistration onRegisterComplete={() => console.log('Face registered')} />
+                </div>
+              </div>
+
+              <div className={`${activeTab === 'settings' ? 'block' : 'hidden md:block'}`}>
+                <KeyManager />
               </div>
             </div>
 
-            <div className={`${activeTab === 'settings' ? 'block' : 'hidden md:block'}`}>
-              <KeyManager />
-            </div>
-          </div>
-
-          {/* Center Column (Workspace) */}
-          <div className={`w-full md:w-2/4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-4 min-h-[500px] flex-col gap-4 ${activeTab === 'gallery' ? 'flex' : 'hidden md:flex'}`}>
-            <div className="flex items-center justify-between border-b dark:border-gray-700 pb-2">
-              <h2 className="text-lg font-bold dark:text-gray-100">Workspace (Gallery)</h2>
-              <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg shadow-inner">
-                <button
-                  onClick={() => setGalleryView('grid')}
-                  className={`px-3 py-1 text-sm font-semibold rounded-md transition-all ${galleryView === 'grid' ? 'bg-white shadow-sm text-purple-600' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}
-                >
-                  그리드
-                </button>
-                <button
-                  onClick={() => setGalleryView('timeline')}
-                  className={`px-3 py-1 text-sm font-semibold rounded-md transition-all ${galleryView === 'timeline' ? 'bg-white shadow-sm text-purple-600' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}
-                >
-                  타임라인
-                </button>
-                <button
-                  onClick={() => setGalleryView('map')}
-                  className={`px-3 py-1 text-sm font-semibold rounded-md transition-all ${galleryView === 'map' ? 'bg-white shadow-sm text-purple-600' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}
-                >
-                  지도
-                </button>
+            {/* Center Column (Workspace) */}
+            <div className={`w-full md:w-2/4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-4 min-h-[500px] flex-col gap-4 ${activeTab === 'gallery' ? 'flex' : 'hidden md:flex'}`}>
+              <div className="flex items-center justify-between border-b dark:border-gray-700 pb-2">
+                <h2 className="text-lg font-bold dark:text-gray-100">Workspace (Gallery)</h2>
+                <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg shadow-inner">
+                  <button
+                    onClick={() => setGalleryView('grid')}
+                    className={`px-3 py-1 text-sm font-semibold rounded-md transition-all ${galleryView === 'grid' ? 'bg-white shadow-sm text-purple-600' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}
+                  >
+                    그리드
+                  </button>
+                  <button
+                    onClick={() => setGalleryView('timeline')}
+                    className={`px-3 py-1 text-sm font-semibold rounded-md transition-all ${galleryView === 'timeline' ? 'bg-white shadow-sm text-purple-600' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}
+                  >
+                    타임라인
+                  </button>
+                  <button
+                    onClick={() => setGalleryView('map')}
+                    className={`px-3 py-1 text-sm font-semibold rounded-md transition-all ${galleryView === 'map' ? 'bg-white shadow-sm text-purple-600' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}
+                  >
+                    지도
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <PhotoUploader
-              onUploadComplete={(newPhotos) => {
-                setPhotos((prev) => {
-                  const uniqueNewPhotos = newPhotos.filter(np =>
-                    !prev.some(p => p.dHash === np.dHash) // Deduplication check
-                  );
+              <PhotoUploader
+                onUploadComplete={(newPhotos) => {
+                  setPhotos((prev) => {
+                    const uniqueNewPhotos = newPhotos.filter(np =>
+                      !prev.some(p => p.dHash === np.dHash) // Deduplication check
+                    );
 
-                  if (newPhotos.length > uniqueNewPhotos.length) {
-                    const dupes = newPhotos.length - uniqueNewPhotos.length;
-                    toast.error(`중복된 사진 ${dupes}장은 업로드 제외되었습니다.`);
-                  }
-
-                  if (uniqueNewPhotos.length > 0) {
-                    toast.success(`새 사진 ${uniqueNewPhotos.length}장 처리 완료!`);
-                  }
-
-                  const updatedList = [...prev, ...uniqueNewPhotos];
-
-                  // Send only the unique new photos to the face-api background worker
-                  uniqueNewPhotos.forEach((photo, idx) => {
-                    if (workerRef.current) {
-                      workerRef.current.postMessage({
-                        type: 'SCAN_IMAGE',
-                        payload: {
-                          imageId: photo.name + '_' + Date.now() + '_' + idx,
-                          dataUrl: photo.thumbUrl
-                        }
-                      });
+                    if (newPhotos.length > uniqueNewPhotos.length) {
+                      const dupes = newPhotos.length - uniqueNewPhotos.length;
+                      toast.error(`중복된 사진 ${dupes}장은 업로드 제외되었습니다.`);
                     }
+
+                    if (uniqueNewPhotos.length > 0) {
+                      toast.success(`새 사진 ${uniqueNewPhotos.length}장 처리 완료!`);
+                    }
+
+                    const updatedList = [...prev, ...uniqueNewPhotos];
+
+                    // Send only the unique new photos to the face-api background worker
+                    uniqueNewPhotos.forEach((photo, idx) => {
+                      if (workerRef.current) {
+                        workerRef.current.postMessage({
+                          type: 'SCAN_IMAGE',
+                          payload: {
+                            imageId: photo.name + '_' + Date.now() + '_' + idx,
+                            dataUrl: photo.thumbUrl
+                          }
+                        });
+                      }
+                    });
+
+                    return updatedList;
                   });
-
-                  return updatedList;
-                });
-              }}
-            />
-            <div className="flex-1 overflow-y-auto mb-2 custom-scrollbar">
-              {galleryView === 'grid' && (
-                <GalleryGrid
-                  photos={photos}
-                  onPhotoSelect={(photo) => setSelectedPhoto(photo)}
-                />
-              )}
-              {galleryView === 'timeline' && (
-                <TimelineView
-                  onPhotoSelect={(photo) => setSelectedPhoto(photo)}
-                />
-              )}
-              {galleryView === 'map' && (
-                <MapView
-                  onPhotoSelect={(photo) => setSelectedPhoto(photo)}
-                />
-              )}
-            </div>
-          </div>
-
-          {/* Right Column (Global Sync) */}
-          <div className={`w-full md:w-1/4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-4 min-h-[500px] flex-col ${activeTab === 'sync' ? 'flex' : 'hidden md:flex'}`}>
-            <FriendCall localPhotos={photos} />
-            <RoomWorkspace workerRef={workerRef} localPhotos={photos} />
-
-            <div className="mt-8 pt-4 border-t dark:border-gray-700 border-dashed">
-              <AlbumView />
-            </div>
-
-            {/* Full Screen Photo Viewer Modal */}
-            {selectedPhoto && (
-              <PhotoViewer
-                photo={selectedPhoto}
-                onClose={() => setSelectedPhoto(null)}
-                onDeleteClick={handleDeletePhoto}
+                }}
               />
-            )}
-          </div>
-        </Suspense>
+              <div className="flex-1 overflow-y-auto mb-2 custom-scrollbar">
+                {galleryView === 'grid' && (
+                  <GalleryGrid
+                    photos={photos}
+                    onPhotoSelect={(photo) => setSelectedPhoto(photo)}
+                  />
+                )}
+                {galleryView === 'timeline' && (
+                  <TimelineView
+                    onPhotoSelect={(photo) => setSelectedPhoto(photo)}
+                  />
+                )}
+                {galleryView === 'map' && (
+                  <MapView
+                    onPhotoSelect={(photo) => setSelectedPhoto(photo)}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Right Column (Global Sync) */}
+            <div className={`w-full md:w-1/4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-4 min-h-[500px] flex-col ${activeTab === 'sync' ? 'flex' : 'hidden md:flex'}`}>
+              <FriendCall localPhotos={photos} />
+              <RoomWorkspace workerRef={workerRef} localPhotos={photos} />
+
+              <div className="mt-8 pt-4 border-t dark:border-gray-700 border-dashed">
+                <AlbumView />
+              </div>
+
+              {/* Full Screen Photo Viewer Modal */}
+              {selectedPhoto && (
+                <PhotoViewer
+                  photo={selectedPhoto}
+                  onClose={() => setSelectedPhoto(null)}
+                  onDeleteClick={handleDeletePhoto}
+                />
+              )}
+            </div>
+          </Suspense>
+        </ErrorBoundary>
       </main>
 
       {/* Mobile Tab Bar (Bottom) */}
