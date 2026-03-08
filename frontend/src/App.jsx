@@ -11,6 +11,7 @@ import useCryptoStore from './store/cryptoStore';
 // Lazy loading heavy components for performance code-splitting
 const GalleryGrid = lazy(() => import('./components/gallery/GalleryGrid'));
 const TimelineView = lazy(() => import('./components/gallery/TimelineView'));
+const MapView = lazy(() => import('./components/gallery/MapView'));
 const FaceRegistration = lazy(() => import('./components/face/FaceRegistration'));
 const AlbumView = lazy(() => import('./components/gallery/AlbumView'));
 const PhotoViewer = lazy(() => import('./components/gallery/PhotoViewer'));
@@ -257,9 +258,9 @@ function Layout({ children }) {
                 />
               )}
               {galleryView === 'map' && (
-                <div className="h-full w-full flex items-center justify-center text-gray-500 bg-gray-50 rounded-lg border border-dashed">
-                  지도 뷰 준비 중...
-                </div>
+                <MapView
+                  onPhotoSelect={(photo) => setSelectedPhoto(photo)}
+                />
               )}
             </div>
           </div>
