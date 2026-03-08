@@ -139,19 +139,51 @@ export default function KeyManager() {
                                     throw new Error('인증 URL을 가져오지 못했습니다.');
                                 }
                             } catch (err) {
-                                console.error(err);
-                                toast.error('Google Drive 연결 요청에 실패했습니다.');
+                                toast.error('연결 초기화 실패');
                                 setIsConnecting(false);
                             }
                         }}
                         disabled={isConnecting}
-                        className="py-2 px-4 bg-blue-600 text-white rounded font-medium hover:bg-blue-700 disabled:opacity-50 transition"
+                        className="py-2 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded font-bold hover:shadow-lg hover:to-indigo-500 transition disabled:opacity-50"
                     >
-                        {isConnecting ? '요청 중...' : 'Google Drive 연결하기'}
+                        {isConnecting ? '연결 중...' : 'Google 로그인 및 권한 허용'}
                     </button>
                 )}
             </div>
 
+            {/* Notification Settings Section */}
+            <h3 className="font-bold text-gray-800 mt-8 mb-2 flex items-center gap-2">
+                <span>🔔</span> 푸시 알림 설정
+            </h3>
+            <p className="text-xs text-gray-500 mb-4">
+                앱이 백그라운드에 있을 때 상대방이 보낸 사진을 수신하면 알림을 받습니다.
+            </p>
+
+            <div className="flex items-center gap-2 mb-4 p-2 bg-gray-50 rounded border">
+                <span className="font-medium w-32">현재 권한 상태:</span>
+                <span className={`font-bold ${getNotificationPermission() === 'granted' ? 'text-green-600' : 'text-gray-500'}`}>
+                    {getNotificationPermission() === 'granted' ? '허용됨 ✓' : (getNotificationPermission() === 'denied' ? '차단됨' : '요청 전')}
+                </span>
+            </div>
+
+            <div className="flex flex-col gap-3">
+                <button
+                    onClick={async () => {
+                        const perm = await requestNotificationPermission();
+                        if (perm === 'granted') {
+                            toast.success('푸시 알림이 허용되었습니다!');
+                            // Refresh component by triggering a fake state update
+                            setStatus('푸시 알림 권한 갱신됨');
+                            setTimeout(() => setStatus(''), 2000);
+                        } else {
+                            toast.error('푸시 알림이 차단되었습니다. 브라우저 설정에서 허용해주세요.');
+                        }
+                    }}
+                    className="py-2 px-4 bg-gray-800 text-white rounded font-medium hover:bg-gray-900 transition"
+                >
+                    알림 권한 다시 요청하기
+                </button>
+            </div>
         </div>
     );
 }

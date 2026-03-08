@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { io } from 'socket.io-client';
 
+import { sendPushNotification } from '../utils/notificationUtils';
+
 const useSocketStore = create((set, get) => ({
     socket: null,
     isConnected: false,
@@ -63,6 +65,12 @@ const useSocketStore = create((set, get) => ({
             set(state => ({
                 newPhotos: [...state.newPhotos, data]
             }));
+
+            // Trigger Desktop Push Notification
+            sendPushNotification('📸 새로운 사진 도착!', {
+                body: `${data.senderName || '친구'}님이 '${data.photoMeta?.name || '새 사진'}'을(를) 보냈습니다.`,
+                tag: 'friend-call-receive'
+            });
         });
 
         socket.on('room:error', (data) => {
