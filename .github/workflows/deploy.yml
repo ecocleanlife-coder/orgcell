@@ -1,0 +1,148 @@
+name: Deploy Orgcell to Production EC2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'database/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/deploy.yml'
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_BACKEND: orgcell/backend
+  ECR_FRONTEND: orgcell/frontend
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and Push Backend Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_BACKEND:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_BACKEND:latest ./backend
+          docker push $ECR_REGISTRY/$ECR_BACKEND:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_BACKEND:latest
+
+      - name: Build and Push Frontend Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_FRONTEND:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_FRONTEND:latest ./frontend
+          docker push $ECR_REGISTRY/$ECR_FRONTEND:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_FRONTEND:latest
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+          BACKEND_IMAGE: ${{ steps.login-ecr.outputs.registry }}/orgcell/backend
+          FRONTEND_IMAGE: ${{ steps.login-ecr.outputs.registry }}/orgcell/frontend
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: ECR_REGISTRY,IMAGE_TAG,BACKEND_IMAGE,FRONTEND_IMAGE
+          script: |
+            # ECR login
+            aws ecr get-login-password --region ap-northeast-2 | \
+              docker login --username AWS --password-stdin $ECR_REGISTRY
+
+            # Create orgcell directory
+            mkdir -p /opt/orgcell
+            cd /opt/orgcell
+
+            # Generate docker-compose.yml
+            cat > docker-compose.yml <<EOF
+            version: '3.8'
+            services:
+              backend:
+                image: ${BACKEND_IMAGE}:${IMAGE_TAG}
+                container_name: orgcell-backend
+                restart: unless-stopped
+                expose:
+                  - "5001"
+                environment:
+                  - NODE_ENV=production
+                  - PORT=5001
+                  - DATABASE_URL=postgresql://orgcell_user:\${DB_PASSWORD}@orgcell-db:5432/orgcell
+                  - JWT_SECRET=\${JWT_SECRET}
+                  - GOOGLE_CLIENT_ID=\${GOOGLE_CLIENT_ID}
+                  - GOOGLE_CLIENT_SECRET=\${GOOGLE_CLIENT_SECRET}
+                  - FRONTEND_URL=https://orgcell.com
+                depends_on:
+                  orgcell-db:
+                    condition: service_healthy
+                networks:
+                  - orgcell-network
+                healthcheck:
+                  test: ["CMD", "curl", "-f", "http://localhost:5001/api/health"]
+                  interval: 30s
+                  timeout: 5s
+                  start_period: 15s
+                  retries: 3
+              frontend:
+                image: ${FRONTEND_IMAGE}:${IMAGE_TAG}
+                container_name: orgcell-frontend
+                restart: unless-stopped
+                ports:
+                  - "8080:80"
+                depends_on:
+                  backend:
+                    condition: service_healthy
+                networks:
+                  - orgcell-network
+              orgcell-db:
+                image: postgres:16-alpine
+                container_name: orgcell-db
+                restart: unless-stopped
+                environment:
+                  - POSTGRES_DB=orgcell
+                  - POSTGRES_USER=orgcell_user
+                  - POSTGRES_PASSWORD=\${DB_PASSWORD}
+                volumes:
+                  - orgcell-pgdata:/var/lib/postgresql/data
+                networks:
+                  - orgcell-network
+                healthcheck:
+                  test: ["CMD-SHELL", "pg_isready -U orgcell_user -d orgcell"]
+                  interval: 10s
+                  timeout: 5s
+                  retries: 5
+            volumes:
+              orgcell-pgdata:
+            networks:
+              orgcell-network:
+                driver: bridge
+            EOF
+
+            # Deploy
+            docker compose pull
+            docker compose up -d --force-recreate
+            docker image prune -f
+
+            # Verify
+            sleep 10
+            docker compose ps
