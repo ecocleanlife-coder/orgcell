@@ -101,6 +101,85 @@ exports.uploadPhoto = async (req, res) => {
     }
 };
 
+// @desc    Get photos grouped by year-month for timeline view
+// @route   GET /api/photos/timeline
+exports.getTimeline = async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        const { rows } = await db.query(
+            `SELECT
+                TO_CHAR(COALESCE(taken_at, created_at), 'YYYY-MM') AS month,
+                json_agg(
+                    json_build_object(
+                        'id', id, 'filename', filename, 'original_name', original_name,
+                        'width', width, 'height', height,
+                        'drive_thumbnail_id', drive_thumbnail_id, 'drive_file_id', drive_file_id,
+                        'taken_at', taken_at, 'created_at', created_at, 'location', location
+                    ) ORDER BY COALESCE(taken_at, created_at) DESC
+                ) AS photos,
+                COUNT(*) AS count
+             FROM photos
+             WHERE user_id = $1
+             GROUP BY month
+             ORDER BY month DESC`,
+            [userId]
+        );
+
+        res.json({ success: true, data: rows });
+    } catch (error) {
+        console.error('getTimeline Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch timeline' });
+    }
+};
+
+// @desc    Get photos with GPS location for map view
+// @route   GET /api/photos/map
+exports.getMapPhotos = async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        const { rows } = await db.query(
+            `SELECT id, filename, original_name, width, height,
+                    drive_thumbnail_id, drive_file_id,
+                    taken_at, created_at, location
+             FROM photos
+             WHERE user_id = $1 AND location IS NOT NULL
+             ORDER BY COALESCE(taken_at, created_at) DESC`,
+            [userId]
+        );
+
+        res.json({ success: true, data: rows });
+    } catch (error) {
+        console.error('getMapPhotos Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch map photos' });
+    }
+};
+
+// @desc    Get available months for timeline sidebar
+// @route   GET /api/photos/months
+exports.getMonths = async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        const { rows } = await db.query(
+            `SELECT
+                TO_CHAR(COALESCE(taken_at, created_at), 'YYYY-MM') AS month,
+                COUNT(*) AS count
+             FROM photos
+             WHERE user_id = $1
+             GROUP BY month
+             ORDER BY month DESC`,
+            [userId]
+        );
+
+        res.json({ success: true, data: rows });
+    } catch (error) {
+        console.error('getMonths Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch months' });
+    }
+};
+
 // @desc    Delete photo
 // @route   DELETE /api/photos/:id
 exports.deletePhoto = async (req, res) => {
