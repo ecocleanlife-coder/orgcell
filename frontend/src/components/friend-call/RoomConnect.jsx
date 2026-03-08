@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import useSocketStore from '../../../store/socketStore';
+import useSocketStore from '../../store/socketStore';
 import { Loader2, Copy, CheckCircle } from 'lucide-react';
 
 export default function RoomConnect() {

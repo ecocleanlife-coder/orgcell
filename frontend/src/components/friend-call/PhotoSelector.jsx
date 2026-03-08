@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Check, Send, Filter, X } from 'lucide-react';
-import useAuthStore from '../../../store/authStore';
-import DriveImage from '../DriveImage';
+import useAuthStore from '../../store/authStore';
+import DriveImage from '../gallery/DriveImage';
 
 export default function PhotoSelector({ localPhotos, onSend, disabled }) {
     const [selectedIds, setSelectedIds] = useState(new Set());
