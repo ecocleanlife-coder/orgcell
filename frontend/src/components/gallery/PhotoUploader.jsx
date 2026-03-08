@@ -11,6 +11,8 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { CheckCircle, Clock, Loader2, Lock, FileImage, AlertCircle, CloudUpload } from 'lucide-react';
 
+import { generateOwnershipProof } from '../../utils/ownershipUtils';
+
 // Initialize Pica with Web Worker support
 const pica = new Pica({
     features: ['js', 'wasm', 'ww']
@@ -87,9 +89,23 @@ export default function PhotoUploader({ onUploadComplete }) {
                     const dHash = await computeDHash(thumbUrl);
 
                     updateUploadStatus(uploadId, 'encrypting', 80);
+
+                    const { masterKey } = useCryptoStore.getState();
+                    const user = useAuthStore.getState().user;
+
+                    // Phase 16: Generate Ownership Proof (Digital Signature) BEFORE encryption
+                    let ownershipProof = null;
+                    if (masterKey && user?.email) {
+                        try {
+                            const arrayBuffer = await file.arrayBuffer();
+                            ownershipProof = await generateOwnershipProof(arrayBuffer, user.email, masterKey);
+                        } catch (proofErr) {
+                            console.error("Ownership proof generation failed", proofErr);
+                        }
+                    }
+
                     // E2E Encryption Phase 6: Encrypt the original high-res file using the master key
                     let finalFile = file;
-                    const { masterKey } = useCryptoStore.getState();
                     if (masterKey) {
                         try {
                             finalFile = await encryptFile(file, masterKey);
@@ -147,7 +163,7 @@ export default function PhotoUploader({ onUploadComplete }) {
                                 dhash: dHash,
                                 taken_at: exifData.takenAt,
                                 location: exifData.location,
-                                metadata: exifData.metadata
+                                metadata: ownershipProof ? { ...exifData.metadata, ownership_proof: ownershipProof } : exifData.metadata
                             });
 
                             if (!metaRes.data?.success) throw new Error('Metadata save failed');

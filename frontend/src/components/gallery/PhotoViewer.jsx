@@ -5,6 +5,8 @@ import { decryptBlob } from '../../utils/cryptoUtils';
 import useCryptoStore from '../../store/cryptoStore';
 import { toast } from 'react-hot-toast';
 
+import OwnershipBadge from './OwnershipBadge';
+
 export default function PhotoViewer({ photo, onClose, onDeleteClick }) {
     const [decryptedUrl, setDecryptedUrl] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -103,6 +105,9 @@ export default function PhotoViewer({ photo, onClose, onDeleteClick }) {
                     <span className="flex items-center text-emerald-400 text-xs gap-1 border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 rounded-full">
                         <ShieldCheck size={12} /> E2E Secured
                     </span>
+                    {photo.metadata && photo.metadata.ownership_proof && (
+                        <OwnershipBadge proof={photo.metadata.ownership_proof} />
+                    )}
                 </div>
 
                 <div className="flex items-center gap-4">
