@@ -1,160 +1,177 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import useAuthStore from '../../store/authStore';
 import useSocketStore from '../../store/socketStore';
+import RoomConnect from '../friend-call/RoomConnect';
+import PhotoSelector from '../friend-call/PhotoSelector';
+import TransferProgress from '../friend-call/TransferProgress';
+import { LogOut } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import axios from 'axios';
+import useCryptoStore from '../../store/cryptoStore';
+import { decryptBlob } from '../../utils/cryptoUtils';
+import { addWatermarkToImage } from '../../utils/watermarkUtils';
 
-export default function FriendCall() {
+export default function FriendCall({ localPhotos = [] }) {
     const { user, token } = useAuthStore();
-    const { connect, disconnect, isConnected, activeRoom, error, clearError } = useSocketStore();
+    const { connect, disconnect, isConnected, activeRoom, socket } = useSocketStore();
 
-    const [tab, setTab] = useState('CREATE'); // 'CREATE' | 'JOIN'
-    const [password, setPassword] = useState('');
-    const [joinCode, setJoinCode] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
+    // Fake transfer states for UI testing (these would sync with socket events)
+    const [sendProgress, setSendProgress] = useState(0);
+    const [sendTotal, setSendTotal] = useState(0);
 
     // Auto-connect socket when logged in
     useEffect(() => {
         if (user && token && !isConnected) {
             connect(token);
         }
-        return () => {
-            // Disconnect happens globally usually, so don't disconnect on unmount
-            // Unless you want exclusive connection per component
-        };
-    }, [user, token]);
+    }, [user, token, isConnected, connect]);
 
-    const handleCreateRoom = async () => {
-        setIsLoading(true);
-        clearError();
-        try {
-            // POST /api/rooms returns { success, code, password }
-            const res = await axios.post('/api/rooms', {
-                password: password || undefined,
-                expiresInMinutes: 60
-            }).catch(() => ({ data: { success: true, code: Math.random().toString(36).substring(2, 8).toUpperCase(), password } }));
+    const handleSendPhotos = async (selectedPhotos) => {
+        if (!socket || !activeRoom) {
+            toast.error("연결된 방이 없습니다.");
+            return;
+        }
 
-            if (res.data?.success) {
-                // Instantly emit join to the socket server
-                useSocketStore.getState().socket?.emit('room:join', { roomCode: res.data.code });
-                setPassword('');
+        const masterKey = useCryptoStore.getState().masterKey;
+        if (!masterKey) {
+            toast.error("마스터 키가 없습니다.");
+            return;
+        }
+
+        setSendTotal(selectedPhotos.length);
+        setSendProgress(0);
+
+        let current = 0;
+
+        for (const photo of selectedPhotos) {
+            try {
+                // 1. Fetch from Drive
+                const res = await axios.get(`/api/drive/download/${photo.drive_file_id}`, { responseType: 'blob' });
+
+                // 2. Decrypt Blob
+                const decryptedBlob = await decryptBlob(res.data, masterKey);
+                const objectUrl = URL.createObjectURL(decryptedBlob);
+
+                // 3. Add Watermark
+                const watermarkedBlob = await addWatermarkToImage(objectUrl, "Orgcell Memoir Protected");
+                URL.revokeObjectURL(objectUrl);
+
+                // 4. Send via Socket (In a real app, this should be chunked and re-encrypted. 
+                // For this MVP test scenario, we'll send the blob directly)
+                const reader = new FileReader();
+                reader.readAsArrayBuffer(watermarkedBlob);
+                await new Promise((resolve, reject) => {
+                    reader.onloadend = () => {
+                        socket.emit('photo:send', {
+                            roomCode: activeRoom.roomCode,
+                            photoMeta: {
+                                id: photo.id,
+                                name: photo.original_name || photo.name,
+                                mime_type: 'image/jpeg'
+                            },
+                            photoData: reader.result // ArrayBuffer
+                        }, () => resolve());
+                    };
+                    reader.onerror = reject;
+                });
+
+                current++;
+                setSendProgress(current);
+
+            } catch (err) {
+                console.error("Failed to process and send photo:", err);
+                toast.error(`'${photo.original_name || photo.name}' 전송 실패`);
             }
-        } catch (err) {
-            console.error('Create Room Error:', err);
-        } finally {
-            setIsLoading(false);
+        }
+
+        if (current > 0) {
+            toast.success(`총 ${current}장의 사진 P2P 전송 완료!`);
+        }
+
+        setTimeout(() => {
+            setSendTotal(0);
+            setSendProgress(0);
+        }, 3000);
+    };
+
+    const handleLeaveRoom = () => {
+        if (socket) {
+            socket.emit('room:leave');
+            useSocketStore.setState({ activeRoom: null });
         }
     };
 
-    const handleJoinRoom = async () => {
-        if (!joinCode) return;
-        setIsLoading(true);
-        clearError();
-        try {
-            // Validate password first if needed via REST
-            const res = await axios.post(`/api/rooms/${joinCode.toUpperCase()}/join`, {
-                password: password || undefined
-            }).catch(() => ({ data: { success: true } }));
-
-            if (res.data?.success) {
-                useSocketStore.getState().socket?.emit('room:join', { roomCode: joinCode.toUpperCase() });
-            } else {
-                throw new Error("Invalid code or password");
-            }
-        } catch (err) {
-            console.error('Join Room Error:', err);
-            useSocketStore.setState({ error: '방에 입장할 수 없습니다. 코드나 비밀번호를 확인해주세요.' });
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    if (activeRoom) {
-        return (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-                <p className="text-green-800 font-bold mb-2">프렌드 콜 연결됨 (Room: {activeRoom.roomCode})</p>
-                <div className="flex flex-wrap justify-center gap-2 mb-4">
-                    {activeRoom.participants?.map((p, i) => (
-                        <span key={i} className="text-xs bg-white px-2 py-1 rounded-full shadow-sm text-gray-700">
-                            {p.name || p.userId}
-                        </span>
-                    ))}
-                </div>
-                <button
-                    className="text-xs text-red-600 underline"
-                    onClick={() => useSocketStore.getState().socket?.emit('room:leave')}
-                >
-                    방 나가기
-                </button>
-            </div>
-        );
+    if (!activeRoom) {
+        return <RoomConnect />;
     }
 
     return (
-        <div className="flex flex-col gap-4 text-sm bg-gray-50 p-4 rounded-xl border">
-            <h3 className="font-bold text-gray-700 text-center">임시 공유방 (Friend Call)</h3>
-
-            {/* Socket Status */}
-            <div className="flex items-center justify-center gap-2 mb-2">
-                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                <span className="text-xs text-gray-500">{isConnected ? '서버 접속 상태 좋음' : '서버 접속 대기 중...'}</span>
-            </div>
-
-            <div className="flex border rounded-lg overflow-hidden bg-white mb-2">
-                <button
-                    className={`flex-1 py-2 font-medium ${tab === 'CREATE' ? 'bg-purple-600 text-white' : 'text-gray-500'}`}
-                    onClick={() => { setTab('CREATE'); clearError(); }}
-                >방 만들기</button>
-                <button
-                    className={`flex-1 py-2 font-medium ${tab === 'JOIN' ? 'bg-purple-600 text-white' : 'text-gray-500'}`}
-                    onClick={() => { setTab('JOIN'); clearError(); }}
-                >입장하기</button>
-            </div>
-
-            {error && <p className="text-xs text-red-600 text-center animate-pulse">{error}</p>}
-
-            {tab === 'CREATE' ? (
-                <div className="flex flex-col gap-3">
-                    <input
-                        type="password"
-                        placeholder="비밀번호 (선택사항)"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    />
+        <div className="flex flex-col h-full gap-4 text-sm w-full bg-white">
+            {/* Active Room Header */}
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-4 shadow-sm relative">
+                <div className="flex justify-between items-center mb-4">
+                    <p className="text-purple-900 font-bold text-lg flex items-center gap-2">
+                        <span className="relative flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-purple-500"></span>
+                        </span>
+                        보안 룸 연결됨
+                    </p>
                     <button
-                        onClick={handleCreateRoom}
-                        disabled={isLoading || !isConnected}
-                        className="w-full py-2.5 bg-gray-800 text-white rounded-lg font-medium shadow-sm hover:bg-gray-900 disabled:opacity-50"
+                        className="text-xs bg-white text-red-600 border border-red-200 hover:bg-red-50 px-3 py-1.5 rounded-full font-bold flex items-center gap-1 shadow-sm transition-all"
+                        onClick={handleLeaveRoom}
                     >
-                        {isLoading ? '생성 중...' : '1회용 방 만들기'}
-                    </button>
-                    <p className="text-xs text-gray-400 text-center">안전한 P2P 사진 교환을 위한 릴레이 방을 엽니다.</p>
-                </div>
-            ) : (
-                <div className="flex flex-col gap-3">
-                    <input
-                        type="text"
-                        placeholder="전달받은 접속 코드 (6자리)"
-                        value={joinCode}
-                        onChange={(e) => setJoinCode(e.target.value)}
-                        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-1 focus:ring-purple-500 uppercase tracking-widest text-center font-mono"
-                    />
-                    <input
-                        type="password"
-                        placeholder="방 비밀번호 (필요한 경우)"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    />
-                    <button
-                        onClick={handleJoinRoom}
-                        disabled={isLoading || !joinCode.trim() || !isConnected}
-                        className="w-full py-2.5 bg-purple-600 text-white rounded-lg font-medium shadow-sm hover:bg-purple-700 disabled:opacity-50"
-                    >
-                        {isLoading ? '접속 중...' : '방 접속'}
+                        <LogOut size={12} />
+                        방 나가기
                     </button>
                 </div>
+
+                <div className="flex items-center gap-3">
+                    <span className="text-xs text-purple-700 font-medium">참여자:</span>
+                    <div className="flex flex-wrap gap-2">
+                        {/* Always show ourselves */}
+                        <span className="text-xs bg-purple-600 text-white px-3 py-1 rounded-full font-bold shadow-sm ring-2 ring-purple-200">
+                            나 ({user?.name})
+                        </span>
+
+                        {activeRoom.participants?.filter(p => p.userId !== user?.id).map((p, i) => (
+                            <span key={i} className="text-xs bg-white border border-purple-200 text-purple-700 px-3 py-1 rounded-full font-bold shadow-sm text-gray-700">
+                                {p.name || p.userId}
+                            </span>
+                        ))}
+
+                        {(!activeRoom.participants || activeRoom.participants.length <= 1) && (
+                            <span className="text-[10px] bg-white/50 text-gray-400 px-2 py-1 rounded-full border border-dashed border-gray-300 animate-pulse">
+                                친구 대기 중...
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                <p className="text-[10px] text-gray-400 mt-3 absolute bottom-2 right-4">Room. {activeRoom.roomCode}</p>
+            </div>
+
+            {/* Transfer Progress Bar (only shows when sending) */}
+            {sendTotal > 0 && (
+                <TransferProgress
+                    total={sendTotal}
+                    current={sendProgress}
+                    type="send"
+                    bytesSent={sendProgress * 1024 * 1024 * 2.5}
+                    bytesTotal={sendTotal * 1024 * 1024 * 2.5}
+                />
             )}
+
+            {/* Photo Selector Grid */}
+            <div className="flex-1 min-h-[400px]">
+                <PhotoSelector
+                    localPhotos={localPhotos}
+                    onSend={handleSendPhotos}
+                    disabled={!activeRoom || !activeRoom.participants || activeRoom.participants.length <= 1 || sendTotal > 0}
+                />
+            </div>
+
+            <p className="text-[10px] text-gray-400 text-center pb-2">방을 나가면 즉시 파기되며 데이터는 복원할 수 없습니다.</p>
         </div>
     );
 }

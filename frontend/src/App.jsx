@@ -6,6 +6,7 @@ import { Toaster, toast } from 'react-hot-toast';
 
 import useAuthStore from './store/authStore';
 import useUiStore, { initTheme } from './store/uiStore';
+import useCryptoStore from './store/cryptoStore';
 
 // Lazy loading heavy components for performance code-splitting
 const PhotoUploader = lazy(() => import('./components/gallery/PhotoUploader'));
@@ -227,7 +228,7 @@ function Layout({ children }) {
 
           {/* Right Column (Global Sync) */}
           <div className={`w-full md:w-1/4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-4 min-h-[500px] flex-col ${activeTab === 'sync' ? 'flex' : 'hidden md:flex'}`}>
-            <FriendCall />
+            <FriendCall localPhotos={photos} />
             <RoomWorkspace workerRef={workerRef} localPhotos={photos} />
 
             <div className="mt-8 pt-4 border-t dark:border-gray-700 border-dashed">

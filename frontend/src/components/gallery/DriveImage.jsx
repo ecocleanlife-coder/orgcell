@@ -9,6 +9,7 @@ export default function DriveImage({ fileId, alt, className, fallbackSrc }) {
     useEffect(() => {
         let objectUrl = null;
         let isMounted = true;
+        const abortController = new AbortController();
 
         if (!fileId) {
             setLoading(false);
@@ -19,7 +20,8 @@ export default function DriveImage({ fileId, alt, className, fallbackSrc }) {
         const fetchImage = async () => {
             try {
                 const res = await axios.get(`/api/drive/download/${fileId}`, {
-                    responseType: 'blob'
+                    responseType: 'blob',
+                    signal: abortController.signal
                 });
 
                 if (isMounted) {
@@ -27,8 +29,12 @@ export default function DriveImage({ fileId, alt, className, fallbackSrc }) {
                     setSrc(objectUrl);
                 }
             } catch (err) {
-                console.error(`Failed to load drive image ${fileId}`, err);
-                if (isMounted) setError(true);
+                if (axios.isCancel(err)) {
+                    console.log('Request canceled:', err.message);
+                } else {
+                    console.error(`Failed to load drive image ${fileId}`, err);
+                    if (isMounted) setError(true);
+                }
             } finally {
                 if (isMounted) setLoading(false);
             }
@@ -38,6 +44,7 @@ export default function DriveImage({ fileId, alt, className, fallbackSrc }) {
 
         return () => {
             isMounted = false;
+            abortController.abort();
             if (objectUrl) URL.revokeObjectURL(objectUrl);
         };
     }, [fileId]);

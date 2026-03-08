@@ -14,6 +14,7 @@ export default function PhotoViewer({ photo, onClose, onDeleteClick }) {
     useEffect(() => {
         let objectUrl = null;
         let isMounted = true;
+        const abortController = new AbortController();
 
         const loadPhoto = async () => {
             if (!photo) return;
@@ -45,7 +46,8 @@ export default function PhotoViewer({ photo, onClose, onDeleteClick }) {
 
                     // Fetch encrypted blob from our proxy Drive API
                     const res = await axios.get(`/api/drive/download/${photo.drive_file_id}`, {
-                        responseType: 'blob'
+                        responseType: 'blob',
+                        signal: abortController.signal
                     });
 
                     const decryptedBlob = await decryptBlob(res.data, masterKey);
@@ -59,10 +61,14 @@ export default function PhotoViewer({ photo, onClose, onDeleteClick }) {
                         setLoading(false);
                     }
                 } catch (err) {
-                    console.error('Remote Decryption failed', err);
-                    if (isMounted) {
-                        setError('사진을 복호화할 수 없습니다. 마스터 키가 다르거나 파일이 손상되었습니다.');
-                        setLoading(false);
+                    if (axios.isCancel(err)) {
+                        console.log('Request canceled:', err.message);
+                    } else {
+                        console.error('Remote Decryption failed', err);
+                        if (isMounted) {
+                            setError('사진을 복호화할 수 없습니다. 마스터 키가 다르거나 파일이 손상되었습니다.');
+                            setLoading(false);
+                        }
                     }
                 }
                 return;
@@ -79,6 +85,7 @@ export default function PhotoViewer({ photo, onClose, onDeleteClick }) {
 
         return () => {
             isMounted = false;
+            abortController.abort();
             if (objectUrl) URL.revokeObjectURL(objectUrl);
         };
     }, [photo, masterKey]);

@@ -97,10 +97,17 @@ export default function PhotoUploader({ onUploadComplete }) {
                     const { driveConnected } = useAuthStore.getState();
                     if (driveConnected) {
                         updateUploadStatus(uploadId, 'drive_upload', 90);
+                        let drive_file_id = null;
+                        let drive_thumbnail_id = null;
+
                         try {
+                            const uuid = crypto.randomUUID();
+                            const encFilename = 'enc_' + uuid + '_' + file.name;
+                            const thumbFilename = 'thumb_' + uuid + '_' + file.name;
+
                             // 1. Upload original encrypted file to Drive
                             const originalFormData = new FormData();
-                            originalFormData.append('file', finalFile, 'enc_' + file.name);
+                            originalFormData.append('file', finalFile, encFilename);
                             originalFormData.append('mimeType', 'application/octet-stream'); // it's encrypted
 
                             const driveOriginalRes = await retryAxiosPost('/api/drive/upload', originalFormData, {
@@ -108,11 +115,11 @@ export default function PhotoUploader({ onUploadComplete }) {
                             }, 3);
 
                             if (!driveOriginalRes.data?.success) throw new Error('Original Drive upload failed');
-                            const drive_file_id = driveOriginalRes.data.data.id;
+                            drive_file_id = driveOriginalRes.data.data.id;
 
                             // 2. Upload thumbnail to Drive
                             const thumbFormData = new FormData();
-                            thumbFormData.append('file', thumbBlob, 'thumb_' + file.name);
+                            thumbFormData.append('file', thumbBlob, thumbFilename);
                             thumbFormData.append('mimeType', 'image/jpeg');
 
                             const driveThumbRes = await retryAxiosPost('/api/drive/upload', thumbFormData, {
@@ -120,11 +127,11 @@ export default function PhotoUploader({ onUploadComplete }) {
                             }, 3);
 
                             if (!driveThumbRes.data?.success) throw new Error('Thumbnail Drive upload failed');
-                            const drive_thumbnail_id = driveThumbRes.data.data.id;
+                            drive_thumbnail_id = driveThumbRes.data.data.id;
 
                             // 3. Save photo metadata to Postgres DB
                             const metaRes = await axios.post('/api/photos/upload', {
-                                filename: 'enc_' + file.name,
+                                filename: encFilename,
                                 original_name: file.name,
                                 mime_type: file.type,
                                 file_size: finalFile.size,
@@ -140,17 +147,22 @@ export default function PhotoUploader({ onUploadComplete }) {
                             toast.success(`'${file.name}' 클라우드 백업 완료!`);
                         } catch (driveErr) {
                             console.error("Drive upload error", driveErr);
+
+                            // Rollback partial Drive uploads
+                            if (drive_file_id) await axios.delete(`/api/drive/file/${drive_file_id}`).catch(() => { });
+                            if (drive_thumbnail_id) await axios.delete(`/api/drive/file/${drive_thumbnail_id}`).catch(() => { });
+
                             // If it's a 409 Conflict (Duplicate dHash)
                             if (driveErr.response?.status === 409) {
                                 toast.error(`'${file.name}' 이미 등록된 사진입니다 (중복).`);
-                                // Reject to prevent adding to local gallery duplicates
-                                updateUploadStatus(uploadId, 'error', 0);
-                                reject(driveErr);
-                                URL.revokeObjectURL(img.src);
-                                return;
                             } else {
-                                toast.error(`'${file.name}' 업로드 실패. 로컬에 임시 보관됩니다.`);
+                                toast.error(`'${file.name}' 업로드 실패. 롤백 처리되었습니다.`);
                             }
+
+                            updateUploadStatus(uploadId, 'error', 0);
+                            reject(driveErr);
+                            URL.revokeObjectURL(img.src);
+                            return; // Stop here, do not resolve
                         }
                     } else {
                         // Not connected.
