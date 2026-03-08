@@ -84,6 +84,7 @@ function LandingPage() {
                         onChange={e => setName(e.target.value)}
                         className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none dark:text-white transition-all"
                         placeholder="이름"
+                        aria-label="테스트 계정 이름 입력"
                     />
                     <input
                         type="email"
@@ -91,10 +92,12 @@ function LandingPage() {
                         onChange={e => setEmail(e.target.value)}
                         className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none dark:text-white transition-all"
                         placeholder="이메일"
+                        aria-label="테스트 계정 이메일 입력"
                     />
                     <button
                         onClick={handleDevLogin}
                         disabled={isLoading}
+                        aria-label={isLoading ? '로그인 처리 중입니다' : '테스트 계정으로 로그인 버튼'}
                         className="w-full py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold hover:bg-gray-800 dark:hover:bg-gray-100 disabled:opacity-50 transition-colors"
                     >
                         {isLoading ? '로그인 중...' : '테스트 계정으로 로그인'}

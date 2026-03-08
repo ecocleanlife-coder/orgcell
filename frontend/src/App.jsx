@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import axios from 'axios';
 import { Image as ImageIcon, Users, RefreshCcw, Settings } from 'lucide-react';
@@ -6,15 +6,23 @@ import { Toaster, toast } from 'react-hot-toast';
 
 import useAuthStore from './store/authStore';
 import useUiStore, { initTheme } from './store/uiStore';
-import PhotoUploader from './components/gallery/PhotoUploader';
-import GalleryGrid from './components/gallery/GalleryGrid';
-import FaceRegistration from './components/face/FaceRegistration';
-import AlbumView from './components/gallery/AlbumView';
-import FriendCall from './components/sync/FriendCall';
-import RoomWorkspace from './components/sync/RoomWorkspace';
-import KeyManager from './components/settings/KeyManager';
-import useCryptoStore from './store/cryptoStore';
-import LandingPage from './components/home/LandingPage';
+
+// Lazy loading heavy components for performance code-splitting
+const PhotoUploader = lazy(() => import('./components/gallery/PhotoUploader'));
+const GalleryGrid = lazy(() => import('./components/gallery/GalleryGrid'));
+const FaceRegistration = lazy(() => import('./components/face/FaceRegistration'));
+const AlbumView = lazy(() => import('./components/gallery/AlbumView'));
+const FriendCall = lazy(() => import('./components/sync/FriendCall'));
+const RoomWorkspace = lazy(() => import('./components/sync/RoomWorkspace'));
+const KeyManager = lazy(() => import('./components/settings/KeyManager'));
+const LandingPage = lazy(() => import('./components/home/LandingPage'));
+
+// A Loading Fallback Component
+const PageLoader = () => (
+  <div className="flex h-64 w-full items-center justify-center">
+    <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
+  </div>
+);
 
 function Layout({ children }) {
   const [photos, setPhotos] = useState([]);
@@ -25,27 +33,37 @@ function Layout({ children }) {
   const workerRef = useRef(null);
   const { activeTab, setActiveTab } = useUiStore();
 
+  // Initialize worker only once when needed
+  useEffect(() => {
+    if (activeTab === 'gallery' || activeTab === 'people') {
+      if (!workerRef.current) {
+        workerRef.current = new Worker(new URL('./workers/faceScanWorker.js', import.meta.url), { type: 'module' });
+        workerRef.current.postMessage({ type: 'INIT', payload: { origin: window.location.origin } });
+
+        workerRef.current.onmessage = (e) => {
+          const { type, payload } = e.data;
+          if (type === 'STATUS') console.log('[Worker]', payload);
+          if (type === 'ERROR') console.error('[Worker Error]', payload);
+          if (type === 'SCAN_COMPLETE') {
+            console.log('[Worker Scan Result]', payload);
+            // Post result to backend
+            axios.post('/api/face/detect-result', {
+              photo_id: payload.imageId,
+              faces: payload.faces
+            }).catch(() => console.warn('Mock: /api/face/detect-result not ready yet'));
+          }
+        };
+      }
+    }
+
+    return () => {
+      // Don't terminate on unmount, we want the background processing to continue between tabs
+    };
+  }, [activeTab]);
+
   useEffect(() => {
     fetchRegisteredFaces();
     useCryptoStore.getState().initKey();
-
-    // Initialize Web Worker
-    workerRef.current = new Worker(new URL('./workers/faceScanWorker.js', import.meta.url), { type: 'module' });
-    workerRef.current.postMessage({ type: 'INIT', payload: { origin: window.location.origin } });
-
-    workerRef.current.onmessage = (e) => {
-      const { type, payload } = e.data;
-      if (type === 'STATUS') console.log('[Worker]', payload);
-      if (type === 'ERROR') console.error('[Worker Error]', payload);
-      if (type === 'SCAN_COMPLETE') {
-        console.log('[Worker Scan Result]', payload);
-        // Post result to backend
-        axios.post('/api/face/detect-result', {
-          photo_id: payload.imageId,
-          faces: payload.faces
-        }).catch(() => console.warn('Mock: /api/face/detect-result not ready yet'));
-      }
-    };
 
     const handleOffline = () => toast.error('인터넷 연결이 끊어졌습니다. 오프라인 모드로 전환됩니다.', { id: 'offline-toast', duration: 5000 });
     const handleOnline = () => toast.success('인터넷 연결이 복구되었습니다.', { id: 'online-toast' });
@@ -56,7 +74,6 @@ function Layout({ children }) {
     return () => {
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('online', handleOnline);
-      if (workerRef.current) workerRef.current.terminate();
     };
   }, [fetchRegisteredFaces]);
 
@@ -103,72 +120,74 @@ function Layout({ children }) {
 
       {/* Main Workspace Area */}
       <main className="w-full flex-1 flex flex-col md:flex-row gap-6 pb-20 md:pb-6">
-        {/* Left Column (AI Chronicle & Settings) */}
-        <div className={`w-full md:w-1/4 flex-col gap-6 ${activeTab === 'people' || activeTab === 'settings' ? 'flex' : 'hidden md:flex'}`}>
-          <div className={`bg-white rounded-xl shadow-sm border p-4 min-h-[400px] ${activeTab === 'people' ? 'block' : 'hidden md:block'}`}>
-            <h2 className="text-lg font-bold border-b pb-2 mb-4 text-center">AI Chronicle</h2>
-            <div className="flex flex-col items-center justify-center h-full">
-              <FaceRegistration onRegisterComplete={() => console.log('Face registered')} />
+        <Suspense fallback={<PageLoader />}>
+          {/* Left Column (AI Chronicle & Settings) */}
+          <div className={`w-full md:w-1/4 flex-col gap-6 ${activeTab === 'people' || activeTab === 'settings' ? 'flex' : 'hidden md:flex'}`}>
+            <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-4 min-h-[400px] ${activeTab === 'people' ? 'block' : 'hidden md:block'}`}>
+              <h2 className="text-lg font-bold border-b dark:border-gray-700 pb-2 mb-4 text-center dark:text-gray-100">AI Chronicle</h2>
+              <div className="flex flex-col items-center justify-center h-full">
+                <FaceRegistration onRegisterComplete={() => console.log('Face registered')} />
+              </div>
+            </div>
+
+            <div className={`${activeTab === 'settings' ? 'block' : 'hidden md:block'}`}>
+              <KeyManager />
             </div>
           </div>
 
-          <div className={`${activeTab === 'settings' ? 'block' : 'hidden md:block'}`}>
-            <KeyManager />
-          </div>
-        </div>
+          {/* Center Column (Workspace) */}
+          <div className={`w-full md:w-2/4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-4 min-h-[500px] flex-col gap-4 ${activeTab === 'gallery' ? 'flex' : 'hidden md:flex'}`}>
+            <h2 className="text-lg font-bold border-b dark:border-gray-700 pb-2 text-center dark:text-gray-100">Workspace (Gallery)</h2>
+            <PhotoUploader
+              onUploadComplete={(newPhotos) => {
+                setPhotos((prev) => {
+                  const uniqueNewPhotos = newPhotos.filter(np =>
+                    !prev.some(p => p.dHash === np.dHash) // Deduplication check
+                  );
 
-        {/* Center Column (Workspace) */}
-        <div className={`w-full md:w-2/4 bg-white rounded-xl shadow-sm border p-4 min-h-[500px] flex-col gap-4 ${activeTab === 'gallery' ? 'flex' : 'hidden md:flex'}`}>
-          <h2 className="text-lg font-bold border-b pb-2 text-center">Workspace (Gallery)</h2>
-          <PhotoUploader
-            onUploadComplete={(newPhotos) => {
-              setPhotos((prev) => {
-                const uniqueNewPhotos = newPhotos.filter(np =>
-                  !prev.some(p => p.dHash === np.dHash) // Deduplication check
-                );
-
-                if (newPhotos.length > uniqueNewPhotos.length) {
-                  const dupes = newPhotos.length - uniqueNewPhotos.length;
-                  toast.error(`중복된 사진 ${dupes}장은 업로드 제외되었습니다.`);
-                }
-
-                if (uniqueNewPhotos.length > 0) {
-                  toast.success(`새 사진 ${uniqueNewPhotos.length}장 처리 완료!`);
-                }
-
-                const updatedList = [...prev, ...uniqueNewPhotos];
-
-                // Send only the unique new photos to the face-api background worker
-                uniqueNewPhotos.forEach((photo, idx) => {
-                  if (workerRef.current) {
-                    workerRef.current.postMessage({
-                      type: 'SCAN_IMAGE',
-                      payload: {
-                        imageId: photo.name + '_' + Date.now() + '_' + idx,
-                        dataUrl: photo.thumbUrl
-                      }
-                    });
+                  if (newPhotos.length > uniqueNewPhotos.length) {
+                    const dupes = newPhotos.length - uniqueNewPhotos.length;
+                    toast.error(`중복된 사진 ${dupes}장은 업로드 제외되었습니다.`);
                   }
+
+                  if (uniqueNewPhotos.length > 0) {
+                    toast.success(`새 사진 ${uniqueNewPhotos.length}장 처리 완료!`);
+                  }
+
+                  const updatedList = [...prev, ...uniqueNewPhotos];
+
+                  // Send only the unique new photos to the face-api background worker
+                  uniqueNewPhotos.forEach((photo, idx) => {
+                    if (workerRef.current) {
+                      workerRef.current.postMessage({
+                        type: 'SCAN_IMAGE',
+                        payload: {
+                          imageId: photo.name + '_' + Date.now() + '_' + idx,
+                          dataUrl: photo.thumbUrl
+                        }
+                      });
+                    }
+                  });
+
+                  return updatedList;
                 });
-
-                return updatedList;
-              });
-            }}
-          />
-          <div className="flex-1 overflow-y-auto">
-            <GalleryGrid photos={photos} />
+              }}
+            />
+            <div className="flex-1 overflow-y-auto">
+              <GalleryGrid photos={photos} />
+            </div>
           </div>
-        </div>
 
-        {/* Right Column (Global Sync) */}
-        <div className={`w-full md:w-1/4 bg-white rounded-xl shadow-sm border p-4 min-h-[500px] flex-col ${activeTab === 'sync' ? 'flex' : 'hidden md:flex'}`}>
-          <FriendCall />
-          <RoomWorkspace workerRef={workerRef} localPhotos={photos} />
+          {/* Right Column (Global Sync) */}
+          <div className={`w-full md:w-1/4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-4 min-h-[500px] flex-col ${activeTab === 'sync' ? 'flex' : 'hidden md:flex'}`}>
+            <FriendCall />
+            <RoomWorkspace workerRef={workerRef} localPhotos={photos} />
 
-          <div className="mt-8 pt-4 border-t border-dashed">
-            <AlbumView />
+            <div className="mt-8 pt-4 border-t dark:border-gray-700 border-dashed">
+              <AlbumView />
+            </div>
           </div>
-        </div>
+        </Suspense>
       </main>
 
       {/* Mobile Tab Bar (Bottom) */}
@@ -206,7 +225,18 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={token ? <Layout /> : <LandingPage />} />
+        <Route
+          path="/"
+          element={
+            token ? (
+              <Layout />
+            ) : (
+              <Suspense fallback={<PageLoader />}>
+                <LandingPage />
+              </Suspense>
+            )
+          }
+        />
       </Routes>
     </BrowserRouter>
   );

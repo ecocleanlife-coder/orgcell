@@ -171,13 +171,23 @@ export default function PhotoUploader({ onUploadComplete }) {
         <div className="w-full flex flex-col gap-4">
             <div
                 {...getRootProps()}
-                className={`w-full p-8 border-2 border-dashed rounded-xl text-center cursor-pointer transition-colors
+                tabIndex={0}
+                role="button"
+                aria-label="사진 업로드 영역. 클릭하거나 엔터를 눌러 사진을 선택하세요."
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        const inputChild = e.currentTarget.querySelector('input[type="file"]');
+                        if (inputChild) inputChild.click();
+                    }
+                }}
+                className={`w-full p-8 border-2 border-dashed rounded-xl text-center cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500
                     ${isDragActive ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-300 bg-gray-50 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700'}
                     ${isProcessing ? 'opacity-50 pointer-events-none' : ''}
                 `}
             >
-                <input {...getInputProps()} />
-                <div className="text-4xl mb-4">📸</div>
+                <input {...getInputProps()} aria-label="파일 선택 입력창" />
+                <div className="text-4xl mb-4" aria-hidden="true">📸</div>
                 <p className="text-gray-600 dark:text-gray-300 font-medium tracking-tight">
                     {isDragActive ? "여기에 사진을 놓으세요" : "사진을 드래그하거나 클릭해서 업로드하세요"}
                 </p>
