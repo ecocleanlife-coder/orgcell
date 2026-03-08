@@ -47,7 +47,15 @@ function Layout({ children }) {
       }
     };
 
+    const handleOffline = () => toast.error('인터넷 연결이 끊어졌습니다. 오프라인 모드로 전환됩니다.', { id: 'offline-toast', duration: 5000 });
+    const handleOnline = () => toast.success('인터넷 연결이 복구되었습니다.', { id: 'online-toast' });
+
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+
     return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
       if (workerRef.current) workerRef.current.terminate();
     };
   }, [fetchRegisteredFaces]);

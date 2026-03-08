@@ -4,8 +4,7 @@ import useAuthStore from '../../store/authStore';
 import axios from 'axios';
 
 // IMPORTANT: This ID should typically come from env variables
-// For MVP placeholder, we leave it configurable
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID";
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 export default function LoginButton() {
     const setAuth = useAuthStore((state) => state.setAuth);
@@ -30,6 +29,16 @@ export default function LoginButton() {
         console.error('Google Auth Failed');
         alert('구글 로그인 팝업 처리에 실패했습니다.');
     };
+
+    if (!GOOGLE_CLIENT_ID) {
+        return (
+            <div className="flex justify-center mt-6">
+                <div className="px-6 py-2 bg-gray-100 text-gray-500 rounded-full text-sm font-medium border border-gray-200">
+                    Google OAuth 설정 대기중
+                </div>
+            </div>
+        );
+    }
 
     return (
         <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>

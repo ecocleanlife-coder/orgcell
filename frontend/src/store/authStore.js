@@ -1,5 +1,23 @@
 import { create } from 'zustand';
 import axios from 'axios';
+import { toast } from 'react-hot-toast';
+
+// Setup Global Axios Interceptor for Error Handling
+axios.interceptors.response.use(
+    response => response,
+    error => {
+        if (!error.response) {
+            // Network Error or Server Down
+            toast.error('서버와의 연결이 끊어졌습니다. 인터넷 상태를 확인해주세요.', { id: 'network-error' });
+        } else if (error.response.status === 401) {
+            // Unauthorized - Handled dynamically in fetchMe usually, but global toast helps
+            toast.error('세션이 만료되었습니다. 다시 로그인해주세요.', { id: 'auth-error' });
+        } else if (error.response.status >= 500) {
+            toast.error('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+        }
+        return Promise.reject(error);
+    }
+);
 
 const useAuthStore = create((set) => ({
     user: null,
@@ -21,6 +39,10 @@ const useAuthStore = create((set) => ({
     },
 
     devLogin: async (name, email) => {
+        if (import.meta.env.PROD) {
+            toast.error('프로덕션 환경에서는 Mock 로그인을 지원하지 않습니다.');
+            return;
+        }
         set({ isLoading: true, error: null });
         try {
             const res = await axios.post('/api/auth/dev-login', { name, email });
@@ -28,10 +50,12 @@ const useAuthStore = create((set) => ({
                 localStorage.setItem('orgcell_token', res.data.token);
                 axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
                 set({ user: res.data.user, token: res.data.token });
+                toast.success('Mock 로그인 성공');
             }
         } catch (err) {
             console.error('Dev login failed:', err);
             set({ error: err.message });
+            toast.error('Mock 로그인 실패: ' + (err.response?.data?.error || err.message));
         } finally {
             set({ isLoading: false });
         }
