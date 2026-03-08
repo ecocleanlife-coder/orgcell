@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import axios from 'axios';
+import { Image as ImageIcon, Users, RefreshCcw, Settings } from 'lucide-react';
+import { Toaster, toast } from 'react-hot-toast';
 
 import useAuthStore from './store/authStore';
-import LoginButton from './components/auth/LoginButton';
+import useUiStore, { initTheme } from './store/uiStore';
 import PhotoUploader from './components/gallery/PhotoUploader';
 import GalleryGrid from './components/gallery/GalleryGrid';
 import FaceRegistration from './components/face/FaceRegistration';
@@ -12,6 +14,7 @@ import FriendCall from './components/sync/FriendCall';
 import RoomWorkspace from './components/sync/RoomWorkspace';
 import KeyManager from './components/settings/KeyManager';
 import useCryptoStore from './store/cryptoStore';
+import LandingPage from './components/home/LandingPage';
 
 function Layout({ children }) {
   const [photos, setPhotos] = useState([]);
@@ -20,6 +23,7 @@ function Layout({ children }) {
   const registeredFaces = useAuthStore(state => state.registeredFaces);
   const fetchRegisteredFaces = useAuthStore(state => state.fetchRegisteredFaces);
   const workerRef = useRef(null);
+  const { activeTab, setActiveTab } = useUiStore();
 
   useEffect(() => {
     fetchRegisteredFaces();
@@ -55,12 +59,13 @@ function Layout({ children }) {
   }, [registeredFaces]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center w-full max-w-7xl mx-auto p-4 md:p-8">
+    <div className="min-h-screen flex flex-col items-center w-full max-w-7xl mx-auto p-4 md:p-8 transition-colors duration-200 dark:bg-gray-900">
+      <Toaster position="top-right" />
       {/* Header & Title Section */}
-      <header className="w-full text-center border-b pb-6 mb-8 mt-4 relative">
+      <header className="w-full text-center border-b dark:border-gray-700 pb-6 mb-8 mt-4 relative">
         <div className="absolute right-0 top-0 text-sm flex items-center gap-4">
-          <span className="text-gray-500">{user?.name}님 환영합니다</span>
-          <button onClick={logout} className="text-blue-600 hover:underline">로그아웃</button>
+          <span className="text-gray-500 dark:text-gray-400">{user?.name}님 환영합니다</span>
+          <button onClick={logout} className="text-blue-600 dark:text-blue-400 hover:underline">로그아웃</button>
         </div>
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900 mb-2">
           Memoir Lens
@@ -89,21 +94,23 @@ function Layout({ children }) {
       </header>
 
       {/* Main Workspace Area */}
-      <main className="w-full flex-1 flex flex-col md:flex-row gap-6">
+      <main className="w-full flex-1 flex flex-col md:flex-row gap-6 pb-20 md:pb-6">
         {/* Left Column (AI Chronicle & Settings) */}
-        <div className="w-full md:w-1/4 flex flex-col gap-6">
-          <div className="bg-white rounded-xl shadow-sm border p-4 min-h-[400px]">
+        <div className={`w-full md:w-1/4 flex-col gap-6 ${activeTab === 'people' || activeTab === 'settings' ? 'flex' : 'hidden md:flex'}`}>
+          <div className={`bg-white rounded-xl shadow-sm border p-4 min-h-[400px] ${activeTab === 'people' ? 'block' : 'hidden md:block'}`}>
             <h2 className="text-lg font-bold border-b pb-2 mb-4 text-center">AI Chronicle</h2>
             <div className="flex flex-col items-center justify-center h-full">
               <FaceRegistration onRegisterComplete={() => console.log('Face registered')} />
             </div>
           </div>
 
-          <KeyManager />
+          <div className={`${activeTab === 'settings' ? 'block' : 'hidden md:block'}`}>
+            <KeyManager />
+          </div>
         </div>
 
         {/* Center Column (Workspace) */}
-        <div className="w-full md:w-2/4 bg-white rounded-xl shadow-sm border p-4 min-h-[500px] flex flex-col gap-4">
+        <div className={`w-full md:w-2/4 bg-white rounded-xl shadow-sm border p-4 min-h-[500px] flex-col gap-4 ${activeTab === 'gallery' ? 'flex' : 'hidden md:flex'}`}>
           <h2 className="text-lg font-bold border-b pb-2 text-center">Workspace (Gallery)</h2>
           <PhotoUploader
             onUploadComplete={(newPhotos) => {
@@ -114,7 +121,11 @@ function Layout({ children }) {
 
                 if (newPhotos.length > uniqueNewPhotos.length) {
                   const dupes = newPhotos.length - uniqueNewPhotos.length;
-                  alert(`중복된 사진 ${dupes}장은 제외되었습니다.`);
+                  toast.error(`중복된 사진 ${dupes}장은 업로드 제외되었습니다.`);
+                }
+
+                if (uniqueNewPhotos.length > 0) {
+                  toast.success(`새 사진 ${uniqueNewPhotos.length}장 처리 완료!`);
                 }
 
                 const updatedList = [...prev, ...uniqueNewPhotos];
@@ -142,7 +153,7 @@ function Layout({ children }) {
         </div>
 
         {/* Right Column (Global Sync) */}
-        <div className="w-full md:w-1/4 bg-white rounded-xl shadow-sm border p-4 min-h-[500px] flex flex-col">
+        <div className={`w-full md:w-1/4 bg-white rounded-xl shadow-sm border p-4 min-h-[500px] flex-col ${activeTab === 'sync' ? 'flex' : 'hidden md:flex'}`}>
           <FriendCall />
           <RoomWorkspace workerRef={workerRef} localPhotos={photos} />
 
@@ -151,66 +162,28 @@ function Layout({ children }) {
           </div>
         </div>
       </main>
-    </div>
-  );
-}
 
-function LandingPage() {
-  const devLogin = useAuthStore(state => state.devLogin);
-  const isLoading = useAuthStore(state => state.isLoading);
-  const [name, setName] = React.useState('Test User');
-  const [email, setEmail] = React.useState('test@orgcell.com');
-
-  const handleDevLogin = () => {
-    devLogin(name, email);
-  };
-
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-sm border text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-gray-900 mb-2">Memoir Lens</h1>
-        <p className="text-gray-600 mb-8">가족의 역사를 안전하게 보관하세요.</p>
-
-        <div className="bg-blue-50 text-blue-800 p-4 rounded-lg mb-8 text-sm text-left">
-          <ul className="list-disc list-inside space-y-2">
-            <li>서버에 원본 사진을 저장하지 않는 Zero-Storage 구조</li>
-            <li>브라우저 내장 AI 얼굴 인식 및 분류</li>
-            <li>다이렉트 보안 P2P 공유 룸</li>
-          </ul>
-        </div>
-
-        <div className="space-y-4 border-b pb-6 mb-6">
-          <p className="text-sm font-bold text-gray-500">Google OAuth (Phase 3)</p>
-          <LoginButton />
-        </div>
-
-        <div className="space-y-4 bg-gray-50 p-4 rounded-lg border">
-          <p className="text-sm font-bold text-gray-500">Developer Mock Login</p>
-          <input
-            type="text"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            className="w-full px-3 py-2 border rounded"
-            placeholder="Name"
-          />
-          <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            className="w-full px-3 py-2 border rounded"
-            placeholder="Email"
-          />
-          <button
-            onClick={handleDevLogin}
-            disabled={isLoading}
-            className="w-full py-2 bg-gray-800 hover:bg-gray-900 text-white rounded font-medium disabled:opacity-50 cursor-pointer"
-          >
-            Mock Login 테스트
-          </button>
-        </div>
+      {/* Mobile Tab Bar (Bottom) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around p-3 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <button onClick={() => setActiveTab('gallery')} className={`flex flex-col items-center ${activeTab === 'gallery' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
+          <ImageIcon size={24} />
+          <span className="text-[10px] mt-1 font-medium">갤러리</span>
+        </button>
+        <button onClick={() => setActiveTab('people')} className={`flex flex-col items-center ${activeTab === 'people' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
+          <Users size={24} />
+          <span className="text-[10px] mt-1 font-medium">인물</span>
+        </button>
+        <button onClick={() => setActiveTab('sync')} className={`flex flex-col items-center ${activeTab === 'sync' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
+          <RefreshCcw size={24} />
+          <span className="text-[10px] mt-1 font-medium">공유</span>
+        </button>
+        <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center ${activeTab === 'settings' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
+          <Settings size={24} />
+          <span className="text-[10px] mt-1 font-medium">설정</span>
+        </button>
       </div>
     </div>
-  )
+  );
 }
 
 function App() {
@@ -219,6 +192,7 @@ function App() {
 
   React.useEffect(() => {
     fetchMe();
+    initTheme();
   }, [fetchMe]);
 
   return (
