@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { ArrowLeft, FolderOpen, Play, CheckCircle2, ChevronRight, SlidersHorizontal, Trash2, Copy, Check, Sparkles } from 'lucide-react';
 import ProgressBar from '../../components/smart-sort/ProgressBar';
 import FaceTagger from '../../components/smart-sort/FaceTagger';
@@ -13,22 +13,14 @@ export default function SmartSortView() {
     const [scanProgress, setScanProgress] = useState(0);
     const [exporting, setExporting] = useState(false);
     const [exported, setExported] = useState(false);
-    const sourceInputRef = useRef(null);
-    const destInputRef = useRef(null);
 
-    const handleBrowse = (setter, inputRef) => {
-        // Use hidden file input to simulate folder picker
-        if (inputRef.current) {
-            inputRef.current.click();
-        }
-    };
-
-    const handleFileSelected = (e, setter) => {
-        const files = e.target.files;
-        if (files && files.length > 0) {
-            // Extract folder path from first file
-            const path = files[0].webkitRelativePath?.split('/')[0] || files[0].name;
-            setter(path);
+    const handleBrowseFolder = async (setter) => {
+        try {
+            // Modern File System Access API — shows native folder picker (no upload message)
+            const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+            setter(dirHandle.name);
+        } catch (err) {
+            // User cancelled or browser doesn't support — ignore
         }
     };
 
@@ -105,8 +97,7 @@ export default function SmartSortView() {
                                             placeholder="C:\Users\Family\Pictures"
                                             className="flex-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
                                         />
-                                        <input type="file" ref={sourceInputRef} className="hidden" webkitdirectory="" directory="" onChange={(e) => handleFileSelected(e, setSourcePath)} />
-                                        <button onClick={() => handleBrowse(setSourcePath, sourceInputRef)} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl font-medium transition-colors whitespace-nowrap">찾아보기</button>
+                                        <button onClick={() => handleBrowseFolder(setSourcePath)} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl font-medium transition-colors whitespace-nowrap">찾아보기</button>
                                     </div>
                                 </div>
                                 <div>
@@ -119,8 +110,7 @@ export default function SmartSortView() {
                                             placeholder="D:\Organized_Photos"
                                             className="flex-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
                                         />
-                                        <input type="file" ref={destInputRef} className="hidden" webkitdirectory="" directory="" onChange={(e) => handleFileSelected(e, setDestPath)} />
-                                        <button onClick={() => handleBrowse(setDestPath, destInputRef)} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl font-medium transition-colors whitespace-nowrap">찾아보기</button>
+                                        <button onClick={() => handleBrowseFolder(setDestPath)} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl font-medium transition-colors whitespace-nowrap">찾아보기</button>
                                     </div>
                                 </div>
                             </div>
