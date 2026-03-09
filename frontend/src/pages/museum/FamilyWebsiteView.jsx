@@ -92,9 +92,13 @@ export default function FamilyWebsiteView() {
                     )}
                 </section>
 
-                {/* Advertisement Space before Pricing */}
-                <div className="animate-fade-in-up" style={{ animationDelay: '50ms' }}>
-                    <AdBanner />
+                {/* Secure Payment & Create Domain */}
+                <div className="flex justify-center animate-fade-in-up" style={{ animationDelay: '50ms' }}>
+                    <button onClick={() => setShowPayment(true)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-10 py-4 rounded-2xl font-bold shadow-xl shadow-emerald-500/30 transition-all flex items-center gap-3 text-lg transform hover:-translate-y-1">
+                        <CreditCard size={24} />
+                        {t.paymentBtn}
+                    </button>
                 </div>
 
                 {/* Pricing Table */}
@@ -112,12 +116,9 @@ export default function FamilyWebsiteView() {
                     <FamilyTreeView />
                 </section>
 
-                <div className="flex justify-center pt-12 border-t border-gray-200 dark:border-gray-700">
-                    <button onClick={() => setShowPayment(true)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-10 py-4 rounded-2xl font-bold shadow-xl shadow-emerald-500/30 transition-all flex items-center gap-3 text-lg transform hover:-translate-y-1">
-                        <CreditCard size={24} />
-                        {t.paymentBtn}
-                    </button>
+                {/* Custom App Development Inquiry */}
+                <div className="pt-12 border-t border-gray-200 dark:border-gray-700 animate-fade-in-up" style={{ animationDelay: '250ms' }}>
+                    <AdBanner />
                 </div>
             </main>
 
