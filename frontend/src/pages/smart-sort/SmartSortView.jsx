@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, FolderOpen, Play, CheckCircle2, ChevronRight, SlidersHorizontal, Trash2, Copy, Check, Sparkles } from 'lucide-react';
+import { ArrowLeft, FolderOpen, Play, CheckCircle2, ChevronRight, SlidersHorizontal, Trash2, Copy, Check, Sparkles, Trash, ImageOff, Search } from 'lucide-react';
 import ProgressBar from '../../components/smart-sort/ProgressBar';
 import FaceTagger from '../../components/smart-sort/FaceTagger';
 
@@ -8,6 +8,8 @@ export default function SmartSortView() {
     const [sourcePath, setSourcePath] = useState('');
     const [destPath, setDestPath] = useState('');
     const [dupAction, setDupAction] = useState('delete'); // 'delete' or 'move'
+    const [deleteSmallImages, setDeleteSmallImages] = useState(true); // ON by default
+    const [includeSmallInSearch, setIncludeSmallInSearch] = useState(false); // OFF by default
 
     const [isScanning, setIsScanning] = useState(false);
     const [scanProgress, setScanProgress] = useState(0);
@@ -156,6 +158,65 @@ export default function SmartSortView() {
                             </div>
                         </section>
 
+                        {/* Small Image Cleanup */}
+                        <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+                            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                                <ImageOff className="text-blue-500" />
+                                3. 작은 이미지 정리
+                            </h2>
+
+                            {/* Info notice */}
+                            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-5">
+                                <p className="text-sm text-blue-800 dark:text-blue-300 leading-relaxed">
+                                    폰이나 컴퓨터에는 앱 아이콘, 썸네일 캐시, 시스템 이미지 등 <span className="font-bold">사진이 아닌 작은 이미지 파일</span>이 많이 저장되어 있습니다.
+                                    이러한 파일들은 용량을 차지하고 사진 정리를 방해합니다. 기본적으로 이런 작은 이미지들을 자동 삭제합니다.
+                                </p>
+                            </div>
+
+                            {/* Toggle: Delete small images (default ON) */}
+                            <div className="space-y-4">
+                                <label className={`flex items-center justify-between cursor-pointer rounded-xl border p-4 transition-colors ${deleteSmallImages ? 'border-red-400 bg-red-50 dark:bg-red-900/10' : 'border-gray-200 dark:border-gray-700'}`}>
+                                    <div className="flex items-center gap-3">
+                                        <Trash size={18} className={deleteSmallImages ? 'text-red-500' : 'text-gray-400'} />
+                                        <div>
+                                            <span className="block text-sm font-bold text-gray-900 dark:text-white">작은 이미지 자동 삭제</span>
+                                            <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">아이콘, 썸네일, 시스템 이미지 등 200px 이하 파일 제거 (권장)</span>
+                                        </div>
+                                    </div>
+                                    <div className={`relative w-12 h-7 rounded-full transition-colors ${deleteSmallImages ? 'bg-red-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                        onClick={() => setDeleteSmallImages(!deleteSmallImages)}>
+                                        <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${deleteSmallImages ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                                    </div>
+                                </label>
+
+                                {/* Toggle: Include small photos in search (default OFF) */}
+                                <label className={`flex items-center justify-between cursor-pointer rounded-xl border p-4 transition-colors ${includeSmallInSearch ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/10' : 'border-gray-200 dark:border-gray-700'}`}>
+                                    <div className="flex items-center gap-3">
+                                        <Search size={18} className={includeSmallInSearch ? 'text-blue-500' : 'text-gray-400'} />
+                                        <div>
+                                            <span className="block text-sm font-bold text-gray-900 dark:text-white">작은 사진 포함 전체 검색</span>
+                                            <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">작은 사진까지 모두 포함하여 검색합니다 (시간이 더 걸릴 수 있습니다)</span>
+                                        </div>
+                                    </div>
+                                    <div className={`relative w-12 h-7 rounded-full transition-colors ${includeSmallInSearch ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                        onClick={() => setIncludeSmallInSearch(!includeSmallInSearch)}>
+                                        <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${includeSmallInSearch ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                                    </div>
+                                </label>
+                            </div>
+
+                            {/* Summary */}
+                            <div className="mt-4 bg-gray-50 dark:bg-gray-900 rounded-lg p-3 text-xs text-gray-500 dark:text-gray-400">
+                                {deleteSmallImages
+                                    ? '✅ 아이콘/썸네일/시스템 이미지가 자동 삭제됩니다.'
+                                    : '⚠️ 작은 이미지도 보존됩니다. 수동으로 정리해야 합니다.'}
+                                {' · '}
+                                {includeSmallInSearch
+                                    ? '🔍 작은 사진 포함 전체 검색 활성화'
+                                    : '📷 일반 크기 사진만 검색'}
+                            </div>
+                        </section>
+
                         <div className="flex justify-center pt-4">
                             <button
                                 onClick={handleStartScan}
@@ -183,7 +244,7 @@ export default function SmartSortView() {
                 {step === 3 && (
                     <div className="space-y-8 animate-fade-in-up">
                         {/* Stats Summary */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 text-center">
                                 <div className="text-sm text-gray-500">스캔된 사진</div>
                                 <div className="text-2xl font-bold text-gray-900 dark:text-white">4,281<span className="text-sm font-normal text-gray-400">장</span></div>
@@ -192,13 +253,19 @@ export default function SmartSortView() {
                                 <div className="text-sm text-red-500">중복 (정리 대상)</div>
                                 <div className="text-2xl font-bold text-red-600">842<span className="text-sm font-normal text-red-400">장</span></div>
                             </div>
+                            {deleteSmallImages && (
+                                <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-orange-200 dark:border-orange-800 text-center">
+                                    <div className="text-sm text-orange-500">작은 이미지 삭제</div>
+                                    <div className="text-2xl font-bold text-orange-600">1,247<span className="text-sm font-normal text-orange-400">개</span></div>
+                                </div>
+                            )}
                             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 text-center">
                                 <div className="text-sm text-blue-500">식별된 인물</div>
                                 <div className="text-2xl font-bold text-blue-600">7<span className="text-sm font-normal text-blue-400">명</span></div>
                             </div>
                             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 text-center">
                                 <div className="text-sm text-emerald-500">절약 기대 용량</div>
-                                <div className="text-2xl font-bold text-emerald-600">3.2<span className="text-sm font-normal text-emerald-400">GB</span></div>
+                                <div className="text-2xl font-bold text-emerald-600">{deleteSmallImages ? '4.8' : '3.2'}<span className="text-sm font-normal text-emerald-400">GB</span></div>
                             </div>
                         </div>
 
