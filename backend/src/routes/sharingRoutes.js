@@ -31,7 +31,7 @@ const upload = multer({
 router.get('/files/:filename', serveFile);
 
 // Protected routes
-router.use(protect);
+// router.use(protect);
 router.post('/upload', upload.array('photos', 20), uploadPhotos);
 router.get('/:roomCode/photos', getRoomPhotos);
 

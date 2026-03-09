@@ -1,54 +1,7 @@
 import React, { useState } from 'react';
 import { Folder, FolderOpen, User, Image as ImageIcon, ChevronRight, ChevronDown, Play, Trash2, Camera, Lock, Eye, Globe } from 'lucide-react';
-
-const mockTree = {
-    id: 'root',
-    name: 'Smith Family Museum',
-    type: 'folder',
-    children: [
-        {
-            id: 'grandparents',
-            name: 'Grandparents',
-            type: 'folder',
-            isShared: true,
-            children: [
-                { id: 'gp1', name: 'Grandpa John', type: 'person', photoCount: 120 },
-                { id: 'gp2', name: 'Grandma Mary', type: 'person', photoCount: 154 }
-            ]
-        },
-        {
-            id: 'parents',
-            name: 'Parents',
-            type: 'folder',
-            isShared: true,
-            children: [
-                { id: 'p1', name: 'Dad (Robert)', type: 'person', photoCount: 432 },
-                { id: 'p2', name: 'Mom (Sarah)', type: 'person', photoCount: 512 }
-            ]
-        },
-        {
-            id: 'me_and_siblings',
-            name: 'Me & Siblings',
-            type: 'folder',
-            isShared: true,
-            children: [
-                { id: 'me', name: 'Me', type: 'person', photoCount: 843, isPrivate: true },
-                { id: 's1', name: 'Sister (Emily)', type: 'person', photoCount: 321 },
-                { id: 's2', name: 'Brother (Tom)', type: 'person', photoCount: 210 }
-            ]
-        },
-        {
-            id: 'children',
-            name: 'Children',
-            type: 'folder',
-            isShared: true,
-            children: [
-                { id: 'c1', name: 'Son (Leo)', type: 'person', photoCount: 1054 },
-                { id: 'c2', name: 'Daughter (Mia)', type: 'person', photoCount: 980 }
-            ]
-        }
-    ]
-};
+import useUiStore from '../../store/uiStore';
+import { getT } from '../../i18n/translations';
 
 // Mock photos for a selected person
 const mockPhotos = [
@@ -59,6 +12,58 @@ const mockPhotos = [
 ];
 
 export default function FamilyTreeView() {
+    const lang = useUiStore((s) => s.lang);
+    const lt = getT('familyTree', lang);
+
+    const mockTree = {
+        id: 'root',
+        name: 'Smith Family Museum',
+        type: 'folder',
+        children: [
+            {
+                id: 'grandparents',
+                name: lt.grandparents,
+                type: 'folder',
+                isShared: true,
+                children: [
+                    { id: 'gp1', name: 'Grandpa John', type: 'person', photoCount: 120 },
+                    { id: 'gp2', name: 'Grandma Mary', type: 'person', photoCount: 154 }
+                ]
+            },
+            {
+                id: 'parents',
+                name: lt.parents,
+                type: 'folder',
+                isShared: true,
+                children: [
+                    { id: 'p1', name: 'Dad (Robert)', type: 'person', photoCount: 432 },
+                    { id: 'p2', name: 'Mom (Sarah)', type: 'person', photoCount: 512 }
+                ]
+            },
+            {
+                id: 'me_and_siblings',
+                name: lt.me,
+                type: 'folder',
+                isShared: true,
+                children: [
+                    { id: 'me', name: 'Me', type: 'person', photoCount: 843, isPrivate: true },
+                    { id: 's1', name: 'Sister (Emily)', type: 'person', photoCount: 321 },
+                    { id: 's2', name: 'Brother (Tom)', type: 'person', photoCount: 210 }
+                ]
+            },
+            {
+                id: 'children',
+                name: lt.children,
+                type: 'folder',
+                isShared: true,
+                children: [
+                    { id: 'c1', name: 'Son (Leo)', type: 'person', photoCount: 1054 },
+                    { id: 'c2', name: 'Daughter (Mia)', type: 'person', photoCount: 980 }
+                ]
+            }
+        ]
+    };
+
     const [expandedFolders, setExpandedFolders] = useState({ root: true, parents: true, me_and_siblings: true });
     const [selectedNode, setSelectedNode] = useState('me');
     const [isPlaying, setIsPlaying] = useState(false);

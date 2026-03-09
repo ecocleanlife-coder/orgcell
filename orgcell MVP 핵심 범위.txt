@@ -1,0 +1,93 @@
+========================================
+  Orgcell MVP 핵심 범위 (확정)
+  작성: 지배인 🤵 | 2026-03-08
+========================================
+
+## 1. 프로젝트 개요
+- 서비스명: Orgcell (orgcell.com)
+- 핵심 가치: "가족의 역사를 자동으로 정리하고, 안전하게 공유하는 디지털 공간"
+- 타겟: 자녀 성장 기록 보관하려는 부모, 가족/친구와 안전하게 사진 공유하려는 사용자
+
+## 2. 차별점 (vs Google Photos / Apple Photos)
+1. 쌍방향 AI 사진 교환 (Friend Call) — 기존 서비스에 없는 기능
+2. 영지식 E2E 암호화 — 서버 관리자도 사진 못 봄
+3. 워터마크 + 소유권 증명 — 도용 방지
+4. 독립 가족 전용 웹 공간 — 대형 플랫폼 종속 없음
+
+## 3. MVP 핵심 기능 (Must-Have)
+1. 대량 사진 업로드 — pica + Web Workers (브라우저 멈춤 방지)
+2. 얼굴 인식 자동 분류 — face-api.js TinyFaceDetector (브라우저 로컬)
+3. 보안 갤러리 — TPE (썸네일 보존 암호화, 원본은 암호화 저장)
+4. Friend Call — 비밀번호 임시 공유 룸 + 상대 얼굴 필터링
+5. 중복 제거 — dHash 지각 해싱
+6. PWA — manifest.json + service-worker (오프라인 캐싱, A2HS)
+7. 백그라운드 업로드 큐 UI — [얼굴인식 → 암호화 → 업로드] 파이프라인 진행률 표시
+
+## 4. MVP 아키텍처 (비용 최소화)
+| 항목         | 원안           | MVP 조정                          |
+|-------------|---------------|----------------------------------|
+| 스토리지     | S3 직접        | BYOS (Google Drive 연동) → 비용 $0 |
+| 소유권 증명  | 블록체인       | 해시 기반 디지털 서명 (SHA-256 + HMAC) |
+| P2P 전송    | WebRTC         | 서버 릴레이 (Socket.IO Cloud Buffer) |
+| 워터마크     | 동형 암호      | 텍스트 워터마크 (Canvas API)       |
+
+## 5. MVP 제외 (Phase 2+)
+- 블록체인 메인넷 연동
+- 동형 암호화 워터마킹
+- 감정 인식
+- 자동 결제 시스템
+
+## 6. 기술 스택
+- 프론트엔드: React 18 + Vite + TailwindCSS + pica + face-api.js
+- 백엔드: Node.js + Express
+- DB: PostgreSQL 16
+- 스토리지: Google Drive API (BYOS)
+- 통신: Socket.IO 서버 릴레이 (청크 전송)
+- 암호화: AES-256-GCM (Web Crypto API), 키 저장 IndexedDB
+- EXIF: exifr (DateTimeOriginal, GPS, 카메라 정보)
+- 지도: Leaflet + react-leaflet + react-leaflet-cluster
+- 인프라: AWS EC2 (t3.small), ECR, Docker Compose
+- SSL: Let's Encrypt (orgcell.com)
+- CI/CD: GitHub Actions → ECR → EC2 SSH deploy
+
+## 7. 에이전트 역할 분담
+| 에이전트                | 역할                                         |
+|------------------------|----------------------------------------------|
+| 🤵 Claude 지배인        | 백엔드 API, DB, 인프라, 서버 릴레이, 배포, 코드 리뷰 |
+| 👨‍🍳 Antigravity 셰프     | 프론트엔드 UI, 얼굴 인식, 갤러리, Friend Call UI   |
+| 🔬 Gemini              | QA, 보안 진단, 설계 검수                        |
+| 📚 NotebookLM          | 기술 리서치, 경쟁사 분석                         |
+| 👑 Han 오너             | 최종 결정권                                    |
+
+## 8. 개발 Phase 및 현황
+| Phase | 내용                             | 담당                    | 상태   |
+|-------|----------------------------------|------------------------|--------|
+| 1     | 프로젝트 셋업 (repo, DB)          | 🤵 지배인               | 완료   |
+| 2     | 회원가입/로그인 (Google SSO)       | 🤵 API + 👨‍🍳 UI         | 완료   |
+| 3     | 사진 업로드 + Google Drive 연동    | 🤵 API + 👨‍🍳 UI         | 완료   |
+| 4     | 얼굴 인식 + 인물별 자동 분류       | 👨‍🍳 face-api.js + 🤵 저장 | 완료   |
+| 5     | Friend Call (서버 릴레이 교환)     | 🤵 릴레이서버 + 👨‍🍳 UI    | 완료   |
+| 6     | 보안 (E2E 암호화, 워터마크)        | 🤵 + 🔬 검수             | 완료   |
+| 7     | 중복 제거 + 스토리지 최적화        | 👨‍🍳 감지 + 🤵 정리 API    | 완료   |
+| 8     | 배포 + QA                        | 전원                    | 완료   |
+
+추가 완료 Phase:
+| Phase | 내용                             | 상태   |
+|-------|----------------------------------|--------|
+| 12    | BYOS Google Drive 연동           | 완료   |
+| 13    | Friend Call UI (방 생성/참여)     | 완료   |
+| 14    | EXIF 파싱 + 타임라인/지도 뷰      | 완료   |
+| 15    | PWA + 푸시 알림                   | 완료   |
+| 16    | 소유권 증명 (디지털 서명)          | 완료   |
+
+## 9. 프로덕션 인프라
+- 도메인: orgcell.com
+- EC2: 13.124.190.128 (ap-northeast-2)
+- ECR: 348170387295.dkr.ecr.ap-northeast-2.amazonaws.com/orgcell/{backend,frontend}
+- Docker: 3 서비스 (backend, frontend/nginx+SSL, PostgreSQL 16)
+- GitHub: ecocleanlife-coder/orgcell
+
+## 10. 예상 비용
+- 사용자 0명: 월 $1 (도메인만)
+- 사용자 100명: 월 $20~55
+- BYOS 모델이므로 스토리지 비용 거의 없음

@@ -349,9 +349,9 @@ export default function LiveSharingView() {
                                     <Send size={28} />
                                 </div>
                                 <div className="flex-1">
-                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Individual Sharing</h3>
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">{lt.individualTitle}</h3>
                                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        Select photos from your folder and send them to one person via a private code.
+                                        {lt.individualDesc}
                                     </p>
                                 </div>
                                 <ChevronRight size={20} className="text-gray-400 group-hover:text-purple-500" />
@@ -366,9 +366,9 @@ export default function LiveSharingView() {
                                     <Users size={28} />
                                 </div>
                                 <div className="flex-1">
-                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Group Sharing</h3>
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">{lt.groupTitle}</h3>
                                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        Create a group album — everyone uploads photos. Use AI to find &amp; download your photos.
+                                        {lt.groupDesc}
                                     </p>
                                 </div>
                                 <ChevronRight size={20} className="text-gray-400 group-hover:text-blue-500" />
