@@ -1,254 +1,191 @@
 import React, { useState } from 'react';
-import { Folder, FolderLock, Plus, Image as ImageIcon, Play, MoreVertical, ChevronLeft, Download, Trash2, X } from 'lucide-react';
+import { Folder, FolderOpen, User, Image as ImageIcon, ChevronRight, ChevronDown, Play, Trash2, Camera, Lock, Eye } from 'lucide-react';
 
-const initialTree = [
-    {
-        id: 1, name: 'Grandparents', nameKo: '조부모님', count: 128, isShared: true,
-        children: [
-            {
-                id: 2, name: 'Parents', nameKo: '부모님', count: 342, isShared: true,
-                children: [
-                    {
-                        id: 3, name: 'Me', nameKo: '나', count: 520, isPrivate: true,
-                        children: [
-                            { id: 7, name: 'My Children', nameKo: '나의 자녀들', count: 215, children: [
-                                { id: 10, name: 'Grandchildren', nameKo: '손주들', count: 48, children: [] },
-                            ]},
-                        ],
-                    },
-                    {
-                        id: 4, name: 'Brother', nameKo: '형', count: 85,
-                        children: [
-                            { id: 8, name: "Brother's Children", nameKo: '형의 자녀들', count: 67, children: [] },
-                        ],
-                    },
-                    {
-                        id: 5, name: 'Sister', nameKo: '여동생', count: 110,
-                        children: [
-                            { id: 9, name: "Sister's Children", nameKo: '여동생의 자녀들', count: 42, children: [] },
-                        ],
-                    },
-                ],
-            },
-        ],
-    },
+const mockTree = {
+    id: 'root',
+    name: 'Smith Family Museum',
+    type: 'folder',
+    children: [
+        {
+            id: 'grandparents',
+            name: 'Grandparents',
+            type: 'folder',
+            isShared: true,
+            children: [
+                { id: 'gp1', name: 'Grandpa John', type: 'person', photoCount: 120 },
+                { id: 'gp2', name: 'Grandma Mary', type: 'person', photoCount: 154 }
+            ]
+        },
+        {
+            id: 'parents',
+            name: 'Parents',
+            type: 'folder',
+            isShared: true,
+            children: [
+                { id: 'p1', name: 'Dad (Robert)', type: 'person', photoCount: 432 },
+                { id: 'p2', name: 'Mom (Sarah)', type: 'person', photoCount: 512 }
+            ]
+        },
+        {
+            id: 'me_and_siblings',
+            name: 'Me & Siblings',
+            type: 'folder',
+            isShared: true,
+            children: [
+                { id: 'me', name: 'Me', type: 'person', photoCount: 843, isPrivate: true },
+                { id: 's1', name: 'Sister (Emily)', type: 'person', photoCount: 321 },
+                { id: 's2', name: 'Brother (Tom)', type: 'person', photoCount: 210 }
+            ]
+        },
+        {
+            id: 'children',
+            name: 'Children',
+            type: 'folder',
+            isShared: true,
+            children: [
+                { id: 'c1', name: 'Son (Leo)', type: 'person', photoCount: 1054 },
+                { id: 'c2', name: 'Daughter (Mia)', type: 'person', photoCount: 980 }
+            ]
+        }
+    ]
+};
+
+// Mock photos for a selected person
+const mockPhotos = [
+    { id: 1, url: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=500&q=80', isCover: true },
+    { id: 2, url: 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=500&q=80', isCover: false },
+    { id: 3, url: 'https://images.unsplash.com/photo-1506869640319-fea1a278e0ec?w=500&q=80', isCover: false },
+    { id: 4, url: 'https://images.unsplash.com/photo-1476610182048-b716b8518aae?w=500&q=80', isCover: false },
 ];
 
-function TreeNode({ node, level = 0, onSelect, selectedId }) {
-    const isSelected = selectedId === node.id;
-    const hasChildren = node.children && node.children.length > 0;
+export default function FamilyTreeView() {
+    const [expandedFolders, setExpandedFolders] = useState({ root: true, parents: true, me_and_siblings: true });
+    const [selectedNode, setSelectedNode] = useState('me');
+    const [isPlaying, setIsPlaying] = useState(false);
+
+    const toggleFolder = (id) => {
+        setExpandedFolders(prev => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    const renderTree = (node, depth = 0) => {
+        const isExpanded = expandedFolders[node.id];
+        const isSelected = selectedNode === node.id;
+
+        if (node.type === 'folder') {
+            return (
+                <div key={node.id} className="select-none">
+                    <div
+                        className={`flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                        style={{ paddingLeft: `${depth * 1.5 + 0.75}rem` }}
+                        onClick={() => { toggleFolder(node.id); setSelectedNode(node.id); }}
+                    >
+                        {isExpanded ? <ChevronDown size={16} className="text-gray-500 shrink-0" /> : <ChevronRight size={16} className="text-gray-500 shrink-0" />}
+                        {isExpanded ? <FolderOpen size={18} className="text-blue-500 shrink-0" fill="currentColor" fillOpacity={0.2} /> : <Folder size={18} className="text-blue-500 shrink-0" fill="currentColor" fillOpacity={0.2} />}
+                        <span className={`font-medium truncate ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-200'}`}>{node.name}</span>
+                        {node.isShared && <Eye size={14} className="ml-auto text-emerald-500" title="공유 폴더" />}
+                    </div>
+                    {isExpanded && node.children && (
+                        <div className="mt-1">
+                            {node.children.map(child => renderTree(child, depth + 1))}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // Person node
+        return (
+            <div
+                key={node.id}
+                className={`flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30 ring-1 ring-blue-200 dark:ring-blue-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                style={{ paddingLeft: `${depth * 1.5 + 0.75}rem` }}
+                onClick={() => setSelectedNode(node.id)}
+            >
+                <User size={18} className={`${isSelected ? 'text-blue-600' : 'text-gray-400'} shrink-0`} />
+                <span className={`truncate ${isSelected ? 'font-bold text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300'}`}>{node.name}</span>
+                <span className="ml-auto text-xs font-mono text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">{node.photoCount}</span>
+                {node.isPrivate && <Lock size={12} className="text-gray-400 ml-1" title="비공개" />}
+            </div>
+        );
+    };
 
     return (
-        <div className="flex flex-col items-center">
-            {/* Node Card */}
-            <button
-                onClick={() => onSelect(node)}
-                className={`relative px-4 py-3 rounded-2xl border-2 transition-all text-center min-w-[120px] max-w-[160px]
-                    ${isSelected
-                        ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 shadow-lg shadow-emerald-500/20 scale-105'
-                        : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-emerald-300 hover:shadow-md'
-                    }
-                `}
-            >
-                <div className="flex items-center justify-center gap-1.5 mb-1">
-                    {node.isPrivate
-                        ? <FolderLock size={14} className="text-amber-500" />
-                        : <Folder size={14} className="text-emerald-500" />
-                    }
-                    <span className="text-xs font-bold text-gray-900 dark:text-white truncate">{node.nameKo}</span>
+        <div className="flex flex-col md:flex-row gap-6 bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm h-[600px]">
+            {/* Left: Tree Navigation */}
+            <div className="w-full md:w-1/3 flex flex-col border-r border-gray-100 dark:border-gray-700 pr-4">
+                <div className="mb-4 pb-4 border-b border-gray-100 dark:border-gray-700">
+                    <h4 className="font-bold text-lg text-gray-900 dark:text-white flex items-center gap-2">
+                        <Globe className="text-emerald-500" />
+                        가계도 마스터
+                    </h4>
+                    <p className="text-sm text-gray-500 mt-1">세대별, 인물별 폴더 관리</p>
                 </div>
-                <span className="text-[10px] text-gray-400">{node.count}장</span>
-                {node.isShared && (
-                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-                        <span className="text-[8px] text-white font-bold">S</span>
-                    </span>
-                )}
-            </button>
+                <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+                    {renderTree(mockTree)}
+                </div>
+            </div>
 
-            {/* Children */}
-            {hasChildren && (
-                <>
-                    {/* Vertical connector */}
-                    <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
+            {/* Right: Museum Viewer */}
+            <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-900 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 relative">
 
-                    {/* Horizontal bar + children */}
-                    <div className="relative flex items-start">
-                        {node.children.length > 1 && (
-                            <div
-                                className="absolute top-0 bg-gray-300 dark:bg-gray-600"
-                                style={{
-                                    height: '1px',
-                                    left: '50%',
-                                    right: '50%',
-                                    marginLeft: `-${(node.children.length - 1) * 80}px`,
-                                    marginRight: `-${(node.children.length - 1) * 80}px`,
-                                    width: `${(node.children.length - 1) * 160}px`,
-                                    transform: 'translateX(-50%)',
-                                }}
-                            ></div>
-                        )}
-                        <div className="flex gap-4 md:gap-8">
-                            {node.children.map((child) => (
-                                <div key={child.id} className="flex flex-col items-center">
-                                    {/* Vertical connector from horizontal bar */}
-                                    <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
-                                    <TreeNode
-                                        node={child}
-                                        level={level + 1}
-                                        onSelect={onSelect}
-                                        selectedId={selectedId}
-                                    />
-                                </div>
-                            ))}
-                        </div>
+                {/* Viewer Header */}
+                <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between sticky top-0 z-10">
+                    <div>
+                        <h4 className="font-bold text-lg flex items-center gap-2">
+                            <User className="text-blue-500" />
+                            {selectedNode === 'me' ? 'Me' : 'Selected Album'}
+                        </h4>
+                        <p className="text-xs text-gray-500 mt-0.5">총 {mockPhotos.length}장의 사진 · 개별 비밀번호 보호됨</p>
                     </div>
-                </>
-            )}
-        </div>
-    );
-}
-
-export default function FamilyTreeView() {
-    const [selectedFolder, setSelectedFolder] = useState(null);
-    const [slideshowActive, setSlideshowActive] = useState(false);
-    const [slideshowIndex, setSlideshowIndex] = useState(0);
-    const [showAddMember, setShowAddMember] = useState(false);
-    const [newMemberName, setNewMemberName] = useState('');
-    const [newMemberNameKo, setNewMemberNameKo] = useState('');
-    const [showPhotoMenu, setShowPhotoMenu] = useState(null);
-    const mockPhotos = [...Array(12)].map((_, i) => ({ id: i }));
-
-    // Gallery view when a folder is selected
-    if (selectedFolder) {
-        return (
-            <section className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col h-[600px] w-full max-w-5xl mx-auto">
-                <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                    <div className="flex items-center gap-3">
+                    <div className="flex gap-2">
                         <button
-                            onClick={() => setSelectedFolder(null)}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                            onClick={() => setIsPlaying(!isPlaying)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${isPlaying ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'bg-gray-900 text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900'}`}
                         >
-                            <ChevronLeft size={20} />
+                            <Play size={16} className={isPlaying ? 'animate-pulse' : ''} />
+                            {isPlaying ? '슬라이드 정지' : '슬라이드쇼 재생'}
                         </button>
-                        <div>
-                            <h2 className="text-lg font-bold flex items-center gap-2">
-                                {selectedFolder.isPrivate && <FolderLock size={16} className="text-amber-500" />}
-                                {selectedFolder.nameKo}
-                                <span className="text-sm font-normal text-gray-500">{selectedFolder.count}장</span>
-                            </h2>
-                            <p className="text-xs text-gray-400">{selectedFolder.name}</p>
-                        </div>
                     </div>
-                    <button onClick={() => { setSlideshowActive(true); setSlideshowIndex(0); }}
-                        className="flex items-center gap-2 text-sm font-medium bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 px-3 py-1.5 rounded-lg transition-colors">
-                        <Play size={14} fill="currentColor" />
-                        Slideshow
-                    </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900">
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {/* Museum Grid */}
+                <div className="flex-1 overflow-y-auto p-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         {mockPhotos.map((photo) => (
-                            <div key={photo.id} className="relative aspect-square bg-gray-200 dark:bg-gray-700 rounded-xl group overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                                <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                                    <ImageIcon size={32} className="opacity-50" />
-                                </div>
-                                <div className="absolute inset-x-0 top-0 p-2 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-b from-black/50 to-transparent">
-                                    <div className="relative">
-                                        <button onClick={() => setShowPhotoMenu(showPhotoMenu === photo.id ? null : photo.id)} className="text-white hover:text-gray-200"><MoreVertical size={16} /></button>
-                                        {showPhotoMenu === photo.id && (
-                                            <div className="absolute right-0 top-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 w-32 z-10">
-                                                <button onClick={() => setShowPhotoMenu(null)} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                                    <Download size={12} /> Download
-                                                </button>
-                                                <button onClick={() => setShowPhotoMenu(null)} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-red-600">
-                                                    <Trash2 size={12} /> Delete
-                                                </button>
-                                            </div>
-                                        )}
+                            <div key={photo.id} className="group relative aspect-square rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700">
+                                <img src={photo.url} alt="Museum memory" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+
+                                {/* Overlay Controls */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-3">
+                                    <div className="flex justify-end gap-2">
+                                        <button className="p-1.5 bg-white/20 hover:bg-white/40 backdrop-blur-sm rounded-full text-white transition-colors" title="대표사진 설정">
+                                            <Camera size={14} />
+                                        </button>
+                                        <button className="p-1.5 bg-red-500/80 hover:bg-red-600 backdrop-blur-sm rounded-full text-white transition-colors" title="삭제">
+                                            <Trash2 size={14} />
+                                        </button>
                                     </div>
+                                    {photo.isCover && (
+                                        <div className="text-xs font-bold text-white bg-blue-500/80 backdrop-blur-sm self-start px-2 py-1 rounded-lg flex items-center gap-1">
+                                            <ImageIcon size={12} /> 대표사진
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ))}
                     </div>
-                </div>
-            </section>
-        );
-    }
 
-    // Family Tree view
-    return (
-        <section className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden w-full max-w-5xl mx-auto">
-            <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                <h3 className="font-bold text-gray-900 dark:text-white">Family Tree</h3>
-                <button onClick={() => setShowAddMember(true)} className="flex items-center gap-1 text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors">
-                    <Plus size={16} /> Add Member
-                </button>
-            </div>
-
-            <div className="p-8 overflow-x-auto">
-                <div className="flex justify-center min-w-[600px]">
-                    {initialTree.map((root) => (
-                        <TreeNode
-                            key={root.id}
-                            node={root}
-                            onSelect={setSelectedFolder}
-                            selectedId={selectedFolder?.id}
-                        />
-                    ))}
-                </div>
-            </div>
-
-            <div className="p-4 border-t border-gray-100 dark:border-gray-700 text-center">
-                <p className="text-xs text-gray-400">
-                    Click a folder to view photos. <span className="inline-flex items-center gap-1"><FolderLock size={10} className="text-amber-500" /> Private</span> / <span className="inline-flex items-center gap-1"><Folder size={10} className="text-emerald-500" /> Shared</span>
-                </p>
-            </div>
-
-            {/* Add Member Modal */}
-            {showAddMember && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-gray-100 dark:border-gray-700 relative">
-                        <button onClick={() => setShowAddMember(false)} className="absolute top-3 right-3 p-1.5 text-gray-400 hover:text-gray-900 dark:hover:text-white bg-gray-100 dark:bg-gray-700 rounded-full">
-                            <X size={16} />
-                        </button>
-                        <h3 className="text-lg font-bold mb-4">Add Family Member</h3>
-                        <div className="space-y-3">
-                            <div>
-                                <label className="text-sm font-bold text-gray-500 mb-1 block">Name (English)</label>
-                                <input type="text" value={newMemberName} onChange={e => setNewMemberName(e.target.value)} placeholder="e.g. Uncle"
-                                    className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" />
-                            </div>
-                            <div>
-                                <label className="text-sm font-bold text-gray-500 mb-1 block">Name (Korean)</label>
-                                <input type="text" value={newMemberNameKo} onChange={e => setNewMemberNameKo(e.target.value)} placeholder="e.g. 삼촌"
-                                    className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" />
-                            </div>
-                            <button onClick={() => { setShowAddMember(false); setNewMemberName(''); setNewMemberNameKo(''); }}
-                                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-colors">
-                                Add Member
-                            </button>
+                    {isPlaying && (
+                        <div className="absolute inset-x-0 bottom-4 mx-4 bg-gray-900/90 text-white p-4 rounded-2xl flex items-center justify-center gap-4 animate-fade-in-up border border-gray-700 backdrop-blur-md shadow-2xl">
+                            <span className="relative flex h-3 w-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                            </span>
+                            <span className="font-medium text-sm">디지털 뮤지엄 자동 재생 중... (작품 및 동영상 재생 모드)</span>
                         </div>
-                    </div>
+                    )}
                 </div>
-            )}
-
-            {/* Slideshow Overlay */}
-            {slideshowActive && (
-                <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
-                    <button onClick={() => setSlideshowActive(false)} className="absolute top-4 right-4 p-2 bg-white/20 hover:bg-white/30 rounded-full text-white z-10">
-                        <X size={24} />
-                    </button>
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 text-white z-10">
-                        <button onClick={() => setSlideshowIndex(Math.max(0, slideshowIndex - 1))} className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg font-medium text-sm">Prev</button>
-                        <span className="text-sm font-medium">{slideshowIndex + 1} / {mockPhotos.length}</span>
-                        <button onClick={() => setSlideshowIndex(Math.min(mockPhotos.length - 1, slideshowIndex + 1))} className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg font-medium text-sm">Next</button>
-                    </div>
-                    <div className="w-full max-w-3xl aspect-video bg-gray-800 rounded-xl flex items-center justify-center">
-                        <ImageIcon size={64} className="text-gray-600" />
-                    </div>
-                </div>
-            )}
-        </section>
+            </div>
+        </div>
     );
 }

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { ArrowLeft, FolderOpen, Play, CheckCircle2, ChevronRight, SlidersHorizontal, Trash2, Copy, Check, Sparkles, Trash, ImageOff, Search } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { ArrowLeft, FolderOpen, Play, CheckCircle2, ChevronRight, SlidersHorizontal, Trash2, Copy, Check, Sparkles, Trash, ImageOff, Search, AlertCircle } from 'lucide-react';
 import ProgressBar from '../../components/smart-sort/ProgressBar';
 import FaceTagger from '../../components/smart-sort/FaceTagger';
+import { runScan, applyResults, formatBytes } from '../../services/smartSortEngine';
 
 export default function SmartSortView() {
     const [step, setStep] = useState(1);
@@ -10,48 +11,109 @@ export default function SmartSortView() {
     const [dupAction, setDupAction] = useState('delete'); // 'delete' or 'move'
     const [deleteSmallImages, setDeleteSmallImages] = useState(true); // ON by default
     const [includeSmallInSearch, setIncludeSmallInSearch] = useState(false); // OFF by default
+    const [assignedNames, setAssignedNames] = useState({}); // Stores mappings from face group ID to name
 
     const [isScanning, setIsScanning] = useState(false);
     const [scanProgress, setScanProgress] = useState(0);
+    const [scanMessage, setScanMessage] = useState('');
     const [exporting, setExporting] = useState(false);
     const [exported, setExported] = useState(false);
+    const [exportResult, setExportResult] = useState(null);
 
-    const handleBrowseFolder = async (setter) => {
+    // Scan results from Antigravity engine
+    const [scanResults, setScanResults] = useState(null);
+    const [scanError, setScanError] = useState(null);
+
+    // File System Access API handles
+    const sourceDirRef = useRef(null);
+    const destDirRef = useRef(null);
+
+    const handleBrowseFolder = async (setter, dirRef) => {
         try {
-            // Modern File System Access API — shows native folder picker (no upload message)
             const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
             setter(dirHandle.name);
+            if (dirRef) dirRef.current = dirHandle;
         } catch (err) {
-            // User cancelled or browser doesn't support — ignore
+            // User cancelled or browser doesn't support
         }
     };
 
-    const handleExport = () => {
-        setExporting(true);
-        setTimeout(() => {
-            setExporting(false);
-            setExported(true);
-        }, 2000);
-    };
+    const handleStartScan = async () => {
+        if (!sourceDirRef.current) {
+            setScanError('원본 폴더를 먼저 선택해주세요.');
+            return;
+        }
 
-    const handleStartScan = () => {
+        setScanError(null);
         setIsScanning(true);
         setStep(2);
+        setScanProgress(0);
+        setScanMessage('폴더를 스캔하는 중...');
 
-        // Mock progress
-        let p = 0;
-        const interval = setInterval(() => {
-            p += 5;
-            setScanProgress(p);
-            if (p >= 100) {
-                clearInterval(interval);
-                setTimeout(() => {
-                    setIsScanning(false);
-                    setStep(3);
-                }, 500);
-            }
-        }, 150);
+        try {
+            const results = await runScan(sourceDirRef.current, {
+                deleteSmallImages,
+                includeSmallInSearch,
+                onProgress: (p) => {
+                    setScanProgress(p.percent);
+                    setScanMessage(p.message);
+                },
+            });
+
+            setScanResults(results);
+            setIsScanning(false);
+            setStep(3);
+        } catch (err) {
+            setIsScanning(false);
+            setScanError(`스캔 오류: ${err.message}`);
+            setStep(1);
+        }
     };
+
+    const handleExport = async () => {
+        if (!destDirRef.current) {
+            // If no dest folder selected, prompt
+            try {
+                const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                setDestPath(dirHandle.name);
+                destDirRef.current = dirHandle;
+            } catch {
+                return;
+            }
+        }
+
+        setExporting(true);
+
+        try {
+            const result = await applyResults(destDirRef.current, scanResults, {
+                dupAction,
+                deleteSmallImages,
+                assignedNames,
+                onProgress: (p) => {
+                    setScanProgress(p.percent);
+                    setScanMessage(p.message);
+                },
+            });
+
+            setExportResult(result);
+            setExporting(false);
+            setExported(true);
+        } catch (err) {
+            setExporting(false);
+            setScanError(`내보내기 오류: ${err.message}`);
+        }
+    };
+
+    // Compute display values from real scan results
+    const stats = scanResults ? {
+        scanned: scanResults.totalScanned,
+        duplicates: scanResults.duplicatesFound,
+        smallImages: scanResults.smallImagesFound,
+        faces: scanResults.facesDetected,
+        faceGroups: scanResults.faceGroups || [], // Clustered faces
+        savedGB: formatBytes(scanResults.savedBytes),
+        timeline: scanResults.timeline,
+    } : null;
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans">
@@ -78,9 +140,18 @@ export default function SmartSortView() {
             </header>
 
             {/* Non-intrusive Top Progress Bar */}
-            <ProgressBar isVisible={isScanning} progress={scanProgress} title="로컬 AI가 사진을 분석 중입니다..." />
+            <ProgressBar isVisible={isScanning} progress={scanProgress} title={scanMessage || '로컬 AI가 사진을 분석 중입니다...'} />
 
             <main className="max-w-5xl mx-auto px-4 py-8">
+                {/* Error Banner */}
+                {scanError && (
+                    <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-center gap-3 animate-fade-in-up">
+                        <AlertCircle size={20} className="text-red-500 shrink-0" />
+                        <p className="text-sm text-red-700 dark:text-red-300">{scanError}</p>
+                        <button onClick={() => setScanError(null)} className="ml-auto text-red-400 hover:text-red-600 font-bold text-lg">&times;</button>
+                    </div>
+                )}
+
                 {step === 1 && (
                     <div className="space-y-8 animate-fade-in-up">
                         <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
@@ -96,10 +167,11 @@ export default function SmartSortView() {
                                             type="text"
                                             value={sourcePath}
                                             onChange={(e) => setSourcePath(e.target.value)}
-                                            placeholder="C:\Users\Family\Pictures"
+                                            placeholder="폴더를 선택해주세요"
                                             className="flex-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                                            readOnly
                                         />
-                                        <button onClick={() => handleBrowseFolder(setSourcePath)} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl font-medium transition-colors whitespace-nowrap">찾아보기</button>
+                                        <button onClick={() => handleBrowseFolder(setSourcePath, sourceDirRef)} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl font-medium transition-colors whitespace-nowrap">찾아보기</button>
                                     </div>
                                 </div>
                                 <div>
@@ -109,10 +181,11 @@ export default function SmartSortView() {
                                             type="text"
                                             value={destPath}
                                             onChange={(e) => setDestPath(e.target.value)}
-                                            placeholder="D:\Organized_Photos"
+                                            placeholder="폴더를 선택해주세요 (선택사항)"
                                             className="flex-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                                            readOnly
                                         />
-                                        <button onClick={() => handleBrowseFolder(setDestPath)} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl font-medium transition-colors whitespace-nowrap">찾아보기</button>
+                                        <button onClick={() => handleBrowseFolder(setDestPath, destDirRef)} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl font-medium transition-colors whitespace-nowrap">찾아보기</button>
                                     </div>
                                 </div>
                             </div>
@@ -220,7 +293,8 @@ export default function SmartSortView() {
                         <div className="flex justify-center pt-4">
                             <button
                                 onClick={handleStartScan}
-                                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all transform hover:scale-105"
+                                disabled={!sourcePath}
+                                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-8 py-3.5 rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all transform hover:scale-105"
                             >
                                 <Play size={20} fill="currentColor" />
                                 분류 시작하기
@@ -230,46 +304,55 @@ export default function SmartSortView() {
                 )}
 
                 {step === 2 && (
-                    <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                    <div className="flex flex-col items-center justify-center py-20">
                         <div className="w-24 h-24 bg-blue-100 dark:bg-blue-900/30 text-blue-500 rounded-full flex items-center justify-center mb-6">
                             <Sparkles size={40} className="animate-bounce" />
                         </div>
                         <h2 className="text-2xl font-bold mb-2">로컬 환경에서 안전하게 스캔 중입니다</h2>
-                        <p className="text-gray-500 dark:text-gray-400 max-w-md text-center">
+                        <p className="text-gray-500 dark:text-gray-400 max-w-md text-center mb-4">
                             사진은 서버로 전송되지 않으며, 기기의 성능을 활용해 인물과 타임라인을 분류하고 있습니다.
                         </p>
+                        <div className="w-full max-w-md">
+                            <div className="flex justify-between text-sm text-gray-500 mb-1">
+                                <span>{scanMessage}</span>
+                                <span>{scanProgress}%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                                <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${scanProgress}%` }}></div>
+                            </div>
+                        </div>
                     </div>
                 )}
 
-                {step === 3 && (
+                {step === 3 && stats && (
                     <div className="space-y-8 animate-fade-in-up">
-                        {/* Stats Summary */}
+                        {/* Stats Summary — Real data from Antigravity engine */}
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 text-center">
                                 <div className="text-sm text-gray-500">스캔된 사진</div>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-white">4,281<span className="text-sm font-normal text-gray-400">장</span></div>
+                                <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.scanned.toLocaleString()}<span className="text-sm font-normal text-gray-400">장</span></div>
                             </div>
                             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 text-center">
                                 <div className="text-sm text-red-500">중복 (정리 대상)</div>
-                                <div className="text-2xl font-bold text-red-600">842<span className="text-sm font-normal text-red-400">장</span></div>
+                                <div className="text-2xl font-bold text-red-600">{stats.duplicates.toLocaleString()}<span className="text-sm font-normal text-red-400">장</span></div>
                             </div>
                             {deleteSmallImages && (
                                 <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-orange-200 dark:border-orange-800 text-center">
                                     <div className="text-sm text-orange-500">작은 이미지 삭제</div>
-                                    <div className="text-2xl font-bold text-orange-600">1,247<span className="text-sm font-normal text-orange-400">개</span></div>
+                                    <div className="text-2xl font-bold text-orange-600">{stats.smallImages.toLocaleString()}<span className="text-sm font-normal text-orange-400">개</span></div>
                                 </div>
                             )}
                             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 text-center">
                                 <div className="text-sm text-blue-500">식별된 인물</div>
-                                <div className="text-2xl font-bold text-blue-600">7<span className="text-sm font-normal text-blue-400">명</span></div>
+                                <div className="text-2xl font-bold text-blue-600">{stats.faces}<span className="text-sm font-normal text-blue-400">명</span></div>
                             </div>
                             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 text-center">
                                 <div className="text-sm text-emerald-500">절약 기대 용량</div>
-                                <div className="text-2xl font-bold text-emerald-600">{deleteSmallImages ? '4.8' : '3.2'}<span className="text-sm font-normal text-emerald-400">GB</span></div>
+                                <div className="text-2xl font-bold text-emerald-600">{stats.savedGB}</div>
                             </div>
                         </div>
 
-                        {/* Timeline Before & After Placeholder */}
+                        {/* Timeline Before & After — Real timeline data */}
                         <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
                             <h2 className="text-lg font-bold mb-4">타임라인 대조 뷰어 (Before & After)</h2>
                             <div className="flex flex-col md:flex-row gap-6">
@@ -277,9 +360,8 @@ export default function SmartSortView() {
                                     <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center justify-between">
                                         Before <span className="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">혼란스러운 폴더</span>
                                     </h3>
-                                    {/* Mock Before */}
                                     <div className="grid grid-cols-4 gap-2 opacity-60">
-                                        {[...Array(16)].map((_, i) => (
+                                        {[...Array(Math.min(16, stats.scanned))].map((_, i) => (
                                             <div key={i} className="aspect-square bg-gray-300 dark:bg-gray-700 rounded-lg"></div>
                                         ))}
                                     </div>
@@ -291,31 +373,43 @@ export default function SmartSortView() {
                                     <h3 className="text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-4 flex items-center justify-between">
                                         After <span className="text-xs bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">연도/월별 정리</span>
                                     </h3>
-                                    {/* Mock After Timeline */}
-                                    <div className="space-y-4">
-                                        <div>
-                                            <div className="text-xs font-bold text-gray-500 mb-2">2026년 3월</div>
-                                            <div className="grid grid-cols-4 gap-2">
-                                                {[...Array(4)].map((_, i) => (
-                                                    <div key={i} className="aspect-square bg-blue-400 dark:bg-blue-600 rounded-lg shadow-sm"></div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div className="text-xs font-bold text-gray-500 mb-2">2025년 12월</div>
-                                            <div className="grid grid-cols-4 gap-2">
-                                                {[...Array(8)].map((_, i) => (
-                                                    <div key={i} className="aspect-square bg-blue-300 dark:bg-blue-700 rounded-lg shadow-sm"></div>
-                                                ))}
-                                            </div>
-                                        </div>
+                                    {/* Real timeline from scan */}
+                                    <div className="space-y-4 max-h-64 overflow-y-auto">
+                                        {Object.entries(stats.timeline)
+                                            .sort(([a], [b]) => b.localeCompare(a))
+                                            .slice(0, 6)
+                                            .map(([yearMonth, count]) => {
+                                                const [year, month] = yearMonth.split('/');
+                                                return (
+                                                    <div key={yearMonth}>
+                                                        <div className="text-xs font-bold text-gray-500 mb-2">{year}년 {parseInt(month)}월 — {count}장</div>
+                                                        <div className="grid grid-cols-4 gap-2">
+                                                            {[...Array(Math.min(count, 8))].map((_, i) => (
+                                                                <div key={i} className="aspect-square bg-blue-400 dark:bg-blue-600 rounded-lg shadow-sm"></div>
+                                                            ))}
+                                                            {count > 8 && (
+                                                                <div className="aspect-square bg-blue-300 dark:bg-blue-700 rounded-lg shadow-sm flex items-center justify-center text-xs font-bold text-blue-700 dark:text-blue-200">
+                                                                    +{count - 8}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        {Object.keys(stats.timeline).length === 0 && (
+                                            <p className="text-sm text-gray-400 text-center py-4">날짜 정보가 없습니다</p>
+                                        )}
                                     </div>
                                 </div>
                             </div>
                         </section>
 
                         {/* Face Tagger Component */}
-                        <FaceTagger />
+                        <FaceTagger
+                            faceGroups={stats.faceGroups}
+                            assignedNames={assignedNames}
+                            setAssignedNames={setAssignedNames}
+                        />
 
                         <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700 mt-8">
                             {!exported ? (
@@ -330,7 +424,9 @@ export default function SmartSortView() {
                             ) : (
                                 <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-6 py-3 rounded-xl">
                                     <Check size={20} className="text-emerald-600" />
-                                    <span className="font-bold text-emerald-700 dark:text-emerald-300">정리 완료! 3,439장이 연도/월별로 저장되었습니다.</span>
+                                    <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                                        정리 완료! {exportResult ? `${exportResult.organized.toLocaleString()}장이 연도/월별로 저장되었습니다.` : '저장되었습니다.'}
+                                    </span>
                                 </div>
                             )}
                         </div>

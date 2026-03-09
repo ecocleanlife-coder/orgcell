@@ -1,4 +1,192 @@
 const db = require('../config/db');
+const smartSort = require('../services/smartSortService');
+
+// In-memory job store for scan sessions (could be moved to DB/Redis later)
+const scanJobs = new Map();
+
+// @desc    Start a smart sort scan (Antigravity engine)
+// @route   POST /api/scan/smart-sort/start
+exports.startSmartSort = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { source_path, dest_path, dup_action, delete_small_images, include_small_in_search } = req.body;
+
+        if (!source_path) {
+            return res.status(400).json({ success: false, message: 'source_path required' });
+        }
+
+        const jobId = `${userId}_${Date.now()}`;
+        const job = {
+            id: jobId,
+            userId,
+            status: 'scanning',
+            progress: 0,
+            phase: 'init',
+            message: 'Starting scan...',
+            sourcePath: source_path,
+            destPath: dest_path || null,
+            options: {
+                dupAction: dup_action || 'delete',
+                deleteSmallImages: delete_small_images !== false,
+                includeSmallInSearch: include_small_in_search === true,
+            },
+            results: null,
+            startedAt: new Date(),
+            completedAt: null,
+        };
+
+        scanJobs.set(jobId, job);
+
+        // Run scan asynchronously
+        smartSort.runSmartSort(source_path, dest_path, {
+            dupAction: job.options.dupAction,
+            deleteSmallImages: job.options.deleteSmallImages,
+            includeSmallInSearch: job.options.includeSmallInSearch,
+            onProgress: (p) => {
+                job.phase = p.phase;
+                job.message = p.message;
+                job.progress = p.percent;
+            },
+        }).then((results) => {
+            job.status = 'completed';
+            job.progress = 100;
+            job.results = results;
+            job.completedAt = new Date();
+        }).catch((err) => {
+            job.status = 'error';
+            job.message = err.message;
+            console.error('SmartSort scan error:', err);
+        });
+
+        res.json({
+            success: true,
+            job_id: jobId,
+            message: 'Scan started',
+        });
+    } catch (error) {
+        console.error('startSmartSort Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to start scan' });
+    }
+};
+
+// @desc    Get smart sort scan status/progress
+// @route   GET /api/scan/smart-sort/status/:jobId
+exports.getSmartSortStatus = async (req, res) => {
+    try {
+        const job = scanJobs.get(req.params.jobId);
+        if (!job) {
+            return res.status(404).json({ success: false, message: 'Job not found' });
+        }
+
+        // Verify ownership
+        if (job.userId !== req.user.id) {
+            return res.status(403).json({ success: false, message: 'Forbidden' });
+        }
+
+        const response = {
+            success: true,
+            data: {
+                job_id: job.id,
+                status: job.status,
+                progress: job.progress,
+                phase: job.phase,
+                message: job.message,
+                started_at: job.startedAt,
+                completed_at: job.completedAt,
+            },
+        };
+
+        // Include results only when completed
+        if (job.status === 'completed' && job.results) {
+            response.data.results = {
+                total_scanned: job.results.totalScanned,
+                duplicates_found: job.results.duplicatesFound,
+                small_images_found: job.results.smallImagesFound,
+                faces_detected: job.results.facesDetected,
+                total_size_bytes: job.results.totalSizeBytes,
+                saved_size_bytes: job.results.savedSizeBytes,
+                errors: job.results.errors,
+                timeline: job.results.timeline,
+                duplicate_groups_count: job.results.duplicateGroups.length,
+                small_images_count: job.results.smallImages.length,
+            };
+        }
+
+        res.json(response);
+    } catch (error) {
+        console.error('getSmartSortStatus Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to get status' });
+    }
+};
+
+// @desc    Apply smart sort results (organize, dedup, cleanup)
+// @route   POST /api/scan/smart-sort/apply
+exports.applySmartSort = async (req, res) => {
+    try {
+        const job = scanJobs.get(req.body.job_id);
+        if (!job || job.userId !== req.user.id) {
+            return res.status(404).json({ success: false, message: 'Job not found' });
+        }
+
+        if (job.status !== 'completed' || !job.results) {
+            return res.status(400).json({ success: false, message: 'Scan not completed yet' });
+        }
+
+        const { dest_path, dup_action, delete_small_images, move_mode, assigned_names } = req.body;
+        const destPath = dest_path || job.destPath;
+
+        if (!destPath) {
+            return res.status(400).json({ success: false, message: 'dest_path required' });
+        }
+
+        job.status = 'applying';
+        job.progress = 0;
+
+        const result = await smartSort.applySmartSort(
+            job.sourcePath, destPath, job.results,
+            {
+                dupAction: dup_action || job.options.dupAction,
+                deleteSmallImages: delete_small_images !== undefined ? delete_small_images : job.options.deleteSmallImages,
+                moveMode: move_mode || false,
+                assignedNames: assigned_names || {},
+                onProgress: (p) => {
+                    job.phase = p.phase;
+                    job.message = p.message;
+                    job.progress = p.percent;
+                },
+            }
+        );
+
+        job.status = 'applied';
+        job.progress = 100;
+
+        res.json({
+            success: true,
+            data: {
+                processed: result.processed,
+                moved: result.moved,
+                deleted: result.deleted,
+                errors: result.errors,
+                dest_path: destPath,
+            },
+        });
+    } catch (error) {
+        console.error('applySmartSort Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to apply sort' });
+    }
+};
+
+// @desc    Get supported file extensions
+// @route   GET /api/scan/smart-sort/extensions
+exports.getSupportedExtensions = (req, res) => {
+    res.json({
+        success: true,
+        data: {
+            extensions: [...smartSort.SUPPORTED_EXTENSIONS],
+            small_threshold_px: smartSort.SMALL_IMAGE_THRESHOLD,
+        },
+    });
+};
 
 // @desc    Scan for duplicate photos by dHash
 // @route   POST /api/scan/duplicates

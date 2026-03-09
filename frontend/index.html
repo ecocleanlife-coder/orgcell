@@ -15,13 +15,32 @@
 
 <body>
   <div id="root"></div>
+
+  <!-- Antigravity WASM Context -->
+  <script src="/wasm_exec.js"></script>
+  <script>
+    if (typeof Go !== 'undefined') {
+      const go = new Go();
+      // Ensure Vite or the server serves antigravity.wasm correctly
+      fetch("/antigravity.wasm").then(response =>
+        response.arrayBuffer()
+      ).then(bytes =>
+        WebAssembly.instantiate(bytes, go.importObject)
+      ).then(result => {
+        go.run(result.instance);
+      }).catch(err => {
+        console.warn("WASM Init Error:", err);
+      });
+    }
+  </script>
+
   <script>
     // Force clear old service worker caches on deploy
     if ('serviceWorker' in navigator) {
-      caches.keys().then(function(names) {
+      caches.keys().then(function (names) {
         for (var name of names) caches.delete(name);
       });
-      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+      navigator.serviceWorker.getRegistrations().then(function (registrations) {
         for (var reg of registrations) reg.unregister();
       });
     }
