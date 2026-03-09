@@ -53,7 +53,7 @@ export default function FriendCall({ localPhotos = [] }) {
                 const objectUrl = URL.createObjectURL(decryptedBlob);
 
                 // 3. Add Watermark
-                const watermarkedBlob = await addWatermarkToImage(objectUrl, "Orgcell Memoir Protected");
+                const watermarkedBlob = await addWatermarkToImage(objectUrl, "Orgcell Protected");
                 URL.revokeObjectURL(objectUrl);
 
                 // 4. Send via Socket (In a real app, this should be chunked and re-encrypted. 

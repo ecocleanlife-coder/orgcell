@@ -21,6 +21,11 @@ const KeyManager = lazy(() => import('./components/settings/KeyManager'));
 const LandingPage = lazy(() => import('./components/home/LandingPage'));
 const DriveCallback = lazy(() => import('./components/settings/DriveCallback'));
 
+// New Feature Views
+const SmartSortView = lazy(() => import('./pages/smart-sort/SmartSortView'));
+const FamilyWebsiteView = lazy(() => import('./pages/museum/FamilyWebsiteView'));
+const LiveSharingView = lazy(() => import('./pages/sharing/LiveSharingView'));
+
 // A Loading Fallback Component
 const PageLoader = () => (
   <div className="flex h-64 w-full items-center justify-center">
@@ -329,6 +334,30 @@ function App() {
           element={
             <Suspense fallback={<PageLoader />}>
               <DriveCallback />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/smart-sort"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <SmartSortView />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/family-website"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <FamilyWebsiteView />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/live-sharing"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <LiveSharingView />
             </Suspense>
           }
         />

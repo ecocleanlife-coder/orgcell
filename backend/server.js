@@ -23,6 +23,9 @@ app.use('/api/albums', require('./src/routes/albumRoutes'));
 app.use('/api/face', require('./src/routes/faceRoutes'));
 app.use('/api/rooms', require('./src/routes/roomRoutes'));
 app.use('/api/drive', require('./src/routes/driveRoutes'));
+app.use('/api/scan', require('./src/routes/scanRoutes'));
+app.use('/api/sites', require('./src/routes/siteRoutes'));
+app.use('/api/events', require('./src/routes/eventRoutes'));
 
 // 404 handler for /api/*
 app.use('/api/*', (req, res) => {

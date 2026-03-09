@@ -1,0 +1,263 @@
+const db = require('../config/db');
+
+// @desc    Create family site
+// @route   POST /api/sites
+exports.createSite = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { subdomain, theme = 'modern' } = req.body;
+
+        if (!subdomain || subdomain.length < 3) {
+            return res.status(400).json({ success: false, message: 'Subdomain required (min 3 chars)' });
+        }
+
+        // Check subdomain availability
+        const existing = await db.query(
+            `SELECT id FROM family_sites WHERE subdomain = $1`, [subdomain.toLowerCase()]
+        );
+        if (existing.rows.length > 0) {
+            return res.status(409).json({ success: false, message: 'Subdomain already taken' });
+        }
+
+        const { rows } = await db.query(
+            `INSERT INTO family_sites (user_id, subdomain, theme, status)
+             VALUES ($1, $2, $3, 'pending')
+             RETURNING *`,
+            [userId, subdomain.toLowerCase(), theme]
+        );
+
+        res.status(201).json({
+            success: true,
+            data: {
+                ...rows[0],
+                url: `https://${subdomain.toLowerCase()}.orgcell.com`,
+            },
+        });
+    } catch (error) {
+        console.error('createSite Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to create site' });
+    }
+};
+
+// @desc    Get user's family site
+// @route   GET /api/sites/mine
+exports.getMySite = async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        const { rows } = await db.query(
+            `SELECT * FROM family_sites WHERE user_id = $1`, [userId]
+        );
+
+        if (rows.length === 0) {
+            return res.json({ success: true, data: null });
+        }
+
+        const site = rows[0];
+
+        // Get folder structure
+        const folders = await db.query(
+            `SELECT * FROM site_folders WHERE site_id = $1 ORDER BY sort_order`, [site.id]
+        );
+
+        res.json({
+            success: true,
+            data: {
+                ...site,
+                url: `https://${site.subdomain}.orgcell.com`,
+                folders: folders.rows,
+            },
+        });
+    } catch (error) {
+        console.error('getMySite Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to get site' });
+    }
+};
+
+// @desc    Create folder in family site (family tree structure)
+// @route   POST /api/sites/:siteId/folders
+exports.createFolder = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { siteId } = req.params;
+        const { name, label, parent_id, is_shared = false, password } = req.body;
+
+        // Verify site ownership
+        const site = await db.query(
+            `SELECT id FROM family_sites WHERE id = $1 AND user_id = $2`, [siteId, userId]
+        );
+        if (site.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Site not found' });
+        }
+
+        const { rows } = await db.query(
+            `INSERT INTO site_folders (site_id, name, label, parent_id, is_shared, password_hash)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             RETURNING *`,
+            [siteId, name, label || name, parent_id || null, is_shared,
+             password ? require('bcryptjs').hashSync(password, 10) : null]
+        );
+
+        res.status(201).json({ success: true, data: rows[0] });
+    } catch (error) {
+        console.error('createFolder Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to create folder' });
+    }
+};
+
+// @desc    Get folder contents (photos, videos, audio)
+// @route   GET /api/sites/:siteId/folders/:folderId/media
+exports.getFolderMedia = async (req, res) => {
+    try {
+        const { siteId, folderId } = req.params;
+        const { password } = req.query;
+
+        // Check folder access
+        const folder = await db.query(
+            `SELECT f.*, s.user_id FROM site_folders f
+             JOIN family_sites s ON f.site_id = s.id
+             WHERE f.id = $1 AND f.site_id = $2`,
+            [folderId, siteId]
+        );
+
+        if (folder.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Folder not found' });
+        }
+
+        const folderData = folder.rows[0];
+
+        // If not shared, check ownership
+        if (!folderData.is_shared) {
+            if (!req.user || req.user.id !== folderData.user_id) {
+                return res.status(403).json({ success: false, message: 'Private folder' });
+            }
+        }
+
+        // If password protected, verify
+        if (folderData.password_hash && password) {
+            const match = require('bcryptjs').compareSync(password, folderData.password_hash);
+            if (!match) {
+                return res.status(401).json({ success: false, message: 'Wrong password' });
+            }
+        }
+
+        const { rows } = await db.query(
+            `SELECT * FROM site_media
+             WHERE folder_id = $1
+             ORDER BY sort_order, created_at DESC`,
+            [folderId]
+        );
+
+        res.json({ success: true, folder: folderData, data: rows });
+    } catch (error) {
+        console.error('getFolderMedia Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to get folder media' });
+    }
+};
+
+// @desc    Upload media to folder (photo, video, audio, artwork)
+// @route   POST /api/sites/:siteId/folders/:folderId/media
+exports.addMedia = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { siteId, folderId } = req.params;
+        const { filename, media_type, file_size, drive_file_id, thumbnail_url, title } = req.body;
+
+        // Verify ownership
+        const site = await db.query(
+            `SELECT id FROM family_sites WHERE id = $1 AND user_id = $2`, [siteId, userId]
+        );
+        if (site.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Site not found' });
+        }
+
+        // Check photo limit
+        const countResult = await db.query(
+            `SELECT COUNT(*) FROM site_media sm
+             JOIN site_folders sf ON sm.folder_id = sf.id
+             WHERE sf.site_id = $1`,
+            [siteId]
+        );
+        const currentCount = parseInt(countResult.rows[0].count);
+        const siteData = await db.query(`SELECT photo_limit FROM family_sites WHERE id = $1`, [siteId]);
+        const limit = siteData.rows[0]?.photo_limit || 2000;
+
+        if (currentCount >= limit) {
+            return res.status(403).json({
+                success: false,
+                message: `Photo limit reached (${limit}). Purchase additional storage.`,
+            });
+        }
+
+        const { rows } = await db.query(
+            `INSERT INTO site_media (folder_id, filename, media_type, file_size, drive_file_id, thumbnail_url, title)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             RETURNING *`,
+            [folderId, filename, media_type || 'photo', file_size, drive_file_id, thumbnail_url, title]
+        );
+
+        res.status(201).json({ success: true, data: rows[0] });
+    } catch (error) {
+        console.error('addMedia Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to add media' });
+    }
+};
+
+// @desc    Get pricing info
+// @route   GET /api/sites/pricing
+exports.getPricing = async (req, res) => {
+    res.json({
+        success: true,
+        data: {
+            plans: [
+                { name: 'Basic', photos: 2000, price_per_year: 10, currency: 'USD' },
+                { name: 'Extra 2000', photos: 2000, price: 10, type: 'addon', currency: 'USD' },
+                { name: '10-Year Bundle', photos: 10000, price: 100, years: 10, currency: 'USD' },
+            ],
+            features: [
+                'yourfamily.orgcell.com subdomain',
+                'Family tree folder structure',
+                'Photo, video, audio, artwork storage',
+                'Private & shared folders with password',
+                'Slideshow per folder',
+            ],
+        },
+    });
+};
+
+// @desc    Get public family site by subdomain
+// @route   GET /api/sites/public/:subdomain
+exports.getPublicSite = async (req, res) => {
+    try {
+        const { subdomain } = req.params;
+
+        const site = await db.query(
+            `SELECT id, subdomain, theme, created_at FROM family_sites
+             WHERE subdomain = $1 AND status = 'active'`,
+            [subdomain.toLowerCase()]
+        );
+
+        if (site.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Site not found' });
+        }
+
+        // Get only shared folders
+        const folders = await db.query(
+            `SELECT id, name, label, parent_id, is_shared FROM site_folders
+             WHERE site_id = $1 AND is_shared = true
+             ORDER BY sort_order`,
+            [site.rows[0].id]
+        );
+
+        res.json({
+            success: true,
+            data: {
+                ...site.rows[0],
+                folders: folders.rows,
+            },
+        });
+    } catch (error) {
+        console.error('getPublicSite Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to get site' });
+    }
+};

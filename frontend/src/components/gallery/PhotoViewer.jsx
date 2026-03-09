@@ -126,7 +126,7 @@ export default function PhotoViewer({ photo, onClose, onDeleteClick }) {
                     {decryptedUrl && (
                         <a
                             href={decryptedUrl}
-                            download={photo.original_name || photo.name || 'memoir_lens_photo.jpeg'}
+                            download={photo.original_name || photo.name || 'orgcell_photo.jpeg'}
                             className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition-colors cursor-pointer"
                             title="원본 원격 다운로드"
                             onClick={(e) => {

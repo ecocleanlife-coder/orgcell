@@ -1,4 +1,4 @@
-export const addWatermarkToImage = (imageSrc, watermarkText = "Orgcell Memoir Protected") => {
+export const addWatermarkToImage = (imageSrc, watermarkText = "Orgcell Protected") => {
     return new Promise((resolve, reject) => {
         const img = new Image();
         img.crossOrigin = "anonymous";
