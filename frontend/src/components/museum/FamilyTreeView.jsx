@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Folder, FolderLock, Plus, Image as ImageIcon, Play, MoreVertical, ChevronLeft } from 'lucide-react';
+import { Folder, FolderLock, Plus, Image as ImageIcon, Play, MoreVertical, ChevronLeft, Download, Trash2, X } from 'lucide-react';
 
 const initialTree = [
     {
@@ -110,6 +110,12 @@ function TreeNode({ node, level = 0, onSelect, selectedId }) {
 
 export default function FamilyTreeView() {
     const [selectedFolder, setSelectedFolder] = useState(null);
+    const [slideshowActive, setSlideshowActive] = useState(false);
+    const [slideshowIndex, setSlideshowIndex] = useState(0);
+    const [showAddMember, setShowAddMember] = useState(false);
+    const [newMemberName, setNewMemberName] = useState('');
+    const [newMemberNameKo, setNewMemberNameKo] = useState('');
+    const [showPhotoMenu, setShowPhotoMenu] = useState(null);
     const mockPhotos = [...Array(12)].map((_, i) => ({ id: i }));
 
     // Gallery view when a folder is selected
@@ -133,7 +139,8 @@ export default function FamilyTreeView() {
                             <p className="text-xs text-gray-400">{selectedFolder.name}</p>
                         </div>
                     </div>
-                    <button className="flex items-center gap-2 text-sm font-medium bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 px-3 py-1.5 rounded-lg transition-colors">
+                    <button onClick={() => { setSlideshowActive(true); setSlideshowIndex(0); }}
+                        className="flex items-center gap-2 text-sm font-medium bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 px-3 py-1.5 rounded-lg transition-colors">
                         <Play size={14} fill="currentColor" />
                         Slideshow
                     </button>
@@ -147,7 +154,19 @@ export default function FamilyTreeView() {
                                     <ImageIcon size={32} className="opacity-50" />
                                 </div>
                                 <div className="absolute inset-x-0 top-0 p-2 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-b from-black/50 to-transparent">
-                                    <button className="text-white hover:text-gray-200"><MoreVertical size={16} /></button>
+                                    <div className="relative">
+                                        <button onClick={() => setShowPhotoMenu(showPhotoMenu === photo.id ? null : photo.id)} className="text-white hover:text-gray-200"><MoreVertical size={16} /></button>
+                                        {showPhotoMenu === photo.id && (
+                                            <div className="absolute right-0 top-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 w-32 z-10">
+                                                <button onClick={() => setShowPhotoMenu(null)} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                                    <Download size={12} /> Download
+                                                </button>
+                                                <button onClick={() => setShowPhotoMenu(null)} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-red-600">
+                                                    <Trash2 size={12} /> Delete
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -162,7 +181,7 @@ export default function FamilyTreeView() {
         <section className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden w-full max-w-5xl mx-auto">
             <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
                 <h3 className="font-bold text-gray-900 dark:text-white">Family Tree</h3>
-                <button className="flex items-center gap-1 text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors">
+                <button onClick={() => setShowAddMember(true)} className="flex items-center gap-1 text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors">
                     <Plus size={16} /> Add Member
                 </button>
             </div>
@@ -185,6 +204,51 @@ export default function FamilyTreeView() {
                     Click a folder to view photos. <span className="inline-flex items-center gap-1"><FolderLock size={10} className="text-amber-500" /> Private</span> / <span className="inline-flex items-center gap-1"><Folder size={10} className="text-emerald-500" /> Shared</span>
                 </p>
             </div>
+
+            {/* Add Member Modal */}
+            {showAddMember && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-gray-100 dark:border-gray-700 relative">
+                        <button onClick={() => setShowAddMember(false)} className="absolute top-3 right-3 p-1.5 text-gray-400 hover:text-gray-900 dark:hover:text-white bg-gray-100 dark:bg-gray-700 rounded-full">
+                            <X size={16} />
+                        </button>
+                        <h3 className="text-lg font-bold mb-4">Add Family Member</h3>
+                        <div className="space-y-3">
+                            <div>
+                                <label className="text-sm font-bold text-gray-500 mb-1 block">Name (English)</label>
+                                <input type="text" value={newMemberName} onChange={e => setNewMemberName(e.target.value)} placeholder="e.g. Uncle"
+                                    className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" />
+                            </div>
+                            <div>
+                                <label className="text-sm font-bold text-gray-500 mb-1 block">Name (Korean)</label>
+                                <input type="text" value={newMemberNameKo} onChange={e => setNewMemberNameKo(e.target.value)} placeholder="e.g. 삼촌"
+                                    className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" />
+                            </div>
+                            <button onClick={() => { setShowAddMember(false); setNewMemberName(''); setNewMemberNameKo(''); }}
+                                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-colors">
+                                Add Member
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Slideshow Overlay */}
+            {slideshowActive && (
+                <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
+                    <button onClick={() => setSlideshowActive(false)} className="absolute top-4 right-4 p-2 bg-white/20 hover:bg-white/30 rounded-full text-white z-10">
+                        <X size={24} />
+                    </button>
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 text-white z-10">
+                        <button onClick={() => setSlideshowIndex(Math.max(0, slideshowIndex - 1))} className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg font-medium text-sm">Prev</button>
+                        <span className="text-sm font-medium">{slideshowIndex + 1} / {mockPhotos.length}</span>
+                        <button onClick={() => setSlideshowIndex(Math.min(mockPhotos.length - 1, slideshowIndex + 1))} className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg font-medium text-sm">Next</button>
+                    </div>
+                    <div className="w-full max-w-3xl aspect-video bg-gray-800 rounded-xl flex items-center justify-center">
+                        <ImageIcon size={64} className="text-gray-600" />
+                    </div>
+                </div>
+            )}
         </section>
     );
 }
