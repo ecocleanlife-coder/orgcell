@@ -26,6 +26,7 @@ app.use('/api/drive', require('./src/routes/driveRoutes'));
 app.use('/api/scan', require('./src/routes/scanRoutes'));
 app.use('/api/sites', require('./src/routes/siteRoutes'));
 app.use('/api/events', require('./src/routes/eventRoutes'));
+app.use('/api/sharing', require('./src/routes/sharingRoutes'));
 
 // 404 handler for /api/*
 app.use('/api/*', (req, res) => {

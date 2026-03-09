@@ -19,6 +19,13 @@ const useUiStore = create((set) => ({
         return { isDarkMode: nextMode };
     }),
 
+    // Language (persists to localStorage)
+    lang: localStorage.getItem('orgcell_lang') || 'en',
+    setLang: (lang) => set(() => {
+        localStorage.setItem('orgcell_lang', lang);
+        return { lang };
+    }),
+
     // Upload Progress Modal/Toast Management
     uploadsInProgress: [],
     addUpload: (uploadId, file) => set((state) => ({

@@ -20,6 +20,7 @@ const RoomWorkspace = lazy(() => import('./components/sync/RoomWorkspace'));
 const KeyManager = lazy(() => import('./components/settings/KeyManager'));
 const LandingPage = lazy(() => import('./components/home/LandingPage'));
 const DriveCallback = lazy(() => import('./components/settings/DriveCallback'));
+const MagicLinkVerify = lazy(() => import('./pages/auth/MagicLinkVerify'));
 
 // New Feature Views
 const SmartSortView = lazy(() => import('./pages/smart-sort/SmartSortView'));
@@ -338,27 +339,41 @@ function App() {
           }
         />
         <Route
-          path="/smart-sort"
+          path="/auth/verify"
           element={
             <Suspense fallback={<PageLoader />}>
-              <SmartSortView />
+              <MagicLinkVerify />
             </Suspense>
+          }
+        />
+        <Route
+          path="/smart-sort"
+          element={
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <SmartSortView />
+              </Suspense>
+            </ErrorBoundary>
           }
         />
         <Route
           path="/family-website"
           element={
-            <Suspense fallback={<PageLoader />}>
-              <FamilyWebsiteView />
-            </Suspense>
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <FamilyWebsiteView />
+              </Suspense>
+            </ErrorBoundary>
           }
         />
         <Route
           path="/live-sharing"
           element={
-            <Suspense fallback={<PageLoader />}>
-              <LiveSharingView />
-            </Suspense>
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <LiveSharingView />
+              </Suspense>
+            </ErrorBoundary>
           }
         />
       </Routes>

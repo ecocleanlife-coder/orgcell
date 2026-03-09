@@ -35,14 +35,19 @@
   </script>
 
   <script>
-    // Force clear old service worker caches on deploy
+    // Clear stale service worker caches only on version mismatch
     if ('serviceWorker' in navigator) {
-      caches.keys().then(function (names) {
-        for (var name of names) caches.delete(name);
-      });
-      navigator.serviceWorker.getRegistrations().then(function (registrations) {
-        for (var reg of registrations) reg.unregister();
-      });
+      var BUILD_VERSION = '__BUILD_VERSION__';
+      var storedVersion = localStorage.getItem('orgcell_build_version');
+      if (storedVersion && storedVersion !== BUILD_VERSION) {
+        caches.keys().then(function (names) {
+          for (var name of names) caches.delete(name);
+        });
+        navigator.serviceWorker.getRegistrations().then(function (registrations) {
+          for (var reg of registrations) reg.unregister();
+        });
+      }
+      localStorage.setItem('orgcell_build_version', BUILD_VERSION);
     }
   </script>
   <script type="module" src="/src/main.jsx"></script>

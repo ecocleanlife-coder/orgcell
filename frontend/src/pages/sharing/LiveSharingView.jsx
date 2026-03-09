@@ -3,8 +3,16 @@ import {
     ArrowLeft, ArrowRight, FolderOpen, Image as ImageIcon, User, Sparkles,
     QrCode, Share2, X, Copy, Check, MessageCircle, Send, CheckSquare, Square,
     Camera, Phone, Mail, MessageSquare, ChevronRight, Shield, Eye, EyeOff,
-    Hash, Users, Upload, Download, FolderDown, Plus, Search
+    Hash, Users, Upload, Download, FolderDown, Plus, Search, Radio
 } from 'lucide-react';
+import LiveFeed from '../../components/sharing/LiveFeed';
+import AdBanner from '../../components/common/AdBanner';
+import LanguageSwitcher from '../../components/common/LanguageSwitcher';
+import FriendCall from '../../components/sync/FriendCall';
+import RoomWorkspace from '../../components/sync/RoomWorkspace';
+import useUiStore from '../../store/uiStore';
+import useAuthStore from '../../store/authStore';
+import { getT } from '../../i18n/translations';
 
 // ── Mock Data ──
 const mockFolders = [
@@ -59,6 +67,9 @@ const STEPS = {
 };
 
 export default function LiveSharingView() {
+    const lang = useUiStore((s) => s.lang);
+    const lt = getT('liveSharing', lang);
+    const token = useAuthStore((s) => s.token);
     const [step, setStep] = useState(STEPS.MAIN);
 
     // ── Individual state ──
@@ -147,7 +158,7 @@ export default function LiveSharingView() {
     const handleGoToCode = () => { generateCode(); setStep(STEPS.IND_CODE); };
 
     const handleCopyCode = () => {
-        navigator.clipboard?.writeText(shareCode).catch(() => {});
+        navigator.clipboard?.writeText(shareCode).catch(() => { });
         setCodeCopied(true);
         setTimeout(() => setCodeCopied(false), 2000);
     };
@@ -185,14 +196,58 @@ export default function LiveSharingView() {
     };
 
     const handleGroupUpload = () => {
-        // Simulate adding photos
-        const newPhotos = generateMockPhotos(6).map(p => ({
-            ...p,
-            id: Date.now() + p.id,
+        if (fileInputRef.current) {
+            fileInputRef.current.click();
+        }
+    };
+
+    const handleFileChange = async (e) => {
+        const files = Array.from(e.target.files);
+        if (!files.length) return;
+
+        // Optimistically show uploading files
+        const tempPhotos = files.map((file, idx) => ({
+            id: `temp-${Date.now()}-${idx}`,
+            name: file.name,
             uploader: 'Me',
             selected: false,
+            isUploading: true
         }));
-        setGroupPhotos(prev => [...newPhotos, ...prev]);
+
+        setGroupPhotos(prev => [...tempPhotos, ...prev]);
+
+        try {
+            const formData = new FormData();
+            formData.append('room_code', groupAlbum?.id || 'default');
+            files.forEach(file => formData.append('photos', file));
+
+            const token = localStorage.getItem('token') || '';
+
+            // POST to backend API
+            const response = await fetch('/api/sharing/upload', {
+                method: 'POST',
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: formData
+            });
+
+            if (response.ok) {
+                // Remove uploading flag on success
+                setGroupPhotos(prev => prev.map(p =>
+                    p.isUploading ? { ...p, isUploading: false, id: Date.now() + Math.random() } : p
+                ));
+            } else {
+                throw new Error('Upload failed');
+            }
+        } catch (error) {
+            console.error('Upload Error:', error);
+            // Optionally remove them or show error state
+            setGroupPhotos(prev => prev.filter(p => !p.isUploading));
+            alert('업로드 중 오류가 발생했습니다. 백엔드가 아직 준비되지 않았을 수 있습니다.');
+        }
+
+        e.target.value = ''; // Reset input
     };
 
     const handleGroupFaceSelect = (face) => {
@@ -232,7 +287,7 @@ export default function LiveSharingView() {
 
     // ── Step titles ──
     const stepTitles = {
-        [STEPS.MAIN]: 'Live Photo Sharing',
+        [STEPS.MAIN]: lt.title,
         [STEPS.IND_GUIDE]: 'Individual Sharing',
         [STEPS.IND_FOLDER]: 'Select Folder',
         [STEPS.IND_SELECT_MODE]: 'How to Select',
@@ -249,6 +304,8 @@ export default function LiveSharingView() {
         [STEPS.GRP_SAVE]: 'Save to Folder',
     };
 
+    const [albumTab, setAlbumTab] = useState('photos'); // 'photos' | 'feed'
+
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans pb-24">
             {/* Header */}
@@ -263,12 +320,15 @@ export default function LiveSharingView() {
                             {stepTitles[step]}
                         </h1>
                     </div>
-                    {step === STEPS.MAIN && (
-                        <button onClick={() => setShowJoin(true)}
-                            className="flex items-center gap-2 text-sm font-bold text-purple-600 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-300 px-4 py-2 rounded-xl hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors">
-                            <Hash size={16} /> Join
-                        </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                        {step === STEPS.MAIN && (
+                            <button onClick={() => setShowJoin(true)}
+                                className="flex items-center gap-2 text-sm font-bold text-purple-600 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-300 px-4 py-2 rounded-xl hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors">
+                                <Hash size={16} /> Join
+                            </button>
+                        )}
+                        <LanguageSwitcher />
+                    </div>
                 </div>
             </header>
 
@@ -314,6 +374,31 @@ export default function LiveSharingView() {
                                 <ChevronRight size={20} className="text-gray-400 group-hover:text-blue-500" />
                             </div>
                         </button>
+
+                        {/* P2P Friend Call — 상대방 호출 */}
+                        {token && (
+                            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 space-y-4">
+                                <div className="flex items-center gap-3 pb-3 border-b border-gray-100 dark:border-gray-700">
+                                    <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                                        <Radio size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-gray-900 dark:text-white">P2P Photo Call</h3>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">상대방 폰에서 내 사진을 AI로 찾아 안전하게 전송</p>
+                                    </div>
+                                </div>
+                                <FriendCall localPhotos={[]} />
+                                <RoomWorkspace workerRef={null} localPhotos={[]} />
+                            </div>
+                        )}
+
+                        {!token && (
+                            <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl p-5 border border-indigo-200 dark:border-indigo-800 text-center">
+                                <Radio size={24} className="mx-auto mb-2 text-indigo-500" />
+                                <p className="font-bold text-indigo-800 dark:text-indigo-300 mb-1">P2P Photo Call</p>
+                                <p className="text-sm text-indigo-600 dark:text-indigo-400">로그인하면 상대방 호출 기능을 사용할 수 있습니다.</p>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -489,6 +574,11 @@ export default function LiveSharingView() {
                                 </div>
                             </div>
                         )}
+
+                        {/* Advertisement Banner in Group Lobby */}
+                        <div className="pt-4">
+                            <AdBanner />
+                        </div>
                     </div>
                 )}
 
@@ -519,18 +609,38 @@ export default function LiveSharingView() {
                 {step === STEPS.GRP_ALBUM && (
                     <div className="space-y-5">
                         {/* Album header */}
-                        <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
-                            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-1">{groupAlbum?.title}</h2>
-                            <p className="text-xs text-gray-500">{groupPhotos.length} photos uploaded</p>
+                        <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                            <div>
+                                <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-1">{groupAlbum?.title}</h2>
+                                <p className="text-xs text-gray-500">{groupPhotos.length} photos uploaded</p>
+                            </div>
+                            <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
+                                <button onClick={() => setAlbumTab('photos')} className={`px-4 py-1.5 text-sm font-bold rounded-md transition-all ${albumTab === 'photos' ? 'bg-white dark:bg-gray-800 text-blue-600 shadow-sm' : 'text-gray-500'}`}>Photos</button>
+                                <button onClick={() => setAlbumTab('feed')} className={`px-4 py-1.5 text-sm font-bold rounded-md transition-all flex items-center gap-2 ${albumTab === 'feed' ? 'bg-white dark:bg-gray-800 text-rose-500 shadow-sm' : 'text-gray-500'}`}>
+                                    <Radio size={14} className={albumTab === 'feed' ? 'animate-pulse' : ''} /> Live
+                                </button>
+                            </div>
                         </div>
 
                         {/* Upload area */}
-                        <button onClick={handleGroupUpload}
-                            className="w-full border-2 border-dashed border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-900/10 rounded-2xl p-8 text-center hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors group">
-                            <Upload size={36} className="mx-auto mb-3 text-blue-400 group-hover:text-blue-600 transition-colors" />
-                            <p className="font-bold text-blue-600 dark:text-blue-400 text-lg">Upload Photos Here</p>
-                            <p className="text-sm text-gray-500 mt-1">Tap to add photos from your device</p>
-                        </button>
+                        {albumTab === 'photos' && (
+                            <div className="relative">
+                                <input
+                                    type="file"
+                                    multiple
+                                    accept="image/*"
+                                    className="hidden"
+                                    ref={fileInputRef}
+                                    onChange={handleFileChange}
+                                />
+                                <button onClick={handleGroupUpload}
+                                    className="w-full border-2 border-dashed border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-900/10 rounded-2xl p-8 text-center hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors group">
+                                    <Upload size={36} className="mx-auto mb-3 text-blue-400 group-hover:text-blue-600 transition-colors" />
+                                    <p className="font-bold text-blue-600 dark:text-blue-400 text-lg">Upload Photos Here</p>
+                                    <p className="text-sm text-gray-500 mt-1">Tap to add photos from your device</p>
+                                </button>
+                            </div>
+                        )}
 
                         {/* Photo thumbnails */}
                         {groupPhotos.length > 0 && (
@@ -539,7 +649,11 @@ export default function LiveSharingView() {
                                     {groupPhotos.map((photo, idx) => (
                                         <div key={photo.id} className="relative aspect-square rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-700 shadow-sm group">
                                             <div className="absolute inset-0 flex items-center justify-center">
-                                                <ImageIcon size={20} className="text-gray-400" />
+                                                {photo.isUploading ? (
+                                                    <div className="w-6 h-6 border-2 border-blue-400 border-t-blue-600 rounded-full animate-spin" />
+                                                ) : (
+                                                    <ImageIcon size={20} className="text-gray-400" />
+                                                )}
                                             </div>
                                             <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-1.5">
                                                 <p className="text-[9px] text-white/90 font-medium truncate">{photo.uploader}</p>
@@ -563,6 +677,13 @@ export default function LiveSharingView() {
                                     </button>
                                 </div>
                             </>
+                        )}
+
+                        {/* Live Feed Tab */}
+                        {albumTab === 'feed' && (
+                            <div className="mt-6">
+                                <LiveFeed />
+                            </div>
                         )}
                     </div>
                 )}
@@ -590,118 +711,125 @@ export default function LiveSharingView() {
                             </div>
                         )}
                     </div>
-                )}
+                )
+                }
 
                 {/* GRP_FACE_RESULTS */}
-                {step === STEPS.GRP_FACE_RESULTS && (
-                    <div className="space-y-4">
-                        <FaceBadge face={groupFace} count={groupSelectedCount} />
+                {
+                    step === STEPS.GRP_FACE_RESULTS && (
+                        <div className="space-y-4">
+                            <FaceBadge face={groupFace} count={groupSelectedCount} />
 
-                        <div className="flex items-center justify-between">
-                            <p className="text-sm text-gray-500">
-                                <span className="font-bold text-blue-600">{groupSelectedCount}</span> of {groupPhotos.length} matched — uncheck any you don't need
-                            </p>
-                            <button onClick={() => handleSelectAll(groupPhotos, setGroupPhotos)}
-                                className="text-sm font-bold text-blue-600 hover:text-blue-700">
-                                {groupPhotos.every(p => p.selected) ? 'Deselect All' : 'Select All'}
-                            </button>
-                        </div>
-
-                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                            {groupPhotos.map(photo => (
-                                <button key={photo.id} onClick={() => handleGroupTogglePhoto(photo.id)}
-                                    className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all ${photo.selected ? 'border-blue-500 shadow-md shadow-blue-500/20' : 'border-transparent opacity-40'}`}>
-                                    <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 flex items-center justify-center"><ImageIcon size={20} className="text-gray-400" /></div>
-                                    <div className="absolute top-1.5 right-1.5">
-                                        {photo.selected ? <CheckSquare size={20} className="text-blue-500 drop-shadow" /> : <Square size={20} className="text-white/70 drop-shadow" />}
-                                    </div>
-                                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/50 to-transparent p-1.5">
-                                        <p className="text-[9px] text-white/80 truncate">{photo.uploader}</p>
-                                    </div>
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm text-gray-500">
+                                    <span className="font-bold text-blue-600">{groupSelectedCount}</span> of {groupPhotos.length} matched — uncheck any you don't need
+                                </p>
+                                <button onClick={() => handleSelectAll(groupPhotos, setGroupPhotos)}
+                                    className="text-sm font-bold text-blue-600 hover:text-blue-700">
+                                    {groupPhotos.every(p => p.selected) ? 'Deselect All' : 'Select All'}
                                 </button>
-                            ))}
-                        </div>
-
-                        {groupSelectedCount > 0 && (
-                            <button onClick={() => setStep(STEPS.GRP_SAVE)}
-                                className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-lg shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-3">
-                                <Download size={20} /> Save {groupSelectedCount} Photos
-                            </button>
-                        )}
-                    </div>
-                )}
-
-                {/* GRP_SAVE */}
-                {step === STEPS.GRP_SAVE && (
-                    <div className="space-y-6">
-                        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-5">
-                            <div className="flex items-center gap-3">
-                                <FolderDown size={24} className="text-blue-500" />
-                                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Save to Folder</h2>
                             </div>
 
-                            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 flex items-center gap-3">
-                                <FaceBadgeSmall face={groupFace} />
-                                <div>
-                                    <p className="text-sm font-bold text-gray-900 dark:text-white">{groupSelectedCount} photos selected</p>
-                                    <p className="text-xs text-gray-500">from "{groupAlbum?.title}"</p>
-                                </div>
+                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                                {groupPhotos.map(photo => (
+                                    <button key={photo.id} onClick={() => handleGroupTogglePhoto(photo.id)}
+                                        className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all ${photo.selected ? 'border-blue-500 shadow-md shadow-blue-500/20' : 'border-transparent opacity-40'}`}>
+                                        <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 flex items-center justify-center"><ImageIcon size={20} className="text-gray-400" /></div>
+                                        <div className="absolute top-1.5 right-1.5">
+                                            {photo.selected ? <CheckSquare size={20} className="text-blue-500 drop-shadow" /> : <Square size={20} className="text-white/70 drop-shadow" />}
+                                        </div>
+                                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/50 to-transparent p-1.5">
+                                            <p className="text-[9px] text-white/80 truncate">{photo.uploader}</p>
+                                        </div>
+                                    </button>
+                                ))}
                             </div>
 
-                            <div>
-                                <label className="text-sm font-bold text-gray-500 mb-2 block">Destination Folder Name</label>
-                                <input type="text" value={groupSaveFolder} onChange={e => setGroupSaveFolder(e.target.value)}
-                                    placeholder={`e.g. ${groupAlbum?.title || 'My Downloads'}`}
-                                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none dark:text-white" />
-                            </div>
-
-                            {!groupSaved ? (
-                                <button onClick={handleGroupSave} disabled={groupSaving}
-                                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-70 text-white rounded-2xl font-bold text-lg shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-3">
-                                    {groupSaving ? (
-                                        <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving...</>
-                                    ) : (
-                                        <><Download size={20} /> Confirm &amp; Save</>
-                                    )}
+                            {groupSelectedCount > 0 && (
+                                <button onClick={() => setStep(STEPS.GRP_SAVE)}
+                                    className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-lg shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-3">
+                                    <Download size={20} /> Save {groupSelectedCount} Photos
                                 </button>
-                            ) : (
-                                <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-6 text-center">
-                                    <Check size={32} className="mx-auto mb-2 text-emerald-600" />
-                                    <p className="font-bold text-emerald-800 dark:text-emerald-300 text-lg">Saved Successfully!</p>
-                                    <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">{groupSelectedCount} photos saved to "{groupSaveFolder || groupAlbum?.title}"</p>
-                                </div>
                             )}
                         </div>
-                    </div>
-                )}
+                    )
+                }
+
+                {/* GRP_SAVE */}
+                {
+                    step === STEPS.GRP_SAVE && (
+                        <div className="space-y-6">
+                            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-5">
+                                <div className="flex items-center gap-3">
+                                    <FolderDown size={24} className="text-blue-500" />
+                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Save to Folder</h2>
+                                </div>
+
+                                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 flex items-center gap-3">
+                                    <FaceBadgeSmall face={groupFace} />
+                                    <div>
+                                        <p className="text-sm font-bold text-gray-900 dark:text-white">{groupSelectedCount} photos selected</p>
+                                        <p className="text-xs text-gray-500">from "{groupAlbum?.title}"</p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="text-sm font-bold text-gray-500 mb-2 block">Destination Folder Name</label>
+                                    <input type="text" value={groupSaveFolder} onChange={e => setGroupSaveFolder(e.target.value)}
+                                        placeholder={`e.g. ${groupAlbum?.title || 'My Downloads'}`}
+                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none dark:text-white" />
+                                </div>
+
+                                {!groupSaved ? (
+                                    <button onClick={handleGroupSave} disabled={groupSaving}
+                                        className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-70 text-white rounded-2xl font-bold text-lg shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-3">
+                                        {groupSaving ? (
+                                            <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving...</>
+                                        ) : (
+                                            <><Download size={20} /> Confirm &amp; Save</>
+                                        )}
+                                    </button>
+                                ) : (
+                                    <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-6 text-center">
+                                        <Check size={32} className="mx-auto mb-2 text-emerald-600" />
+                                        <p className="font-bold text-emerald-800 dark:text-emerald-300 text-lg">Saved Successfully!</p>
+                                        <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">{groupSelectedCount} photos saved to "{groupSaveFolder || groupAlbum?.title}"</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )
+                }
 
             </main>
 
             {/* Join by Code Modal */}
-            {showJoin && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 max-w-sm w-full shadow-2xl relative border border-gray-100 dark:border-gray-700 text-center">
-                        <button onClick={() => setShowJoin(false)} className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white bg-gray-100 dark:bg-gray-700 rounded-full transition-colors">
-                            <X size={20} />
-                        </button>
-                        <QrCode size={40} className="mx-auto mb-4 text-purple-600" />
-                        <h3 className="text-2xl font-bold mb-2">Join by Code</h3>
-                        <p className="text-gray-500 text-sm mb-6">Enter the 6-digit code you received</p>
-                        <input type="text" value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())} maxLength={6} placeholder="ABC123"
-                            className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 rounded-2xl text-center font-black text-3xl tracking-[0.5em] uppercase focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 outline-none dark:text-white" />
-                        <button disabled={joinCode.length < 6}
-                            onClick={() => {
-                                setShowJoin(false); setShareCode(joinCode); setPeerJoined(true);
-                                setChatMessages([{ id: 1, from: 'system', text: 'You have joined the room.' }, { id: 2, from: 'peer', text: 'Welcome! I have some photos to share with you.' }]);
-                                setStep(STEPS.IND_CHAT);
-                            }}
-                            className="w-full py-3 mt-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold disabled:opacity-50 transition-colors">
-                            Join
-                        </button>
+            {
+                showJoin && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
+                        <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 max-w-sm w-full shadow-2xl relative border border-gray-100 dark:border-gray-700 text-center">
+                            <button onClick={() => setShowJoin(false)} className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white bg-gray-100 dark:bg-gray-700 rounded-full transition-colors">
+                                <X size={20} />
+                            </button>
+                            <QrCode size={40} className="mx-auto mb-4 text-purple-600" />
+                            <h3 className="text-2xl font-bold mb-2">Join by Code</h3>
+                            <p className="text-gray-500 text-sm mb-6">Enter the 6-digit code you received</p>
+                            <input type="text" value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())} maxLength={6} placeholder="ABC123"
+                                className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 rounded-2xl text-center font-black text-3xl tracking-[0.5em] uppercase focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 outline-none dark:text-white" />
+                            <button disabled={joinCode.length < 6}
+                                onClick={() => {
+                                    setShowJoin(false); setShareCode(joinCode); setPeerJoined(true);
+                                    setChatMessages([{ id: 1, from: 'system', text: 'You have joined the room.' }, { id: 2, from: 'peer', text: 'Welcome! I have some photos to share with you.' }]);
+                                    setStep(STEPS.IND_CHAT);
+                                }}
+                                className="w-full py-3 mt-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold disabled:opacity-50 transition-colors">
+                                Join
+                            </button>
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }
 

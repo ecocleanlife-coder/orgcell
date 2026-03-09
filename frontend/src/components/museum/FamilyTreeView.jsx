@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Folder, FolderOpen, User, Image as ImageIcon, ChevronRight, ChevronDown, Play, Trash2, Camera, Lock, Eye } from 'lucide-react';
+import { Folder, FolderOpen, User, Image as ImageIcon, ChevronRight, ChevronDown, Play, Trash2, Camera, Lock, Eye, Globe } from 'lucide-react';
 
 const mockTree = {
     id: 'root',
