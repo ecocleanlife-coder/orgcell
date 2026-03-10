@@ -6,6 +6,7 @@ export default function MagicLinkAuth() {
     const [email, setEmail] = useState('');
     const [status, setStatus] = useState('idle'); // idle, loading, success, error
     const [errorMessage, setErrorMessage] = useState('');
+    const [showForm, setShowForm] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -50,48 +51,60 @@ export default function MagicLinkAuth() {
                     <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
                 </div>
                 <div className="relative flex justify-center text-sm">
-                    <span className="px-3 bg-white dark:bg-gray-800 text-gray-500 font-medium">또는 이메일로 로그인</span>
+                    <span className="px-3 bg-white dark:bg-gray-800 text-gray-500 font-medium">또는</span>
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3">
-                <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Mail className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="이메일 주소 입력"
-                        className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-xl leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
-                        disabled={status === 'loading'}
-                    />
-                </div>
-                {errorMessage && (
-                    <p className="text-sm text-red-600 dark:text-red-400 text-left pl-1 animate-pulse">
-                        {errorMessage}
-                    </p>
-                )}
+            {!showForm ? (
+                // Hidden State: Show a toggle button instead of the input immediately
                 <button
-                    type="submit"
-                    disabled={status === 'loading' || !email.trim()}
-                    className="w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-gray-900 hover:bg-gray-800 dark:bg-gray-600 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-50 transition-all"
+                    onClick={() => setShowForm(true)}
+                    className="w-full flex items-center justify-center py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm text-sm font-bold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 transition-all"
                 >
-                    {status === 'loading' ? (
-                        <>
-                            <Loader className="animate-spin -ml-1 mr-2 h-4 w-4" /> 전송 중...
-                        </>
-                    ) : (
-                        <>
-                            보안 링크 받기 <ArrowRight className="ml-2 h-4 w-4" />
-                        </>
-                    )}
+                    <Mail className="mr-2 h-5 w-5 text-gray-500" /> 이메일/문자로 1초만에 시작하기
                 </button>
-            </form>
-            <p className="mt-3 text-xs text-center text-gray-500 dark:text-gray-400">
-                비밀번호 없이 링크 버튼 하나로 안전하게 로그인하세요.
-            </p>
+            ) : (
+                // Visible State: Show the actual input form
+                <form onSubmit={handleSubmit} className="space-y-3 animate-fade-in-up">
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Mail className="h-5 w-5 text-gray-400" />
+                        </div>
+                        <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="이메일 주소 입력"
+                            className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-xl leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
+                            disabled={status === 'loading'}
+                            autoFocus
+                        />
+                    </div>
+                    {errorMessage && (
+                        <p className="text-sm text-red-600 dark:text-red-400 text-left pl-1 animate-pulse">
+                            {errorMessage}
+                        </p>
+                    )}
+                    <button
+                        type="submit"
+                        disabled={status === 'loading' || !email.trim()}
+                        className="w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-gray-900 hover:bg-gray-800 dark:bg-gray-600 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-50 transition-all"
+                    >
+                        {status === 'loading' ? (
+                            <>
+                                <Loader className="animate-spin -ml-1 mr-2 h-4 w-4" /> 전송 중...
+                            </>
+                        ) : (
+                            <>
+                                보안 링크 받기 <ArrowRight className="ml-2 h-4 w-4" />
+                            </>
+                        )}
+                    </button>
+                    <p className="mt-3 text-xs text-center text-gray-500 dark:text-gray-400">
+                        비밀번호 없이 링크 하나로 가족 가계도로 안전하게 입장합니다.
+                    </p>
+                </form>
+            )}
         </div>
     );
 }

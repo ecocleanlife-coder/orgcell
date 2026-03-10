@@ -25,7 +25,10 @@ const MagicLinkVerify = lazy(() => import('./pages/auth/MagicLinkVerify'));
 // New Feature Views
 const SmartSortView = lazy(() => import('./pages/smart-sort/SmartSortView'));
 const FamilyWebsiteView = lazy(() => import('./pages/museum/FamilyWebsiteView'));
+const FamilyDomainDashboard = lazy(() => import('./pages/museum/FamilyDomainDashboard'));
 const LiveSharingView = lazy(() => import('./pages/sharing/LiveSharingView'));
+const FamilyTreeView = lazy(() => import('./components/museum/FamilyTreeView'));
+const PersonFolderView = lazy(() => import('./components/museum/PersonFolderView'));
 
 // A Loading Fallback Component
 const PageLoader = () => (
@@ -362,6 +365,36 @@ function App() {
             <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>
                 <FamilyWebsiteView />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/family-dashboard"
+          element={
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <FamilyDomainDashboard />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/family-tree"
+          element={
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <FamilyTreeView />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/person/:id"
+          element={
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <PersonFolderView />
               </Suspense>
             </ErrorBoundary>
           }

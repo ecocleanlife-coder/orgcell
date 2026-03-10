@@ -39,9 +39,16 @@ exports.googleLogin = async (req, res) => {
 
         const user = rows[0];
 
+        // Fetch family info
+        const { rows: famRows } = await db.query(
+            'SELECT family_id, role FROM users WHERE id = $1', [user.id]
+        );
+        const familyId = famRows[0]?.family_id || null;
+        const role = famRows[0]?.role || 'guest';
+
         // Generate JWT
         const token = jwt.sign(
-            { user: { id: user.id, email: user.email, name: user.name } },
+            { user: { id: user.id, email: user.email, name: user.name, family_id: familyId, role } },
             process.env.JWT_SECRET,
             { expiresIn: '7d' }
         );
@@ -54,6 +61,8 @@ exports.googleLogin = async (req, res) => {
                 email: user.email,
                 name: user.name,
                 avatar_url: user.avatar_url,
+                family_id: familyId,
+                role,
             },
         });
     } catch (error) {
@@ -67,7 +76,7 @@ exports.googleLogin = async (req, res) => {
 exports.getMe = async (req, res) => {
     try {
         const { rows } = await db.query(
-            `SELECT id, email, name, avatar_url, created_at FROM users WHERE id = $1`,
+            `SELECT id, email, name, avatar_url, family_id, role, created_at FROM users WHERE id = $1`,
             [req.user.id]
         );
 
@@ -214,9 +223,16 @@ exports.verifyMagicLink = async (req, res) => {
 
         const user = userRows[0];
 
+        // Fetch family info
+        const { rows: famRows } = await db.query(
+            'SELECT family_id, role FROM users WHERE id = $1', [user.id]
+        );
+        const familyId = famRows[0]?.family_id || null;
+        const role = famRows[0]?.role || 'guest';
+
         // Generate JWT (same format as Google login)
         const jwtToken = jwt.sign(
-            { user: { id: user.id, email: user.email, name: user.name } },
+            { user: { id: user.id, email: user.email, name: user.name, family_id: familyId, role } },
             process.env.JWT_SECRET,
             { expiresIn: '7d' }
         );
@@ -229,6 +245,8 @@ exports.verifyMagicLink = async (req, res) => {
                 email: user.email,
                 name: user.name,
                 avatar_url: user.avatar_url,
+                family_id: familyId,
+                role,
             },
         });
     } catch (error) {

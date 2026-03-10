@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Globe, Search, Lock, ShieldCheck, CreditCard, Check } from 'lucide-react';
+import { ArrowLeft, Globe, Search, Lock, ShieldCheck, CreditCard, Check, Copy, Share2 } from 'lucide-react';
 import PricingTable from '../../components/museum/PricingTable';
 import FamilyTreeView from '../../components/museum/FamilyTreeView';
 import AdBanner from '../../components/common/AdBanner';
+import FamilyBanner from '../../components/common/FamilyBanner';
 import LanguageSwitcher from '../../components/common/LanguageSwitcher';
 import useUiStore from '../../store/uiStore';
+import useAuthStore from '../../store/authStore';
 import { getT } from '../../i18n/translations';
+import { useNavigate } from 'react-router-dom';
 
 export default function FamilyWebsiteView() {
     const lang = useUiStore((s) => s.lang);
@@ -16,18 +19,47 @@ export default function FamilyWebsiteView() {
     const [showPayment, setShowPayment] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [paymentDone, setPaymentDone] = useState(false);
+    const [adminKey, setAdminKey] = useState('');
+    const navigate = useNavigate();
 
-    const handlePayment = () => {
+    const handlePayment = async () => {
         setProcessing(true);
-        setTimeout(() => {
+        try {
+            const token = useAuthStore.getState().token;
+            const res = await fetch('/api/domain/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify({ subdomain }),
+            });
+            const data = await res.json();
+
             setProcessing(false);
-            setPaymentDone(true);
-        }, 2000);
+            if (data.success) {
+                setPaymentDone(true);
+                setAdminKey(data.data.admin_key);
+            } else {
+                alert(data.message || 'Failed to register domain');
+            }
+        } catch (err) {
+            console.error(err);
+            setProcessing(false);
+            alert('Registration processing failed');
+        }
     };
 
-    const handleCheckDomain = () => {
+    const handleCheckDomain = async () => {
         if (subdomain.length > 2) {
-            setIsAvailable(true);
+            try {
+                const res = await fetch(`/api/domain/check?subdomain=${subdomain}`);
+                const data = await res.json();
+                setIsAvailable(data.success && data.available);
+            } catch (err) {
+                console.error(err);
+                setIsAvailable(false);
+            }
         } else {
             setIsAvailable(false);
         }
@@ -35,6 +67,7 @@ export default function FamilyWebsiteView() {
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans pb-20">
+            <FamilyBanner />
             {/* Nav Header */}
             <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
                 <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -58,6 +91,9 @@ export default function FamilyWebsiteView() {
                     </div>
                     <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight">{t.heroTitle}</h2>
                     <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">{t.heroDesc}</p>
+                    <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 mt-6 text-sm text-emerald-800 dark:text-emerald-300">
+                        {t.domainGuide}
+                    </div>
                 </section>
 
                 {/* Domain Search */}
@@ -184,11 +220,36 @@ export default function FamilyWebsiteView() {
                                 </div>
                                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{t.setupComplete}</h3>
                                 <p className="text-gray-600 dark:text-gray-400">
-                                    <span className="font-bold text-emerald-600">{subdomain || 'your-family'}.orgcell.com</span>
+                                    <span className="font-bold text-emerald-600 truncate">{subdomain || 'your-family'}.orgcell.com</span>
                                 </p>
+
+                                <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-center">
+                                    <p className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.adminKeyGenerated}</p>
+                                    <div className="font-mono text-lg font-bold text-purple-600 dark:text-purple-400 bg-white dark:bg-gray-800 px-3 py-2 rounded-lg inline-block border border-gray-100 dark:border-gray-700 select-all">
+                                        {adminKey}
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-2 text-left bg-blue-50 dark:bg-blue-900/20 p-2 rounded-md">
+                                        {t.installText}
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3 mt-4">
+                                    <button onClick={() => {
+                                        navigator.clipboard.writeText(`https://${subdomain || 'your-family'}.orgcell.com`);
+                                        alert(t.copied);
+                                    }}
+                                        className="py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl font-bold transition-colors text-sm flex items-center justify-center gap-2">
+                                        <Copy size={16} /> {t.copyLink}
+                                    </button>
+                                    <button
+                                        className="py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl font-bold transition-colors text-sm flex items-center justify-center gap-2">
+                                        <Share2 size={16} /> {t.shareSMS}
+                                    </button>
+                                </div>
+
                                 <p className="text-sm text-gray-500">{t.setupDesc}<br />{t.setupAction}</p>
-                                <button onClick={() => setShowPayment(false)}
-                                    className="w-full py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl font-bold transition-colors">
+                                <button onClick={() => { setShowPayment(false); navigate('/family-dashboard'); }}
+                                    className="w-full py-4 mt-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-colors shadow-lg shadow-emerald-500/25">
                                     {t.close}
                                 </button>
                             </div>

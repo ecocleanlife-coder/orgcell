@@ -8,8 +8,23 @@ function getDriveClient(tokens) {
         process.env.GOOGLE_CLIENT_SECRET,
         process.env.GOOGLE_REDIRECT_URI
     );
-    oauth2Client.setCredentials(tokens);
+    oauth2Client.setCredentials(typeof tokens === 'string' ? JSON.parse(tokens) : tokens);
     return google.drive({ version: 'v3', auth: oauth2Client });
+}
+
+// 유저 본인 Drive 토큰 → 없으면 가족 공유 토큰 fallback
+async function getDriveToken(userId) {
+    const { rows } = await db.query(
+        `SELECT u.google_drive_token,
+                f.google_drive_token as family_drive_token
+         FROM users u
+         LEFT JOIN families f ON u.family_id = f.id
+         WHERE u.id = $1`,
+        [userId]
+    );
+    if (!rows[0]) return null;
+    const token = rows[0].google_drive_token || rows[0].family_drive_token;
+    return token ? (typeof token === 'string' ? JSON.parse(token) : token) : null;
 }
 
 // @desc    Get Google Drive OAuth URL
@@ -54,9 +69,17 @@ exports.driveCallback = async (req, res) => {
         const { tokens } = await oauth2Client.getToken(code);
 
         // Save tokens to user record
+        const tokenJson = JSON.stringify(tokens);
         await db.query(
             `UPDATE users SET google_drive_token = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-            [JSON.stringify(tokens), userId]
+            [tokenJson, userId]
+        );
+
+        // Auto-sync to family if user is admin
+        await db.query(
+            `UPDATE families SET google_drive_token = $1, updated_at = CURRENT_TIMESTAMP
+             WHERE admin_user_id = $2`,
+            [tokenJson, userId]
         );
 
         res.json({ success: true, message: 'Google Drive connected' });
@@ -70,12 +93,8 @@ exports.driveCallback = async (req, res) => {
 // @route   GET /api/drive/status
 exports.driveStatus = async (req, res) => {
     try {
-        const { rows } = await db.query(
-            `SELECT google_drive_token FROM users WHERE id = $1`,
-            [req.user.id]
-        );
-
-        const connected = !!(rows[0] && rows[0].google_drive_token);
+        const token = await getDriveToken(req.user.id);
+        const connected = !!token;
         res.json({ success: true, connected });
     } catch (error) {
         console.error('driveStatus Error:', error);
@@ -87,16 +106,12 @@ exports.driveStatus = async (req, res) => {
 // @route   POST /api/drive/setup
 exports.setupDriveFolder = async (req, res) => {
     try {
-        const { rows } = await db.query(
-            `SELECT google_drive_token FROM users WHERE id = $1`,
-            [req.user.id]
-        );
-
-        if (!rows[0]?.google_drive_token) {
+        const token = await getDriveToken(req.user.id);
+        if (!token) {
             return res.status(400).json({ success: false, message: 'Google Drive not connected' });
         }
 
-        const drive = getDriveClient(rows[0].google_drive_token);
+        const drive = getDriveClient(token);
 
         // Check if Orgcell folder already exists
         const existing = await drive.files.list({
@@ -140,16 +155,12 @@ exports.setupDriveFolder = async (req, res) => {
 // @route   POST /api/drive/upload
 exports.uploadToDrive = async (req, res) => {
     try {
-        const { rows } = await db.query(
-            `SELECT google_drive_token FROM users WHERE id = $1`,
-            [req.user.id]
-        );
-
-        if (!rows[0]?.google_drive_token) {
+        const token = await getDriveToken(req.user.id);
+        if (!token) {
             return res.status(400).json({ success: false, message: 'Google Drive not connected' });
         }
 
-        const drive = getDriveClient(rows[0].google_drive_token);
+        const drive = getDriveClient(token);
         const { filename, mimeType, folderId } = req.body;
 
         if (!req.file) {
@@ -188,16 +199,12 @@ exports.uploadToDrive = async (req, res) => {
 // @route   GET /api/drive/download/:fileId
 exports.downloadFromDrive = async (req, res) => {
     try {
-        const { rows } = await db.query(
-            `SELECT google_drive_token FROM users WHERE id = $1`,
-            [req.user.id]
-        );
-
-        if (!rows[0]?.google_drive_token) {
+        const token = await getDriveToken(req.user.id);
+        if (!token) {
             return res.status(400).json({ success: false, message: 'Google Drive not connected' });
         }
 
-        const drive = getDriveClient(rows[0].google_drive_token);
+        const drive = getDriveClient(token);
         const response = await drive.files.get(
             { fileId: req.params.fileId, alt: 'media' },
             { responseType: 'stream' }
@@ -216,16 +223,12 @@ exports.downloadFromDrive = async (req, res) => {
 // @route   DELETE /api/drive/file/:fileId
 exports.deleteFromDrive = async (req, res) => {
     try {
-        const { rows } = await db.query(
-            `SELECT google_drive_token FROM users WHERE id = $1`,
-            [req.user.id]
-        );
-
-        if (!rows[0]?.google_drive_token) {
+        const token = await getDriveToken(req.user.id);
+        if (!token) {
             return res.status(400).json({ success: false, message: 'Google Drive not connected' });
         }
 
-        const drive = getDriveClient(rows[0].google_drive_token);
+        const drive = getDriveClient(token);
         await drive.files.delete({ fileId: req.params.fileId });
 
         res.json({ success: true, message: 'File deleted from Drive' });

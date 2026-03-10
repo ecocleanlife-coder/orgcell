@@ -1,195 +1,671 @@
-import React, { useState } from 'react';
-import { Folder, FolderOpen, User, Image as ImageIcon, ChevronRight, ChevronDown, Play, Trash2, Camera, Lock, Eye, Globe } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Network, Plus, User, UserPlus, ExternalLink, MessageSquare, Image as ImageIcon, Send, X, ChevronLeft, ChevronRight, Play, Heart } from 'lucide-react';
+import FamilyBanner from '../common/FamilyBanner';
 import useUiStore from '../../store/uiStore';
 import { getT } from '../../i18n/translations';
 
-// Mock photos for a selected person
-const mockPhotos = [
-    { id: 1, url: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=500&q=80', isCover: true },
-    { id: 2, url: 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=500&q=80', isCover: false },
-    { id: 3, url: 'https://images.unsplash.com/photo-1506869640319-fea1a278e0ec?w=500&q=80', isCover: false },
-    { id: 4, url: 'https://images.unsplash.com/photo-1476610182048-b716b8518aae?w=500&q=80', isCover: false },
+/*
+  Recursive family tree with multiple parent pairs support.
+
+  Node = {
+    id, name, coverUrl,
+    spouse: Node | null,
+    parentPairs: [{ id, label, parent1: Node, parent2: Node|null }],
+    children: [Node]
+  }
+
+  parentPairs labels: Birth Parents, Adoptive Parents, Step-Parents, Foster Parents, etc.
+  Users can add multiple parent pairs per person (e.g. birth + adoptive).
+*/
+
+const uid = () => 'n_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+
+const INITIAL = {
+    id: 'me', name: 'John',
+    coverUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200',
+    spouse: {
+        id: 'spouse', name: 'Jane',
+        coverUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200',
+        parentPairs: [
+            {
+                id: 'jp1', label: 'Birth Parents',
+                parent1: { id: 'herDad', name: "Jane's Dad", coverUrl: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=200', parentPairs: [], children: [] },
+                parent2: { id: 'herMom', name: "Jane's Mom", coverUrl: 'https://images.unsplash.com/photo-1546961342-ea1f71b193f3?auto=format&fit=crop&q=80&w=200', parentPairs: [], children: [] },
+            }
+        ],
+        children: [],
+    },
+    parentPairs: [
+        {
+            id: 'mp1', label: 'Birth Parents',
+            parent1: { id: 'myDad', name: "John's Dad", coverUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200', parentPairs: [], children: [] },
+            parent2: { id: 'myMom', name: "John's Mom", coverUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200', parentPairs: [], children: [] },
+        }
+    ],
+    children: [
+        {
+            id: 'son1', name: 'Son1',
+            coverUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=200',
+            spouse: { id: 'son1wife', name: "Son1's Wife", coverUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=200', parentPairs: [], children: [] },
+            parentPairs: [],
+            children: [
+                { id: 'son1son', name: "Son1's Son", coverUrl: null, parentPairs: [], children: [] },
+            ]
+        },
+        {
+            id: 'daughter1', name: 'Daughter1',
+            coverUrl: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=200',
+            spouse: { id: 'daughter1hub', name: "D1's Husband", coverUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200', parentPairs: [], children: [] },
+            parentPairs: [],
+            children: [
+                { id: 'd1d1', name: "D1's Daughter1", coverUrl: null, parentPairs: [], children: [] },
+                { id: 'd1d2', name: "D1's Daughter2", coverUrl: null, parentPairs: [], children: [] },
+            ]
+        },
+        { id: 'son2', name: 'Son2', coverUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=200', parentPairs: [], children: [] },
+        { id: 'daughter2', name: 'Daughter2', coverUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200', parentPairs: [], children: [] },
+    ]
+};
+
+// ── UI Components ──
+
+function FolderNode({ person, onClick, size = 'md' }) {
+    const sizes = {
+        sm: { w: 'w-24', h: 'h-28', img: 'w-12 h-12', text: 'text-[9px]', tab: 'w-10 h-3', top: 'top-2' },
+        md: { w: 'w-32', h: 'h-36', img: 'w-16 h-16', text: 'text-[11px]', tab: 'w-12 h-4', top: 'top-3' },
+        lg: { w: 'w-36', h: 'h-40', img: 'w-20 h-20', text: 'text-xs', tab: 'w-14 h-4', top: 'top-3' },
+    };
+    const s = sizes[size];
+    return (
+        <div className={`relative group ${s.w} ${s.h} cursor-pointer transition-all hover:-translate-y-1 flex-shrink-0`}
+            onClick={() => onClick?.(person.id)}>
+            <div className={`absolute top-0 left-2 ${s.tab} bg-amber-300 dark:bg-amber-700 rounded-t-lg border-t border-x border-amber-400 dark:border-amber-600 group-hover:bg-amber-400 transition-colors`} />
+            <div className={`absolute ${s.top} inset-x-0 bottom-0 bg-amber-100 dark:bg-amber-900/60 border-2 border-amber-300 dark:border-amber-700 rounded-xl shadow-lg group-hover:border-amber-400 group-hover:shadow-xl transition-all flex flex-col items-center justify-center p-2 gap-1`}>
+                <div className={`${s.img} rounded-full border-2 border-white dark:border-amber-800 shadow overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0`}>
+                    {person.coverUrl ? (
+                        <img src={person.coverUrl} alt={person.name} className="w-full h-full object-cover" />
+                    ) : (
+                        <User className="w-full h-full p-2 text-gray-400" />
+                    )}
+                </div>
+                <span className={`${s.text} font-bold text-amber-900 dark:text-amber-100 text-center leading-tight truncate w-full`}>
+                    {person.name}
+                </span>
+            </div>
+        </div>
+    );
+}
+
+function PlusConnector() {
+    return (
+        <div className="flex items-center justify-center w-7 h-7 rounded-full bg-rose-100 dark:bg-rose-900/40 border-2 border-rose-300 dark:border-rose-700 self-center mx-0.5 flex-shrink-0">
+            <span className="text-rose-500 font-black text-sm leading-none select-none">+</span>
+        </div>
+    );
+}
+
+function VLine({ h = 8 }) {
+    return <div style={{ height: h }} className="w-0.5 bg-amber-300 dark:bg-amber-700 mx-auto flex-shrink-0" />;
+}
+
+function HLine() {
+    return <div className="h-0.5 bg-amber-300 dark:bg-amber-700 flex-1 min-w-[16px]" />;
+}
+
+function AddBtn({ onClick, title = 'Add', direction = 'down', label }) {
+    const cls = direction === 'right' ? 'ml-1 self-center' : direction === 'up' ? 'mb-1' : 'mt-1';
+    return (
+        <button onClick={onClick} title={title}
+            className={`${cls} flex items-center gap-1 px-1.5 h-6 rounded-md border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors flex-shrink-0`}>
+            <Plus size={12} />
+            {label && <span className="text-[9px] font-bold whitespace-nowrap">{label}</span>}
+        </button>
+    );
+}
+
+// Parent pair label badge
+function PairLabel({ label }) {
+    return (
+        <div className="text-[9px] font-bold text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 px-2 py-0.5 rounded-full text-center mb-1 whitespace-nowrap">
+            {label}
+        </div>
+    );
+}
+
+// ── Constants ──
+const PARENT_TYPE_KEYS = [
+    { value: 'birth', tKey: 'birthParents' },
+    { value: 'adoptive', tKey: 'adoptiveParents' },
+    { value: 'step', tKey: 'stepParents' },
+    { value: 'foster', tKey: 'fosterParents' },
+    { value: 'other', tKey: 'other' },
 ];
 
 export default function FamilyTreeView() {
+    const navigate = useNavigate();
     const lang = useUiStore((s) => s.lang);
-    const lt = getT('familyTree', lang);
+    const t = getT('familyTree', lang);
+    const [root, setRoot] = useState(INITIAL);
 
-    const mockTree = {
-        id: 'root',
-        name: 'Smith Family Museum',
-        type: 'folder',
-        children: [
-            {
-                id: 'grandparents',
-                name: lt.grandparents,
-                type: 'folder',
-                isShared: true,
-                children: [
-                    { id: 'gp1', name: 'Grandpa John', type: 'person', photoCount: 120 },
-                    { id: 'gp2', name: 'Grandma Mary', type: 'person', photoCount: 154 }
-                ]
-            },
-            {
-                id: 'parents',
-                name: lt.parents,
-                type: 'folder',
-                isShared: true,
-                children: [
-                    { id: 'p1', name: 'Dad (Robert)', type: 'person', photoCount: 432 },
-                    { id: 'p2', name: 'Mom (Sarah)', type: 'person', photoCount: 512 }
-                ]
-            },
-            {
-                id: 'me_and_siblings',
-                name: lt.me,
-                type: 'folder',
-                isShared: true,
-                children: [
-                    { id: 'me', name: 'Me', type: 'person', photoCount: 843, isPrivate: true },
-                    { id: 's1', name: 'Sister (Emily)', type: 'person', photoCount: 321 },
-                    { id: 's2', name: 'Brother (Tom)', type: 'person', photoCount: 210 }
-                ]
-            },
-            {
-                id: 'children',
-                name: lt.children,
-                type: 'folder',
-                isShared: true,
-                children: [
-                    { id: 'c1', name: 'Son (Leo)', type: 'person', photoCount: 1054 },
-                    { id: 'c2', name: 'Daughter (Mia)', type: 'person', photoCount: 980 }
-                ]
+    // Modal state
+    const [modal, setModal] = useState(null);
+    // modal = { mode: 'member'|'parents', path, relations } or { mode: 'parents', path }
+    const [newName, setNewName] = useState('');
+    const [newRelation, setNewRelation] = useState('');
+    // For parents modal
+    const [parentType, setParentType] = useState('birth');
+    const [parent1Name, setParent1Name] = useState('');
+    const [parent2Name, setParent2Name] = useState('');
+    const [singleParent, setSingleParent] = useState(false);
+
+    // Chat & Exhibition state
+    const [activePanel, setActivePanel] = useState(null); // 'chat' | 'exhibition' | null
+    const [chatMessages, setChatMessages] = useState([
+        { id: 1, sender: 'Mom', text: 'Welcome to our family museum!', time: '10:00 AM' },
+        { id: 2, sender: 'Dad', text: 'I uploaded old photos from the 80s.', time: '10:05 AM' },
+        { id: 3, sender: 'Me', text: 'Great! The kids will love seeing those.', time: '10:12 AM' },
+    ]);
+    const [chatInput, setChatInput] = useState('');
+    const [exhibitIdx, setExhibitIdx] = useState(null); // fullscreen exhibit index
+
+    const EXHIBIT_ITEMS = [
+        { id: 1, url: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=800&q=80', thumb: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=300&q=60', title: 'Family Reunion 2024', desc: 'Everyone gathered for grandma\'s 80th birthday' },
+        { id: 2, url: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=800&q=80', thumb: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=300&q=60', title: 'Holiday Dinner', desc: 'Thanksgiving at the lake house' },
+        { id: 3, url: 'https://images.unsplash.com/photo-1506869640319-fea1a278e0ec?w=800&q=80', thumb: 'https://images.unsplash.com/photo-1506869640319-fea1a278e0ec?w=300&q=60', title: 'Grand Canyon Trip', desc: 'Summer road trip with the whole family' },
+        { id: 4, url: 'https://images.unsplash.com/photo-1476610182048-b716b8518aae?w=800&q=80', thumb: 'https://images.unsplash.com/photo-1476610182048-b716b8518aae?w=300&q=60', title: 'Beach Sunset', desc: 'Last day of vacation in Hawaii' },
+        { id: 5, url: 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=800&q=80', thumb: 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=300&q=60', title: 'Wedding Anniversary', desc: 'Mom & Dad\'s 35th anniversary celebration' },
+        { id: 6, url: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=800&q=80', thumb: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=300&q=60', title: 'Home Movies', desc: 'Digitized VHS tapes from the 90s' },
+    ];
+
+    const handleSendChat = () => {
+        if (!chatInput.trim()) return;
+        setChatMessages(prev => [...prev, { id: Date.now(), sender: 'Me', text: chatInput.trim(), time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+        setChatInput('');
+    };
+
+    const goToPerson = (id) => navigate(`/person/${id}`);
+
+    // Deep update helper
+    const updateAtPath = useCallback((tree, path, updater) => {
+        if (!tree) return tree;
+        if (!path || path.length === 0) return updater(tree);
+        const [key, ...rest] = path;
+        if (key === 'spouse') return { ...tree, spouse: updateAtPath(tree.spouse, rest, updater) };
+        if (key === 'parent1') return { ...tree, parent1: updateAtPath(tree.parent1, rest, updater) };
+        if (key === 'parent2') return { ...tree, parent2: updateAtPath(tree.parent2, rest, updater) };
+        if (key.startsWith('children[')) {
+            const idx = parseInt(key.match(/\d+/)[0]);
+            return { ...tree, children: (tree.children || []).map((c, i) => i === idx ? updateAtPath(c, rest, updater) : c) };
+        }
+        if (key.startsWith('parentPairs[')) {
+            const idx = parseInt(key.match(/\d+/)[0]);
+            return { ...tree, parentPairs: (tree.parentPairs || []).map((p, i) => i === idx ? updateAtPath(p, rest, updater) : p) };
+        }
+        return tree;
+    }, []);
+
+    // Open member add modal (child / spouse)
+    const openMemberModal = (path, relations) => {
+        setModal({ mode: 'member', path, relations });
+        setNewName('');
+        setNewRelation(relations[0]?.value || '');
+    };
+
+    // Open parents add modal
+    const openParentsModal = (path) => {
+        setModal({ mode: 'parents', path });
+        setParentType('birth');
+        setParent1Name('');
+        setParent2Name('');
+        setSingleParent(false);
+    };
+
+    const handleMemberSubmit = () => {
+        if (!newName.trim() || !modal) return;
+        const person = { id: uid(), name: newName, coverUrl: null, parentPairs: [], children: [] };
+        setRoot(prev => {
+            if (newRelation === 'child') {
+                return updateAtPath(prev, modal.path, node => ({
+                    ...node, children: [...(node.children || []), person]
+                }));
             }
-        ]
+            if (newRelation === 'spouse') {
+                return updateAtPath(prev, modal.path, node => ({ ...node, spouse: person }));
+            }
+            return prev;
+        });
+        setModal(null);
     };
 
-    const [expandedFolders, setExpandedFolders] = useState({ root: true, parents: true, me_and_siblings: true });
-    const [selectedNode, setSelectedNode] = useState('me');
-    const [isPlaying, setIsPlaying] = useState(false);
-
-    const toggleFolder = (id) => {
-        setExpandedFolders(prev => ({ ...prev, [id]: !prev[id] }));
+    const handleParentsSubmit = () => {
+        if (!parent1Name.trim()) return;
+        const ptKey = PARENT_TYPE_KEYS.find(pt => pt.value === parentType);
+        const label = ptKey ? t[ptKey.tKey] : t.birthParents;
+        const newPair = {
+            id: uid(),
+            label,
+            parent1: { id: uid(), name: parent1Name, coverUrl: null, parentPairs: [], children: [] },
+            parent2: singleParent ? null : { id: uid(), name: parent2Name || parent1Name + "'s spouse", coverUrl: null, parentPairs: [], children: [] },
+        };
+        setRoot(prev => updateAtPath(prev, modal.path, node => ({
+            ...node, parentPairs: [...(node.parentPairs || []), newPair]
+        })));
+        setModal(null);
     };
 
-    const renderTree = (node, depth = 0) => {
-        const isExpanded = expandedFolders[node.id];
-        const isSelected = selectedNode === node.id;
-
-        if (node.type === 'folder') {
-            return (
-                <div key={node.id} className="select-none">
-                    <div
-                        className={`flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-                        style={{ paddingLeft: `${depth * 1.5 + 0.75}rem` }}
-                        onClick={() => { toggleFolder(node.id); setSelectedNode(node.id); }}
-                    >
-                        {isExpanded ? <ChevronDown size={16} className="text-gray-500 shrink-0" /> : <ChevronRight size={16} className="text-gray-500 shrink-0" />}
-                        {isExpanded ? <FolderOpen size={18} className="text-blue-500 shrink-0" fill="currentColor" fillOpacity={0.2} /> : <Folder size={18} className="text-blue-500 shrink-0" fill="currentColor" fillOpacity={0.2} />}
-                        <span className={`font-medium truncate ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-200'}`}>{node.name}</span>
-                        {node.isShared && <Eye size={14} className="ml-auto text-emerald-500" title="공유 폴더" />}
-                    </div>
-                    {isExpanded && node.children && (
-                        <div className="mt-1">
-                            {node.children.map(child => renderTree(child, depth + 1))}
+    // ── Render a single parent pair (recursive upward) ──
+    const renderParentPair = (pair, pairPath) => {
+        return (
+            <div className="flex flex-col items-center">
+                <PairLabel label={pair.label} />
+                {/* Recursively render grandparents above each parent */}
+                <div className="flex items-end justify-center gap-6 mb-0">
+                    {/* Parent1's parents */}
+                    {pair.parent1 && (
+                        <div className="flex flex-col items-center">
+                            {(pair.parent1.parentPairs || []).map((gp, gi) => (
+                                <div key={gp.id} className="flex flex-col items-center mb-1">
+                                    {renderParentPair(gp, [...pairPath, 'parent1', `parentPairs[${gi}]`])}
+                                    <VLine h={6} />
+                                </div>
+                            ))}
+                            <AddBtn onClick={() => openParentsModal([...pairPath, 'parent1'])} title={t.addParentsAbove} direction="up" />
+                            <VLine h={4} />
+                        </div>
+                    )}
+                    {/* Parent2's parents */}
+                    {pair.parent2 && (
+                        <div className="flex flex-col items-center">
+                            {(pair.parent2.parentPairs || []).map((gp, gi) => (
+                                <div key={gp.id} className="flex flex-col items-center mb-1">
+                                    {renderParentPair(gp, [...pairPath, 'parent2', `parentPairs[${gi}]`])}
+                                    <VLine h={6} />
+                                </div>
+                            ))}
+                            <AddBtn onClick={() => openParentsModal([...pairPath, 'parent2'])} title={t.addParentsAbove} direction="up" />
+                            <VLine h={4} />
                         </div>
                     )}
                 </div>
+                {/* The parent couple/single */}
+                <div className="flex items-center gap-1">
+                    {pair.parent1 && <FolderNode person={pair.parent1} onClick={goToPerson} size="md" />}
+                    {pair.parent1 && pair.parent2 && <PlusConnector />}
+                    {pair.parent2 && <FolderNode person={pair.parent2} onClick={goToPerson} size="md" />}
+                </div>
+            </div>
+        );
+    };
+
+    // ── Render all parent pairs for a person (multiple pairs side by side) ──
+    const renderAllParents = (node, basePath) => {
+        const pairs = node.parentPairs || [];
+        if (pairs.length === 0 && basePath.length === 0) {
+            // Only show at root level with "+" even if no parents
+            return (
+                <div className="flex items-end justify-center gap-4">
+                    <AddBtn onClick={() => openParentsModal(basePath)} title={t.addParentsAbove} direction="up" label={t.addParents} />
+                </div>
             );
         }
-
-        // Person node
         return (
-            <div
-                key={node.id}
-                className={`flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30 ring-1 ring-blue-200 dark:ring-blue-800' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-                style={{ paddingLeft: `${depth * 1.5 + 0.75}rem` }}
-                onClick={() => setSelectedNode(node.id)}
-            >
-                <User size={18} className={`${isSelected ? 'text-blue-600' : 'text-gray-400'} shrink-0`} />
-                <span className={`truncate ${isSelected ? 'font-bold text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300'}`}>{node.name}</span>
-                <span className="ml-auto text-xs font-mono text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">{node.photoCount}</span>
-                {node.isPrivate && <Lock size={12} className="text-gray-400 ml-1" title="비공개" />}
+            <div className="flex items-end justify-center gap-8 md:gap-12">
+                {pairs.map((pair, pi) => (
+                    <div key={pair.id} className="flex flex-col items-center">
+                        {renderParentPair(pair, [...basePath, `parentPairs[${pi}]`])}
+                    </div>
+                ))}
+                <AddBtn onClick={() => openParentsModal(basePath)} title={t.addParentsAbove} direction="up" />
+            </div>
+        );
+    };
+
+    // ── Recursive child renderer ──
+    const renderChild = (child, path) => {
+        const hasSpouse = !!child.spouse;
+        const kids = child.children || [];
+
+        return (
+            <div key={child.id} className="flex flex-col items-center">
+                <VLine h={20} />
+
+                {/* Person + optional spouse */}
+                <div className="flex items-center gap-1">
+                    <FolderNode person={child} onClick={goToPerson} size="md" />
+                    {hasSpouse ? (
+                        <>
+                            <PlusConnector />
+                            <FolderNode person={child.spouse} onClick={goToPerson} size="md" />
+                        </>
+                    ) : (
+                        <AddBtn onClick={() => openMemberModal(path, [{ value: 'spouse', label: t.spouseOption }])} title={t.addSpouse} direction="right" />
+                    )}
+                </div>
+
+                {/* Children */}
+                {kids.length > 0 && (
+                    <>
+                        <VLine h={16} />
+                        {kids.length > 1 && (
+                            <div className="flex items-center" style={{ width: `${kids.length * 120}px` }}>
+                                <HLine />
+                            </div>
+                        )}
+                        <div className="flex items-start justify-center gap-3">
+                            {kids.map((gc, gi) => renderChild(gc, [...path, `children[${gi}]`]))}
+                        </div>
+                    </>
+                )}
+
+                {/* "+" add child below */}
+                <AddBtn onClick={() => openMemberModal(path, [{ value: 'child', label: t.childOption }])} title={t.addChild} direction="down" />
+            </div>
+        );
+    };
+
+    // ── Main root person's parents (both own + spouse's) ──
+    const renderRootParents = () => {
+        const myPairs = root.parentPairs || [];
+        const spousePairs = root.spouse?.parentPairs || [];
+
+        return (
+            <div className="flex items-end justify-center gap-10 md:gap-16">
+                {/* My parents */}
+                <div className="flex flex-col items-center">
+                    <div className="text-[10px] font-bold text-gray-500 mb-2">{root.name}{t.parentsOf}</div>
+                    <div className="flex items-end gap-6">
+                        {myPairs.map((pair, pi) => (
+                            <div key={pair.id} className="flex flex-col items-center">
+                                {renderParentPair(pair, [`parentPairs[${pi}]`])}
+                            </div>
+                        ))}
+                        <AddBtn onClick={() => openParentsModal([])} title={t.addParentsAbove} direction="up" />
+                    </div>
+                </div>
+                {/* Spouse's parents */}
+                {root.spouse && (
+                    <div className="flex flex-col items-center">
+                        <div className="text-[10px] font-bold text-gray-500 mb-2">{root.spouse.name}{t.parentsOf}</div>
+                        <div className="flex items-end gap-6">
+                            {spousePairs.map((pair, pi) => (
+                                <div key={pair.id} className="flex flex-col items-center">
+                                    {renderParentPair(pair, ['spouse', `parentPairs[${pi}]`])}
+                                </div>
+                            ))}
+                            <AddBtn onClick={() => openParentsModal(['spouse'])} title={t.addParentsAbove} direction="up" />
+                        </div>
+                    </div>
+                )}
             </div>
         );
     };
 
     return (
-        <div className="flex flex-col md:flex-row gap-6 bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm h-[600px]">
-            {/* Left: Tree Navigation */}
-            <div className="w-full md:w-1/3 flex flex-col border-r border-gray-100 dark:border-gray-700 pr-4">
-                <div className="mb-4 pb-4 border-b border-gray-100 dark:border-gray-700">
-                    <h4 className="font-bold text-lg text-gray-900 dark:text-white flex items-center gap-2">
-                        <Globe className="text-emerald-500" />
-                        가계도 마스터
-                    </h4>
-                    <p className="text-sm text-gray-500 mt-1">세대별, 인물별 폴더 관리</p>
+        <div className="w-full min-h-[70vh] bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-inner overflow-x-auto custom-scrollbar">
+            {/* ── Top Banner ── */}
+            <FamilyBanner />
+
+            {/* ── Title + Action Buttons ── */}
+            <div className="p-6 pb-0">
+                <div className="mb-4 text-center">
+                    <h2 className="text-2xl md:text-3xl font-extrabold text-slate-800 dark:text-slate-100 flex items-center justify-center gap-3">
+                        <Network className="text-emerald-500" size={28} />
+                        {t.museumTitle}
+                    </h2>
+                    <p className="text-slate-500 text-sm mt-2">
+                        {t.treeDesc}{' '}
+                        <a href="https://www.familysearch.org" target="_blank" rel="noopener noreferrer"
+                            className="text-blue-500 hover:text-blue-600 hover:underline inline-flex items-center gap-1 font-medium">
+                            {t.ancestorLink} <ExternalLink size={12} />
+                        </a>
+                    </p>
                 </div>
-                <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
-                    {renderTree(mockTree)}
+
+                {/* Action buttons */}
+                <div className="flex items-center justify-center gap-3 mb-4">
+                    <button onClick={() => setActivePanel(activePanel === 'chat' ? null : 'chat')}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm ${activePanel === 'chat'
+                            ? 'bg-blue-600 text-white shadow-blue-500/30'
+                            : 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-2 border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20'}`}>
+                        <MessageSquare size={18} /> {t.familyChat}
+                    </button>
+                    <button onClick={() => setActivePanel(activePanel === 'exhibition' ? null : 'exhibition')}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm ${activePanel === 'exhibition'
+                            ? 'bg-purple-600 text-white shadow-purple-500/30'
+                            : 'bg-white dark:bg-gray-800 text-purple-600 dark:text-purple-400 border-2 border-purple-200 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-900/20'}`}>
+                        <ImageIcon size={18} /> {t.familyExhibition}
+                    </button>
                 </div>
+
+                {/* ── Chat Panel ── */}
+                {activePanel === 'chat' && (
+                    <div className="max-w-2xl mx-auto mb-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden animate-fade-in-up">
+                        <div className="p-3 border-b border-gray-100 dark:border-gray-700 bg-blue-50 dark:bg-blue-900/20 flex items-center justify-between">
+                            <h3 className="font-bold text-blue-700 dark:text-blue-300 flex items-center gap-2 text-sm"><MessageSquare size={16} /> {t.familyChat}</h3>
+                            <button onClick={() => setActivePanel(null)} className="text-gray-400 hover:text-gray-600 p-1"><X size={16} /></button>
+                        </div>
+                        <div className="h-52 overflow-y-auto p-3 space-y-3 bg-gray-50/50 dark:bg-gray-900/50">
+                            {chatMessages.map(m => (
+                                <div key={m.id} className={`flex flex-col ${m.sender === 'Me' ? 'items-end' : 'items-start'}`}>
+                                    <span className="text-[10px] text-gray-500 mb-0.5">{m.sender}</span>
+                                    <div className={`px-3 py-1.5 rounded-2xl max-w-[80%] text-sm ${m.sender === 'Me' ? 'bg-blue-500 text-white rounded-tr-none' : 'bg-white dark:bg-gray-700 border border-gray-100 dark:border-gray-600 rounded-tl-none'}`}>
+                                        {m.text}
+                                    </div>
+                                    <span className="text-[10px] text-gray-400 mt-0.5">{m.time}</span>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="p-2 border-t border-gray-100 dark:border-gray-700 flex gap-2">
+                            <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && handleSendChat()}
+                                placeholder={t.typePlaceholder}
+                                className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full px-4 py-2 outline-none text-sm dark:text-white" />
+                            <button onClick={handleSendChat} className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors"><Send size={16} /></button>
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Exhibition Panel ── */}
+                {activePanel === 'exhibition' && (
+                    <div className="max-w-4xl mx-auto mb-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden animate-fade-in-up">
+                        <div className="p-3 border-b border-gray-100 dark:border-gray-700 bg-purple-50 dark:bg-purple-900/20 flex items-center justify-between">
+                            <h3 className="font-bold text-purple-700 dark:text-purple-300 flex items-center gap-2 text-sm"><ImageIcon size={16} /> {t.exhibitionHall}</h3>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setExhibitIdx(0)}
+                                    className="flex items-center gap-1 px-3 py-1 bg-purple-600 text-white text-xs font-bold rounded-lg hover:bg-purple-700 transition-colors">
+                                    <Play size={12} fill="white" /> {t.slideshow}
+                                </button>
+                                <button onClick={() => setActivePanel(null)} className="text-gray-400 hover:text-gray-600 p-1"><X size={16} /></button>
+                            </div>
+                        </div>
+                        <div className="p-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+                            {EXHIBIT_ITEMS.map((item, i) => (
+                                <div key={item.id} onClick={() => setExhibitIdx(i)}
+                                    className="group cursor-pointer rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-900 aspect-[4/3] relative">
+                                    <img src={item.thumb} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent p-3 flex flex-col justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <h4 className="text-white font-bold text-sm">{item.title}</h4>
+                                        <p className="text-white/70 text-xs">{item.desc}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
 
-            {/* Right: Museum Viewer */}
-            <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-900 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 relative">
+            {/* === TREE === */}
+            <div className="px-6 pb-6">
+            <div className="flex flex-col items-center min-w-max px-4 pb-16">
 
-                {/* Viewer Header */}
-                <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between sticky top-0 z-10">
-                    <div>
-                        <h4 className="font-bold text-lg flex items-center gap-2">
-                            <User className="text-blue-500" />
-                            {selectedNode === 'me' ? 'Me' : 'Selected Album'}
-                        </h4>
-                        <p className="text-xs text-gray-500 mt-0.5">총 {mockPhotos.length}장의 사진 · 개별 비밀번호 보호됨</p>
-                    </div>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => setIsPlaying(!isPlaying)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${isPlaying ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'bg-gray-900 text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900'}`}
-                        >
-                            <Play size={16} className={isPlaying ? 'animate-pulse' : ''} />
-                            {isPlaying ? '슬라이드 정지' : '슬라이드쇼 재생'}
-                        </button>
-                    </div>
+                {/* Parents row */}
+                {renderRootParents()}
+
+                {/* Lines down from parents */}
+                <VLine h={24} />
+                <div className="flex items-center justify-center w-full max-w-2xl">
+                    <HLine />
+                    <div className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
+                    <HLine />
                 </div>
+                <VLine h={16} />
 
-                {/* Museum Grid */}
-                <div className="flex-1 overflow-y-auto p-4">
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {mockPhotos.map((photo) => (
-                            <div key={photo.id} className="group relative aspect-square rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700">
-                                <img src={photo.url} alt="Museum memory" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-
-                                {/* Overlay Controls */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-3">
-                                    <div className="flex justify-end gap-2">
-                                        <button className="p-1.5 bg-white/20 hover:bg-white/40 backdrop-blur-sm rounded-full text-white transition-colors" title="대표사진 설정">
-                                            <Camera size={14} />
-                                        </button>
-                                        <button className="p-1.5 bg-red-500/80 hover:bg-red-600 backdrop-blur-sm rounded-full text-white transition-colors" title="삭제">
-                                            <Trash2 size={14} />
-                                        </button>
-                                    </div>
-                                    {photo.isCover && (
-                                        <div className="text-xs font-bold text-white bg-blue-500/80 backdrop-blur-sm self-start px-2 py-1 rounded-lg flex items-center gap-1">
-                                            <ImageIcon size={12} /> 대표사진
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {isPlaying && (
-                        <div className="absolute inset-x-0 bottom-4 mx-4 bg-gray-900/90 text-white p-4 rounded-2xl flex items-center justify-center gap-4 animate-fade-in-up border border-gray-700 backdrop-blur-md shadow-2xl">
-                            <span className="relative flex h-3 w-3">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                            </span>
-                            <span className="font-medium text-sm">디지털 뮤지엄 자동 재생 중... (작품 및 동영상 재생 모드)</span>
-                        </div>
+                {/* Center couple */}
+                <div className="flex items-center gap-1">
+                    <FolderNode person={root} onClick={goToPerson} size="lg" />
+                    {root.spouse ? (
+                        <>
+                            <PlusConnector />
+                            <FolderNode person={root.spouse} onClick={goToPerson} size="lg" />
+                        </>
+                    ) : (
+                        <AddBtn onClick={() => openMemberModal([], [{ value: 'spouse', label: t.spouseOption }])} title={t.addSpouse} direction="right" />
                     )}
                 </div>
+
+                {/* Down to children */}
+                <VLine h={24} />
+
+                {/* Children */}
+                {(root.children || []).length > 0 && (
+                    <>
+                        <div className="flex items-center" style={{ width: `${Math.max(root.children.length * 160, 200)}px` }}>
+                            <HLine />
+                        </div>
+                        <div className="flex items-start justify-center gap-4 md:gap-8">
+                            {root.children.map((child, ci) => renderChild(child, [`children[${ci}]`]))}
+                        </div>
+                    </>
+                )}
+
+                <AddBtn onClick={() => openMemberModal([], [{ value: 'child', label: t.childOption }])} title={t.addChild} direction="down" />
+            </div>
+
+            {/* ── Member Modal (child/spouse) ── */}
+            {modal?.mode === 'member' && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl animate-fade-in-up">
+                        <h3 className="text-xl font-bold mb-4 flex items-center gap-2 dark:text-white">
+                            <UserPlus className="text-emerald-500" /> {t.addMember}
+                        </h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.nameLabel}</label>
+                                <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
+                                    className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2.5 rounded-xl outline-none border focus:border-emerald-500 dark:text-white"
+                                    placeholder={t.namePlaceholder} autoFocus
+                                    onKeyDown={e => e.key === 'Enter' && handleMemberSubmit()} />
+                            </div>
+                            {modal.relations.length > 1 && (
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.relationship}</label>
+                                    <select value={newRelation} onChange={e => setNewRelation(e.target.value)}
+                                        className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2.5 rounded-xl outline-none border focus:border-emerald-500 dark:text-white">
+                                        {modal.relations.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex gap-2 mt-6">
+                            <button onClick={() => setModal(null)} className="flex-1 py-3 text-gray-500 font-bold bg-gray-100 dark:bg-gray-700 rounded-xl">{t.cancel}</button>
+                            <button onClick={handleMemberSubmit} className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg transition-colors">{t.add}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Parents Modal (multiple parent pairs) ── */}
+            {modal?.mode === 'parents' && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 max-w-md w-full shadow-2xl animate-fade-in-up">
+                        <h3 className="text-xl font-bold mb-4 flex items-center gap-2 dark:text-white">
+                            <UserPlus className="text-indigo-500" /> {t.addParentPair}
+                        </h3>
+                        <div className="space-y-4">
+                            {/* Parent type selector */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">{t.parentType}</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {PARENT_TYPE_KEYS.map(pt => (
+                                        <button key={pt.value} onClick={() => setParentType(pt.value)}
+                                            className={`px-3 py-2 rounded-xl text-sm font-bold border-2 transition-all ${parentType === pt.value
+                                                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
+                                                : 'border-gray-200 dark:border-gray-600 text-gray-500 hover:border-gray-300'}`}>
+                                            {t[pt.tKey]}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Single parent toggle */}
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <input type="checkbox" checked={singleParent} onChange={e => setSingleParent(e.target.checked)}
+                                    className="w-4 h-4 rounded border-gray-300 text-indigo-500 focus:ring-indigo-500" />
+                                <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">{t.singleParentLabel}</span>
+                            </label>
+
+                            {/* Parent 1 name */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
+                                    {singleParent ? t.parentName : t.fatherLabel}
+                                </label>
+                                <input type="text" value={parent1Name} onChange={e => setParent1Name(e.target.value)}
+                                    className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2.5 rounded-xl outline-none border focus:border-indigo-500 dark:text-white"
+                                    placeholder="e.g., Robert" autoFocus
+                                    onKeyDown={e => e.key === 'Enter' && !singleParent && document.getElementById('parent2input')?.focus()} />
+                            </div>
+
+                            {/* Parent 2 name */}
+                            {!singleParent && (
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.motherLabel}</label>
+                                    <input id="parent2input" type="text" value={parent2Name} onChange={e => setParent2Name(e.target.value)}
+                                        className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2.5 rounded-xl outline-none border focus:border-indigo-500 dark:text-white"
+                                        placeholder="e.g., Mary"
+                                        onKeyDown={e => e.key === 'Enter' && handleParentsSubmit()} />
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex gap-2 mt-6">
+                            <button onClick={() => setModal(null)} className="flex-1 py-3 text-gray-500 font-bold bg-gray-100 dark:bg-gray-700 rounded-xl">{t.cancel}</button>
+                            <button onClick={handleParentsSubmit} className="flex-1 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl shadow-lg transition-colors">{t.addParents}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Fullscreen Exhibition Viewer ── */}
+            {exhibitIdx !== null && (
+                <div className="fixed inset-0 z-[100] bg-black flex flex-col">
+                    <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent">
+                        <div>
+                            <h3 className="text-white font-bold">{EXHIBIT_ITEMS[exhibitIdx]?.title}</h3>
+                            <p className="text-white/60 text-sm">{EXHIBIT_ITEMS[exhibitIdx]?.desc}</p>
+                        </div>
+                        <button onClick={() => setExhibitIdx(null)} className="text-white/80 hover:text-white p-2"><X size={24} /></button>
+                    </div>
+                    <div className="flex-1 flex items-center justify-center relative">
+                        <img src={EXHIBIT_ITEMS[exhibitIdx]?.url} alt="" className="max-w-full max-h-full object-contain" />
+                        <button onClick={() => setExhibitIdx((exhibitIdx - 1 + EXHIBIT_ITEMS.length) % EXHIBIT_ITEMS.length)}
+                            className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white p-3 rounded-full transition-colors">
+                            <ChevronLeft size={28} />
+                        </button>
+                        <button onClick={() => setExhibitIdx((exhibitIdx + 1) % EXHIBIT_ITEMS.length)}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white p-3 rounded-full transition-colors">
+                            <ChevronRight size={28} />
+                        </button>
+                    </div>
+                    <div className="bg-black/90 p-3 flex items-center gap-2 overflow-x-auto">
+                        {EXHIBIT_ITEMS.map((it, i) => (
+                            <button key={it.id} onClick={() => setExhibitIdx(i)}
+                                className={`w-16 h-12 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-all ${i === exhibitIdx ? 'border-white scale-110' : 'border-transparent opacity-50 hover:opacity-80'}`}>
+                                <img src={it.thumb} alt="" className="w-full h-full object-cover" />
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
             </div>
         </div>
     );
