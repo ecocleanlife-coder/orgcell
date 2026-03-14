@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { ArrowLeft, FolderOpen, Play, CheckCircle2, ChevronRight, SlidersHorizontal, Trash2, Copy, Check, Sparkles, Trash, ImageOff, Search, AlertCircle, HardDrive } from 'lucide-react';
+import { ArrowLeft, FolderOpen, Play, CheckCircle2, ChevronRight, SlidersHorizontal, Trash2, Copy, Check, Sparkles, Trash, ImageOff, Search, AlertCircle, HardDrive, Settings, ScanSearch, Users, Globe, ArrowDownToLine } from 'lucide-react';
 import ProgressBar from '../../components/smart-sort/ProgressBar';
 import FaceTagger from '../../components/smart-sort/FaceTagger';
 import AdBanner from '../../components/common/AdBanner';
@@ -136,269 +136,299 @@ export default function SmartSortView() {
         timeline: scanResults.timeline,
     } : null;
 
+    /* ── Step Tab Data ── */
+    const stepTabs = [
+        { num: 1, label: t.step1 || '1. Settings', icon: <Settings size={14} /> },
+        { num: 2, label: t.step2 || '2. AI Scan', icon: <ScanSearch size={14} /> },
+        { num: 3, label: t.step3 || '3. Face Tagging', icon: <Users size={14} /> },
+        { num: 4, label: t.step4 || '4. Results', icon: <Globe size={14} /> },
+    ];
+
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans">
-            {/* Nav Header */}
-            <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
-                <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => window.history.back()} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
-                            <ArrowLeft size={20} />
-                        </button>
-                        <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
-                            {t.title}
-                        </h1>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <div className="hidden md:flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400">
-                            <span className={`px-2 py-1 rounded-md ${step >= 1 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' : ''}`}>{t.step1}</span>
-                            <ChevronRight size={16} />
-                            <span className={`px-2 py-1 rounded-md ${step >= 2 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' : ''}`}>{t.step2}</span>
-                            <ChevronRight size={16} />
-                            <span className={`px-2 py-1 rounded-md ${step >= 3 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' : ''}`}>{t.step3}</span>
-                        </div>
-                        <LanguageSwitcher />
-                    </div>
-                </div>
-            </header>
+        <div className="min-h-screen font-sans" style={{ background: 'linear-gradient(135deg, #d8cfe8 0%, #c7b8de 40%, #e0d5f0 100%)' }}>
+            {/* ══ Title ══ */}
+            <div className="text-center pt-8 pb-4">
+                <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: '#5c4a3a', fontFamily: 'Georgia, serif' }}>
+                    AI Smart Sort
+                    <span className="inline-block ml-2 text-3xl">🤖</span>
+                </h1>
+            </div>
+
+            {/* ══ Step Tabs ══ */}
+            <div className="flex justify-center gap-2 md:gap-3 px-4 pb-6">
+                {stepTabs.map((tab) => (
+                    <button
+                        key={tab.num}
+                        onClick={() => { if (tab.num <= step) setStep(tab.num); }}
+                        className={`flex items-center gap-1.5 px-3 md:px-5 py-2 rounded-full text-xs md:text-sm font-semibold transition-all shadow-sm ${
+                            step === tab.num
+                                ? 'bg-white text-amber-800 shadow-md border-2 border-amber-200'
+                                : step > tab.num
+                                    ? 'bg-white/70 text-amber-700 border border-amber-100'
+                                    : 'bg-white/40 text-gray-500 border border-white/30'
+                        }`}
+                    >
+                        {tab.icon}
+                        <span className="hidden sm:inline">{tab.label}</span>
+                    </button>
+                ))}
+            </div>
 
             <ProgressBar isVisible={isScanning} progress={scanProgress} title={scanMessage || t.defaultProgress} />
 
-            <main className="max-w-5xl mx-auto px-4 py-8">
+            <main className="max-w-4xl mx-auto px-4 pb-12">
                 {scanError && (
-                    <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-center gap-3 animate-fade-in-up">
+                    <div className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3 animate-fade-in-up shadow-sm">
                         <AlertCircle size={20} className="text-red-500 shrink-0" />
-                        <p className="text-sm text-red-700 dark:text-red-300">{scanError}</p>
+                        <p className="text-sm text-red-700">{scanError}</p>
                         <button onClick={() => setScanError(null)} className="ml-auto text-red-400 hover:text-red-600 font-bold text-lg">&times;</button>
                     </div>
                 )}
 
+                {/* ══════════ STEP 1: Settings ══════════ */}
                 {step === 1 && (
-                    <div className="space-y-8 animate-fade-in-up">
-                        <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-                            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                                <FolderOpen className="text-blue-500" />
-                                {t.selectFolder}
-                            </h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="animate-fade-in-up">
+                        {/* Main cream card */}
+                        <div className="rounded-3xl p-6 md:p-8 shadow-xl border border-white/50" style={{ background: 'linear-gradient(145deg, #fdf8f0 0%, #f9f3e8 100%)' }}>
+
+                            {/* Top row: Select Folders + Duplicate Handling */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+
+                                {/* ── 1. Select Folders ── */}
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t.sourceLabel}</label>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={sourcePath}
-                                            onChange={(e) => setSourcePath(e.target.value)}
-                                            placeholder={t.selectPlaceholder}
-                                            className="flex-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                                            readOnly
-                                        />
-                                        <button onClick={() => { setSourceType('local'); handleBrowseFolder(setSourcePath, sourceDirRef); }} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl font-medium transition-colors whitespace-nowrap">
-                                            {t.browse}
+                                    <h2 className="text-xl md:text-2xl font-extrabold mb-3 flex items-center gap-2" style={{ color: '#4a3a2a' }}>
+                                        <span className="text-2xl">🤖</span>
+                                        1. Select Folders
+                                    </h2>
+                                    <p className="text-sm mb-4" style={{ color: '#8a7a6a' }}>
+                                        {t.sourceLabel || 'Source path with original photos to add a folder:'}
+                                    </p>
+
+                                    {/* Folder buttons */}
+                                    <div className="flex gap-4 mb-4">
+                                        <button
+                                            onClick={() => { setSourceType('local'); handleBrowseFolder(setSourcePath, sourceDirRef); }}
+                                            className="flex flex-col items-center gap-1 group"
+                                        >
+                                            <div className="w-16 h-14 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110" style={{ background: 'linear-gradient(135deg, #e8c99b 0%, #d4a574 100%)' }}>
+                                                <FolderOpen size={28} className="text-white" />
+                                            </div>
+                                            <span className="text-xs font-semibold" style={{ color: '#6a5a4a' }}>
+                                                {sourcePath || 'Select Folder'}
+                                            </span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => handleBrowseFolder(setDestPath, destDirRef)}
+                                            className="flex flex-col items-center gap-1 group"
+                                        >
+                                            <div className="w-16 h-14 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110" style={{ background: 'linear-gradient(135deg, #b8d4a8 0%, #8fb87a 100%)' }}>
+                                                <FolderOpen size={28} className="text-white" />
+                                            </div>
+                                            <span className="text-xs font-semibold" style={{ color: '#6a5a4a' }}>
+                                                {destPath || 'Select Folder'}
+                                            </span>
                                         </button>
                                     </div>
-                                    {/* Google Drive option */}
+
+                                    {/* Sign in with Google Drive */}
                                     <button
                                         onClick={handleConnectDrive}
-                                        className={`mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-colors border ${sourceType === 'drive'
-                                                ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300'
-                                                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-750'
-                                            }`}
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm transition-all border-2 hover:shadow-md"
+                                        style={{
+                                            background: sourceType === 'drive' ? '#eef6ff' : '#ffffff',
+                                            borderColor: sourceType === 'drive' ? '#93b8e8' : '#e0d8d0',
+                                            color: '#4a4a4a',
+                                        }}
                                     >
                                         <HardDrive size={16} />
-                                        {t.googleDrive}
+                                        {t.googleDrive || 'Sign In with Google Drive'}
                                         {sourceType === 'drive' && <CheckCircle2 size={16} className="text-blue-500" />}
                                     </button>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t.destLabel}</label>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={destPath}
-                                            onChange={(e) => setDestPath(e.target.value)}
-                                            placeholder={t.selectOptional}
-                                            className="flex-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                                            readOnly
-                                        />
-                                        <button onClick={() => handleBrowseFolder(setDestPath, destDirRef)} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl font-medium transition-colors whitespace-nowrap">
-                                            {t.browse}
+
+                                {/* ── 2. Duplicate Handling ── */}
+                                <div className="rounded-2xl p-5 border shadow-sm" style={{ background: '#fefcf8', borderColor: '#e8ddd0' }}>
+                                    <h2 className="text-xl md:text-2xl font-extrabold mb-3" style={{ color: '#4a3a2a' }}>
+                                        2. Duplicate Handling
+                                    </h2>
+                                    <p className="text-sm mb-4" style={{ color: '#8a7a6a' }}>
+                                        {t.dupDesc || 'Choose how to handle identical by AI.'}
+                                    </p>
+
+                                    <div className="space-y-3">
+                                        {/* Delete all except best */}
+                                        <button
+                                            onClick={() => setDupAction('delete')}
+                                            className="w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all text-left"
+                                            style={{
+                                                borderColor: dupAction === 'delete' ? '#c9a882' : '#e8e0d8',
+                                                background: dupAction === 'delete' ? '#fdf5ec' : '#ffffff',
+                                            }}
+                                        >
+                                            <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#e8f4e8' }}>
+                                                <Trash2 size={18} style={{ color: '#6a9a5a' }} />
+                                            </div>
+                                            <div>
+                                                <span className="font-bold text-sm" style={{ color: '#4a3a2a' }}>
+                                                    {t.deleteKeepBest || 'Delete all except best'}
+                                                </span>
+                                                <span className="ml-1 text-xs font-semibold px-1.5 py-0.5 rounded" style={{ background: '#f0e0d0', color: '#8a6a4a' }}>
+                                                    (Recommended)
+                                                </span>
+                                            </div>
+                                        </button>
+
+                                        {/* Move to Duplicates */}
+                                        <button
+                                            onClick={() => setDupAction('move')}
+                                            className="w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all text-left"
+                                            style={{
+                                                borderColor: dupAction === 'move' ? '#c9a882' : '#e8e0d8',
+                                                background: dupAction === 'move' ? '#fdf5ec' : '#ffffff',
+                                            }}
+                                        >
+                                            <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#e8f0e8' }}>
+                                                <FolderOpen size={18} style={{ color: '#7a9a6a' }} />
+                                            </div>
+                                            <span className="font-bold text-sm" style={{ color: '#4a3a2a' }}>
+                                                {t.moveToDuplicates || 'Move to Duplicates'}
+                                            </span>
                                         </button>
                                     </div>
                                 </div>
                             </div>
-                        </section>
 
-                        <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-                            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                                <SlidersHorizontal className="text-blue-500" />
-                                {t.dupOptions}
-                            </h2>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t.dupDesc}</p>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <label className={`relative flex cursor-pointer rounded-xl border p-4 shadow-sm hover:border-red-500 transition-colors ${dupAction === 'delete' ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'}`}>
-                                    <input type="radio" name="dupAction" value="delete" className="sr-only" checked={dupAction === 'delete'} onChange={() => setDupAction('delete')} />
-                                    <span className="flex flex-1">
-                                        <span className="flex flex-col">
-                                            <span className="block text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
-                                                <Trash2 size={16} className={dupAction === 'delete' ? 'text-red-500' : 'text-gray-400'} />
-                                                {t.deleteKeepBest}
-                                            </span>
-                                            <span className="mt-1 flex items-center text-xs text-gray-500 dark:text-gray-400">{t.deleteKeepBestDesc}</span>
-                                        </span>
-                                    </span>
-                                    {dupAction === 'delete' && <CheckCircle2 className="h-5 w-5 text-red-600" aria-hidden="true" />}
-                                </label>
-
-                                <label className={`relative flex cursor-pointer rounded-xl border p-4 shadow-sm hover:border-blue-500 transition-colors ${dupAction === 'move' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/10' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'}`}>
-                                    <input type="radio" name="dupAction" value="move" className="sr-only" checked={dupAction === 'move'} onChange={() => setDupAction('move')} />
-                                    <span className="flex flex-1">
-                                        <span className="flex flex-col">
-                                            <span className="block text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
-                                                <Copy size={16} className={dupAction === 'move' ? 'text-blue-500' : 'text-gray-400'} />
-                                                {t.moveToDuplicates}
-                                            </span>
-                                            <span className="mt-1 flex items-center text-xs text-gray-500 dark:text-gray-400">{t.moveToDuplicatesDesc}</span>
-                                        </span>
-                                    </span>
-                                    {dupAction === 'move' && <CheckCircle2 className="h-5 w-5 text-blue-600" aria-hidden="true" />}
-                                </label>
-                            </div>
-                        </section>
-
-                        {/* Small Image Cleanup */}
-                        <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-                            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                                <ImageOff className="text-blue-500" />
-                                {t.smallImageCleanup}
-                            </h2>
-
-                            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-5">
-                                <p className="text-sm text-blue-800 dark:text-blue-300 leading-relaxed">{t.smallImageInfo}</p>
-                            </div>
-
-                            <div className="space-y-4">
-                                <label className={`flex items-center justify-between cursor-pointer rounded-xl border p-4 transition-colors ${deleteSmallImages ? 'border-red-400 bg-red-50 dark:bg-red-900/10' : 'border-gray-200 dark:border-gray-700'}`}>
-                                    <div className="flex items-center gap-3">
-                                        <Trash size={18} className={deleteSmallImages ? 'text-red-500' : 'text-gray-400'} />
-                                        <div>
-                                            <span className="block text-sm font-bold text-gray-900 dark:text-white">{t.autoDeleteSmall}</span>
-                                            <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.autoDeleteSmallDesc}</span>
+                            {/* ── 3. Small Image Cleanup ── */}
+                            <div className="rounded-2xl p-5 md:p-6 border shadow-sm" style={{ background: 'linear-gradient(135deg, #fef8e8 0%, #fdf0d0 100%)', borderColor: '#e8dbb8' }}>
+                                <div className="flex items-start gap-4">
+                                    {/* Cloud cleanup illustration */}
+                                    <div className="shrink-0 hidden sm:block">
+                                        <div className="w-20 h-20 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #e8ddd0 0%, #d8c8b8 100%)' }}>
+                                            <div className="text-center">
+                                                <ImageOff size={28} style={{ color: '#8a7a6a' }} className="mx-auto" />
+                                                <span className="text-[10px] font-bold block mt-1" style={{ color: '#6a5a4a' }}>Cleanup</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className={`relative w-12 h-7 rounded-full transition-colors ${deleteSmallImages ? 'bg-red-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-                                        onClick={() => setDeleteSmallImages(!deleteSmallImages)}>
-                                        <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${deleteSmallImages ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                                    </div>
-                                </label>
 
-                                <label className={`flex items-center justify-between cursor-pointer rounded-xl border p-4 transition-colors ${includeSmallInSearch ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/10' : 'border-gray-200 dark:border-gray-700'}`}>
-                                    <div className="flex items-center gap-3">
-                                        <Search size={18} className={includeSmallInSearch ? 'text-blue-500' : 'text-gray-400'} />
-                                        <div>
-                                            <span className="block text-sm font-bold text-gray-900 dark:text-white">{t.includeSmallSearch}</span>
-                                            <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.includeSmallSearchDesc}</span>
+                                    <div className="flex-1">
+                                        <h2 className="text-xl md:text-2xl font-extrabold mb-2" style={{ color: '#4a3a2a' }}>
+                                            3. Small Image Cleanup
+                                        </h2>
+                                        <p className="text-sm leading-relaxed mb-4" style={{ color: '#7a6a5a' }}>
+                                            {t.smallImageInfo || 'Remove duplicate photos many small image files like app icons, thumbnail caches or real photos. These storage and clutter. By default, we auto-delete these.'}
+                                        </p>
+
+                                        {/* Toggle */}
+                                        <div className="flex items-center gap-3">
+                                            <div
+                                                className="relative w-14 h-8 rounded-full cursor-pointer transition-colors shadow-inner"
+                                                style={{ background: deleteSmallImages ? '#6ab04c' : '#ccc' }}
+                                                onClick={() => setDeleteSmallImages(!deleteSmallImages)}
+                                            >
+                                                <div
+                                                    className="absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform"
+                                                    style={{ transform: deleteSmallImages ? 'translateX(26px)' : 'translateX(4px)' }}
+                                                />
+                                            </div>
+                                            <span className="text-sm font-semibold" style={{ color: '#5a4a3a' }}>
+                                                {t.autoDeleteSmall || 'Auto-delete small images'}
+                                            </span>
+                                            <span className="text-xl ml-1">🖼️</span>
                                         </div>
                                     </div>
-                                    <div className={`relative w-12 h-7 rounded-full transition-colors ${includeSmallInSearch ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-                                        onClick={() => setIncludeSmallInSearch(!includeSmallInSearch)}>
-                                        <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${includeSmallInSearch ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                                    </div>
-                                </label>
+                                </div>
                             </div>
+                        </div>
 
-                            <div className="mt-4 bg-gray-50 dark:bg-gray-900 rounded-lg p-3 text-xs text-gray-500 dark:text-gray-400">
-                                {deleteSmallImages ? `\u2705 ${t.summaryDeleteOn}` : `\u26A0\uFE0F ${t.summaryDeleteOff}`}
-                                {' \u00B7 '}
-                                {includeSmallInSearch ? `\uD83D\uDD0D ${t.summarySearchOn}` : `\uD83D\uDCF7 ${t.summarySearchOff}`}
-                            </div>
-                        </section>
-
-                        <div className="flex justify-center pt-4">
+                        {/* ── Start Sorting Button ── */}
+                        <div className="flex justify-center pt-8">
                             <button
                                 onClick={handleStartScan}
                                 disabled={!sourcePath}
-                                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-8 py-3.5 rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all transform hover:scale-105"
+                                className="flex items-center gap-3 px-10 py-4 rounded-full text-lg font-extrabold shadow-lg transition-all transform hover:scale-105 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                style={{
+                                    background: 'linear-gradient(135deg, #e8b88a 0%, #d4976a 100%)',
+                                    color: '#4a3020',
+                                    boxShadow: '0 8px 24px rgba(200, 160, 120, 0.4)',
+                                }}
                             >
-                                <Play size={20} fill="currentColor" />
-                                {t.startSort}
+                                <ArrowDownToLine size={22} />
+                                {t.startSort || 'Start Sorting'}
                             </button>
                         </div>
                     </div>
                 )}
 
+                {/* ══════════ STEP 2: Scanning ══════════ */}
                 {step === 2 && (
-                    <div className="flex flex-col items-center justify-center py-20">
-                        <div className="w-24 h-24 bg-blue-100 dark:bg-blue-900/30 text-blue-500 rounded-full flex items-center justify-center mb-6">
-                            <Sparkles size={40} className="animate-bounce" />
+                    <div className="flex flex-col items-center justify-center py-20 animate-fade-in-up">
+                        <div className="w-24 h-24 rounded-full flex items-center justify-center mb-6" style={{ background: 'linear-gradient(135deg, #e8ddd0 0%, #d8c8b8 100%)' }}>
+                            <Sparkles size={40} className="animate-bounce" style={{ color: '#8a7040' }} />
                         </div>
-                        <h2 className="text-2xl font-bold mb-2">{t.scanning}</h2>
-                        <p className="text-gray-500 dark:text-gray-400 max-w-md text-center mb-4">{t.scanDesc}</p>
+                        <h2 className="text-2xl font-bold mb-2" style={{ color: '#4a3a2a' }}>{t.scanning}</h2>
+                        <p className="max-w-md text-center mb-4" style={{ color: '#8a7a6a' }}>{t.scanDesc}</p>
                         <div className="w-full max-w-md">
-                            <div className="flex justify-between text-sm text-gray-500 mb-1">
+                            <div className="flex justify-between text-sm mb-1" style={{ color: '#8a7a6a' }}>
                                 <span>{scanMessage}</span>
                                 <span>{scanProgress}%</span>
                             </div>
-                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                                <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${scanProgress}%` }}></div>
+                            <div className="w-full rounded-full h-3 overflow-hidden" style={{ background: '#e8ddd0' }}>
+                                <div
+                                    className="h-full rounded-full transition-all duration-300"
+                                    style={{ width: `${scanProgress}%`, background: 'linear-gradient(90deg, #e8b88a, #d4976a)' }}
+                                />
                             </div>
                         </div>
 
-                        {/* Advertisement Banner during loading */}
                         <div className="w-full max-w-2xl mt-12 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
                             <AdBanner />
                         </div>
                     </div>
                 )}
 
+                {/* ══════════ STEP 3: Results ══════════ */}
                 {step === 3 && stats && (
-                    <div className="space-y-8 animate-fade-in-up">
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 text-center">
-                                <div className="text-sm text-gray-500">{t.scannedPhotos}</div>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.scanned.toLocaleString()}{t.unit && <span className="text-sm font-normal text-gray-400">{t.unit}</span>}</div>
-                            </div>
-                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 text-center">
-                                <div className="text-sm text-red-500">{t.duplicatesTarget}</div>
-                                <div className="text-2xl font-bold text-red-600">{stats.duplicates.toLocaleString()}{t.unit && <span className="text-sm font-normal text-red-400">{t.unit}</span>}</div>
-                            </div>
-                            {deleteSmallImages && (
-                                <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-orange-200 dark:border-orange-800 text-center">
-                                    <div className="text-sm text-orange-500">{t.smallImagesDelete}</div>
-                                    <div className="text-2xl font-bold text-orange-600">{stats.smallImages.toLocaleString()}{t.unitSmall && <span className="text-sm font-normal text-orange-400">{t.unitSmall}</span>}</div>
+                    <div className="space-y-6 animate-fade-in-up">
+                        {/* Stats cards */}
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                            {[
+                                { label: t.scannedPhotos, value: stats.scanned.toLocaleString(), color: '#6a5a4a', bg: '#fdf8f0' },
+                                { label: t.duplicatesTarget, value: stats.duplicates.toLocaleString(), color: '#c0392b', bg: '#fef0f0' },
+                                ...(deleteSmallImages ? [{ label: t.smallImagesDelete, value: stats.smallImages.toLocaleString(), color: '#d4976a', bg: '#fef8e8' }] : []),
+                                { label: t.identifiedFaces, value: stats.faces, color: '#2980b9', bg: '#eef6ff' },
+                                { label: t.expectedSavings, value: stats.savedGB, color: '#27ae60', bg: '#eef8f0' },
+                            ].map((card, i) => (
+                                <div key={i} className="rounded-2xl p-4 text-center shadow-sm border" style={{ background: card.bg, borderColor: '#e8ddd0' }}>
+                                    <div className="text-xs font-semibold mb-1" style={{ color: card.color }}>{card.label}</div>
+                                    <div className="text-2xl font-extrabold" style={{ color: card.color }}>{card.value}</div>
                                 </div>
-                            )}
-                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 text-center">
-                                <div className="text-sm text-blue-500">{t.identifiedFaces}</div>
-                                <div className="text-2xl font-bold text-blue-600">{stats.faces}{t.unitFace && <span className="text-sm font-normal text-blue-400">{t.unitFace}</span>}</div>
-                            </div>
-                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 text-center">
-                                <div className="text-sm text-emerald-500">{t.expectedSavings}</div>
-                                <div className="text-2xl font-bold text-emerald-600">{stats.savedGB}</div>
-                            </div>
+                            ))}
                         </div>
 
-                        <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-                            <h2 className="text-lg font-bold mb-4">{t.timelineViewer}</h2>
+                        {/* Timeline viewer */}
+                        <div className="rounded-3xl p-6 shadow-sm border" style={{ background: '#fdf8f0', borderColor: '#e8ddd0' }}>
+                            <h2 className="text-lg font-bold mb-4" style={{ color: '#4a3a2a' }}>{t.timelineViewer}</h2>
                             <div className="flex flex-col md:flex-row gap-6">
-                                <div className="flex-1 bg-gray-50 dark:bg-gray-900 rounded-xl p-4 border border-dashed border-gray-300 dark:border-gray-600">
-                                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center justify-between">
-                                        {t.before} <span className="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">{t.messyFolder}</span>
+                                <div className="flex-1 rounded-xl p-4 border border-dashed" style={{ background: '#f8f4ee', borderColor: '#d8cbb8' }}>
+                                    <h3 className="text-sm font-bold uppercase tracking-widest mb-4 flex items-center justify-between" style={{ color: '#8a7a6a' }}>
+                                        {t.before} <span className="text-xs px-2 py-1 rounded" style={{ background: '#e8ddd0' }}>{t.messyFolder}</span>
                                     </h3>
                                     <div className="grid grid-cols-4 gap-2 opacity-60">
                                         {[...Array(Math.min(16, stats.scanned))].map((_, i) => (
-                                            <div key={i} className="aspect-square bg-gray-300 dark:bg-gray-700 rounded-lg overflow-hidden">
+                                            <div key={i} className="aspect-square rounded-lg overflow-hidden" style={{ background: '#d8cbb8' }}>
                                                 <img src={`https://picsum.photos/seed/nci-bg-${i}/100/100`} alt="mock" className="w-full h-full object-cover" />
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                                 <div className="flex items-center justify-center p-2">
-                                    <ChevronRight className="text-blue-500 hidden md:block" size={32} />
+                                    <ChevronRight className="hidden md:block" size={32} style={{ color: '#c9a882' }} />
                                 </div>
-                                <div className="flex-1 bg-blue-50 dark:bg-blue-900/10 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
-                                    <h3 className="text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-4 flex items-center justify-between">
-                                        {t.after} <span className="text-xs bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">{t.organizedByDate}</span>
+                                <div className="flex-1 rounded-xl p-4 border" style={{ background: '#f8f0e0', borderColor: '#e0d0b8' }}>
+                                    <h3 className="text-sm font-bold uppercase tracking-widest mb-4 flex items-center justify-between" style={{ color: '#8a6a40' }}>
+                                        {t.after} <span className="text-xs px-2 py-1 rounded" style={{ background: '#e8d8b8', color: '#6a5030' }}>{t.organizedByDate}</span>
                                     </h3>
                                     <div className="space-y-4 max-h-64 overflow-y-auto">
                                         {Object.entries(stats.timeline)
@@ -411,15 +441,15 @@ export default function SmartSortView() {
                                                     : `${year}/${parseInt(month)} \u2014 ${count} photos`;
                                                 return (
                                                     <div key={yearMonth}>
-                                                        <div className="text-xs font-bold text-gray-500 mb-2">{label}</div>
+                                                        <div className="text-xs font-bold mb-2" style={{ color: '#8a7a6a' }}>{label}</div>
                                                         <div className="grid grid-cols-4 gap-2">
                                                             {[...Array(Math.min(count, 8))].map((_, i) => (
-                                                                <div key={i} className="aspect-square bg-blue-400 dark:bg-blue-600 rounded-lg shadow-sm overflow-hidden">
+                                                                <div key={i} className="aspect-square rounded-lg shadow-sm overflow-hidden" style={{ background: '#d4b888' }}>
                                                                     <img src={`https://picsum.photos/seed/nci-af-${yearMonth.replace('/', '-')}-${i}/100/100`} alt="mock" className="w-full h-full object-cover" />
                                                                 </div>
                                                             ))}
                                                             {count > 8 && (
-                                                                <div className="aspect-square bg-blue-300 dark:bg-blue-700 rounded-lg shadow-sm flex items-center justify-center text-xs font-bold text-blue-700 dark:text-blue-200">
+                                                                <div className="aspect-square rounded-lg shadow-sm flex items-center justify-center text-xs font-bold" style={{ background: '#e8d8b8', color: '#6a5030' }}>
                                                                     +{count - 8}
                                                                 </div>
                                                             )}
@@ -428,12 +458,12 @@ export default function SmartSortView() {
                                                 );
                                             })}
                                         {Object.keys(stats.timeline).length === 0 && (
-                                            <p className="text-sm text-gray-400 text-center py-4">{t.noDateInfo}</p>
+                                            <p className="text-sm text-center py-4" style={{ color: '#aaa' }}>{t.noDateInfo}</p>
                                         )}
                                     </div>
                                 </div>
                             </div>
-                        </section>
+                        </div>
 
                         <FaceTagger
                             faceGroups={stats.faceGroups}
@@ -441,10 +471,15 @@ export default function SmartSortView() {
                             setAssignedNames={setAssignedNames}
                         />
 
-                        <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700 mt-8">
+                        <div className="flex justify-end pt-4 border-t mt-8" style={{ borderColor: '#e8ddd0' }}>
                             {!exported ? (
                                 <button onClick={handleExport} disabled={exporting}
-                                    className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-70 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-emerald-500/30 transition-all flex items-center gap-2">
+                                    className="px-8 py-3 rounded-full font-bold shadow-lg transition-all flex items-center gap-2 hover:scale-105"
+                                    style={{
+                                        background: 'linear-gradient(135deg, #6ab04c, #4a9030)',
+                                        color: '#ffffff',
+                                        boxShadow: '0 6px 20px rgba(100, 180, 80, 0.3)',
+                                    }}>
                                     {exporting ? (
                                         <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {t.exporting}</>
                                     ) : (
@@ -452,9 +487,9 @@ export default function SmartSortView() {
                                     )}
                                 </button>
                             ) : (
-                                <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-6 py-3 rounded-xl">
-                                    <Check size={20} className="text-emerald-600" />
-                                    <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                                <div className="flex items-center gap-3 px-6 py-3 rounded-2xl" style={{ background: '#eef8f0', border: '1px solid #c8e8c0' }}>
+                                    <Check size={20} style={{ color: '#27ae60' }} />
+                                    <span className="font-bold" style={{ color: '#27ae60' }}>
                                         {t.exportDone} {exportResult ? `${exportResult.organized.toLocaleString()} ${t.exportSaved}` : t.saved}
                                     </span>
                                 </div>
@@ -463,6 +498,11 @@ export default function SmartSortView() {
                     </div>
                 )}
             </main>
+
+            {/* Language switcher floating */}
+            <div className="fixed bottom-4 right-4 z-50">
+                <LanguageSwitcher />
+            </div>
         </div>
     );
 }

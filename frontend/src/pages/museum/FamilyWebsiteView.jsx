@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Globe, Search, Lock, ShieldCheck, CreditCard, Check, Copy, Share2 } from 'lucide-react';
-import PricingTable from '../../components/museum/PricingTable';
 import FamilyTreeView from '../../components/museum/FamilyTreeView';
 import AdBanner from '../../components/common/AdBanner';
-import FamilyBanner from '../../components/common/FamilyBanner';
 import LanguageSwitcher from '../../components/common/LanguageSwitcher';
 import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
@@ -13,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 export default function FamilyWebsiteView() {
     const lang = useUiStore((s) => s.lang);
     const t = getT('familyWebsite', lang);
+    const lt = getT('pricing', lang);
 
     const [subdomain, setSubdomain] = useState('');
     const [isAvailable, setIsAvailable] = useState(null);
@@ -20,6 +19,7 @@ export default function FamilyWebsiteView() {
     const [processing, setProcessing] = useState(false);
     const [paymentDone, setPaymentDone] = useState(false);
     const [adminKey, setAdminKey] = useState('');
+    const [selectedPlan, setSelectedPlan] = useState('annual');
     const navigate = useNavigate();
 
     const handlePayment = async () => {
@@ -66,142 +66,331 @@ export default function FamilyWebsiteView() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans pb-20">
-            <FamilyBanner />
-            {/* Nav Header */}
-            <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
-                <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => window.history.back()} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
-                            <ArrowLeft size={20} />
+        <div className="min-h-screen font-sans" style={{ background: 'linear-gradient(180deg, #d8cfe8 0%, #e8e0f0 30%, #e0dce8 100%)' }}>
+            {/* ══ Nav Header ══ */}
+            <header className="sticky top-0 z-40 border-b" style={{ background: 'rgba(220, 215, 230, 0.95)', borderColor: '#c8c0d8', backdropFilter: 'blur(8px)' }}>
+                <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#c8e0c0' }}>
+                                <Globe size={16} style={{ color: '#4a7a3a' }} />
+                            </div>
+                            <span className="font-bold text-lg" style={{ color: '#3a3a3a' }}>Orgcell</span>
+                        </div>
+                        <span style={{ color: '#aaa' }}>|</span>
+                        <button onClick={() => window.history.back()} className="flex items-center gap-1 text-sm font-semibold hover:opacity-70 transition-opacity" style={{ color: '#6a6a6a' }}>
+                            <ArrowLeft size={16} />
+                            Museum
                         </button>
-                        <h1 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-emerald-400 bg-clip-text text-transparent">
-                            {t.title}
-                        </h1>
                     </div>
                     <LanguageSwitcher />
                 </div>
             </header>
 
-            <main className="max-w-5xl mx-auto px-4 py-8 space-y-12">
-                {/* Hero Section */}
-                <section className="text-center space-y-4 animate-fade-in-up">
-                    <div className="inline-flex items-center justify-center p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full mb-2">
-                        <Globe size={32} />
-                    </div>
-                    <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight">{t.heroTitle}</h2>
-                    <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">{t.heroDesc}</p>
-                    <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 mt-6 text-sm text-emerald-800 dark:text-emerald-300">
-                        {t.domainGuide}
-                    </div>
-                </section>
+            <main className="max-w-6xl mx-auto px-4 py-8 pb-16">
+                {/* ══════════ Hero Section: 2-column layout ══════════ */}
+                <div className="rounded-3xl overflow-hidden shadow-2xl border" style={{ background: 'linear-gradient(145deg, #f5f0e0 0%, #ece6d0 50%, #e8e2cc 100%)', borderColor: '#d8d0b8' }}>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
 
-                {/* Domain Search */}
-                <section className="bg-white dark:bg-gray-800 rounded-3xl p-8 md:p-12 shadow-sm border border-gray-100 dark:border-gray-700 text-center max-w-3xl mx-auto animate-fade-in-up">
-                    <h3 className="text-2xl font-bold mb-6">{t.domainSearch}</h3>
-                    <div className="flex flex-col sm:flex-row items-center gap-4 max-w-lg mx-auto">
-                        <div className="relative flex-1 w-full flex items-center bg-gray-50 dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden focus-within:border-emerald-500 transition-colors">
-                            <input
-                                type="text"
-                                value={subdomain}
-                                onChange={(e) => { setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); setIsAvailable(null); }}
-                                placeholder="smith-family"
-                                className="w-full bg-transparent px-4 py-3.5 outline-none font-medium text-right text-gray-900 dark:text-white"
-                            />
-                            <span className="pr-4 py-3.5 text-gray-500 dark:text-gray-400 font-medium select-none bg-gray-100 dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700">
-                                .orgcell.com
-                            </span>
+                        {/* ── Left Column: Text + Domain + Pricing ── */}
+                        <div className="p-8 md:p-10">
+                            {/* Title */}
+                            <h1 className="text-4xl md:text-5xl font-extrabold mb-4" style={{ color: '#3a3a2a', fontFamily: 'Georgia, serif' }}>
+                                $10 Family Website
+                            </h1>
+
+                            {/* Globe icon */}
+                            <div className="mb-4">
+                                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: '#e0f0e0', border: '2px solid #b0d0a0' }}>
+                                    <Globe size={24} style={{ color: '#5a8a4a' }} />
+                                </div>
+                            </div>
+
+                            {/* Description */}
+                            <p className="text-base leading-relaxed mb-6" style={{ color: '#5a5a4a' }}>
+                                {t.heroDesc || 'Family can be together forever - Build a digital museum for your eternal family for just $10'}
+                            </p>
+
+                            {/* Create your family domain */}
+                            <h3 className="text-xl font-extrabold mb-3" style={{ color: '#3a3a2a' }}>
+                                {t.domainSearch || 'Create your family domain'}
+                            </h3>
+
+                            {/* Domain input */}
+                            <div className="flex items-center gap-2 mb-3">
+                                <div className="flex items-center flex-1 rounded-xl overflow-hidden border-2" style={{ borderColor: '#c8c0a8', background: '#ffffff' }}>
+                                    <input
+                                        type="text"
+                                        value={subdomain}
+                                        onChange={(e) => { setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); setIsAvailable(null); }}
+                                        placeholder="smith-family"
+                                        className="flex-1 px-4 py-3 outline-none font-medium bg-transparent"
+                                        style={{ color: '#4a4a4a' }}
+                                    />
+                                    <span className="px-3 py-3 text-sm font-medium select-none" style={{ color: '#8a8a7a', background: '#f0ece0', borderLeft: '1px solid #d8d0b8' }}>
+                                        .orgcell.com
+                                    </span>
+                                </div>
+                                <button
+                                    onClick={handleCheckDomain}
+                                    className="px-4 py-3 rounded-xl font-semibold text-sm flex items-center gap-1.5 transition-all hover:shadow-md shrink-0"
+                                    style={{ background: '#e8e0d0', color: '#5a5040', border: '1px solid #c8c0a8' }}
+                                >
+                                    <Search size={14} />
+                                    Check
+                                </button>
+                            </div>
+
+                            {isAvailable !== null && (
+                                <div className={`text-sm font-bold mb-3 ${isAvailable ? 'text-emerald-600' : 'text-red-500'}`}>
+                                    {isAvailable ? `${subdomain}.orgcell.com is available!` : t.domainUnavailable || 'Domain is not available'}
+                                </div>
+                            )}
+
+                            {/* Secure Payment Button */}
+                            <button
+                                onClick={() => setShowPayment(true)}
+                                className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-bold text-base transition-all hover:shadow-lg hover:brightness-105 mb-2"
+                                style={{
+                                    background: 'linear-gradient(135deg, #3a8a3a 0%, #2a7a2a 100%)',
+                                    color: '#ffffff',
+                                    boxShadow: '0 4px 16px rgba(50, 120, 50, 0.3)',
+                                }}
+                            >
+                                <Lock size={16} />
+                                {t.paymentBtn || 'Secure Payment & Create Domain'}
+                            </button>
+                            <p className="text-xs text-center mb-8" style={{ color: '#8a8a7a' }}>
+                                {lt.plan1Feature4 || 'Live sharing included'} &bull; Accessible anywhere
+                            </p>
+
+                            {/* ── Pricing Cards ── */}
+                            <div className="grid grid-cols-2 gap-4">
+                                {/* Basic Plan */}
+                                <div
+                                    onClick={() => setSelectedPlan('annual')}
+                                    className="rounded-2xl p-4 cursor-pointer transition-all"
+                                    style={{
+                                        background: '#ffffff',
+                                        border: selectedPlan === 'annual' ? '2px solid #8aaa7a' : '2px solid #d8d0c0',
+                                        boxShadow: selectedPlan === 'annual' ? '0 4px 12px rgba(100, 150, 80, 0.15)' : 'none',
+                                    }}
+                                >
+                                    <h4 className="text-sm font-bold mb-1" style={{ color: '#5a5a4a' }}>
+                                        {lt.plan1Title || 'Basic (1 Year)'}
+                                    </h4>
+                                    <div className="flex items-baseline gap-1 mb-3">
+                                        <span className="text-2xl font-extrabold" style={{ color: '#3a3a2a' }}>{lt.plan1Price || '$10'}</span>
+                                        <span className="text-xs" style={{ color: '#8a8a7a' }}>{lt.plan1Sub || '/year'}</span>
+                                    </div>
+                                    <ul className="space-y-1.5 mb-3">
+                                        {[lt.plan1Feature1, lt.plan1Feature2, lt.plan1Feature3, lt.plan1Feature4].filter(Boolean).map((f, i) => (
+                                            <li key={i} className="text-xs flex items-start gap-1.5" style={{ color: '#6a6a5a' }}>
+                                                <span style={{ color: '#8aaa7a' }}>&#8226;</span>
+                                                {f}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <button
+                                        className="w-full py-2 rounded-lg text-xs font-bold transition-all"
+                                        style={{
+                                            background: selectedPlan === 'annual' ? '#4a8a3a' : '#e8e0d0',
+                                            color: selectedPlan === 'annual' ? '#ffffff' : '#6a6a5a',
+                                        }}
+                                    >
+                                        Select Plan
+                                    </button>
+                                </div>
+
+                                {/* Lifetime Plan */}
+                                <div
+                                    onClick={() => setSelectedPlan('lifetime')}
+                                    className="rounded-2xl p-4 cursor-pointer transition-all"
+                                    style={{
+                                        background: '#ffffff',
+                                        border: selectedPlan === 'lifetime' ? '2px solid #8aaa7a' : '2px solid #d8d0c0',
+                                        boxShadow: selectedPlan === 'lifetime' ? '0 4px 12px rgba(100, 150, 80, 0.15)' : 'none',
+                                    }}
+                                >
+                                    <h4 className="text-sm font-bold mb-1" style={{ color: '#5a5a4a' }}>
+                                        {lt.plan2Title || 'Lifetime (10 Years)'}
+                                    </h4>
+                                    <div className="flex items-baseline gap-1 mb-3">
+                                        <span className="text-2xl font-extrabold" style={{ color: '#3a3a2a' }}>{lt.plan2Price || '$100'}</span>
+                                        <span className="text-xs" style={{ color: '#8a8a7a' }}>{lt.plan2Sub || '/10 years'}</span>
+                                    </div>
+                                    <ul className="space-y-1.5 mb-3">
+                                        {[lt.plan2Feature1, lt.plan2Feature2, lt.plan2Feature3, lt.plan2Feature4].filter(Boolean).map((f, i) => (
+                                            <li key={i} className="text-xs flex items-start gap-1.5" style={{ color: '#6a6a5a' }}>
+                                                <span style={{ color: '#8aaa7a' }}>&#8226;</span>
+                                                {f}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <button
+                                        className="w-full py-2 rounded-lg text-xs font-bold transition-all"
+                                        style={{
+                                            background: selectedPlan === 'lifetime' ? '#4a8a3a' : '#e8e0d0',
+                                            color: selectedPlan === 'lifetime' ? '#ffffff' : '#6a6a5a',
+                                        }}
+                                    >
+                                        Select Plan
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <button
-                            onClick={handleCheckDomain}
-                            className="w-full sm:w-auto px-6 py-3.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-2xl hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors shrink-0"
-                        >
-                            <Search size={20} className="inline mr-2" />
-                            {t.domainCheck}
-                        </button>
-                    </div>
 
-                    {isAvailable !== null && (
-                        <div className={`mt-4 text-sm font-bold ${isAvailable ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
-                            {isAvailable ? `\uD83C\uDF89 ${t.domainAvailable} (${subdomain}.orgcell.com)` : `\u274C ${t.domainUnavailable}`}
+                        {/* ── Right Column: Family Tree Image ── */}
+                        <div className="hidden lg:flex items-center justify-center p-6">
+                            <div className="relative w-full max-w-[480px]">
+                                {/* 3D Frame */}
+                                <div className="rounded-2xl overflow-hidden shadow-2xl" style={{
+                                    background: 'linear-gradient(145deg, #e0d4b8 0%, #c8b898 50%, #d8ccb0 100%)',
+                                    padding: '16px',
+                                    border: '3px solid #b8a888',
+                                    boxShadow: '8px 8px 24px rgba(0,0,0,0.15), inset 0 2px 4px rgba(255,255,255,0.3)',
+                                }}>
+                                    <div className="rounded-xl overflow-hidden" style={{ background: '#f0e8d0' }}>
+                                        <img
+                                            src="/images/landing/hero-family-tree.png"
+                                            alt="Family Tree"
+                                            className="w-full h-auto"
+                                            onError={(e) => {
+                                                e.target.style.display = 'none';
+                                                e.target.parentElement.innerHTML = `
+                                                    <div style="padding: 40px; text-align: center;">
+                                                        <div style="font-size: 64px; margin-bottom: 16px;">🌳</div>
+                                                        <div style="color: #8a7a5a; font-size: 14px; font-weight: bold;">Family Tree Preview</div>
+                                                        <div style="margin-top: 24px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                                                            <div style="display: flex; gap: 24px;">
+                                                                <div style="text-align: center;">
+                                                                    <div style="width: 48px; height: 48px; border-radius: 50%; background: #d8c8a8; margin: 0 auto 4px; display: flex; align-items: center; justify-content: center; font-size: 20px;">👴</div>
+                                                                    <span style="font-size: 10px; color: #8a7a5a;">GRANDPA</span>
+                                                                </div>
+                                                                <div style="text-align: center;">
+                                                                    <div style="width: 48px; height: 48px; border-radius: 50%; background: #d8c8a8; margin: 0 auto 4px; display: flex; align-items: center; justify-content: center; font-size: 20px;">👵</div>
+                                                                    <span style="font-size: 10px; color: #8a7a5a;">GRANDMA</span>
+                                                                </div>
+                                                            </div>
+                                                            <div style="width: 2px; height: 16px; background: #c8b898;"></div>
+                                                            <div style="display: flex; gap: 24px;">
+                                                                <div style="text-align: center;">
+                                                                    <div style="width: 48px; height: 48px; border-radius: 50%; background: #d8c8a8; margin: 0 auto 4px; display: flex; align-items: center; justify-content: center; font-size: 20px;">👨</div>
+                                                                    <span style="font-size: 10px; color: #8a7a5a;">FATHER</span>
+                                                                </div>
+                                                                <div style="text-align: center;">
+                                                                    <div style="width: 48px; height: 48px; border-radius: 50%; background: #d8c8a8; margin: 0 auto 4px; display: flex; align-items: center; justify-content: center; font-size: 20px;">👩</div>
+                                                                    <span style="font-size: 10px; color: #8a7a5a;">MOTHER</span>
+                                                                </div>
+                                                            </div>
+                                                            <div style="width: 2px; height: 16px; background: #c8b898;"></div>
+                                                            <div style="display: flex; gap: 24px;">
+                                                                <div style="text-align: center;">
+                                                                    <div style="width: 48px; height: 48px; border-radius: 50%; background: #d8c8a8; margin: 0 auto 4px; display: flex; align-items: center; justify-content: center; font-size: 20px;">👧</div>
+                                                                    <span style="font-size: 10px; color: #8a7a5a;">DAUGHTER</span>
+                                                                </div>
+                                                                <div style="text-align: center;">
+                                                                    <div style="width: 48px; height: 48px; border-radius: 50%; background: #d8c8a8; margin: 0 auto 4px; display: flex; align-items: center; justify-content: center; font-size: 20px;">👦</div>
+                                                                    <span style="font-size: 10px; color: #8a7a5a;">SON</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                `;
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    )}
-                </section>
-
-                {/* Secure Payment & Create Domain */}
-                <div className="flex justify-center animate-fade-in-up" style={{ animationDelay: '50ms' }}>
-                    <button onClick={() => setShowPayment(true)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-10 py-4 rounded-2xl font-bold shadow-xl shadow-emerald-500/30 transition-all flex items-center gap-3 text-lg transform hover:-translate-y-1">
-                        <CreditCard size={24} />
-                        {t.paymentBtn}
-                    </button>
+                    </div>
                 </div>
 
-                {/* Pricing Table */}
-                <div className="animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-                    <PricingTable />
+                {/* ══ Lifetime Access Badge ══ */}
+                <div className="flex justify-center -mt-6 relative z-10">
+                    <div className="flex items-center gap-3 px-8 py-3 rounded-full shadow-lg" style={{
+                        background: 'linear-gradient(135deg, #e8dcc0 0%, #d8ccb0 100%)',
+                        border: '2px solid #c8b898',
+                        boxShadow: '0 6px 20px rgba(0,0,0,0.1)',
+                    }}>
+                        <span className="text-xs font-extrabold uppercase tracking-wider" style={{ color: '#6a5a3a' }}>
+                            LIFETIME ACCESS:
+                        </span>
+                        <span className="text-lg">🏛️</span>
+                        <span className="text-3xl font-extrabold" style={{ color: '#3a7a2a' }}>$10</span>
+                    </div>
                 </div>
 
-                {/* Preview: Family Tree Viewer */}
-                <section className="space-y-6 pt-8 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-                    <div className="text-center mb-8">
-                        <h3 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">{t.previewTitle}</h3>
-                        <p className="text-gray-500 dark:text-gray-400 mt-2">{t.previewDesc}</p>
-                    </div>
-
+                {/* ══ Family Tree Structure — 원래 FamilyTreeView 그대로 ══ */}
+                <div className="mt-16 mb-8">
                     <FamilyTreeView />
-                </section>
+                </div>
 
-                {/* Custom App Development Inquiry */}
-                <div className="pt-12 border-t border-gray-200 dark:border-gray-700 animate-fade-in-up" style={{ animationDelay: '250ms' }}>
+                {/* ══ Custom Development Banner ══ */}
+                <div className="mt-12">
                     <AdBanner />
                 </div>
             </main>
 
-            {/* Payment Modal */}
+            {/* ══════════ Payment Modal ══════════ */}
             {showPayment && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 max-w-md w-full shadow-2xl relative border border-gray-100 dark:border-gray-700">
-                        <button onClick={() => setShowPayment(false)} className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white bg-gray-100 dark:bg-gray-700 rounded-full transition-colors">
-                            <span className="sr-only">Close</span>&times;
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(40, 35, 50, 0.6)', backdropFilter: 'blur(6px)' }}>
+                    <div className="rounded-3xl p-8 max-w-md w-full shadow-2xl relative" style={{ background: '#fdf8f0', border: '2px solid #d8d0b8' }}>
+                        <button onClick={() => setShowPayment(false)} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-lg font-bold transition-colors" style={{ background: '#e8e0d0', color: '#8a7a6a' }}>
+                            &times;
                         </button>
 
                         {!paymentDone ? (
                             <div className="space-y-6">
                                 <div className="text-center">
-                                    <ShieldCheck size={40} className="mx-auto mb-3 text-emerald-500" />
-                                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{t.paymentTitle}</h3>
-                                    <p className="text-sm text-gray-500 mt-1">{t.paymentSSL}</p>
+                                    <ShieldCheck size={40} className="mx-auto mb-3" style={{ color: '#4a8a3a' }} />
+                                    <h3 className="text-2xl font-bold" style={{ color: '#3a3a2a' }}>{t.paymentTitle}</h3>
+                                    <p className="text-sm mt-1" style={{ color: '#8a8a7a' }}>{t.paymentSSL}</p>
                                 </div>
 
-                                <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4 text-center">
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">{t.selectedPlan}</p>
-                                    <p className="text-2xl font-bold text-emerald-600">$10<span className="text-base font-normal text-gray-500">/year</span></p>
-                                    <p className="text-xs text-gray-500 mt-1">{subdomain ? `${subdomain}.orgcell.com` : 'your-family.orgcell.com'}</p>
+                                <div className="rounded-xl p-4 text-center" style={{ background: '#e8f4e0', border: '1px solid #c8e0b8' }}>
+                                    <p className="text-sm" style={{ color: '#6a7a5a' }}>{t.selectedPlan}</p>
+                                    <p className="text-2xl font-bold" style={{ color: '#3a7a2a' }}>
+                                        {selectedPlan === 'annual' ? '$10' : '$100'}
+                                        <span className="text-base font-normal" style={{ color: '#8a8a7a' }}>
+                                            {selectedPlan === 'annual' ? '/year' : '/10 years'}
+                                        </span>
+                                    </p>
+                                    <p className="text-xs mt-1" style={{ color: '#8a8a7a' }}>
+                                        {subdomain ? `${subdomain}.orgcell.com` : 'your-family.orgcell.com'}
+                                    </p>
                                 </div>
 
                                 <div className="space-y-3">
                                     <div>
-                                        <label className="text-sm font-bold text-gray-500 mb-1 block">{t.cardNumber}</label>
+                                        <label className="text-sm font-bold mb-1 block" style={{ color: '#8a7a6a' }}>{t.cardNumber}</label>
                                         <input type="text" placeholder="1234 5678 9012 3456" maxLength={19}
-                                            className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none dark:text-white" />
+                                            className="w-full px-4 py-3 rounded-xl outline-none"
+                                            style={{ background: '#ffffff', border: '2px solid #d8d0c0', color: '#3a3a2a' }} />
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
-                                            <label className="text-sm font-bold text-gray-500 mb-1 block">{t.expiry}</label>
+                                            <label className="text-sm font-bold mb-1 block" style={{ color: '#8a7a6a' }}>{t.expiry}</label>
                                             <input type="text" placeholder="MM/YY" maxLength={5}
-                                                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none dark:text-white" />
+                                                className="w-full px-4 py-3 rounded-xl outline-none"
+                                                style={{ background: '#ffffff', border: '2px solid #d8d0c0', color: '#3a3a2a' }} />
                                         </div>
                                         <div>
-                                            <label className="text-sm font-bold text-gray-500 mb-1 block">CVC</label>
+                                            <label className="text-sm font-bold mb-1 block" style={{ color: '#8a7a6a' }}>CVC</label>
                                             <input type="text" placeholder="123" maxLength={4}
-                                                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none dark:text-white" />
+                                                className="w-full px-4 py-3 rounded-xl outline-none"
+                                                style={{ background: '#ffffff', border: '2px solid #d8d0c0', color: '#3a3a2a' }} />
                                         </div>
                                     </div>
                                 </div>
 
                                 <button onClick={handlePayment} disabled={processing}
-                                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-70 text-white rounded-2xl font-bold text-lg shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-3">
+                                    className="w-full py-4 rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-3 hover:brightness-105 disabled:opacity-70"
+                                    style={{
+                                        background: 'linear-gradient(135deg, #3a8a3a 0%, #2a7a2a 100%)',
+                                        color: '#ffffff',
+                                        boxShadow: '0 6px 20px rgba(50, 120, 50, 0.3)',
+                                    }}>
                                     {processing ? (
                                         <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {t.processing}</>
                                     ) : (
@@ -209,26 +398,26 @@ export default function FamilyWebsiteView() {
                                     )}
                                 </button>
 
-                                <p className="text-xs text-center text-gray-400 flex items-center justify-center gap-1">
+                                <p className="text-xs text-center flex items-center justify-center gap-1" style={{ color: '#aaa' }}>
                                     <ShieldCheck size={12} /> {t.stripeNote}
                                 </p>
                             </div>
                         ) : (
                             <div className="text-center py-4 space-y-4">
-                                <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto">
-                                    <Check size={32} className="text-emerald-600" />
+                                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto" style={{ background: '#e0f4d8' }}>
+                                    <Check size={32} style={{ color: '#3a8a3a' }} />
                                 </div>
-                                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{t.setupComplete}</h3>
-                                <p className="text-gray-600 dark:text-gray-400">
-                                    <span className="font-bold text-emerald-600 truncate">{subdomain || 'your-family'}.orgcell.com</span>
+                                <h3 className="text-2xl font-bold" style={{ color: '#3a3a2a' }}>{t.setupComplete}</h3>
+                                <p style={{ color: '#6a6a5a' }}>
+                                    <span className="font-bold" style={{ color: '#3a8a3a' }}>{subdomain || 'your-family'}.orgcell.com</span>
                                 </p>
 
-                                <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-center">
-                                    <p className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.adminKeyGenerated}</p>
-                                    <div className="font-mono text-lg font-bold text-purple-600 dark:text-purple-400 bg-white dark:bg-gray-800 px-3 py-2 rounded-lg inline-block border border-gray-100 dark:border-gray-700 select-all">
+                                <div className="rounded-xl p-4 text-center" style={{ background: '#f8f4e8', border: '1px solid #d8d0c0' }}>
+                                    <p className="text-sm font-bold mb-1" style={{ color: '#5a5a4a' }}>{t.adminKeyGenerated}</p>
+                                    <div className="font-mono text-lg font-bold px-3 py-2 rounded-lg inline-block select-all" style={{ color: '#7a5a9a', background: '#ffffff', border: '1px solid #d8d0c0' }}>
                                         {adminKey}
                                     </div>
-                                    <p className="text-xs text-gray-500 mt-2 text-left bg-blue-50 dark:bg-blue-900/20 p-2 rounded-md">
+                                    <p className="text-xs mt-2 text-left p-2 rounded-md" style={{ background: '#e8f0ff', color: '#4a6a8a' }}>
                                         {t.installText}
                                     </p>
                                 </div>
@@ -238,18 +427,25 @@ export default function FamilyWebsiteView() {
                                         navigator.clipboard.writeText(`https://${subdomain || 'your-family'}.orgcell.com`);
                                         alert(t.copied);
                                     }}
-                                        className="py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl font-bold transition-colors text-sm flex items-center justify-center gap-2">
+                                        className="py-3 rounded-xl font-bold transition-colors text-sm flex items-center justify-center gap-2"
+                                        style={{ background: '#e8e0d0', color: '#5a5040' }}>
                                         <Copy size={16} /> {t.copyLink}
                                     </button>
                                     <button
-                                        className="py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl font-bold transition-colors text-sm flex items-center justify-center gap-2">
+                                        className="py-3 rounded-xl font-bold transition-colors text-sm flex items-center justify-center gap-2"
+                                        style={{ background: '#e8e0d0', color: '#5a5040' }}>
                                         <Share2 size={16} /> {t.shareSMS}
                                     </button>
                                 </div>
 
-                                <p className="text-sm text-gray-500">{t.setupDesc}<br />{t.setupAction}</p>
+                                <p className="text-sm" style={{ color: '#8a8a7a' }}>{t.setupDesc}<br />{t.setupAction}</p>
                                 <button onClick={() => { setShowPayment(false); navigate('/family-dashboard'); }}
-                                    className="w-full py-4 mt-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-colors shadow-lg shadow-emerald-500/25">
+                                    className="w-full py-4 mt-2 rounded-xl font-bold transition-colors hover:brightness-105"
+                                    style={{
+                                        background: 'linear-gradient(135deg, #3a8a3a 0%, #2a7a2a 100%)',
+                                        color: '#ffffff',
+                                        boxShadow: '0 4px 16px rgba(50, 120, 50, 0.25)',
+                                    }}>
                                     {t.close}
                                 </button>
                             </div>

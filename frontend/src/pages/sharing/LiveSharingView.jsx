@@ -307,24 +307,30 @@ export default function LiveSharingView() {
     const [albumTab, setAlbumTab] = useState('photos'); // 'photos' | 'feed'
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans pb-24">
+        <div className="min-h-screen font-sans pb-24" style={{ background: 'linear-gradient(180deg, #d8cfe8 0%, #e8e0f0 50%, #e0dce8 100%)' }}>
             {/* Header */}
-            <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
+            <header className="sticky top-0 z-40 border-b" style={{ background: 'rgba(220, 215, 230, 0.95)', borderColor: '#c8c0d8', backdropFilter: 'blur(8px)' }}>
                 <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
                     <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#e0d8f0' }}>
+                                <Share2 size={14} style={{ color: '#7a5aa0' }} />
+                            </div>
+                            <span className="font-bold text-lg" style={{ color: '#3a3a3a' }}>Orgcell</span>
+                        </div>
+                        <span style={{ color: '#aaa' }}>|</span>
                         <button onClick={step === STEPS.MAIN ? () => window.history.back() : handleBack}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
-                            <ArrowLeft size={20} />
+                            className="flex items-center gap-1 text-sm font-semibold hover:opacity-70 transition-opacity" style={{ color: '#6a6a6a' }}>
+                            <ArrowLeft size={16} />
+                            {step === STEPS.MAIN ? 'Museum' : stepTitles[step]}
                         </button>
-                        <h1 className="text-lg font-bold bg-gradient-to-r from-purple-600 to-purple-400 bg-clip-text text-transparent truncate">
-                            {stepTitles[step]}
-                        </h1>
                     </div>
                     <div className="flex items-center gap-2">
                         {step === STEPS.MAIN && (
                             <button onClick={() => setShowJoin(true)}
-                                className="flex items-center gap-2 text-sm font-bold text-purple-600 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-300 px-4 py-2 rounded-xl hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors">
-                                <Hash size={16} /> Join
+                                className="flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-xl transition-colors"
+                                style={{ background: '#f0ece0', color: '#5a5040', border: '1px solid #d8d0c0' }}>
+                                <Hash size={14} /> Join
                             </button>
                         )}
                         <LanguageSwitcher />
@@ -338,67 +344,112 @@ export default function LiveSharingView() {
                     MAIN: Choose Individual or Group
                    ════════════════════════════════════ */}
                 {step === STEPS.MAIN && (
-                    <div className="space-y-6">
-                        <p className="text-center text-gray-500 dark:text-gray-400 text-sm">How would you like to share photos?</p>
+                    <div className="space-y-0">
+                        {/* Classic Frame */}
+                        <div className="rounded-2xl overflow-hidden" style={{
+                            background: 'linear-gradient(145deg, #7a5a3a 0%, #5a3a20 20%, #8a6a48 50%, #5a3a20 80%, #7a5a3a 100%)',
+                            padding: '14px',
+                            boxShadow: '0 8px 32px rgba(60, 30, 10, 0.3), inset 0 2px 4px rgba(180, 150, 120, 0.4)',
+                        }}>
+                            {/* Inner parchment */}
+                            <div className="rounded-xl p-6 space-y-5" style={{
+                                background: 'linear-gradient(145deg, #f5efe0 0%, #ece4d0 50%, #f0e8d8 100%)',
+                                boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.05)',
+                            }}>
+                                {/* Decorative leaf pattern hint */}
+                                <div className="absolute opacity-10 pointer-events-none" style={{ top: 20, left: 20, fontSize: '120px', color: '#8a7a5a' }}>
+                                </div>
 
-                        {/* Individual */}
-                        <button onClick={() => setStep(STEPS.IND_GUIDE)}
-                            className="w-full bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-lg hover:border-purple-300 dark:hover:border-purple-700 transition-all text-left group">
-                            <div className="flex items-center gap-5">
-                                <div className="w-16 h-16 rounded-2xl bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                                    <Send size={28} />
-                                </div>
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">{lt.individualTitle}</h3>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        {lt.individualDesc}
-                                    </p>
-                                </div>
-                                <ChevronRight size={20} className="text-gray-400 group-hover:text-purple-500" />
-                            </div>
-                        </button>
-
-                        {/* Group */}
-                        <button onClick={() => setStep(STEPS.GRP_LOBBY)}
-                            className="w-full bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-700 transition-all text-left group">
-                            <div className="flex items-center gap-5">
-                                <div className="w-16 h-16 rounded-2xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                                    <Users size={28} />
-                                </div>
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">{lt.groupTitle}</h3>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        {lt.groupDesc}
-                                    </p>
-                                </div>
-                                <ChevronRight size={20} className="text-gray-400 group-hover:text-blue-500" />
-                            </div>
-                        </button>
-
-                        {/* P2P Friend Call — 상대방 호출 */}
-                        {token && (
-                            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 space-y-4">
-                                <div className="flex items-center gap-3 pb-3 border-b border-gray-100 dark:border-gray-700">
-                                    <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                                        <Radio size={20} />
+                                {/* Send to One Person */}
+                                <button onClick={() => setStep(STEPS.IND_GUIDE)}
+                                    className="w-full rounded-2xl p-5 text-left group transition-all hover:shadow-lg"
+                                    style={{
+                                        background: 'linear-gradient(135deg, #f8f2e4 0%, #f0e8d4 100%)',
+                                        border: '2px solid #d8ccb0',
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                                    }}>
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform" style={{ background: '#e8dcc8' }}>
+                                            <Send size={24} style={{ color: '#7a6a50' }} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="text-xl font-extrabold mb-1" style={{ color: '#3a3020', fontFamily: 'Georgia, serif' }}>
+                                                {lt.individualTitle || 'Send to One Person'}
+                                            </h3>
+                                            <p className="text-sm" style={{ color: '#8a7a60' }}>
+                                                {lt.individualDesc || 'Share selected photos privately with one person'}
+                                            </p>
+                                        </div>
+                                        {/* Illustration area */}
+                                        <div className="hidden sm:block w-20 h-16 rounded-lg overflow-hidden shrink-0" style={{ background: '#e8e0d0' }}>
+                                            <img
+                                                src="/images/landing/card-live-share.png"
+                                                alt=""
+                                                className="w-full h-full object-cover"
+                                                onError={(e) => { e.target.style.display = 'none'; }}
+                                            />
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h3 className="font-bold text-gray-900 dark:text-white">P2P Photo Call</h3>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">상대방 폰에서 내 사진을 AI로 찾아 안전하게 전송</p>
-                                    </div>
-                                </div>
-                                <FriendCall localPhotos={[]} />
-                                <RoomWorkspace workerRef={null} localPhotos={[]} />
-                            </div>
-                        )}
+                                </button>
 
-                        {!token && (
-                            <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl p-5 border border-indigo-200 dark:border-indigo-800 text-center">
-                                <Radio size={24} className="mx-auto mb-2 text-indigo-500" />
-                                <p className="font-bold text-indigo-800 dark:text-indigo-300 mb-1">P2P Photo Call</p>
-                                <p className="text-sm text-indigo-600 dark:text-indigo-400">로그인하면 상대방 호출 기능을 사용할 수 있습니다.</p>
+                                {/* Group Album */}
+                                <button onClick={() => setStep(STEPS.GRP_LOBBY)}
+                                    className="w-full rounded-2xl p-5 text-left group transition-all hover:shadow-lg"
+                                    style={{
+                                        background: 'linear-gradient(135deg, #f8f2e4 0%, #f0e8d4 100%)',
+                                        border: '2px solid #d8ccb0',
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                                    }}>
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform" style={{ background: '#e8dcc8' }}>
+                                            <Users size={24} style={{ color: '#7a6a50' }} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="text-xl font-extrabold mb-1" style={{ color: '#3a3020', fontFamily: 'Georgia, serif' }}>
+                                                {lt.groupTitle || 'Group Album'}
+                                            </h3>
+                                            <p className="text-sm" style={{ color: '#8a7a60' }}>
+                                                {lt.groupDesc || 'Everyone uploads to a shared album'}
+                                            </p>
+                                        </div>
+                                        {/* Illustration area */}
+                                        <div className="hidden sm:block w-20 h-16 rounded-lg overflow-hidden shrink-0" style={{ background: '#e8e0d0' }}>
+                                            <img
+                                                src="/images/landing/card-live-share.png"
+                                                alt=""
+                                                className="w-full h-full object-cover"
+                                                onError={(e) => { e.target.style.display = 'none'; }}
+                                            />
+                                        </div>
+                                    </div>
+                                </button>
+
+                                {/* P2P Photo Call */}
+                                <div className="rounded-2xl p-4 text-center" style={{
+                                    background: 'linear-gradient(135deg, #e8dcc8 0%, #d8ccb0 100%)',
+                                    border: '1px solid #c8b898',
+                                }}>
+                                    <div className="flex items-center justify-center gap-2 mb-1">
+                                        <Radio size={16} style={{ color: '#5a4a30' }} />
+                                        <span className="font-extrabold text-base" style={{ color: '#3a3020', fontFamily: 'Georgia, serif' }}>
+                                            ((o)) P2P Photo Call
+                                        </span>
+                                    </div>
+                                    {token ? (
+                                        <div className="space-y-3 mt-3">
+                                            <FriendCall localPhotos={[]} />
+                                            <RoomWorkspace workerRef={null} localPhotos={[]} />
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm" style={{ color: '#6a5a40' }}>
+                                            {lang === 'ko'
+                                                ? '로그인하면 상대방 호출 기능을 사용할 수 있습니다.'
+                                                : 'Log in to use the peer-to-peer photo call feature.'}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
-                        )}
+                        </div>
                     </div>
                 )}
 

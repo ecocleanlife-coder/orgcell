@@ -29,12 +29,18 @@ function LandingPage() {
         if (el) el.scrollIntoView({ behavior: 'smooth' });
     };
 
+    const scrollToQA = () => {
+        const el = document.getElementById('qa-section');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+    };
+
     return (
         <div className="min-h-screen bg-[#F5F2EC] font-sans text-slate-800 overflow-x-hidden">
 
             {/* ================================================================
                 NAV BAR — 원본: 상단 12%, 좌(About Museum) 중앙(Orgcell) 우(Sort Sort Share English)
                 ================================================================ */}
+            <div className="sticky top-0 z-50 bg-[#F5F2EC]/95 backdrop-blur-sm border-b border-[#e8e2d6]/50">
             <nav className="max-w-[1040px] mx-auto px-5 pt-4 pb-2 flex justify-between items-end">
                 {/* 좌측: About, Museum */}
                 <div className="flex items-end gap-7">
@@ -42,15 +48,15 @@ function LandingPage() {
                         <img src="https://i.pravatar.cc/150?u=family" className="w-[42px] h-[42px] rounded-full object-cover border border-slate-200 shadow-sm" alt="About" />
                         About
                     </button>
-                    <button onClick={() => navigate('/family-website')} className="flex flex-col items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-green-600 transition cursor-pointer">
-                        <div className="w-[42px] h-[42px] rounded-full bg-[#eee9dd] border border-[#e0dace] shadow-sm flex items-center justify-center text-[20px]">🌳</div>
-                        Museum
+                    <button onClick={scrollToQA} className="flex flex-col items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-green-600 transition cursor-pointer">
+                        <div className="w-[42px] h-[42px] rounded-full bg-[#eee9dd] border border-[#e0dace] shadow-sm flex items-center justify-center text-[20px]">💡</div>
+                        Q&A
                     </button>
                 </div>
 
                 {/* 중앙: Orgcell + 태그라인 */}
                 <div className="flex flex-col items-center select-none -mb-1">
-                    <span className="text-[46px] font-black text-[#5C3D1E] tracking-tight leading-none" style={{ fontFamily: 'Georgia, \"Times New Roman\", serif' }}>Orgcell</span>
+                    <span className="text-[46px] font-black text-[#5C3D1E] tracking-tight leading-none" style={{ fontFamily: 'Georgia, \"Times New Roman\", serif' }}>Orgcell<span className="text-[32px] text-[#8a7040]">.com</span></span>
                     <span className="text-[13px] text-[#8a7e6e] italic tracking-wide leading-none mt-1" style={{ fontFamily: 'Georgia, serif' }}>{t.subtitle}</span>
                 </div>
 
@@ -71,6 +77,7 @@ function LandingPage() {
                     <div className="mb-1"><LanguageSwitcher /></div>
                 </div>
             </nav>
+            </div>
 
             {/* ================================================================
                 HERO + CARDS wrapper — relative로 겹침 구현
@@ -251,6 +258,39 @@ function LandingPage() {
                         <div className="text-3xl mb-3">🔒</div>
                         <h3 className="font-bold text-[#3D2008] mb-2 text-[15px]">Your Data, Your Drive</h3>
                         <p className="text-[#6b5d4d] text-[13px] leading-relaxed">All photos stay in your Google Drive. We never store your files — you own everything.</p>
+                    </div>
+                </div>
+            </section>
+
+            {/* ================================================================
+                FAQ / Q&A SECTION
+                ================================================================ */}
+            <section id="qa-section" className="max-w-[800px] mx-auto px-6 pt-12 pb-16">
+                <div className="text-center mb-10">
+                    <h2 className="text-[28px] font-bold text-[#3D2008] tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>Frequently Asked Questions</h2>
+                    <p className="text-[#8a7e6e] mt-2 text-sm">가장 많이 묻는 질문들 (Q&A)</p>
+                </div>
+                <div className="space-y-4">
+                    {/* Q1 */}
+                    <div className="bg-white/80 rounded-2xl p-6 shadow-sm border border-[#e8e2d6]">
+                        <h3 className="font-bold text-[#3D2008] text-[15px] mb-2 flex gap-2 items-start"><span className="text-amber-600">Q.</span> Orgcell은 제 구글 드라이브와 연결되는데, 제 사진을 직접 보관하는 건 아닌가요?</h3>
+                        <div className="text-[#6b5d4d] text-[13.5px] leading-relaxed pl-6">
+                            <span className="font-bold text-[#3D2008]">A. 네, 그렇습니다!</span> Orgcell 서버에는 고객님의 사진이나 동영상이 단 1픽셀도 저장되지 않습니다. 저희는 가계도 뼈대(설계도)와 폴더 이름표 정보만 가질 뿐, 실제 가족 사진이나 귀중한 파일들은 <strong className="text-[#4a3e2e]">100% 고객님의 구글 드라이브(Google 서버)</strong>에만 안전하게 보관됩니다. 박물관(Orgcell)은 액자일 뿐, 그 안의 그림(사진)은 언제나 고객님의 금고(Google)에 있습니다.
+                        </div>
+                    </div>
+                    {/* Q2 */}
+                    <div className="bg-white/80 rounded-2xl p-6 shadow-sm border border-[#e8e2d6]">
+                        <h3 className="font-bold text-[#3D2008] text-[15px] mb-2 flex gap-2 items-start"><span className="text-amber-600">Q.</span> 그럼 로그인할 때 제 구글 아이디나 비밀번호를 Orgcell이 알게 되는 건가요?</h3>
+                        <div className="text-[#6b5d4d] text-[13.5px] leading-relaxed pl-6">
+                            <span className="font-bold text-[#3D2008]">A. 절대 그렇지 않습니다!</span> Orgcell은 고객님의 구글 비밀번호를 알 수 없습니다. 로그인 창은 가짜 창이 아닌 <strong className="text-[#4a3e2e]">진짜 구글(Google.com)의 공식 로그인 페이지</strong>입니다. 로그인이 성공하면 구글이 저희에게 "임시 출입증(토큰)"만 건네줍니다. 비밀번호는 누구에게도 전혀 노출되지 않으며, 언제든 구글 계정 설정에서 클릭 한 번으로 Orgcell의 출입증을 휴지통에 버리고 연동을 끊어버릴 수 있습니다.
+                        </div>
+                    </div>
+                    {/* Q3 */}
+                    <div className="bg-white/80 rounded-2xl p-6 shadow-sm border border-[#e8e2d6]">
+                        <h3 className="font-bold text-[#3D2008] text-[15px] mb-2 flex gap-2 items-start"><span className="text-amber-600">Q.</span> 자녀가 독립해서 자기만의 Family Website를 꾸렸을 때, 본가와 연결할 수도 있나요?</h3>
+                        <div className="text-[#6b5d4d] text-[13.5px] leading-relaxed pl-6">
+                            <span className="font-bold text-[#3D2008]">A. 물론입니다.</span> 자녀는 자신의 계정으로 만든 독립된 도메인(예: child.orgcell.com)을 가질 수 있습니다. 부모님이 본가 가계도에서 자녀 노드에 '독립 도메인 주소'를 입력하고 자녀가 승인하면, 두 구글 드라이브 간 <strong className="text-[#4a3e2e]">웜홀(Wormhole) 라우팅</strong>이 개통됩니다. 가계도를 타고 서로의 박물관을 유기적으로 넘나들 수 있는 완벽한 분리형 데이터 연동을 지원합니다.
+                        </div>
                     </div>
                 </div>
             </section>
