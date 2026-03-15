@@ -31,49 +31,18 @@ jobs:
 
             echo ""
             echo "=== Applying missing migrations ==="
-            # 005: families table + family_id/role columns on users
-            docker exec orgcell-db psql -U orgcell_user -d orgcell <<'SQLEOF'
-CREATE TABLE IF NOT EXISTS families (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL DEFAULT 'My Family',
-    admin_user_id INTEGER NOT NULL REFERENCES users(id),
-    admin_key VARCHAR(50) UNIQUE NOT NULL,
-    subdomain VARCHAR(255) UNIQUE,
-    google_drive_token TEXT,
-    plan VARCHAR(20) DEFAULT 'basic',
-    status VARCHAR(20) DEFAULT 'active',
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-);
-ALTER TABLE users ADD COLUMN IF NOT EXISTS family_id INTEGER REFERENCES families(id);
-ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'guest';
-CREATE INDEX IF NOT EXISTS idx_families_admin_key ON families(admin_key);
-CREATE INDEX IF NOT EXISTS idx_families_subdomain ON families(subdomain);
-CREATE INDEX IF NOT EXISTS idx_users_family_id ON users(family_id);
-
--- 007: subscriptions
-CREATE TABLE IF NOT EXISTS subscriptions (
-    id SERIAL PRIMARY KEY,
-    email VARCHAR(255) NOT NULL,
-    stripe_session_id VARCHAR(255) UNIQUE,
-    amount_usd INTEGER,
-    status VARCHAR(50) DEFAULT 'active',
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-);
-CREATE INDEX IF NOT EXISTS idx_subscriptions_email ON subscriptions(email);
-
--- 008: referral_codes
-CREATE TABLE IF NOT EXISTS referral_codes (
-    id SERIAL PRIMARY KEY,
-    code VARCHAR(50) UNIQUE NOT NULL,
-    created_by VARCHAR(255),
-    used_by VARCHAR(255),
-    used_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-);
-CREATE INDEX IF NOT EXISTS idx_referral_codes_code ON referral_codes(code);
-CREATE INDEX IF NOT EXISTS idx_referral_codes_used_by ON referral_codes(used_by);
-SQLEOF
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "CREATE TABLE IF NOT EXISTS families (id SERIAL PRIMARY KEY, name VARCHAR(255) NOT NULL DEFAULT 'My Family', admin_user_id INTEGER NOT NULL REFERENCES users(id), admin_key VARCHAR(50) UNIQUE NOT NULL, subdomain VARCHAR(255) UNIQUE, google_drive_token TEXT, plan VARCHAR(20) DEFAULT 'basic', status VARCHAR(20) DEFAULT 'active', created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP);" \
+              -c "ALTER TABLE users ADD COLUMN IF NOT EXISTS family_id INTEGER REFERENCES families(id);" \
+              -c "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'guest';" \
+              -c "CREATE INDEX IF NOT EXISTS idx_families_admin_key ON families(admin_key);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_families_subdomain ON families(subdomain);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_users_family_id ON users(family_id);" \
+              -c "CREATE TABLE IF NOT EXISTS subscriptions (id SERIAL PRIMARY KEY, email VARCHAR(255) NOT NULL, stripe_session_id VARCHAR(255) UNIQUE, amount_usd INTEGER, status VARCHAR(50) DEFAULT 'active', created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_subscriptions_email ON subscriptions(email);" \
+              -c "CREATE TABLE IF NOT EXISTS referral_codes (id SERIAL PRIMARY KEY, code VARCHAR(50) UNIQUE NOT NULL, created_by VARCHAR(255), used_by VARCHAR(255), used_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_referral_codes_code ON referral_codes(code);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_referral_codes_used_by ON referral_codes(used_by);"
 
             echo ""
             echo "=== Tables after migration ==="
