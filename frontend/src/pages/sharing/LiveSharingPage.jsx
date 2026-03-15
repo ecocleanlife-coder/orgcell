@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import Navbar from '../../components/common/Navbar';
 import Footer from '../../components/common/Footer';
 import {
@@ -42,6 +43,13 @@ const LiveSharingPage = () => {
 
   return (
     <div className="bg-[#FAFAF7] text-[#0E1E2A]">
+      <Helmet>
+        <title>Live Photo Sharing — Orgcell</title>
+        <meta name="description" content="QR코드 하나로 가족·친구와 사진을 실시간 공유. 앱 설치 불필요, 24시간 자동 삭제, 무료 사용." />
+        <meta property="og:title" content="Live Photo Sharing — Orgcell" />
+        <meta property="og:description" content="모임·여행·결혼식 사진을 QR코드로 즉시 공유. 로그인 없이 무료로 시작하세요." />
+        <meta property="og:image" content="/pwa-512x512.png" />
+      </Helmet>
       <Navbar />
 
       {/* Hero Section */}

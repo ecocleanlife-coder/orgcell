@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import Navbar from '../../components/common/Navbar';
 import Footer from '../../components/common/Footer';
 import {
@@ -42,6 +43,13 @@ const SmartSortPage = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FAFAF7]">
+      <Helmet>
+        <title>AI Smart Sort — Orgcell</title>
+        <meta name="description" content="중복 사진을 자동으로 제거하고 날짜·인물별로 정리해주는 AI 사진 정리 도구. 브라우저에서 바로, 무료로 사용하세요." />
+        <meta property="og:title" content="AI Smart Sort — Orgcell" />
+        <meta property="og:description" content="AI가 중복 사진을 제거하고 자동으로 날짜·인물별 정리. 무료로 시작하세요." />
+        <meta property="og:image" content="/pwa-512x512.png" />
+      </Helmet>
       <Navbar />
 
       {/* Hero Section */}

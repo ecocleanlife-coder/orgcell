@@ -28,6 +28,7 @@ app.use('/api/sites', require('./src/routes/siteRoutes'));
 app.use('/api/events', require('./src/routes/eventRoutes'));
 app.use('/api/sharing', require('./src/routes/sharingRoutes'));
 app.use('/api/inquiry', require('./src/routes/inquiryRoutes'));
+app.use('/api/newsletter', require('./src/routes/newsletterRoutes'));
 app.use('/api/domain', require('./src/routes/domainRoutes'));
 app.use('/api/family', require('./src/routes/familyRoutes'));
 

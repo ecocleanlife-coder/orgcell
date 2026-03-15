@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import axios from 'axios';
+import { Helmet } from 'react-helmet-async';
 import useAuthStore from '../../store/authStore';
 import useUiStore from '../../store/uiStore';
 import LoginButton from '../auth/LoginButton';
@@ -17,7 +19,26 @@ function LandingPage() {
     const navigate = useNavigate();
     const t = getT('landing', lang);
 
+    const [newsletterEmail, setNewsletterEmail] = useState('');
+    const [newsletterStatus, setNewsletterStatus] = useState(null); // null | 'loading' | 'success' | 'error'
+    const [newsletterMsg, setNewsletterMsg] = useState('');
+
     const handleDevLogin = () => devLogin(name, email);
+
+    const handleNewsletterSubmit = async (e) => {
+        e.preventDefault();
+        if (!newsletterEmail) return;
+        setNewsletterStatus('loading');
+        try {
+            const res = await axios.post('/api/newsletter', { email: newsletterEmail });
+            setNewsletterStatus('success');
+            setNewsletterMsg(res.data.message || '감사합니다! 곧 소식 전해드릴게요 🎉');
+            setNewsletterEmail('');
+        } catch (err) {
+            setNewsletterStatus('error');
+            setNewsletterMsg(err.response?.data?.message || '오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+        }
+    };
 
     const scrollToLogin = () => {
         const el = document.getElementById('login-section');
@@ -36,6 +57,13 @@ function LandingPage() {
 
     return (
         <div className="min-h-screen bg-[#F5F2EC] font-sans text-slate-800 overflow-x-hidden">
+            <Helmet>
+                <title>Orgcell — AI 가족 사진 자동 정리 · Digital Family Museum</title>
+                <meta name="description" content="AI Smart Sort로 중복 사진 정리, $10 Family Website로 가족 도메인 개설, Live Sharing으로 실시간 공유. 가족 사진의 모든 것을 Orgcell에서." />
+                <meta property="og:title" content="Orgcell — AI 가족 사진 자동 정리" />
+                <meta property="og:description" content="AI가 사진을 정리하고, $10으로 나만의 가족 웹사이트를 만드세요. 원본은 구글 드라이브에 안전하게." />
+                <meta property="og:image" content="/pwa-512x512.png" />
+            </Helmet>
 
             {/* ================================================================
                 NAV BAR — 원본: 상단 12%, 좌(About Museum) 중앙(Orgcell) 우(Sort Sort Share English)
@@ -356,28 +384,34 @@ function LandingPage() {
                     <p className="text-[#7a6e5e] text-[13px] mb-6 leading-relaxed">
                         신규 기능과 업데이트를 가장 먼저 알려드립니다.<br />스팸 없이, 중요한 소식만 드립니다.
                     </p>
-                    <div className="flex flex-col sm:flex-row gap-2 max-w-[420px] mx-auto">
+                    <form
+                        onSubmit={handleNewsletterSubmit}
+                        className="flex flex-col sm:flex-row gap-2 max-w-[420px] mx-auto"
+                    >
                         <input
                             type="email"
+                            value={newsletterEmail}
+                            onChange={(e) => { setNewsletterEmail(e.target.value); setNewsletterStatus(null); }}
                             placeholder="이메일 주소를 입력하세요"
+                            required
+                            disabled={newsletterStatus === 'loading' || newsletterStatus === 'success'}
                             className="flex-1 px-4 py-3 rounded-full text-[14px] outline-none border focus:ring-2"
-                            style={{ border: '1.5px solid #c5bfb3', background: 'white', focusRingColor: '#8DB86B' }}
+                            style={{ border: '1.5px solid #c5bfb3', background: 'white' }}
                         />
                         <button
-                            className="px-6 py-3 rounded-full font-bold text-[14px] text-white cursor-pointer transition-all hover:brightness-105 active:scale-95 whitespace-nowrap"
+                            type="submit"
+                            disabled={newsletterStatus === 'loading' || newsletterStatus === 'success'}
+                            className="px-6 py-3 rounded-full font-bold text-[14px] text-white cursor-pointer transition-all hover:brightness-105 active:scale-95 whitespace-nowrap disabled:opacity-60"
                             style={{ background: '#8DB86B' }}
-                            onClick={(e) => {
-                                e.preventDefault();
-                                const input = e.currentTarget.previousElementSibling;
-                                if (input.value) {
-                                    input.value = '';
-                                    input.placeholder = '감사합니다! 곧 소식 전해드릴게요 🎉';
-                                }
-                            }}
                         >
-                            소식 받기
+                            {newsletterStatus === 'loading' ? '처리 중…' : '소식 받기'}
                         </button>
-                    </div>
+                    </form>
+                    {newsletterStatus && (
+                        <p className={`text-[13px] mt-2 font-medium ${newsletterStatus === 'success' ? 'text-[#2a6a2a]' : 'text-[#c0392b]'}`}>
+                            {newsletterMsg}
+                        </p>
+                    )}
                     <p className="text-[11px] text-[#a09080] mt-3">이메일은 뉴스레터 발송 외 다른 용도로 사용하지 않습니다.</p>
                 </div>
             </section>

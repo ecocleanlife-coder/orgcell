@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import Navbar from '../../components/common/Navbar';
 import Footer from '../../components/common/Footer';
 import { Globe, Lock, Users, FolderTree, Shield, Star, ArrowRight, Crown, Image } from 'lucide-react';
@@ -20,6 +21,14 @@ const FamilyWebsitePage = () => {
 
     return (
         <div style={{ background: '#FAFAF7', color: '#1E2A0E' }}>
+                <Helmet>
+                <title>$10 Family Website — Orgcell</title>
+                <meta name="description" content="연 $10에 나만의 가족 도메인(yourfamily.orgcell.com)을 만드세요. 4세대 가계도, 사진 갤러리, 가족 채팅 포함." />
+                <meta property="og:title" content="$10 Family Website — Orgcell" />
+                <meta property="og:description" content="연 $10으로 yourfamily.orgcell.com 도메인 개설. 가계도·앨범·라이브 공유 포함." />
+                <meta property="og:image" content="/pwa-512x512.png" />
+            </Helmet>
+
             {/* ══ Navbar ══ */}
             <Navbar onCtaClick={scrollToLogin} />
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import axios from 'axios';
 import { Image as ImageIcon, Users, RefreshCcw, Settings } from 'lucide-react';
 import { Toaster, toast } from 'react-hot-toast';
@@ -32,6 +33,7 @@ const LiveSharingView = lazy(() => import('./pages/sharing/LiveSharingView'));
 const SmartSortPage = lazy(() => import('./pages/smart-sort/SmartSortPage'));
 const FamilyWebsitePage = lazy(() => import('./pages/museum/FamilyWebsitePage'));
 const LiveSharingPage = lazy(() => import('./pages/sharing/LiveSharingPage'));
+const RedeemPage = lazy(() => import('./pages/redeem/RedeemPage'));
 const FamilyTreeView = lazy(() => import('./components/museum/FamilyTreeView'));
 const PersonFolderView = lazy(() => import('./components/museum/PersonFolderView'));
 
@@ -316,6 +318,8 @@ function Layout({ children }) {
 
 function App() {
   const token = useAuthStore(state => state.token);
+  const user = useAuthStore(state => state.user);
+  const isLoading = useAuthStore(state => state.isLoading);
   const fetchMe = useAuthStore(state => state.fetchMe);
 
   React.useEffect(() => {
@@ -323,7 +327,13 @@ function App() {
     initTheme();
   }, [fetchMe]);
 
+  // True only after token has been validated by the server
+  const isAuthenticated = !!(token && user);
+  // Token exists but server validation is still in-flight
+  const isPendingAuth = !!(token && !user && isLoading);
+
   return (
+    <HelmetProvider>
     <BrowserRouter>
       <Routes>
         <Route
@@ -359,7 +369,7 @@ function App() {
           element={
             <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>
-                {token ? <SmartSortView /> : <SmartSortPage />}
+                {isPendingAuth ? <PageLoader /> : isAuthenticated ? <SmartSortView /> : <SmartSortPage />}
               </Suspense>
             </ErrorBoundary>
           }
@@ -409,13 +419,24 @@ function App() {
           element={
             <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>
-                {token ? <LiveSharingView /> : <LiveSharingPage />}
+                {isPendingAuth ? <PageLoader /> : isAuthenticated ? <LiveSharingView /> : <LiveSharingPage />}
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/redeem"
+          element={
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <RedeemPage />
               </Suspense>
             </ErrorBoundary>
           }
         />
       </Routes>
     </BrowserRouter>
+    </HelmetProvider>
   );
 }
 
