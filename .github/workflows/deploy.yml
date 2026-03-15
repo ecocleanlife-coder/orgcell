@@ -60,11 +60,13 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
           BACKEND_IMAGE: ${{ steps.login-ecr.outputs.registry }}/orgcell/backend
           FRONTEND_IMAGE: ${{ steps.login-ecr.outputs.registry }}/orgcell/frontend
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: ECR_REGISTRY,IMAGE_TAG,BACKEND_IMAGE,FRONTEND_IMAGE
+          envs: ECR_REGISTRY,IMAGE_TAG,BACKEND_IMAGE,FRONTEND_IMAGE,STRIPE_SECRET_KEY,STRIPE_WEBHOOK_SECRET
           script: |
             # ECR login
             aws ecr get-login-password --region ap-northeast-2 | \
@@ -72,6 +74,30 @@ jobs:
 
             mkdir -p /opt/orgcell
             cd /opt/orgcell
+
+            # ── Ensure /opt/orgcell/.env has correct values ──────────────
+            ENV_FILE=/opt/orgcell/.env
+            touch "$ENV_FILE"
+
+            upsert_env() {
+              local key="$1" val="$2"
+              if grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
+                sed -i "s|^${key}=.*|${key}=${val}|" "$ENV_FILE"
+              else
+                echo "${key}=${val}" >> "$ENV_FILE"
+              fi
+            }
+
+            # Google OAuth — client ID is public (matches frontend)
+            upsert_env GOOGLE_CLIENT_ID "809838908643-qs0s8d0reiggvon6ohmk3ak6r7l7aniv.apps.googleusercontent.com"
+
+            # Stripe keys (from GitHub Secrets)
+            [ -n "$STRIPE_SECRET_KEY" ]      && upsert_env STRIPE_SECRET_KEY "$STRIPE_SECRET_KEY"
+            [ -n "$STRIPE_WEBHOOK_SECRET" ]  && upsert_env STRIPE_WEBHOOK_SECRET "$STRIPE_WEBHOOK_SECRET"
+
+            echo "✅ /opt/orgcell/.env env keys:"
+            grep -o "^[^=]*" "$ENV_FILE" | sort
+            # ─────────────────────────────────────────────────────────────
 
             # Generate nginx SSL config (preserved across deploys)
             cat > nginx-ssl.conf <<'NGINXEOF'
