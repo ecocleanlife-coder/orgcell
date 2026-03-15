@@ -1,0 +1,8 @@
+[      10ms] [ERROR] Error retrieving a token. @ https://orgcell.com/payment/success:0
+[      15ms] [WARNING] No routes matched location "/payment/success"  @ https://orgcell.com/assets/index-040cfc60.js:44
+[    2153ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ https://orgcell.com/antigravity.wasm:0
+[    2153ms] [WARNING] WASM Init Error: TypeError: Failed to fetch
+    at https://orgcell.com/payment/success:27:7 @ https://orgcell.com/payment/success:33
+[    2154ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ https://orgcell.com/favicon.ico:0
+[    2167ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ https://orgcell.com/pwa-192x192.png:0
+[    2168ms] [WARNING] Error while trying to use the following icon from the Manifest: https://orgcell.com/pwa-192x192.png (Download error or resource isn't a valid image) @ https://orgcell.com/payment/success:0

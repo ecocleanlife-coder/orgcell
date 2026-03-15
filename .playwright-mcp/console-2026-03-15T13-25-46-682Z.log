@@ -1,0 +1,7 @@
+[    2177ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ https://orgcell.com/antigravity.wasm:0
+[    2177ms] [WARNING] WASM Init Error: TypeError: Failed to fetch
+    at https://orgcell.com/family-website:27:7 @ https://orgcell.com/family-website:33
+[    2190ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ https://orgcell.com/favicon.ico:0
+[    2193ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ https://orgcell.com/pwa-192x192.png:0
+[    2193ms] [WARNING] Error while trying to use the following icon from the Manifest: https://orgcell.com/pwa-192x192.png (Download error or resource isn't a valid image) @ https://orgcell.com/family-website:0
+[    7179ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ https://orgcell.com/favicon.ico:0

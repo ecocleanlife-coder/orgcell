@@ -1,0 +1,10 @@
+[     178ms] [ERROR] Failed to load resource: the server responded with a status of 502 (Bad Gateway) @ https://orgcell.com/antigravity.wasm:0
+[     179ms] [WARNING] WASM Init Error: CompileError: WebAssembly.instantiate(): expected magic word 00 61 73 6d, found 3c 68 74 6d @+0 @ https://orgcell.com/smart-sort:33
+[     181ms] [ERROR] Failed to load resource: the server responded with a status of 502 (Bad Gateway) @ https://orgcell.com/pwa-192x192.png:0
+[     181ms] [WARNING] Error while trying to use the following icon from the Manifest: https://orgcell.com/pwa-192x192.png (Download error or resource isn't a valid image) @ https://orgcell.com/smart-sort:0
+[     181ms] [ERROR] Failed to load resource: the server responded with a status of 502 (Bad Gateway) @ https://orgcell.com/favicon.ico:0
+[  118757ms] [ERROR] Failed to load resource: the server responded with a status of 502 (Bad Gateway) @ https://orgcell.com/antigravity.wasm:0
+[  118758ms] [WARNING] WASM Init Error: CompileError: WebAssembly.instantiate(): expected magic word 00 61 73 6d, found 3c 68 74 6d @+0 @ https://orgcell.com/:33
+[  118759ms] [ERROR] Failed to load resource: the server responded with a status of 502 (Bad Gateway) @ https://orgcell.com/pwa-192x192.png:0
+[  118759ms] [ERROR] Failed to load resource: the server responded with a status of 502 (Bad Gateway) @ https://orgcell.com/favicon.ico:0
+[  118760ms] [WARNING] Error while trying to use the following icon from the Manifest: https://orgcell.com/pwa-192x192.png (Download error or resource isn't a valid image) @ https://orgcell.com/:0

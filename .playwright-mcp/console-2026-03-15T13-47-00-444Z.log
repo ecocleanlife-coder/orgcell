@@ -1,0 +1,2 @@
+[      20ms] [WARNING] No routes matched location "/auth/login"  @ https://orgcell.com/assets/index-1a0282e5.js:44
+[     173ms] [WARNING] Error while trying to use the following icon from the Manifest: https://orgcell.com/pwa-192x192.png (Download error or resource isn't a valid image) @ https://orgcell.com/auth/login:0

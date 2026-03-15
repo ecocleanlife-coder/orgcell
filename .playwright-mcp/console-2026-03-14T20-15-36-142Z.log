@@ -1,0 +1,64 @@
+[    2638ms] [ERROR] [TangerineBox] Telemetry configuration is missing. Error: Error: Session data meta tag not found @ https://a.b.cdn.console.awsstatic.com/a/v1/CEQ753HGI4VIEBGCDVTGJAUVQGBTUEBLQAPUZKXOPUCG73VLELWQ/4f9d21011c2f449797c97ad39e28d981db54e8abc2d447ce9b3129dbc8be99c4.js:1
+[    2638ms] [ERROR] [TangerineBox] Telemetry configuration is missing. Error: Error: Session data meta tag not found @ https://a.b.cdn.console.awsstatic.com/a/v1/CEQ753HGI4VIEBGCDVTGJAUVQGBTUEBLQAPUZKXOPUCG73VLELWQ/4f9d21011c2f449797c97ad39e28d981db54e8abc2d447ce9b3129dbc8be99c4.js:1
+[    2641ms] [WARNING] Unable to parse the data using legacy methods @ https://a.b.cdn.console.awsstatic.com/a/v1/CEQ753HGI4VIEBGCDVTGJAUVQGBTUEBLQAPUZKXOPUCG73VLELWQ/4f9d21011c2f449797c97ad39e28d981db54e8abc2d447ce9b3129dbc8be99c4.js:1
+[    2641ms] [ERROR] Couldn't determine console domain and dual-stack values. @ https://a.b.cdn.console.awsstatic.com/a/v1/CEQ753HGI4VIEBGCDVTGJAUVQGBTUEBLQAPUZKXOPUCG73VLELWQ/4f9d21011c2f449797c97ad39e28d981db54e8abc2d447ce9b3129dbc8be99c4.js:1
+[    2900ms] [WARNING] 
+
+⚠️ Your `allowedTags` option includes, `script`, which is inherently
+vulnerable to XSS attacks. Please remove it from `allowedTags`.
+Or, to disable this warning, add the `allowVulnerableTags` option
+and ensure you are accounting for this risk.
+
+ @ https://a0.awsstatic.com/eb-csr/2.0.16/sanitize-html/index.js:7
+[    2900ms] [WARNING] 
+
+⚠️ Your `allowedTags` option includes, `style`, which is inherently
+vulnerable to XSS attacks. Please remove it from `allowedTags`.
+Or, to disable this warning, add the `allowVulnerableTags` option
+and ensure you are accounting for this risk.
+
+ @ https://a0.awsstatic.com/eb-csr/2.0.16/sanitize-html/index.js:7
+[    2915ms] [WARNING] 
+
+⚠️ Your `allowedTags` option includes, `script`, which is inherently
+vulnerable to XSS attacks. Please remove it from `allowedTags`.
+Or, to disable this warning, add the `allowVulnerableTags` option
+and ensure you are accounting for this risk.
+
+ @ https://a0.awsstatic.com/eb-csr/2.0.16/sanitize-html/index.js:7
+[    2915ms] [WARNING] 
+
+⚠️ Your `allowedTags` option includes, `style`, which is inherently
+vulnerable to XSS attacks. Please remove it from `allowedTags`.
+Or, to disable this warning, add the `allowVulnerableTags` option
+and ensure you are accounting for this risk.
+
+ @ https://a0.awsstatic.com/eb-csr/2.0.16/sanitize-html/index.js:7
+[    2995ms] [WARNING] The <If> component should contain <Then /> <Else /> or <Fallback /> components as its children @ https://t0.m.awsstatic.com/tmpl/awsm-rt/esm/templates/compass-lite/1.0.0/compass-lite.cadc6719fa.js:60358
+[    2995ms] [WARNING] The <If> component should contain <Then /> <Else /> or <Fallback /> components as its children @ https://t0.m.awsstatic.com/tmpl/awsm-rt/esm/templates/compass-lite/1.0.0/compass-lite.cadc6719fa.js:60358
+[    2997ms] [WARNING] The <If> component should contain <Then /> <Else /> or <Fallback /> components as its children @ https://t0.m.awsstatic.com/tmpl/awsm-rt/esm/templates/compass-lite/1.0.0/compass-lite.cadc6719fa.js:60358
+[    2997ms] [WARNING] The <If> component should contain <Then /> <Else /> or <Fallback /> components as its children @ https://t0.m.awsstatic.com/tmpl/awsm-rt/esm/templates/compass-lite/1.0.0/compass-lite.cadc6719fa.js:60358
+[    3000ms] [WARNING] The <If> component should contain <Then /> <Else /> or <Fallback /> components as its children @ https://t0.m.awsstatic.com/tmpl/awsm-rt/esm/templates/compass-lite/1.0.0/compass-lite.cadc6719fa.js:60358
+[    3001ms] [WARNING] The <If> component should contain <Then /> <Else /> or <Fallback /> components as its children @ https://t0.m.awsstatic.com/tmpl/awsm-rt/esm/templates/compass-lite/1.0.0/compass-lite.cadc6719fa.js:60358
+[    3001ms] [WARNING] The <If> component should contain <Then /> <Else /> or <Fallback /> components as its children @ https://t0.m.awsstatic.com/tmpl/awsm-rt/esm/templates/compass-lite/1.0.0/compass-lite.cadc6719fa.js:60358
+[    3001ms] [WARNING] The <If> component should contain <Then /> <Else /> or <Fallback /> components as its children @ https://t0.m.awsstatic.com/tmpl/awsm-rt/esm/templates/compass-lite/1.0.0/compass-lite.cadc6719fa.js:60358
+[    3499ms] [WARNING] The <If> component should contain <Then /> <Else /> or <Fallback /> components as its children @ https://t0.m.awsstatic.com/tmpl/awsm-rt/esm/templates/compass-lite/1.0.0/compass-lite.cadc6719fa.js:60358
+[    3499ms] [WARNING] The <If> component should contain <Then /> <Else /> or <Fallback /> components as its children @ https://t0.m.awsstatic.com/tmpl/awsm-rt/esm/templates/compass-lite/1.0.0/compass-lite.cadc6719fa.js:60358
+[    3500ms] [WARNING] The <If> component should contain <Then /> <Else /> or <Fallback /> components as its children @ https://t0.m.awsstatic.com/tmpl/awsm-rt/esm/templates/compass-lite/1.0.0/compass-lite.cadc6719fa.js:60358
+[    3500ms] [WARNING] The <If> component should contain <Then /> <Else /> or <Fallback /> components as its children @ https://t0.m.awsstatic.com/tmpl/awsm-rt/esm/templates/compass-lite/1.0.0/compass-lite.cadc6719fa.js:60358
+[    3500ms] [WARNING] The <If> component should contain <Then /> <Else /> or <Fallback /> components as its children @ https://t0.m.awsstatic.com/tmpl/awsm-rt/esm/templates/compass-lite/1.0.0/compass-lite.cadc6719fa.js:60358
+[    3501ms] [WARNING] The <If> component should contain <Then /> <Else /> or <Fallback /> components as its children @ https://t0.m.awsstatic.com/tmpl/awsm-rt/esm/templates/compass-lite/1.0.0/compass-lite.cadc6719fa.js:60358
+[    3507ms] [WARNING] The <If> component should contain <Then /> <Else /> or <Fallback /> components as its children @ https://t0.m.awsstatic.com/tmpl/awsm-rt/esm/templates/compass-lite/1.0.0/compass-lite.cadc6719fa.js:60358
+[    3507ms] [WARNING] The <If> component should contain <Then /> <Else /> or <Fallback /> components as its children @ https://t0.m.awsstatic.com/tmpl/awsm-rt/esm/templates/compass-lite/1.0.0/compass-lite.cadc6719fa.js:60358
+[    3508ms] [WARNING] The <If> component should contain <Then /> <Else /> or <Fallback /> components as its children @ https://t0.m.awsstatic.com/tmpl/awsm-rt/esm/templates/compass-lite/1.0.0/compass-lite.cadc6719fa.js:60358
+[    3508ms] [WARNING] The <If> component should contain <Then /> <Else /> or <Fallback /> components as its children @ https://t0.m.awsstatic.com/tmpl/awsm-rt/esm/templates/compass-lite/1.0.0/compass-lite.cadc6719fa.js:60358
+[    3508ms] [WARNING] The <If> component should contain <Then /> <Else /> or <Fallback /> components as its children @ https://t0.m.awsstatic.com/tmpl/awsm-rt/esm/templates/compass-lite/1.0.0/compass-lite.cadc6719fa.js:60358
+[    3508ms] [WARNING] The <If> component should contain <Then /> <Else /> or <Fallback /> components as its children @ https://t0.m.awsstatic.com/tmpl/awsm-rt/esm/templates/compass-lite/1.0.0/compass-lite.cadc6719fa.js:60358
+[   13329ms] [ERROR] [TangerineBox] Telemetry configuration is missing. Error: Error: Session data meta tag not found @ https://a.b.cdn.console.awsstatic.com/a/v1/CEQ753HGI4VIEBGCDVTGJAUVQGBTUEBLQAPUZKXOPUCG73VLELWQ/4f9d21011c2f449797c97ad39e28d981db54e8abc2d447ce9b3129dbc8be99c4.js:1
+[   13329ms] [ERROR] [TangerineBox] Telemetry configuration is missing. Error: Error: Session data meta tag not found @ https://a.b.cdn.console.awsstatic.com/a/v1/CEQ753HGI4VIEBGCDVTGJAUVQGBTUEBLQAPUZKXOPUCG73VLELWQ/4f9d21011c2f449797c97ad39e28d981db54e8abc2d447ce9b3129dbc8be99c4.js:1
+[   13332ms] [WARNING] Unable to parse the data using legacy methods @ https://a.b.cdn.console.awsstatic.com/a/v1/CEQ753HGI4VIEBGCDVTGJAUVQGBTUEBLQAPUZKXOPUCG73VLELWQ/4f9d21011c2f449797c97ad39e28d981db54e8abc2d447ce9b3129dbc8be99c4.js:1
+[   13332ms] [ERROR] Couldn't determine console domain and dual-stack values. @ https://a.b.cdn.console.awsstatic.com/a/v1/CEQ753HGI4VIEBGCDVTGJAUVQGBTUEBLQAPUZKXOPUCG73VLELWQ/4f9d21011c2f449797c97ad39e28d981db54e8abc2d447ce9b3129dbc8be99c4.js:1
+[   14059ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://prod.tools.shortbread.aws.dev/1x1.png?awsccc=1773519350144:0
+[   14119ms] [ERROR] Failed to load resource: net::ERR_INVALID_URL @ data:application/x-font-woff;base64,awsui-base64-content("./components/styles/src/sass/typography/fonts/ember/700-normal.woff"):0
+[   14119ms] [ERROR] Failed to load resource: net::ERR_INVALID_URL @ data:application/x-font-woff;base64,awsui-base64-content("./components/styles/src/sass/typography/fonts/ember/400-normal.woff"):0
+[   14189ms] [ERROR] Failed to load resource: net::ERR_INVALID_URL @ data:application/x-font-woff;base64,awsui-base64-content("./components/styles/src/sass/typography/fonts/ember/400-italic.woff"):0

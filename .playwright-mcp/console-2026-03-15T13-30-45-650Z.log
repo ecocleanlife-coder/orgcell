@@ -1,0 +1,3 @@
+[      36ms] [WARNING] WASM Init Error: TypeError: Failed to fetch @ https://orgcell.com/:33
+[      39ms] [ERROR] Error retrieving a token. @ https://orgcell.com/payment/success:0
+[     129ms] [WARNING] Error while trying to use the following icon from the Manifest: https://orgcell.com/pwa-192x192.png (Download error or resource isn't a valid image) @ https://orgcell.com/payment/success:0
