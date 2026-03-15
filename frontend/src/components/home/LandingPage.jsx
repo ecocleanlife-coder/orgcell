@@ -182,12 +182,9 @@ function LandingPage() {
 
                     {/* ─ 초록 카드: $10 Family Website ─
                         원본: 다른 카드보다 위에 위치 (살짝 올라감) */}
-                    <button
-                        onClick={() => navigate('/family-website')}
-                        className="relative group focus:outline-none cursor-pointer md:-mt-6"
-                    >
+                    <div className="relative group md:-mt-6">
                         <div
-                            className="rounded-[18px] pt-5 pb-7 px-5 text-center overflow-visible relative"
+                            className="rounded-[18px] pt-5 pb-6 px-5 text-center overflow-visible relative"
                             style={{
                                 background: 'linear-gradient(160deg, #d6e8d8 0%, #c8ddc9 100%)',
                                 boxShadow: '4px 8px 24px rgba(60, 110, 60, 0.18), 0 2px 6px rgba(0,0,0,0.06)',
@@ -203,9 +200,27 @@ function LandingPage() {
                                 />
                             </div>
                             <h3 className="text-[15px] font-extrabold text-[#1e3020] mb-1" style={{ fontFamily: 'Georgia, serif' }}>{t.card2Title}</h3>
-                            <p className="text-[#485a49] text-[12.5px] leading-[1.6]">{t.card2Desc}</p>
+                            <p className="text-[#485a49] text-[12.5px] leading-[1.6] mb-3">{t.card2Desc}</p>
+
+                            {/* 가격 + CTA */}
+                            <button
+                                onClick={() => navigate('/family-website')}
+                                className="w-full py-2.5 rounded-full font-bold text-[13px] text-white transition-all hover:brightness-110 active:scale-95 cursor-pointer mb-2"
+                                style={{ background: 'linear-gradient(135deg, #4A7F4A, #3a6e3a)' }}
+                            >
+                                지금 시작하기 · 연 $10
+                            </button>
+
+                            {/* 소개 무료 링크 */}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); navigate('/redeem'); }}
+                                className="text-[11px] font-semibold leading-snug transition-all cursor-pointer hover:underline"
+                                style={{ color: '#3a6e3a' }}
+                            >
+                                ksarang.org 5명 소개 시 무료 →
+                            </button>
                         </div>
-                    </button>
+                    </div>
 
                     {/* ─ 파랑 카드: Live Photo Sharing ─ */}
                     <button

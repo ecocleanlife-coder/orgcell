@@ -67,36 +67,41 @@ const FamilyWebsitePage = () => {
                             color: '#5A6E4E',
                         }}
                     >
-                        온 가족이 언제 어디서나 접속할 수 있는 프라이빗 가족 박물관을 만드세요
+                        연 <strong style={{ color: '#1E2A0E' }}>$10</strong>으로 온 가족이 언제 어디서나 접속할 수 있는 프라이빗 가족 박물관을 만드세요
                     </p>
 
                     {/* CTA Buttons */}
-                    <div className="flex flex-col sm:flex-row gap-4 mb-10">
+                    <div className="flex flex-col sm:flex-row gap-4 mb-4">
                         <button
                             onClick={scrollToLogin}
                             className="px-8 py-3 rounded-full font-bold text-[14px] transition-all hover:brightness-110 active:scale-95 text-white"
-                            style={{
-                                background: 'linear-gradient(135deg, #5A9460, #4A7F4A)',
-                            }}
+                            style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
                         >
-                            지금 만들기
+                            지금 시작하기 · 연 $10
                         </button>
                         <button
                             onClick={() => navigate('/family-website')}
-                            className="px-8 py-3 rounded-full font-bold text-[14px] transition-all hover:bg-opacity-80"
-                            style={{
-                                background: 'transparent',
-                                border: '2px solid #5A9460',
-                                color: '#5A9460',
-                            }}
+                            className="px-8 py-3 rounded-full font-bold text-[14px] transition-all"
+                            style={{ background: 'transparent', border: '2px solid #5A9460', color: '#5A9460' }}
                         >
                             예시 보기
                         </button>
                     </div>
 
+                    {/* Referral hint */}
+                    <div className="mb-8">
+                        <button
+                            onClick={() => navigate('/redeem')}
+                            className="text-[13px] font-semibold transition-all cursor-pointer hover:underline"
+                            style={{ color: '#4A7F4A' }}
+                        >
+                            ksarang.org에서 5명을 소개하면 무료로 이용할 수 있습니다 →
+                        </button>
+                    </div>
+
                     {/* Stat Pills */}
                     <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
-                        {['Google Drive 사진 무제한', '가족 전용 서브도메인', '무료로 시작 가능'].map((stat, i) => (
+                        {['Google Drive 사진 무제한', '가족 전용 서브도메인', '연 $10 · 카드 등록 없음'].map((stat, i) => (
                             <div
                                 key={i}
                                 className="px-4 py-2 rounded-full text-[13px] font-semibold"
@@ -223,69 +228,69 @@ const FamilyWebsitePage = () => {
                 </div>
             </section>
 
-            {/* ══ Early Access CTA Section ══ */}
+            {/* ══ Pricing Section ══ */}
             <section className="py-20 px-5" style={{ background: '#FAFAF7' }}>
-                <div className="max-w-[680px] mx-auto text-center">
-                    <span
-                        className="inline-block px-4 py-1.5 rounded-full text-[12px] font-bold tracking-widest uppercase mb-6"
-                        style={{ background: '#E8F5E8', color: '#4A7F4A' }}
-                    >
-                        사전 등록
-                    </span>
+                <div className="max-w-[560px] mx-auto text-center">
                     <h2
-                        className="mb-4"
-                        style={{
-                            fontSize: '32px',
-                            fontWeight: '700',
-                            fontFamily: 'Georgia, serif',
-                            color: '#1E2A0E',
-                        }}
+                        className="mb-3"
+                        style={{ fontSize: '32px', fontWeight: '700', fontFamily: 'Georgia, serif', color: '#1E2A0E' }}
                     >
-                        우리 가족 웹사이트,<br />가장 먼저 만들어보세요
+                        심플한 요금제
                     </h2>
-                    <p className="mb-10 leading-relaxed" style={{ color: '#7A6E5E', fontSize: '15px' }}>
-                        가족 웹사이트 기능이 오픈되면 사전 등록하신 분께 가장 먼저 알려드립니다.<br />
-                        이메일 하나로 충분합니다. 스팸은 없습니다.
+                    <p className="mb-10" style={{ color: '#7A6E5E', fontSize: '15px' }}>
+                        숨겨진 비용 없이, 딱 하나의 플랜만 있습니다
                     </p>
 
-                    {/* Email form */}
-                    <div className="flex flex-col sm:flex-row gap-3 max-w-[480px] mx-auto mb-6">
-                        <input
-                            type="email"
-                            placeholder="이메일 주소를 입력하세요"
-                            className="flex-1 px-5 py-3.5 rounded-full text-[14px] outline-none"
-                            style={{ border: '2px solid #C8E0C8', background: 'white', color: '#1E2A0E' }}
-                            onFocus={e => { e.target.style.borderColor = '#5A9460'; }}
-                            onBlur={e => { e.target.style.borderColor = '#C8E0C8'; }}
-                        />
+                    {/* Single pricing card */}
+                    <div
+                        className="rounded-2xl p-10 mb-6"
+                        style={{
+                            background: '#fff',
+                            border: '2px solid #5A9460',
+                            boxShadow: '0 8px 32px rgba(90,148,96,0.12)',
+                        }}
+                    >
+                        {/* Price display */}
+                        <div className="mb-2">
+                            <span style={{ fontSize: '64px', fontWeight: '800', color: '#1E2A0E', fontFamily: 'Georgia, serif', lineHeight: 1 }}>$10</span>
+                        </div>
+                        <p className="mb-8" style={{ color: '#7A6E5E', fontSize: '14px' }}>/ 년 · yourfamily.orgcell.com</p>
+
+                        {/* Features */}
+                        <ul className="text-left space-y-3 mb-8 max-w-[300px] mx-auto">
+                            {[
+                                '가족 전용 서브도메인',
+                                'Google Drive 사진 무제한 연결',
+                                '4세대 가계도 + 그룹 앨범',
+                                'Admin 관리 + 가족 초대',
+                                '앱 아이콘 설치 링크',
+                                '가족 채팅방',
+                            ].map(f => (
+                                <li key={f} className="flex items-center gap-2.5 text-[14px]" style={{ color: '#1E2A0E' }}>
+                                    <span style={{ color: '#5A9460', fontWeight: '700', flexShrink: 0 }}>✓</span>
+                                    {f}
+                                </li>
+                            ))}
+                        </ul>
+
+                        {/* Primary CTA */}
                         <button
-                            className="px-7 py-3.5 rounded-full font-bold text-[14px] text-white transition-all hover:brightness-110 active:scale-95 whitespace-nowrap cursor-pointer"
+                            onClick={scrollToLogin}
+                            className="w-full py-4 rounded-full font-bold text-[15px] text-white transition-all hover:brightness-110 active:scale-95 cursor-pointer"
                             style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
-                            onClick={e => {
-                                const input = e.currentTarget.previousElementSibling;
-                                if (input.value) {
-                                    input.value = '';
-                                    input.placeholder = '감사합니다! 오픈 시 가장 먼저 알려드릴게요 🎉';
-                                }
-                            }}
                         >
-                            사전 등록하기
+                            지금 시작하기 · 연 $10
                         </button>
                     </div>
 
-                    {/* Benefits list */}
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-5 text-[13px]" style={{ color: '#7A6E5E' }}>
-                        {[
-                            { icon: '✓', text: '무료로 시작 가능' },
-                            { icon: '✓', text: '신용카드 불필요' },
-                            { icon: '✓', text: '가족 전용 서브도메인 제공' },
-                        ].map(item => (
-                            <span key={item.text} className="flex items-center gap-1.5">
-                                <span style={{ color: '#5A9460', fontWeight: '700' }}>{item.icon}</span>
-                                {item.text}
-                            </span>
-                        ))}
-                    </div>
+                    {/* Referral message */}
+                    <button
+                        onClick={() => navigate('/redeem')}
+                        className="text-[13.5px] font-semibold transition-all cursor-pointer hover:underline"
+                        style={{ color: '#4A7F4A' }}
+                    >
+                        ksarang.org에서 5명을 소개하면 무료로 이용할 수 있습니다 →
+                    </button>
                 </div>
             </section>
 
@@ -408,18 +413,26 @@ const FamilyWebsitePage = () => {
 
                     <button
                         onClick={scrollToLogin}
-                        className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-bold text-[15px] transition-all hover:brightness-110 active:scale-95 text-white"
-                        style={{
-                            background: 'linear-gradient(135deg, #5A9460, #4A7F4A)',
-                        }}
+                        className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-bold text-[15px] transition-all hover:brightness-110 active:scale-95 text-white cursor-pointer"
+                        style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
                     >
-                        Google로 무료 시작
+                        지금 시작하기 · 연 $10
                         <ArrowRight size={18} />
                     </button>
 
-                    <p className="mt-6" style={{ color: '#A89880', fontSize: '12px' }}>
-                        도메인 등록은 회원가입 후 진행됩니다
+                    <p className="mt-4" style={{ color: '#A89880', fontSize: '13px' }}>
+                        Google 계정으로 시작 · 도메인 등록은 가입 후 진행
                     </p>
+
+                    <div className="mt-4">
+                        <button
+                            onClick={() => navigate('/redeem')}
+                            className="text-[13px] font-semibold transition-all cursor-pointer hover:underline"
+                            style={{ color: '#8DC88D' }}
+                        >
+                            ksarang.org에서 5명을 소개하면 무료로 이용할 수 있습니다 →
+                        </button>
+                    </div>
                 </div>
             </section>
 
