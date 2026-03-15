@@ -1,0 +1,30 @@
+name: Diagnose EC2 Backend
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check EC2 backend logs
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "=== Backend logs (last 80 lines) ==="
+            docker logs orgcell-backend --tail 80 2>&1
+
+            echo ""
+            echo "=== .env keys present ==="
+            grep -o "^[^=]*" /opt/orgcell/.env | sort
+
+            echo ""
+            echo "=== GOOGLE_CLIENT_ID value ==="
+            grep "^GOOGLE_CLIENT_ID=" /opt/orgcell/.env | cut -d= -f2 | cut -c1-40
+
+            echo ""
+            echo "=== DB migration check ==="
+            docker exec orgcell-db psql -U orgcell_user -d orgcell -c "\dt" 2>&1 || echo "DB query failed"
