@@ -1,14 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../config/db');
+
+// Lazy-initialize Stripe so missing key doesn't crash the server on startup
+function getStripe() {
+    if (!process.env.STRIPE_SECRET_KEY) return null;
+    return require('stripe')(process.env.STRIPE_SECRET_KEY);
+}
 
 // ──────────────────────────────────────────────
 // POST /api/payment/create-checkout-session
 // ──────────────────────────────────────────────
 router.post('/create-checkout-session', async (req, res) => {
     try {
-        if (!process.env.STRIPE_SECRET_KEY) {
+        const stripe = getStripe();
+        if (!stripe) {
             return res.status(503).json({
                 success: false,
                 message: 'Stripe is not configured yet. Please set STRIPE_SECRET_KEY.',
@@ -51,9 +57,10 @@ router.post('/create-checkout-session', async (req, res) => {
 router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     const sig = req.headers['stripe-signature'];
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const stripe = getStripe();
 
-    if (!webhookSecret) {
-        console.warn('STRIPE_WEBHOOK_SECRET not set — skipping signature verification');
+    if (!webhookSecret || !stripe) {
+        console.warn('Stripe webhook not configured — STRIPE_SECRET_KEY or STRIPE_WEBHOOK_SECRET missing');
         return res.sendStatus(400);
     }
 
