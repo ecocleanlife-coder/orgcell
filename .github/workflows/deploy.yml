@@ -196,11 +196,15 @@ jobs:
                 driver: bridge
             EOF
 
+            # Stop existing containers cleanly to free ports before recreating
+            docker-compose down --remove-orphans || true
+            docker rm -f orgcell-frontend orgcell-backend orgcell-db 2>/dev/null || true
+
             # Deploy
             docker-compose pull
-            docker-compose up -d --force-recreate
+            docker-compose up -d
             docker image prune -f
 
             # Verify
-            sleep 10
+            sleep 15
             docker-compose ps
