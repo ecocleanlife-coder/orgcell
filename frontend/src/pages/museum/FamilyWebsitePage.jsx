@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import Footer from '../../components/common/Footer';
-import { Globe, Lock, Users, FolderTree, Shield, Star, CheckCircle2, ArrowRight, Crown, Image } from 'lucide-react';
+import { Globe, Lock, Users, FolderTree, Shield, Star, ArrowRight, Crown, Image } from 'lucide-react';
 
 const FamilyWebsitePage = () => {
     const navigate = useNavigate();
@@ -67,7 +67,7 @@ const FamilyWebsitePage = () => {
                             color: '#5A6E4E',
                         }}
                     >
-                        연 $10로 온 가족이 언제 어디서나 접속할 수 있는 프라이빗 가족 박물관을 만드세요
+                        온 가족이 언제 어디서나 접속할 수 있는 프라이빗 가족 박물관을 만드세요
                     </p>
 
                     {/* CTA Buttons */}
@@ -96,7 +96,7 @@ const FamilyWebsitePage = () => {
 
                     {/* Stat Pills */}
                     <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
-                        {['2,000장 사진 포함', '가족 전용 서브도메인', '평생 보존 라이선스'].map((stat, i) => (
+                        {['Google Drive 사진 무제한', '가족 전용 서브도메인', '무료로 시작 가능'].map((stat, i) => (
                             <div
                                 key={i}
                                 className="px-4 py-2 rounded-full text-[13px] font-semibold"
@@ -223,11 +223,17 @@ const FamilyWebsitePage = () => {
                 </div>
             </section>
 
-            {/* ══ Pricing Section ══ */}
+            {/* ══ Early Access CTA Section ══ */}
             <section className="py-20 px-5" style={{ background: '#FAFAF7' }}>
-                <div className="max-w-[1040px] mx-auto">
+                <div className="max-w-[680px] mx-auto text-center">
+                    <span
+                        className="inline-block px-4 py-1.5 rounded-full text-[12px] font-bold tracking-widest uppercase mb-6"
+                        style={{ background: '#E8F5E8', color: '#4A7F4A' }}
+                    >
+                        사전 등록
+                    </span>
                     <h2
-                        className="text-center mb-4"
+                        className="mb-4"
                         style={{
                             fontSize: '32px',
                             fontWeight: '700',
@@ -235,103 +241,51 @@ const FamilyWebsitePage = () => {
                             color: '#1E2A0E',
                         }}
                     >
-                        합리적인 가격, 무제한 추억
+                        우리 가족 웹사이트,<br />가장 먼저 만들어보세요
                     </h2>
+                    <p className="mb-10 leading-relaxed" style={{ color: '#7A6E5E', fontSize: '15px' }}>
+                        가족 웹사이트 기능이 오픈되면 사전 등록하신 분께 가장 먼저 알려드립니다.<br />
+                        이메일 하나로 충분합니다. 스팸은 없습니다.
+                    </p>
 
-                    {/* Pricing Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12 max-w-3xl mx-auto">
-                        {/* Basic Plan */}
-                        <div
-                            className="p-8 rounded-2xl relative"
-                            style={{
-                                background: '#FFFFFF',
-                                border: '2px solid #5A9460',
-                                boxShadow: '0 8px 24px rgba(90, 148, 96, 0.15)',
+                    {/* Email form */}
+                    <div className="flex flex-col sm:flex-row gap-3 max-w-[480px] mx-auto mb-6">
+                        <input
+                            type="email"
+                            placeholder="이메일 주소를 입력하세요"
+                            className="flex-1 px-5 py-3.5 rounded-full text-[14px] outline-none"
+                            style={{ border: '2px solid #C8E0C8', background: 'white', color: '#1E2A0E' }}
+                            onFocus={e => { e.target.style.borderColor = '#5A9460'; }}
+                            onBlur={e => { e.target.style.borderColor = '#C8E0C8'; }}
+                        />
+                        <button
+                            className="px-7 py-3.5 rounded-full font-bold text-[14px] text-white transition-all hover:brightness-110 active:scale-95 whitespace-nowrap cursor-pointer"
+                            style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
+                            onClick={e => {
+                                const input = e.currentTarget.previousElementSibling;
+                                if (input.value) {
+                                    input.value = '';
+                                    input.placeholder = '감사합니다! 오픈 시 가장 먼저 알려드릴게요 🎉';
+                                }
                             }}
                         >
-                            <div
-                                className="absolute -top-4 left-6 px-3 py-1 rounded-full text-[12px] font-bold text-white"
-                                style={{ background: '#5A9460' }}
-                            >
-                                가장 인기
-                            </div>
-                            <h3 className="font-bold text-[20px] mb-2" style={{ color: '#1E2A0E', marginTop: '12px' }}>
-                                기본 플랜
-                            </h3>
-                            <div className="mb-6">
-                                <span
-                                    className="text-[36px] font-bold"
-                                    style={{ color: '#5A9460', fontFamily: 'Georgia, serif' }}
-                                >
-                                    $10
-                                </span>
-                                <span style={{ color: '#7A6E5E', fontSize: '14px' }}> / 년</span>
-                            </div>
-                            <ul className="space-y-3 mb-8">
-                                {['2,000장 사진', 'yourfamily.orgcell.com', '가족 트리', '그룹 앨범', '앱 설치 링크'].map((feature, i) => (
-                                    <li key={i} className="flex items-center gap-2 text-[14px]" style={{ color: '#1E2A0E' }}>
-                                        <CheckCircle2 size={18} style={{ color: '#5A9460', flexShrink: 0 }} />
-                                        {feature}
-                                    </li>
-                                ))}
-                            </ul>
-                            <button
-                                onClick={scrollToLogin}
-                                className="w-full py-3 rounded-xl font-bold text-white transition-all hover:brightness-110"
-                                style={{ background: '#5A9460' }}
-                            >
-                                선택하기
-                            </button>
-                        </div>
-
-                        {/* Lifetime Plan */}
-                        <div
-                            className="p-8 rounded-2xl relative"
-                            style={{
-                                background: '#FAFAF7',
-                                border: '2px solid #3D2008',
-                                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.08)',
-                            }}
-                        >
-                            <div
-                                className="absolute -top-4 left-6 px-3 py-1 rounded-full text-[12px] font-bold text-white"
-                                style={{ background: '#3D2008' }}
-                            >
-                                최고 가성비
-                            </div>
-                            <h3 className="font-bold text-[20px] mb-2" style={{ color: '#1E2A0E', marginTop: '12px' }}>
-                                10년 플랜
-                            </h3>
-                            <div className="mb-6">
-                                <span
-                                    className="text-[36px] font-bold"
-                                    style={{ color: '#3D2008', fontFamily: 'Georgia, serif' }}
-                                >
-                                    $100
-                                </span>
-                                <span style={{ color: '#7A6E5E', fontSize: '14px' }}> / 10년 ($10/년)</span>
-                            </div>
-                            <ul className="space-y-3 mb-8">
-                                {['Basic 포함', '10,000장 사진', '우선 지원', '신규 기능 우선 적용'].map((feature, i) => (
-                                    <li key={i} className="flex items-center gap-2 text-[14px]" style={{ color: '#1E2A0E' }}>
-                                        <CheckCircle2 size={18} style={{ color: '#3D2008', flexShrink: 0 }} />
-                                        {feature}
-                                    </li>
-                                ))}
-                            </ul>
-                            <button
-                                onClick={scrollToLogin}
-                                className="w-full py-3 rounded-xl font-bold text-white transition-all hover:brightness-110"
-                                style={{ background: '#3D2008' }}
-                            >
-                                선택하기
-                            </button>
-                        </div>
+                            사전 등록하기
+                        </button>
                     </div>
 
-                    <p className="text-center mt-8 text-[13px]" style={{ color: '#7A6E5E' }}>
-                        가격은 연간 구독입니다. 언제든 취소 가능.
-                    </p>
+                    {/* Benefits list */}
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-5 text-[13px]" style={{ color: '#7A6E5E' }}>
+                        {[
+                            { icon: '✓', text: '무료로 시작 가능' },
+                            { icon: '✓', text: '신용카드 불필요' },
+                            { icon: '✓', text: '가족 전용 서브도메인 제공' },
+                        ].map(item => (
+                            <span key={item.text} className="flex items-center gap-1.5">
+                                <span style={{ color: '#5A9460', fontWeight: '700' }}>{item.icon}</span>
+                                {item.text}
+                            </span>
+                        ))}
+                    </div>
                 </div>
             </section>
 
