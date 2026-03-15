@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
+import axios from 'axios';
 import Navbar from '../../components/common/Navbar';
 import Footer from '../../components/common/Footer';
 
@@ -20,23 +21,35 @@ export default function RedeemPage() {
     const isKsarang = ref.toLowerCase().includes('ksarang');
 
     const [code, setCode] = useState('');
-    const [status, setStatus] = useState(null); // null | 'success' | 'error'
+    const [email, setEmail] = useState('');
+    const [status, setStatus] = useState(null); // null | 'loading' | 'success' | 'error'
     const [message, setMessage] = useState('');
 
     useEffect(() => {
         window.scrollTo(0, 0);
     }, []);
 
-    const handleRedeem = (e) => {
+    const handleRedeem = async (e) => {
         e.preventDefault();
         if (!code.trim()) {
             setStatus('error');
             setMessage('이용권 코드를 입력해 주세요.');
             return;
         }
-        // 실제 검증 로직은 추후 연동 — UI 흐름만 시연
-        setStatus('success');
-        setMessage('🎉 이용권이 확인되었습니다! 로그인 후 도메인을 생성해 보세요.');
+        if (!email.trim() || !email.includes('@')) {
+            setStatus('error');
+            setMessage('이메일 주소를 정확히 입력해 주세요.');
+            return;
+        }
+        setStatus('loading');
+        try {
+            const res = await axios.post('/api/referral/apply', { code: code.trim(), email: email.trim() });
+            setStatus('success');
+            setMessage(res.data.message || '🎉 이용권이 확인되었습니다!');
+        } catch (err) {
+            setStatus('error');
+            setMessage(err.response?.data?.message || '오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+        }
     };
 
     return (
@@ -90,17 +103,15 @@ export default function RedeemPage() {
 
                 {/* 코드 입력 폼 */}
                 <form onSubmit={handleRedeem} style={{ marginBottom: 40 }}>
-                    <label
-                        style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#3a4a2a', marginBottom: 8 }}
-                    >
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#3a4a2a', marginBottom: 8 }}>
                         이용권 코드
                     </label>
-                    <div style={{ display: 'flex', gap: 10 }}>
+                    <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
                         <input
                             type="text"
                             value={code}
-                            onChange={(e) => { setCode(e.target.value); setStatus(null); }}
-                            placeholder="예: KSARANG-XXXXX"
+                            onChange={(e) => { setCode(e.target.value.toUpperCase()); setStatus(null); }}
+                            placeholder="예: KSA-ABCD12"
                             style={{
                                 flex: 1,
                                 padding: '14px 18px',
@@ -109,24 +120,45 @@ export default function RedeemPage() {
                                 fontSize: 15,
                                 background: 'white',
                                 outline: 'none',
-                                letterSpacing: '0.05em',
+                                letterSpacing: '0.08em',
+                            }}
+                        />
+                    </div>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#3a4a2a', marginBottom: 8 }}>
+                        이메일 주소
+                    </label>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                        <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => { setEmail(e.target.value); setStatus(null); }}
+                            placeholder="구독을 적용할 이메일"
+                            style={{
+                                flex: 1,
+                                padding: '14px 18px',
+                                borderRadius: 12,
+                                border: '1.5px solid #c8d8b0',
+                                fontSize: 15,
+                                background: 'white',
+                                outline: 'none',
                             }}
                         />
                         <button
                             type="submit"
+                            disabled={status === 'loading'}
                             style={{
                                 padding: '14px 28px',
                                 borderRadius: 12,
-                                background: '#4A7F4A',
+                                background: status === 'loading' ? '#8aaa8a' : '#4A7F4A',
                                 color: 'white',
                                 fontWeight: 700,
                                 fontSize: 15,
                                 border: 'none',
-                                cursor: 'pointer',
+                                cursor: status === 'loading' ? 'not-allowed' : 'pointer',
                                 whiteSpace: 'nowrap',
                             }}
                         >
-                            코드 적용
+                            {status === 'loading' ? '확인 중…' : '코드 적용'}
                         </button>
                     </div>
 

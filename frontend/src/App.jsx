@@ -22,6 +22,8 @@ const KeyManager = lazy(() => import('./components/settings/KeyManager'));
 const LandingPage = lazy(() => import('./components/home/LandingPage'));
 const DriveCallback = lazy(() => import('./components/settings/DriveCallback'));
 const MagicLinkVerify = lazy(() => import('./pages/auth/MagicLinkVerify'));
+const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'));
 
 // New Feature Views (authenticated)
 const SmartSortView = lazy(() => import('./pages/smart-sort/SmartSortView'));
@@ -362,6 +364,22 @@ function App() {
           element={
             <Suspense fallback={<PageLoader />}>
               <MagicLinkVerify />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/auth/login"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <LoginPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/auth/forgot-password"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <ForgotPasswordPage />
             </Suspense>
           }
         />

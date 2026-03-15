@@ -32,6 +32,7 @@ app.use('/api/newsletter', require('./src/routes/newsletterRoutes'));
 app.use('/api/payment', require('./src/routes/paymentRoutes'));
 app.use('/api/domain', require('./src/routes/domainRoutes'));
 app.use('/api/family', require('./src/routes/familyRoutes'));
+app.use('/api/referral', require('./src/routes/referralRoutes'));
 
 // 404 handler for /api/*
 app.use('/api/*', (req, res) => {

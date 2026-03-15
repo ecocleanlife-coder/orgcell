@@ -5,9 +5,13 @@ import { Helmet } from 'react-helmet-async';
 import Navbar from '../../components/common/Navbar';
 import Footer from '../../components/common/Footer';
 import { Globe, Lock, Users, FolderTree, Shield, Star, ArrowRight, Crown, Image } from 'lucide-react';
+import useAuthStore from '../../store/authStore';
 
 const FamilyWebsitePage = () => {
     const navigate = useNavigate();
+    const token = useAuthStore(s => s.token);
+    const user = useAuthStore(s => s.user);
+    const isAuthenticated = !!(token && user);
     const [checkoutLoading, setCheckoutLoading] = useState(false);
 
     useEffect(() => {
@@ -15,10 +19,14 @@ const FamilyWebsitePage = () => {
     }, []);
 
     const handleCheckout = async () => {
+        if (!isAuthenticated) {
+            navigate('/auth/login?next=checkout');
+            return;
+        }
         if (checkoutLoading) return;
         setCheckoutLoading(true);
         try {
-            const res = await axios.post('/api/payment/create-checkout-session');
+            const res = await axios.post('/api/payment/create-checkout-session', { email: user?.email });
             if (res.data?.url) {
                 window.location.href = res.data.url;
             }

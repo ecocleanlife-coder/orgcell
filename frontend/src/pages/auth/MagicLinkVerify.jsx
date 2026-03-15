@@ -34,8 +34,24 @@ export default function MagicLinkVerify() {
                     setStatus('success');
 
                     // Allow UI to show success state briefly before redirecting
-                    setTimeout(() => {
-                        navigate('/dashboard', { replace: true });
+                    const postLoginNext = sessionStorage.getItem('orgcell_post_login_next');
+                    sessionStorage.removeItem('orgcell_post_login_next');
+
+                    setTimeout(async () => {
+                        if (postLoginNext === 'checkout') {
+                            try {
+                                const checkoutRes = await axios.post('/api/payment/create-checkout-session', {
+                                    email: res.data.user?.email,
+                                });
+                                if (checkoutRes.data?.url) {
+                                    window.location.href = checkoutRes.data.url;
+                                    return;
+                                }
+                            } catch {
+                                // fall through to normal redirect
+                            }
+                        }
+                        navigate(postLoginNext && postLoginNext !== 'checkout' ? `/${postLoginNext}` : '/', { replace: true });
                     }, 1500);
                 } else {
                     throw new Error('Verification failed');

@@ -13,6 +13,8 @@ import { ShieldCheck } from 'lucide-react';
 function LandingPage() {
     const devLogin = useAuthStore(state => state.devLogin);
     const isLoading = useAuthStore(state => state.isLoading);
+    const token = useAuthStore(state => state.token);
+    const user = useAuthStore(state => state.user);
     const lang = useUiStore(state => state.lang);
     const [name, setName] = useState('Test User');
     const [email, setEmail] = useState('test@orgcell.com');
@@ -26,13 +28,19 @@ function LandingPage() {
     const handleDevLogin = () => devLogin(name, email);
 
     const [checkoutLoading, setCheckoutLoading] = useState(false);
+    const isAuthenticated = !!(token && user);
 
     const handleCheckout = useCallback(async (e) => {
         if (e) e.stopPropagation();
+        // 비로그인 시 로그인 페이지로 이동 → 로그인 후 자동 결제 진행
+        if (!isAuthenticated) {
+            navigate('/auth/login?next=checkout');
+            return;
+        }
         if (checkoutLoading) return;
         setCheckoutLoading(true);
         try {
-            const res = await axios.post('/api/payment/create-checkout-session');
+            const res = await axios.post('/api/payment/create-checkout-session', { email: user?.email });
             if (res.data?.url) window.location.href = res.data.url;
         } catch (err) {
             console.error('Checkout error:', err);
@@ -40,7 +48,7 @@ function LandingPage() {
         } finally {
             setCheckoutLoading(false);
         }
-    }, [checkoutLoading]);
+    }, [checkoutLoading, isAuthenticated, navigate, user]);
 
     const handleNewsletterSubmit = async (e) => {
         e.preventDefault();

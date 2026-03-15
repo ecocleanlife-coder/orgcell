@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { ArrowLeft, FolderOpen, Play, CheckCircle2, ChevronRight, SlidersHorizontal, Trash2, Copy, Check, Sparkles, Trash, ImageOff, Search, AlertCircle, HardDrive, Settings, ScanSearch, Users, Globe, ArrowDownToLine } from 'lucide-react';
+import { ArrowLeft, FolderOpen, Play, CheckCircle2, ChevronRight, SlidersHorizontal, Trash2, Copy, Check, Sparkles, Trash, ImageOff, Search, AlertCircle, HardDrive, Settings, ScanSearch, Users, Globe, ArrowDownToLine, Upload } from 'lucide-react';
 import ProgressBar from '../../components/smart-sort/ProgressBar';
 import FaceTagger from '../../components/smart-sort/FaceTagger';
 import AdBanner from '../../components/common/AdBanner';
 import LanguageSwitcher from '../../components/common/LanguageSwitcher';
+import WebUploadSort from '../../components/smart-sort/WebUploadSort';
 import { runScan, applyResults, formatBytes } from '../../services/smartSortEngine';
 import useUiStore from '../../store/uiStore';
 import { getT } from '../../i18n/translations';
@@ -12,6 +13,7 @@ export default function SmartSortView() {
     const lang = useUiStore((s) => s.lang);
     const t = getT('smartSort', lang);
 
+    const [mode, setMode] = useState('folder'); // 'folder' | 'upload'
     const [step, setStep] = useState(1);
     const [sourceType, setSourceType] = useState('local'); // 'local' or 'drive'
     const [sourcePath, setSourcePath] = useState('');
@@ -154,7 +156,39 @@ export default function SmartSortView() {
                 </h1>
             </div>
 
-            {/* ══ Step Tabs ══ */}
+            {/* ══ Mode Selector ══ */}
+            <div className="flex justify-center gap-3 px-4 pb-4">
+                <button
+                    onClick={() => setMode('folder')}
+                    className={`flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold transition-all border-2 ${
+                        mode === 'folder'
+                            ? 'bg-white text-amber-800 border-amber-300 shadow-md'
+                            : 'bg-white/40 text-gray-500 border-white/30'
+                    }`}
+                >
+                    <FolderOpen size={14} /> 폴더 정렬
+                </button>
+                <button
+                    onClick={() => setMode('upload')}
+                    className={`flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold transition-all border-2 ${
+                        mode === 'upload'
+                            ? 'bg-white text-amber-800 border-amber-300 shadow-md'
+                            : 'bg-white/40 text-gray-500 border-white/30'
+                    }`}
+                >
+                    <Upload size={14} /> 웹 업로드 분류
+                </button>
+            </div>
+
+            {/* ══ Web Upload Mode ══ */}
+            {mode === 'upload' && (
+                <main className="max-w-4xl mx-auto px-4 pb-12">
+                    <WebUploadSort />
+                </main>
+            )}
+
+            {/* ══ Step Tabs + Folder Mode (folder mode only) ══ */}
+            {mode === 'folder' && <>
             <div className="flex justify-center gap-2 md:gap-3 px-4 pb-6">
                 {stepTabs.map((tab) => (
                     <button
@@ -498,6 +532,7 @@ export default function SmartSortView() {
                     </div>
                 )}
             </main>
+            </>}
 
             {/* Language switcher floating */}
             <div className="fixed bottom-4 right-4 z-50">
