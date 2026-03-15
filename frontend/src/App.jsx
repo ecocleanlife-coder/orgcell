@@ -34,6 +34,7 @@ const SmartSortPage = lazy(() => import('./pages/smart-sort/SmartSortPage'));
 const FamilyWebsitePage = lazy(() => import('./pages/museum/FamilyWebsitePage'));
 const LiveSharingPage = lazy(() => import('./pages/sharing/LiveSharingPage'));
 const RedeemPage = lazy(() => import('./pages/redeem/RedeemPage'));
+const PaymentSuccessPage = lazy(() => import('./pages/payment/PaymentSuccessPage'));
 const FamilyTreeView = lazy(() => import('./components/museum/FamilyTreeView'));
 const PersonFolderView = lazy(() => import('./components/museum/PersonFolderView'));
 
@@ -430,6 +431,16 @@ function App() {
             <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>
                 <RedeemPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/payment/success"
+          element={
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <PaymentSuccessPage />
               </Suspense>
             </ErrorBoundary>
           }

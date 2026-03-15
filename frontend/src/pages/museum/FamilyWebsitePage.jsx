@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import Navbar from '../../components/common/Navbar';
@@ -7,10 +8,27 @@ import { Globe, Lock, Users, FolderTree, Shield, Star, ArrowRight, Crown, Image 
 
 const FamilyWebsitePage = () => {
     const navigate = useNavigate();
+    const [checkoutLoading, setCheckoutLoading] = useState(false);
 
     useEffect(() => {
         window.scrollTo(0, 0);
     }, []);
+
+    const handleCheckout = async () => {
+        if (checkoutLoading) return;
+        setCheckoutLoading(true);
+        try {
+            const res = await axios.post('/api/payment/create-checkout-session');
+            if (res.data?.url) {
+                window.location.href = res.data.url;
+            }
+        } catch (err) {
+            console.error('Checkout error:', err);
+            alert('결제 세션을 시작할 수 없습니다. 잠시 후 다시 시도해 주세요.');
+        } finally {
+            setCheckoutLoading(false);
+        }
+    };
 
     const scrollToLogin = () => {
         navigate('/');
@@ -82,11 +100,12 @@ const FamilyWebsitePage = () => {
                     {/* CTA Buttons */}
                     <div className="flex flex-col sm:flex-row gap-4 mb-4">
                         <button
-                            onClick={scrollToLogin}
-                            className="px-8 py-3 rounded-full font-bold text-[14px] transition-all hover:brightness-110 active:scale-95 text-white"
+                            onClick={handleCheckout}
+                            disabled={checkoutLoading}
+                            className="px-8 py-3 rounded-full font-bold text-[14px] transition-all hover:brightness-110 active:scale-95 text-white disabled:opacity-60"
                             style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
                         >
-                            지금 시작하기 · 연 $10
+                            {checkoutLoading ? '이동 중…' : '지금 시작하기 · 연 $10'}
                         </button>
                         <button
                             onClick={() => navigate('/family-website')}
@@ -284,11 +303,12 @@ const FamilyWebsitePage = () => {
 
                         {/* Primary CTA */}
                         <button
-                            onClick={scrollToLogin}
-                            className="w-full py-4 rounded-full font-bold text-[15px] text-white transition-all hover:brightness-110 active:scale-95 cursor-pointer"
+                            onClick={handleCheckout}
+                            disabled={checkoutLoading}
+                            className="w-full py-4 rounded-full font-bold text-[15px] text-white transition-all hover:brightness-110 active:scale-95 cursor-pointer disabled:opacity-60"
                             style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
                         >
-                            지금 시작하기 · 연 $10
+                            {checkoutLoading ? '이동 중…' : '지금 시작하기 · 연 $10'}
                         </button>
                     </div>
 
@@ -421,12 +441,13 @@ const FamilyWebsitePage = () => {
                     </p>
 
                     <button
-                        onClick={scrollToLogin}
-                        className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-bold text-[15px] transition-all hover:brightness-110 active:scale-95 text-white cursor-pointer"
+                        onClick={handleCheckout}
+                        disabled={checkoutLoading}
+                        className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-bold text-[15px] transition-all hover:brightness-110 active:scale-95 text-white cursor-pointer disabled:opacity-60"
                         style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
                     >
-                        지금 시작하기 · 연 $10
-                        <ArrowRight size={18} />
+                        {checkoutLoading ? '이동 중…' : '지금 시작하기 · 연 $10'}
+                        {!checkoutLoading && <ArrowRight size={18} />}
                     </button>
 
                     <p className="mt-4" style={{ color: '#A89880', fontSize: '13px' }}>

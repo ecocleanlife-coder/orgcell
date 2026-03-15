@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import axios from 'axios';
 import { Helmet } from 'react-helmet-async';
 import useAuthStore from '../../store/authStore';
@@ -24,6 +24,23 @@ function LandingPage() {
     const [newsletterMsg, setNewsletterMsg] = useState('');
 
     const handleDevLogin = () => devLogin(name, email);
+
+    const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+    const handleCheckout = useCallback(async (e) => {
+        if (e) e.stopPropagation();
+        if (checkoutLoading) return;
+        setCheckoutLoading(true);
+        try {
+            const res = await axios.post('/api/payment/create-checkout-session');
+            if (res.data?.url) window.location.href = res.data.url;
+        } catch (err) {
+            console.error('Checkout error:', err);
+            alert('결제 세션을 시작할 수 없습니다. 잠시 후 다시 시도해 주세요.');
+        } finally {
+            setCheckoutLoading(false);
+        }
+    }, [checkoutLoading]);
 
     const handleNewsletterSubmit = async (e) => {
         e.preventDefault();
@@ -232,11 +249,12 @@ function LandingPage() {
 
                             {/* 가격 + CTA */}
                             <button
-                                onClick={() => navigate('/family-website')}
-                                className="w-full py-2.5 rounded-full font-bold text-[13px] text-white transition-all hover:brightness-110 active:scale-95 cursor-pointer mb-2"
+                                onClick={handleCheckout}
+                                disabled={checkoutLoading}
+                                className="w-full py-2.5 rounded-full font-bold text-[13px] text-white transition-all hover:brightness-110 active:scale-95 cursor-pointer mb-2 disabled:opacity-60"
                                 style={{ background: 'linear-gradient(135deg, #4A7F4A, #3a6e3a)' }}
                             >
-                                지금 시작하기 · 연 $10
+                                {checkoutLoading ? '이동 중…' : '지금 시작하기 · 연 $10'}
                             </button>
 
                             {/* 소개 무료 링크 */}
