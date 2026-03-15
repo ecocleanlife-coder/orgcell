@@ -196,6 +196,11 @@ jobs:
                 driver: bridge
             EOF
 
+            # Stop host nginx if running (it holds ports 80/443 before Docker can bind them)
+            sudo systemctl stop nginx 2>/dev/null || true
+            sudo fuser -k 80/tcp 2>/dev/null || true
+            sudo fuser -k 443/tcp 2>/dev/null || true
+
             # Stop existing containers cleanly to free ports before recreating
             docker-compose down --remove-orphans || true
             docker rm -f orgcell-frontend orgcell-backend orgcell-db 2>/dev/null || true
