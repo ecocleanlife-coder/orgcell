@@ -54,7 +54,7 @@ router.post('/create-checkout-session', async (req, res) => {
 // POST /api/payment/webhook
 // Stripe sends raw body — must use express.raw() middleware (set in server.js)
 // ──────────────────────────────────────────────
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+router.post('/webhook', async (req, res) => {
     const sig = req.headers['stripe-signature'];
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
     const stripe = getStripe();
