@@ -236,6 +236,40 @@ function LandingPage() {
             </div>
 
             {/* ================================================================
+                PROBLEM SECTION — 이런 경험 있으신가요?
+                ================================================================ */}
+            <section className="max-w-[960px] mx-auto px-6 pt-24 pb-10">
+                <div className="text-center mb-10">
+                    <span className="inline-block px-4 py-1.5 rounded-full text-[12px] font-bold tracking-widest uppercase mb-4"
+                        style={{ background: '#EDE7D9', color: '#8a7040' }}>
+                        공감하시나요?
+                    </span>
+                    <h2 className="text-[28px] font-bold text-[#3D2008] tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>
+                        사진 정리, 이렇게 힘드셨나요?
+                    </h2>
+                    <p className="text-[#8a7e6e] mt-2 text-sm">많은 가족이 겪는 사진 관리의 어려움</p>
+                </div>
+                <div className="grid md:grid-cols-3 gap-5">
+                    {[
+                        { emoji: '📸', title: '중복 사진이 너무 많아요', desc: '카카오톡, 이메일, USB... 이곳저곳에서 받은 같은 사진이 수백 장씩 쌓여 있습니다.' },
+                        { emoji: '📅', title: '언제 찍었는지 알 수가 없어요', desc: '2015년? 2018년? 파일명만 봐선 도저히 알 수 없는 사진들이 뒤섞여 있습니다.' },
+                        { emoji: '👨‍👩‍👧', title: '누가 나온 사진인지 찾기 어려워요', desc: '아이 사진을 찾으려면 수천 장을 일일이 넘겨야 합니다. 1시간이 순식간에 지나갑니다.' },
+                    ].map(({ emoji, title, desc }) => (
+                        <div key={title} className="bg-white rounded-2xl p-6 shadow-sm border border-[#e8e2d6] text-center hover:shadow-md transition-shadow">
+                            <div className="text-4xl mb-3">{emoji}</div>
+                            <h3 className="font-bold text-[#3D2008] mb-2 text-[15px]">{title}</h3>
+                            <p className="text-[#6b5d4d] text-[13px] leading-relaxed">{desc}</p>
+                        </div>
+                    ))}
+                </div>
+                <div className="text-center mt-8">
+                    <p className="text-[15px] font-semibold text-[#5C3D1E]" style={{ fontFamily: 'Georgia, serif' }}>
+                        Orgcell이 이 문제를 해결합니다.
+                    </p>
+                </div>
+            </section>
+
+            {/* ================================================================
                 ABOUT SECTION
                 ================================================================ */}
             <section id="about-section" className="max-w-[960px] mx-auto px-6 pt-20 pb-12">
@@ -259,6 +293,77 @@ function LandingPage() {
                         <h3 className="font-bold text-[#3D2008] mb-2 text-[15px]">Your Data, Your Drive</h3>
                         <p className="text-[#6b5d4d] text-[13px] leading-relaxed">All photos stay in your Google Drive. We never store your files — you own everything.</p>
                     </div>
+                </div>
+            </section>
+
+            {/* ================================================================
+                HOW IT WORKS
+                ================================================================ */}
+            <section className="max-w-[960px] mx-auto px-6 pt-16 pb-4">
+                <div className="text-center mb-12">
+                    <h2 className="text-[28px] font-bold text-[#3D2008] tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>
+                        3단계로 시작하세요
+                    </h2>
+                    <p className="text-[#8a7e6e] mt-2 text-sm">복잡한 설치 없이, Google 계정 하나로 시작</p>
+                </div>
+                <div className="relative">
+                    {/* Connecting line (desktop) */}
+                    <div className="hidden md:block absolute top-10 left-[16.67%] right-[16.67%] h-0.5" style={{ background: 'linear-gradient(90deg, #d4a834, #8DB86B, #5b8fcd)' }} />
+                    <div className="grid md:grid-cols-3 gap-8 relative z-10">
+                        {[
+                            { step: '01', color: '#d4a834', bg: '#FFF8E8', emoji: '🔑', title: 'Google로 로그인', desc: 'Google 계정으로 안전하게 시작합니다. 비밀번호는 Orgcell에 전달되지 않습니다.' },
+                            { step: '02', color: '#8DB86B', bg: '#F0F8F0', emoji: '🤖', title: 'AI 서비스 선택', desc: 'AI 스마트 분류, 가족 웹사이트, 실시간 공유 중 원하는 서비스를 선택합니다.' },
+                            { step: '03', color: '#5b8fcd', bg: '#EEF4FF', emoji: '🎉', title: '가족과 함께 즐기기', desc: '정리된 사진을 가족 트리로 연결하고, 소중한 추억을 영원히 보관합니다.' },
+                        ].map(({ step, color, bg, emoji, title, desc }) => (
+                            <div key={step} className="flex flex-col items-center text-center">
+                                <div className="w-20 h-20 rounded-full flex items-center justify-center text-3xl mb-4 shadow-sm"
+                                    style={{ background: bg, border: `2px solid ${color}30` }}>
+                                    {emoji}
+                                </div>
+                                <span className="text-[11px] font-black tracking-widest mb-1" style={{ color }}>{step}</span>
+                                <h3 className="text-[16px] font-bold text-[#3D2008] mb-2">{title}</h3>
+                                <p className="text-[#6b5d4d] text-[13px] leading-relaxed">{desc}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* ================================================================
+                EMAIL CTA SECTION
+                ================================================================ */}
+            <section className="max-w-[720px] mx-auto px-6 pt-14 pb-4">
+                <div className="rounded-[22px] p-8 text-center"
+                    style={{ background: 'linear-gradient(135deg, #f0ebe0 0%, #ede7da 100%)', border: '1px solid #e3ddd0' }}>
+                    <h2 className="text-[22px] font-bold text-[#2a1c08] mb-2" style={{ fontFamily: 'Georgia, serif' }}>
+                        먼저 소식 받아보기
+                    </h2>
+                    <p className="text-[#7a6e5e] text-[13px] mb-6 leading-relaxed">
+                        신규 기능과 업데이트를 가장 먼저 알려드립니다.<br />스팸 없이, 중요한 소식만 드립니다.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2 max-w-[420px] mx-auto">
+                        <input
+                            type="email"
+                            placeholder="이메일 주소를 입력하세요"
+                            className="flex-1 px-4 py-3 rounded-full text-[14px] outline-none border focus:ring-2"
+                            style={{ border: '1.5px solid #c5bfb3', background: 'white', focusRingColor: '#8DB86B' }}
+                        />
+                        <button
+                            className="px-6 py-3 rounded-full font-bold text-[14px] text-white cursor-pointer transition-all hover:brightness-105 active:scale-95 whitespace-nowrap"
+                            style={{ background: '#8DB86B' }}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                const input = e.currentTarget.previousElementSibling;
+                                if (input.value) {
+                                    input.value = '';
+                                    input.placeholder = '감사합니다! 곧 소식 전해드릴게요 🎉';
+                                }
+                            }}
+                        >
+                            소식 받기
+                        </button>
+                    </div>
+                    <p className="text-[11px] text-[#a09080] mt-3">이메일은 뉴스레터 발송 외 다른 용도로 사용하지 않습니다.</p>
                 </div>
             </section>
 

@@ -22,11 +22,16 @@ const LandingPage = lazy(() => import('./components/home/LandingPage'));
 const DriveCallback = lazy(() => import('./components/settings/DriveCallback'));
 const MagicLinkVerify = lazy(() => import('./pages/auth/MagicLinkVerify'));
 
-// New Feature Views
+// New Feature Views (authenticated)
 const SmartSortView = lazy(() => import('./pages/smart-sort/SmartSortView'));
 const FamilyWebsiteView = lazy(() => import('./pages/museum/FamilyWebsiteView'));
 const FamilyDomainDashboard = lazy(() => import('./pages/museum/FamilyDomainDashboard'));
 const LiveSharingView = lazy(() => import('./pages/sharing/LiveSharingView'));
+
+// Marketing Pages (unauthenticated)
+const SmartSortPage = lazy(() => import('./pages/smart-sort/SmartSortPage'));
+const FamilyWebsitePage = lazy(() => import('./pages/museum/FamilyWebsitePage'));
+const LiveSharingPage = lazy(() => import('./pages/sharing/LiveSharingPage'));
 const FamilyTreeView = lazy(() => import('./components/museum/FamilyTreeView'));
 const PersonFolderView = lazy(() => import('./components/museum/PersonFolderView'));
 
@@ -354,7 +359,7 @@ function App() {
           element={
             <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>
-                <SmartSortView />
+                {token ? <SmartSortView /> : <SmartSortPage />}
               </Suspense>
             </ErrorBoundary>
           }
@@ -364,7 +369,7 @@ function App() {
           element={
             <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>
-                <FamilyWebsiteView />
+                {token ? <FamilyWebsiteView /> : <FamilyWebsitePage />}
               </Suspense>
             </ErrorBoundary>
           }
@@ -404,7 +409,7 @@ function App() {
           element={
             <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>
-                <LiveSharingView />
+                {token ? <LiveSharingView /> : <LiveSharingPage />}
               </Suspense>
             </ErrorBoundary>
           }
