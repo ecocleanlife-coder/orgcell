@@ -10,6 +10,7 @@ on:
       - 'database/**'
       - 'docker-compose.yml'
       - '.github/workflows/deploy.yml'
+  workflow_dispatch:
 
 env:
   AWS_REGION: ap-northeast-2
