@@ -1,8 +1,10 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
+import { useTranslation } from 'react-i18next';
 
 export default function PaymentSuccessPage() {
+    const { t } = useTranslation();
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -63,7 +65,7 @@ export default function PaymentSuccessPage() {
                         marginBottom: 12,
                     }}
                 >
-                    결제가 완료되었습니다! 🎉
+                    {t('paymentSuccess.title')}
                 </h1>
 
                 <p
@@ -74,8 +76,9 @@ export default function PaymentSuccessPage() {
                         marginBottom: 32,
                     }}
                 >
-                    가족 박물관을 시작해 보세요.<br />
-                    <strong>yourfamily.orgcell.com</strong> 도메인을 지금 바로 만들 수 있습니다.
+                    {t('paymentSuccess.desc').split('\n').map((line, i, arr) => (
+                        <React.Fragment key={i}>{line}{i < arr.length - 1 && <br />}</React.Fragment>
+                    ))}
                 </p>
 
                 {/* 안내 박스 */}
@@ -90,8 +93,8 @@ export default function PaymentSuccessPage() {
                     }}
                 >
                     <p style={{ fontSize: 13, color: '#3a5a2a', margin: 0, lineHeight: 1.7 }}>
-                        📧 결제 확인 이메일이 곧 발송됩니다.<br />
-                        📌 구독 관리는 이메일의 Stripe 링크에서 가능합니다.
+                        {t('paymentSuccess.infoEmail')}<br />
+                        {t('paymentSuccess.infoManage')}
                     </p>
                 </div>
 
@@ -110,7 +113,7 @@ export default function PaymentSuccessPage() {
                             cursor: 'pointer',
                         }}
                     >
-                        가족 박물관 만들기 →
+                        {t('paymentSuccess.ctaMuseum')}
                     </button>
 
                     <button
@@ -126,7 +129,7 @@ export default function PaymentSuccessPage() {
                             cursor: 'pointer',
                         }}
                     >
-                        홈으로 돌아가기
+                        {t('paymentSuccess.ctaHome')}
                     </button>
                 </div>
             </div>

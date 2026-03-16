@@ -1,22 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from './LanguageSwitcher';
 import useAuthStore from '../../store/authStore';
 import { Menu, X } from 'lucide-react';
 
-const NAV_LINKS = [
-    { label: 'AI 스마트 분류', labelEn: 'Smart Sort', path: '/smart-sort', emoji: '🖼️' },
-    { label: '가족 웹사이트', labelEn: 'Family Website', path: '/family-website', emoji: '🏛️' },
-    { label: '실시간 공유', labelEn: 'Live Sharing', path: '/live-sharing', emoji: '💬' },
-];
-
 export default function Navbar({ onCtaClick }) {
     const navigate = useNavigate();
     const location = useLocation();
+    const { t } = useTranslation();
     const token = useAuthStore(s => s.token);
     const logout = useAuthStore(s => s.logout);
     const [menuOpen, setMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
+
+    const NAV_LINKS = [
+        { label: t('navbar.smartSort'), path: '/smart-sort', emoji: '🖼️' },
+        { label: t('navbar.familyWebsite'), path: '/family-website', emoji: '🏛️' },
+        { label: t('navbar.liveSharing'), path: '/live-sharing', emoji: '💬' },
+    ];
 
     useEffect(() => {
         const onScroll = () => setScrolled(window.scrollY > 10);
@@ -94,7 +96,7 @@ export default function Navbar({ onCtaClick }) {
                             onClick={logout}
                             className="text-[13px] font-semibold text-[#7A6E5E] hover:text-[#3D2008] transition cursor-pointer"
                         >
-                            로그아웃
+                            {t('navbar.logout')}
                         </button>
                     ) : (
                         <button
@@ -102,7 +104,7 @@ export default function Navbar({ onCtaClick }) {
                             className="px-5 py-2 rounded-full text-[13.5px] font-bold text-white transition-all cursor-pointer hover:brightness-110 active:scale-95"
                             style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
                         >
-                            무료로 시작하기
+                            {t('navbar.startFree')}
                         </button>
                     )}
                 </div>
@@ -129,7 +131,6 @@ export default function Navbar({ onCtaClick }) {
                             className="w-full flex items-center gap-2 px-4 py-3 rounded-xl text-[14px] font-semibold text-[#3D2008] hover:bg-[#EDE7D9] transition cursor-pointer"
                         >
                             <span>{link.emoji}</span> {link.label}
-                            <span className="text-[#8a7e6e] text-[12px] ml-1">— {link.labelEn}</span>
                         </button>
                     ))}
                     <div className="pt-2 flex gap-2">
@@ -140,7 +141,7 @@ export default function Navbar({ onCtaClick }) {
                                 className="flex-1 py-2.5 rounded-full text-[13px] font-bold text-white cursor-pointer"
                                 style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
                             >
-                                무료로 시작하기
+                                {t('navbar.startFree')}
                             </button>
                         )}
                     </div>

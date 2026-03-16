@@ -1,20 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import Navbar from '../../components/common/Navbar';
 import Footer from '../../components/common/Footer';
 
-const BENEFITS = [
-    { icon: '🏛️', title: '가족 도메인', desc: 'yourfamily.orgcell.com 전용 주소' },
-    { icon: '🌳', title: '4세대 가계도', desc: '조부모부터 자녀까지 시각적 연결' },
-    { icon: '📸', title: '사진 2,000장', desc: '구글 드라이브에 원본 그대로 보관' },
-    { icon: '💬', title: '가족 채팅', desc: '가족만을 위한 프라이빗 채널' },
-    { icon: '📡', title: '라이브 공유 포함', desc: '모임·여행 사진 실시간 공유' },
-    { icon: '🔒', title: '원본 유출 없음', desc: 'Orgcell 서버에 사진 저장 안 함' },
-];
-
 export default function RedeemPage() {
+    const { t } = useTranslation();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const ref = searchParams.get('ref') || '';
@@ -33,12 +26,12 @@ export default function RedeemPage() {
         e.preventDefault();
         if (!code.trim()) {
             setStatus('error');
-            setMessage('이용권 코드를 입력해 주세요.');
+            setMessage(t('redeem.errorCode'));
             return;
         }
         if (!email.trim() || !email.includes('@')) {
             setStatus('error');
-            setMessage('이메일 주소를 정확히 입력해 주세요.');
+            setMessage(t('redeem.errorEmail'));
             return;
         }
         setStatus('loading');
@@ -83,11 +76,10 @@ export default function RedeemPage() {
                         <span style={{ fontSize: 32 }}>🌿</span>
                         <div>
                             <p style={{ fontWeight: 700, fontSize: 16, color: '#2a5a2a', marginBottom: 4 }}>
-                                ksarang.org에서 오셨군요! 환영합니다 👋
+                                {t('redeem.ksarangTitle')}
                             </p>
                             <p style={{ fontSize: 14, color: '#4a7a4a', lineHeight: 1.6 }}>
-                                추천인 5명을 소개하면 <strong>1년 무료</strong> 혜택이 적용됩니다.
-                                아래에 받은 이용권 코드를 입력하거나, 지금 바로 $10 플랜으로 시작해 보세요.
+                                {t('redeem.ksarangDesc')}
                             </p>
                         </div>
                     </div>
@@ -95,23 +87,23 @@ export default function RedeemPage() {
 
                 {/* 타이틀 */}
                 <h1 style={{ fontSize: 32, fontWeight: 800, marginBottom: 8 }}>
-                    이용권 등록
+                    {t('redeem.pageTitle')}
                 </h1>
                 <p style={{ fontSize: 15, color: '#5a6a3e', marginBottom: 40 }}>
-                    추천 코드 또는 이용권 코드를 입력해 Family Website를 시작하세요.
+                    {t('redeem.pageSubtitle')}
                 </p>
 
                 {/* 코드 입력 폼 */}
                 <form onSubmit={handleRedeem} style={{ marginBottom: 40 }}>
                     <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#3a4a2a', marginBottom: 8 }}>
-                        이용권 코드
+                        {t('redeem.codeLabel')}
                     </label>
                     <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
                         <input
                             type="text"
                             value={code}
                             onChange={(e) => { setCode(e.target.value.toUpperCase()); setStatus(null); }}
-                            placeholder="예: KSA-ABCD12"
+                            placeholder={t('redeem.codePlaceholder')}
                             style={{
                                 flex: 1,
                                 padding: '14px 18px',
@@ -125,14 +117,14 @@ export default function RedeemPage() {
                         />
                     </div>
                     <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#3a4a2a', marginBottom: 8 }}>
-                        이메일 주소
+                        {t('redeem.emailLabel')}
                     </label>
                     <div style={{ display: 'flex', gap: 10 }}>
                         <input
                             type="email"
                             value={email}
                             onChange={(e) => { setEmail(e.target.value); setStatus(null); }}
-                            placeholder="구독을 적용할 이메일"
+                            placeholder={t('redeem.emailPlaceholder')}
                             style={{
                                 flex: 1,
                                 padding: '14px 18px',
@@ -158,7 +150,7 @@ export default function RedeemPage() {
                                 whiteSpace: 'nowrap',
                             }}
                         >
-                            {status === 'loading' ? '확인 중…' : '코드 적용'}
+                            {status === 'loading' ? t('redeem.loading') : t('redeem.submitBtn')}
                         </button>
                     </div>
 
@@ -191,7 +183,7 @@ export default function RedeemPage() {
                                 cursor: 'pointer',
                             }}
                         >
-                            Family Website 만들기 →
+                            {t('redeem.successBtn')}
                         </button>
                     )}
                 </form>
@@ -201,7 +193,7 @@ export default function RedeemPage() {
 
                 {/* 혜택 요약 */}
                 <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20 }}>
-                    포함된 혜택
+                    {t('redeem.benefitsTitle')}
                 </h2>
                 <div
                     style={{
@@ -210,9 +202,16 @@ export default function RedeemPage() {
                         gap: 16,
                     }}
                 >
-                    {BENEFITS.map((b) => (
+                    {[
+                        { icon: '🏛️', titleKey: 'benefit1Title', descKey: 'benefit1Desc' },
+                        { icon: '🌳', titleKey: 'benefit2Title', descKey: 'benefit2Desc' },
+                        { icon: '📸', titleKey: 'benefit3Title', descKey: 'benefit3Desc' },
+                        { icon: '💬', titleKey: 'benefit4Title', descKey: 'benefit4Desc' },
+                        { icon: '📡', titleKey: 'benefit5Title', descKey: 'benefit5Desc' },
+                        { icon: '🔒', titleKey: 'benefit6Title', descKey: 'benefit6Desc' },
+                    ].map((b) => (
                         <div
-                            key={b.title}
+                            key={b.titleKey}
                             style={{
                                 background: 'white',
                                 border: '1px solid #e0eccc',
@@ -221,8 +220,8 @@ export default function RedeemPage() {
                             }}
                         >
                             <span style={{ fontSize: 26 }}>{b.icon}</span>
-                            <p style={{ fontWeight: 700, fontSize: 14, marginTop: 8, marginBottom: 4 }}>{b.title}</p>
-                            <p style={{ fontSize: 13, color: '#6a7a5a' }}>{b.desc}</p>
+                            <p style={{ fontWeight: 700, fontSize: 14, marginTop: 8, marginBottom: 4 }}>{t(`redeem.${b.titleKey}`)}</p>
+                            <p style={{ fontSize: 13, color: '#6a7a5a' }}>{t(`redeem.${b.descKey}`)}</p>
                         </div>
                     ))}
                 </div>
@@ -239,10 +238,10 @@ export default function RedeemPage() {
                     }}
                 >
                     <p style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>
-                        이용권이 없어도 바로 시작할 수 있어요
+                        {t('redeem.noVoucherTitle')}
                     </p>
                     <p style={{ fontSize: 14, color: '#5a6a4a', marginBottom: 24 }}>
-                        연 $10 · yourfamily.orgcell.com · 언제든 해지 가능
+                        {t('redeem.noVoucherPrice')}
                     </p>
                     <button
                         onClick={() => navigate('/family-website')}
@@ -257,7 +256,7 @@ export default function RedeemPage() {
                             cursor: 'pointer',
                         }}
                     >
-                        $10으로 시작하기 →
+                        {t('redeem.noVoucherBtn')}
                     </button>
                 </div>
             </main>

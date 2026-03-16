@@ -1,25 +1,23 @@
 import React, { useState, useCallback } from 'react';
 import axios from 'axios';
 import { Helmet } from 'react-helmet-async';
+import { useTranslation } from 'react-i18next';
 import useAuthStore from '../../store/authStore';
-import useUiStore from '../../store/uiStore';
 import LoginButton from '../auth/LoginButton';
 import MagicLinkAuth from '../auth/MagicLinkAuth';
 import LanguageSwitcher from '../common/LanguageSwitcher';
 import { useNavigate } from 'react-router-dom';
-import { getT } from '../../i18n/translations';
 import { ShieldCheck } from 'lucide-react';
 
 function LandingPage() {
+    const { t } = useTranslation();
     const devLogin = useAuthStore(state => state.devLogin);
     const isLoading = useAuthStore(state => state.isLoading);
     const token = useAuthStore(state => state.token);
     const user = useAuthStore(state => state.user);
-    const lang = useUiStore(state => state.lang);
     const [name, setName] = useState('Test User');
     const [email, setEmail] = useState('test@orgcell.com');
     const navigate = useNavigate();
-    const t = getT('landing', lang);
 
     const [newsletterEmail, setNewsletterEmail] = useState('');
     const [newsletterStatus, setNewsletterStatus] = useState(null); // null | 'loading' | 'success' | 'error'
@@ -110,7 +108,7 @@ function LandingPage() {
                 {/* 중앙: Orgcell + 태그라인 */}
                 <div className="flex flex-col items-center select-none -mb-1">
                     <span className="text-[46px] font-black text-[#5C3D1E] tracking-tight leading-none" style={{ fontFamily: 'Georgia, \"Times New Roman\", serif' }}>Orgcell<span className="text-[32px] text-[#8a7040]">.com</span></span>
-                    <span className="text-[13px] text-[#8a7e6e] italic tracking-wide leading-none mt-1" style={{ fontFamily: 'Georgia, serif' }}>{t.subtitle}</span>
+                    <span className="text-[13px] text-[#8a7e6e] italic tracking-wide leading-none mt-1" style={{ fontFamily: 'Georgia, serif' }}>{t('landing.subtitle')}</span>
                 </div>
 
                 {/* 우측: Sort, Sort, Share + Language */}
@@ -154,13 +152,13 @@ function LandingPage() {
                         {/* 원본: 상단에서 ~25% 지점 시작, 좌측 패딩 ~7% */}
                         <div className="pt-12 lg:pt-16 pl-8 lg:pl-10 pb-10 flex flex-col justify-center">
                             <h1 className="text-[#3D2008] tracking-tight" style={{ fontFamily: 'Georgia, \"Times New Roman\", serif', fontWeight: 800 }}>
-                                <span className="block whitespace-nowrap text-[clamp(2.4rem,5vw,3.6rem)] leading-[1.15]">{t.heroLine1}</span>
-                                <span className="block whitespace-nowrap text-[clamp(2.4rem,5vw,3.6rem)] leading-[1.15]">{t.heroLine2}</span>
+                                <span className="block whitespace-nowrap text-[clamp(2.4rem,5vw,3.6rem)] leading-[1.15]">{t('landing.heroLine1')}</span>
+                                <span className="block whitespace-nowrap text-[clamp(2.4rem,5vw,3.6rem)] leading-[1.15]">{t('landing.heroLine2')}</span>
                             </h1>
 
                             {/* 서브텍스트 — 원본: 제목 아래 ~15px */}
                             <p className="text-[#6b5d4d] text-[17px] mt-4 leading-relaxed" style={{ fontFamily: 'Georgia, serif' }}>
-                                {t.heroSub}
+                                {t('landing.heroSub')}
                             </p>
 
                             {/* CTA 버튼 2개 — 원본: 초록 둥근 + 흰색 테두리 둥근 */}
@@ -170,14 +168,14 @@ function LandingPage() {
                                     className="px-6 py-3 rounded-full font-bold text-[15px] shadow-md cursor-pointer transition-all hover:brightness-105 active:scale-95 whitespace-nowrap"
                                     style={{ background: '#8DB86B', color: '#fff' }}
                                 >
-                                    {t.ctaCreate}
+                                    {t('landing.ctaCreate')}
                                 </button>
                                 <button
                                     onClick={() => navigate('/family-website')}
                                     className="px-6 py-3 rounded-full font-bold text-[15px] cursor-pointer transition-all hover:bg-white whitespace-nowrap"
                                     style={{ background: '#fff', border: '1.5px solid #c5bfb3', color: '#4a4031' }}
                                 >
-                                    {t.ctaExplore}
+                                    {t('landing.ctaExplore')}
                                 </button>
                             </div>
                         </div>
@@ -228,8 +226,8 @@ function LandingPage() {
                                     style={{ filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.13))' }}
                                 />
                             </div>
-                            <h3 className="text-[15px] font-extrabold text-[#2d2435] mb-1" style={{ fontFamily: 'Georgia, serif' }}>{t.card1Title}</h3>
-                            <p className="text-[#5a5066] text-[12.5px] leading-[1.6]">{t.card1Desc}</p>
+                            <h3 className="text-[15px] font-extrabold text-[#2d2435] mb-1" style={{ fontFamily: 'Georgia, serif' }}>{t('landing.card1Title')}</h3>
+                            <p className="text-[#5a5066] text-[12.5px] leading-[1.6]">{t('landing.card1Desc')}</p>
                         </div>
                     </button>
 
@@ -252,8 +250,8 @@ function LandingPage() {
                                     style={{ filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.13))' }}
                                 />
                             </div>
-                            <h3 className="text-[15px] font-extrabold text-[#1e3020] mb-1" style={{ fontFamily: 'Georgia, serif' }}>{t.card2Title}</h3>
-                            <p className="text-[#485a49] text-[12.5px] leading-[1.6] mb-3">{t.card2Desc}</p>
+                            <h3 className="text-[15px] font-extrabold text-[#1e3020] mb-1" style={{ fontFamily: 'Georgia, serif' }}>{t('landing.card2Title')}</h3>
+                            <p className="text-[#485a49] text-[12.5px] leading-[1.6] mb-3">{t('landing.card2Desc')}</p>
 
                             {/* 가격 + CTA */}
                             <button
@@ -262,7 +260,7 @@ function LandingPage() {
                                 className="w-full py-2.5 rounded-full font-bold text-[13px] text-white transition-all hover:brightness-110 active:scale-95 cursor-pointer mb-2 disabled:opacity-60"
                                 style={{ background: 'linear-gradient(135deg, #4A7F4A, #3a6e3a)' }}
                             >
-                                {checkoutLoading ? '이동 중…' : '지금 시작하기 · 연 $10'}
+                                {checkoutLoading ? t('landing.checkoutLoading') : t('landing.checkoutCta')}
                             </button>
 
                             {/* 소개 무료 링크 */}
@@ -271,7 +269,7 @@ function LandingPage() {
                                 className="text-[11px] font-semibold leading-snug transition-all cursor-pointer hover:underline"
                                 style={{ color: '#3a6e3a' }}
                             >
-                                ksarang.org 5명 소개 시 무료 →
+                                {t('landing.referralCta')}
                             </button>
                         </div>
                     </div>
@@ -297,8 +295,8 @@ function LandingPage() {
                                     style={{ filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.13))' }}
                                 />
                             </div>
-                            <h3 className="text-[15px] font-extrabold text-[#1e2a38] mb-1" style={{ fontFamily: 'Georgia, serif' }}>{t.card3Title}</h3>
-                            <p className="text-[#4a5868] text-[12.5px] leading-[1.6]">{t.card3Desc}</p>
+                            <h3 className="text-[15px] font-extrabold text-[#1e2a38] mb-1" style={{ fontFamily: 'Georgia, serif' }}>{t('landing.card3Title')}</h3>
+                            <p className="text-[#4a5868] text-[12.5px] leading-[1.6]">{t('landing.card3Desc')}</p>
                         </div>
                     </button>
                 </div>
@@ -311,18 +309,18 @@ function LandingPage() {
                 <div className="text-center mb-10">
                     <span className="inline-block px-4 py-1.5 rounded-full text-[12px] font-bold tracking-widest uppercase mb-4"
                         style={{ background: '#EDE7D9', color: '#8a7040' }}>
-                        공감하시나요?
+                        {t('landing.problemLabel')}
                     </span>
                     <h2 className="text-[28px] font-bold text-[#3D2008] tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>
-                        사진 정리, 이렇게 힘드셨나요?
+                        {t('landing.problemTitle')}
                     </h2>
-                    <p className="text-[#8a7e6e] mt-2 text-sm">많은 가족이 겪는 사진 관리의 어려움</p>
+                    <p className="text-[#8a7e6e] mt-2 text-sm">{t('landing.problemSubtitle')}</p>
                 </div>
                 <div className="grid md:grid-cols-3 gap-5">
                     {[
-                        { emoji: '📸', title: '중복 사진이 너무 많아요', desc: '카카오톡, 이메일, USB... 이곳저곳에서 받은 같은 사진이 수백 장씩 쌓여 있습니다.' },
-                        { emoji: '📅', title: '언제 찍었는지 알 수가 없어요', desc: '2015년? 2018년? 파일명만 봐선 도저히 알 수 없는 사진들이 뒤섞여 있습니다.' },
-                        { emoji: '👨‍👩‍👧', title: '누가 나온 사진인지 찾기 어려워요', desc: '아이 사진을 찾으려면 수천 장을 일일이 넘겨야 합니다. 1시간이 순식간에 지나갑니다.' },
+                        { emoji: '📸', title: t('landing.problem1Title'), desc: t('landing.problem1Desc') },
+                        { emoji: '📅', title: t('landing.problem2Title'), desc: t('landing.problem2Desc') },
+                        { emoji: '👨‍👩‍👧', title: t('landing.problem3Title'), desc: t('landing.problem3Desc') },
                     ].map(({ emoji, title, desc }) => (
                         <div key={title} className="bg-white rounded-2xl p-6 shadow-sm border border-[#e8e2d6] text-center hover:shadow-md transition-shadow">
                             <div className="text-4xl mb-3">{emoji}</div>
@@ -333,7 +331,7 @@ function LandingPage() {
                 </div>
                 <div className="text-center mt-8">
                     <p className="text-[15px] font-semibold text-[#5C3D1E]" style={{ fontFamily: 'Georgia, serif' }}>
-                        Orgcell이 이 문제를 해결합니다.
+                        {t('landing.problemSolution')}
                     </p>
                 </div>
             </section>
@@ -343,24 +341,24 @@ function LandingPage() {
                 ================================================================ */}
             <section id="about-section" className="max-w-[960px] mx-auto px-6 pt-20 pb-12">
                 <div className="text-center mb-10">
-                    <h2 className="text-[28px] font-bold text-[#3D2008] tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>About Orgcell</h2>
-                    <p className="text-[#8a7e6e] mt-2 text-sm">A digital home for your family's memories</p>
+                    <h2 className="text-[28px] font-bold text-[#3D2008] tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>{t('landing.aboutTitle')}</h2>
+                    <p className="text-[#8a7e6e] mt-2 text-sm">{t('landing.aboutSubtitle')}</p>
                 </div>
                 <div className="grid md:grid-cols-3 gap-6">
                     <div className="bg-white/80 rounded-2xl p-6 shadow-sm border border-[#e8e2d6] text-center">
                         <div className="text-3xl mb-3">🌳</div>
-                        <h3 className="font-bold text-[#3D2008] mb-2 text-[15px]">Family Tree</h3>
-                        <p className="text-[#6b5d4d] text-[13px] leading-relaxed">Build a visual family tree connecting grandparents, parents, and children across 4+ generations.</p>
+                        <h3 className="font-bold text-[#3D2008] mb-2 text-[15px]">{t('landing.about1Title')}</h3>
+                        <p className="text-[#6b5d4d] text-[13px] leading-relaxed">{t('landing.about1Desc')}</p>
                     </div>
                     <div className="bg-white/80 rounded-2xl p-6 shadow-sm border border-[#e8e2d6] text-center">
                         <div className="text-3xl mb-3">📸</div>
-                        <h3 className="font-bold text-[#3D2008] mb-2 text-[15px]">Photo Archive</h3>
-                        <p className="text-[#6b5d4d] text-[13px] leading-relaxed">AI-powered photo sorting organizes your family photos by date, person, and event automatically.</p>
+                        <h3 className="font-bold text-[#3D2008] mb-2 text-[15px]">{t('landing.about2Title')}</h3>
+                        <p className="text-[#6b5d4d] text-[13px] leading-relaxed">{t('landing.about2Desc')}</p>
                     </div>
                     <div className="bg-white/80 rounded-2xl p-6 shadow-sm border border-[#e8e2d6] text-center">
                         <div className="text-3xl mb-3">🔒</div>
-                        <h3 className="font-bold text-[#3D2008] mb-2 text-[15px]">Your Data, Your Drive</h3>
-                        <p className="text-[#6b5d4d] text-[13px] leading-relaxed">All photos stay in your Google Drive. We never store your files — you own everything.</p>
+                        <h3 className="font-bold text-[#3D2008] mb-2 text-[15px]">{t('landing.about3Title')}</h3>
+                        <p className="text-[#6b5d4d] text-[13px] leading-relaxed">{t('landing.about3Desc')}</p>
                     </div>
                 </div>
             </section>
@@ -371,18 +369,18 @@ function LandingPage() {
             <section className="max-w-[960px] mx-auto px-6 pt-16 pb-4">
                 <div className="text-center mb-12">
                     <h2 className="text-[28px] font-bold text-[#3D2008] tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>
-                        3단계로 시작하세요
+                        {t('landing.howTitle')}
                     </h2>
-                    <p className="text-[#8a7e6e] mt-2 text-sm">복잡한 설치 없이, Google 계정 하나로 시작</p>
+                    <p className="text-[#8a7e6e] mt-2 text-sm">{t('landing.howSubtitle')}</p>
                 </div>
                 <div className="relative">
                     {/* Connecting line (desktop) */}
                     <div className="hidden md:block absolute top-10 left-[16.67%] right-[16.67%] h-0.5" style={{ background: 'linear-gradient(90deg, #d4a834, #8DB86B, #5b8fcd)' }} />
                     <div className="grid md:grid-cols-3 gap-8 relative z-10">
                         {[
-                            { step: '01', color: '#d4a834', bg: '#FFF8E8', emoji: '🔑', title: 'Google로 로그인', desc: 'Google 계정으로 안전하게 시작합니다. 비밀번호는 Orgcell에 전달되지 않습니다.' },
-                            { step: '02', color: '#8DB86B', bg: '#F0F8F0', emoji: '🤖', title: 'AI 서비스 선택', desc: 'AI 스마트 분류, 가족 웹사이트, 실시간 공유 중 원하는 서비스를 선택합니다.' },
-                            { step: '03', color: '#5b8fcd', bg: '#EEF4FF', emoji: '🎉', title: '가족과 함께 즐기기', desc: '정리된 사진을 가족 트리로 연결하고, 소중한 추억을 영원히 보관합니다.' },
+                            { step: '01', color: '#d4a834', bg: '#FFF8E8', emoji: '🔑', title: t('landing.step1Title'), desc: t('landing.step1Desc') },
+                            { step: '02', color: '#8DB86B', bg: '#F0F8F0', emoji: '🤖', title: t('landing.step2Title'), desc: t('landing.step2Desc') },
+                            { step: '03', color: '#5b8fcd', bg: '#EEF4FF', emoji: '🎉', title: t('landing.step3Title'), desc: t('landing.step3Desc') },
                         ].map(({ step, color, bg, emoji, title, desc }) => (
                             <div key={step} className="flex flex-col items-center text-center">
                                 <div className="w-20 h-20 rounded-full flex items-center justify-center text-3xl mb-4 shadow-sm"
@@ -405,10 +403,12 @@ function LandingPage() {
                 <div className="rounded-[22px] p-8 text-center"
                     style={{ background: 'linear-gradient(135deg, #f0ebe0 0%, #ede7da 100%)', border: '1px solid #e3ddd0' }}>
                     <h2 className="text-[22px] font-bold text-[#2a1c08] mb-2" style={{ fontFamily: 'Georgia, serif' }}>
-                        먼저 소식 받아보기
+                        {t('landing.newsletterTitle')}
                     </h2>
                     <p className="text-[#7a6e5e] text-[13px] mb-6 leading-relaxed">
-                        신규 기능과 업데이트를 가장 먼저 알려드립니다.<br />스팸 없이, 중요한 소식만 드립니다.
+                        {t('landing.newsletterSubtitle').split('\n').map((line, i) => (
+                            <React.Fragment key={i}>{line}{i === 0 && <br />}</React.Fragment>
+                        ))}
                     </p>
                     <form
                         onSubmit={handleNewsletterSubmit}
@@ -418,7 +418,7 @@ function LandingPage() {
                             type="email"
                             value={newsletterEmail}
                             onChange={(e) => { setNewsletterEmail(e.target.value); setNewsletterStatus(null); }}
-                            placeholder="이메일 주소를 입력하세요"
+                            placeholder={t('landing.newsletterPlaceholder')}
                             required
                             disabled={newsletterStatus === 'loading' || newsletterStatus === 'success'}
                             className="flex-1 px-4 py-3 rounded-full text-[14px] outline-none border focus:ring-2"
@@ -430,7 +430,7 @@ function LandingPage() {
                             className="px-6 py-3 rounded-full font-bold text-[14px] text-white cursor-pointer transition-all hover:brightness-105 active:scale-95 whitespace-nowrap disabled:opacity-60"
                             style={{ background: '#8DB86B' }}
                         >
-                            {newsletterStatus === 'loading' ? '처리 중…' : '소식 받기'}
+                            {newsletterStatus === 'loading' ? t('landing.newsletterLoading') : t('landing.newsletterBtn')}
                         </button>
                     </form>
                     {newsletterStatus && (
@@ -438,7 +438,7 @@ function LandingPage() {
                             {newsletterMsg}
                         </p>
                     )}
-                    <p className="text-[11px] text-[#a09080] mt-3">이메일은 뉴스레터 발송 외 다른 용도로 사용하지 않습니다.</p>
+                    <p className="text-[11px] text-[#a09080] mt-3">{t('landing.newsletterPrivacy')}</p>
                 </div>
             </section>
 
@@ -447,29 +447,29 @@ function LandingPage() {
                 ================================================================ */}
             <section id="qa-section" className="max-w-[800px] mx-auto px-6 pt-12 pb-16">
                 <div className="text-center mb-10">
-                    <h2 className="text-[28px] font-bold text-[#3D2008] tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>Frequently Asked Questions</h2>
-                    <p className="text-[#8a7e6e] mt-2 text-sm">가장 많이 묻는 질문들 (Q&A)</p>
+                    <h2 className="text-[28px] font-bold text-[#3D2008] tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>{t('landing.faqTitle')}</h2>
+                    <p className="text-[#8a7e6e] mt-2 text-sm">{t('landing.faqSubtitle')}</p>
                 </div>
                 <div className="space-y-4">
                     {/* Q1 */}
                     <div className="bg-white/80 rounded-2xl p-6 shadow-sm border border-[#e8e2d6]">
-                        <h3 className="font-bold text-[#3D2008] text-[15px] mb-2 flex gap-2 items-start"><span className="text-amber-600">Q.</span> Orgcell은 제 구글 드라이브와 연결되는데, 제 사진을 직접 보관하는 건 아닌가요?</h3>
+                        <h3 className="font-bold text-[#3D2008] text-[15px] mb-2 flex gap-2 items-start"><span className="text-amber-600">Q.</span> {t('landing.faq1Q')}</h3>
                         <div className="text-[#6b5d4d] text-[13.5px] leading-relaxed pl-6">
-                            <span className="font-bold text-[#3D2008]">A. 네, 그렇습니다!</span> Orgcell 서버에는 고객님의 사진이나 동영상이 단 1픽셀도 저장되지 않습니다. 저희는 가계도 뼈대(설계도)와 폴더 이름표 정보만 가질 뿐, 실제 가족 사진이나 귀중한 파일들은 <strong className="text-[#4a3e2e]">100% 고객님의 구글 드라이브(Google 서버)</strong>에만 안전하게 보관됩니다. 박물관(Orgcell)은 액자일 뿐, 그 안의 그림(사진)은 언제나 고객님의 금고(Google)에 있습니다.
+                            <span className="font-bold text-[#3D2008]">A. {t('landing.faq1AHead')}</span> {t('landing.faq1A')}
                         </div>
                     </div>
                     {/* Q2 */}
                     <div className="bg-white/80 rounded-2xl p-6 shadow-sm border border-[#e8e2d6]">
-                        <h3 className="font-bold text-[#3D2008] text-[15px] mb-2 flex gap-2 items-start"><span className="text-amber-600">Q.</span> 그럼 로그인할 때 제 구글 아이디나 비밀번호를 Orgcell이 알게 되는 건가요?</h3>
+                        <h3 className="font-bold text-[#3D2008] text-[15px] mb-2 flex gap-2 items-start"><span className="text-amber-600">Q.</span> {t('landing.faq2Q')}</h3>
                         <div className="text-[#6b5d4d] text-[13.5px] leading-relaxed pl-6">
-                            <span className="font-bold text-[#3D2008]">A. 절대 그렇지 않습니다!</span> Orgcell은 고객님의 구글 비밀번호를 알 수 없습니다. 로그인 창은 가짜 창이 아닌 <strong className="text-[#4a3e2e]">진짜 구글(Google.com)의 공식 로그인 페이지</strong>입니다. 로그인이 성공하면 구글이 저희에게 "임시 출입증(토큰)"만 건네줍니다. 비밀번호는 누구에게도 전혀 노출되지 않으며, 언제든 구글 계정 설정에서 클릭 한 번으로 Orgcell의 출입증을 휴지통에 버리고 연동을 끊어버릴 수 있습니다.
+                            <span className="font-bold text-[#3D2008]">A. {t('landing.faq2AHead')}</span> {t('landing.faq2A')}
                         </div>
                     </div>
                     {/* Q3 */}
                     <div className="bg-white/80 rounded-2xl p-6 shadow-sm border border-[#e8e2d6]">
-                        <h3 className="font-bold text-[#3D2008] text-[15px] mb-2 flex gap-2 items-start"><span className="text-amber-600">Q.</span> 자녀가 독립해서 자기만의 Family Website를 꾸렸을 때, 본가와 연결할 수도 있나요?</h3>
+                        <h3 className="font-bold text-[#3D2008] text-[15px] mb-2 flex gap-2 items-start"><span className="text-amber-600">Q.</span> {t('landing.faq3Q')}</h3>
                         <div className="text-[#6b5d4d] text-[13.5px] leading-relaxed pl-6">
-                            <span className="font-bold text-[#3D2008]">A. 물론입니다.</span> 자녀는 자신의 계정으로 만든 독립된 도메인(예: child.orgcell.com)을 가질 수 있습니다. 부모님이 본가 가계도에서 자녀 노드에 '독립 도메인 주소'를 입력하고 자녀가 승인하면, 두 구글 드라이브 간 <strong className="text-[#4a3e2e]">웜홀(Wormhole) 라우팅</strong>이 개통됩니다. 가계도를 타고 서로의 박물관을 유기적으로 넘나들 수 있는 완벽한 분리형 데이터 연동을 지원합니다.
+                            <span className="font-bold text-[#3D2008]">A. {t('landing.faq3AHead')}</span> {t('landing.faq3A')}
                         </div>
                     </div>
                 </div>
@@ -506,7 +506,7 @@ function LandingPage() {
                     {/* 우측 텍스트 + 로그인 */}
                     <div className="flex-1 text-center md:text-left">
                         <h2 className="text-[22px] font-bold text-[#2a1c08] tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>
-                            {t.getStarted}
+                            {t('landing.getStarted')}
                         </h2>
                         <p className="text-[#7a6e5e] text-[13px] mt-1 mb-4 leading-relaxed">
                             Google Drive integrate with a secure Google{' '}

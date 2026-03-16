@@ -23,6 +23,8 @@ const useUiStore = create((set) => ({
     lang: localStorage.getItem('orgcell_lang') || 'en',
     setLang: (lang) => set(() => {
         localStorage.setItem('orgcell_lang', lang);
+        // Sync with i18next (imported lazily to avoid circular deps)
+        import('i18next').then(({ default: i18n }) => i18n.changeLanguage(lang));
         return { lang };
     }),
 

@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
+import { useTranslation } from 'react-i18next';
 import Navbar from '../../components/common/Navbar';
 import Footer from '../../components/common/Footer';
 import { Globe, Lock, Users, FolderTree, Shield, Star, ArrowRight, Crown, Image } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 
 const FamilyWebsitePage = () => {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const token = useAuthStore(s => s.token);
     const user = useAuthStore(s => s.user);
@@ -69,7 +71,7 @@ const FamilyWebsitePage = () => {
                 <div className="max-w-[1040px] mx-auto">
                     {/* Breadcrumb */}
                     <div className="text-[13px] font-semibold mb-6" style={{ color: '#7A6E5E' }}>
-                        Orgcell &gt; 가족 웹사이트
+                        {t('familyWebsite.breadcrumb')}
                     </div>
 
                     {/* Domain badge */}
@@ -90,7 +92,9 @@ const FamilyWebsitePage = () => {
                             color: '#1E2A0E',
                         }}
                     >
-                        가족만을 위한<br />나만의 디지털 공간
+                        {t('familyWebsite.headline').split('\n').map((line, i, arr) => (
+                            <React.Fragment key={i}>{line}{i < arr.length - 1 && <br />}</React.Fragment>
+                        ))}
                     </h1>
 
                     {/* Subheading */}
@@ -102,7 +106,7 @@ const FamilyWebsitePage = () => {
                             color: '#5A6E4E',
                         }}
                     >
-                        연 <strong style={{ color: '#1E2A0E' }}>$10</strong>으로 온 가족이 언제 어디서나 접속할 수 있는 프라이빗 가족 박물관을 만드세요
+                        {t('familyWebsite.subheadline')}
                     </p>
 
                     {/* CTA Buttons */}
@@ -113,14 +117,14 @@ const FamilyWebsitePage = () => {
                             className="px-8 py-3 rounded-full font-bold text-[14px] transition-all hover:brightness-110 active:scale-95 text-white disabled:opacity-60"
                             style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
                         >
-                            {checkoutLoading ? '이동 중…' : '지금 시작하기 · 연 $10'}
+                            {checkoutLoading ? t('familyWebsite.loading') : t('familyWebsite.ctaStart')}
                         </button>
                         <button
                             onClick={() => navigate('/family-website')}
                             className="px-8 py-3 rounded-full font-bold text-[14px] transition-all"
                             style={{ background: 'transparent', border: '2px solid #5A9460', color: '#5A9460' }}
                         >
-                            예시 보기
+                            {t('familyWebsite.ctaPreview')}
                         </button>
                     </div>
 
@@ -131,13 +135,13 @@ const FamilyWebsitePage = () => {
                             className="text-[13px] font-semibold transition-all cursor-pointer hover:underline"
                             style={{ color: '#4A7F4A' }}
                         >
-                            ksarang.org에서 5명을 소개하면 무료로 이용할 수 있습니다 →
+                            {t('familyWebsite.referral')}
                         </button>
                     </div>
 
                     {/* Stat Pills */}
                     <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
-                        {['Google Drive 사진 무제한', '가족 전용 서브도메인', '연 $10 · 카드 등록 없음'].map((stat, i) => (
+                        {[t('familyWebsite.stat1'), t('familyWebsite.stat2'), t('familyWebsite.stat3')].map((stat, i) => (
                             <div
                                 key={i}
                                 className="px-4 py-2 rounded-full text-[13px] font-semibold"
@@ -166,10 +170,10 @@ const FamilyWebsitePage = () => {
                             color: '#1E2A0E',
                         }}
                     >
-                        당신의 사진은 당신의 것입니다
+                        {t('familyWebsite.privacyTitle')}
                     </h2>
                     <p className="text-center mb-12 max-w-2xl mx-auto" style={{ color: '#7A6E5E', fontSize: '15px' }}>
-                        프라이버시를 최우선으로 설계된 가족 박물관
+                        {t('familyWebsite.privacySubtitle')}
                     </p>
 
                     {/* Privacy Pillars */}
@@ -177,18 +181,18 @@ const FamilyWebsitePage = () => {
                         {[
                             {
                                 icon: Lock,
-                                title: 'BYOS 저장 방식',
-                                desc: '사진은 100% 고객님의 Google Drive에 저장됩니다. Orgcell 서버에는 단 1픽셀도 없습니다',
+                                title: t('familyWebsite.byosTitle'),
+                                desc: t('familyWebsite.byosDesc'),
                             },
                             {
                                 icon: Users,
-                                title: '개인 폴더 보호',
-                                desc: '내 개인 폴더는 본인만 열 수 있습니다. 관리자도 동의 없이 접근 불가',
+                                title: t('familyWebsite.privateFoldersTitle'),
+                                desc: t('familyWebsite.privateFoldersDesc'),
                             },
                             {
                                 icon: Shield,
-                                title: '가족 인증',
-                                desc: '초대받은 가족만 입장 가능. QR코드 또는 링크로 안전하게 초대',
+                                title: t('familyWebsite.familyAuthTitle'),
+                                desc: t('familyWebsite.familyAuthDesc'),
                             },
                         ].map((pillar, i) => {
                             const Icon = pillar.icon;
@@ -218,7 +222,7 @@ const FamilyWebsitePage = () => {
                                 fontFamily: 'Georgia, serif',
                             }}
                         >
-                            "우리는 사진을 소유하지 않고, 연결만 합니다."
+                            {t('familyWebsite.quote')}
                         </p>
                     </div>
                 </div>
@@ -236,18 +240,18 @@ const FamilyWebsitePage = () => {
                             color: '#1E2A0E',
                         }}
                     >
-                        가족 박물관이 제공하는 것들
+                        {t('familyWebsite.featuresTitle')}
                     </h2>
 
                     {/* Features Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
                         {[
-                            { icon: Globe, title: '전용 서브도메인', desc: 'yourfamily.orgcell.com 나만의 주소' },
-                            { icon: FolderTree, title: '가족 트리', desc: '4세대 이상을 시각적으로 연결하는 가계도' },
-                            { icon: Image, title: '그룹 앨범', desc: '가족 공통 사진 공간과 개인 갤러리를 분리 관리' },
-                            { icon: Crown, title: 'Admin 관리', desc: '가족 관계 추가/삭제, 폴더 관리 권한' },
-                            { icon: Star, title: '앱처럼 설치', desc: '클릭 한 번으로 모든 가족 기기에 앱 아이콘 설치' },
-                            { icon: Users, title: '가족 채팅방', desc: '도메인 메인 화면에서 바로 소통' },
+                            { icon: Globe, title: t('familyWebsite.feature1Title'), desc: t('familyWebsite.feature1Desc') },
+                            { icon: FolderTree, title: t('familyWebsite.feature2Title'), desc: t('familyWebsite.feature2Desc') },
+                            { icon: Image, title: t('familyWebsite.feature3Title'), desc: t('familyWebsite.feature3Desc') },
+                            { icon: Crown, title: t('familyWebsite.feature4Title'), desc: t('familyWebsite.feature4Desc') },
+                            { icon: Star, title: t('familyWebsite.feature5Title'), desc: t('familyWebsite.feature5Desc') },
+                            { icon: Users, title: t('familyWebsite.feature6Title'), desc: t('familyWebsite.feature6Desc') },
                         ].map((feature, i) => {
                             const Icon = feature.icon;
                             return (
@@ -271,10 +275,10 @@ const FamilyWebsitePage = () => {
                         className="mb-3"
                         style={{ fontSize: '32px', fontWeight: '700', fontFamily: 'Georgia, serif', color: '#1E2A0E' }}
                     >
-                        심플한 요금제
+                        {t('familyWebsite.pricingTitle')}
                     </h2>
                     <p className="mb-10" style={{ color: '#7A6E5E', fontSize: '15px' }}>
-                        숨겨진 비용 없이, 딱 하나의 플랜만 있습니다
+                        {t('familyWebsite.pricingSubtitle')}
                     </p>
 
                     {/* Single pricing card */}
@@ -290,17 +294,17 @@ const FamilyWebsitePage = () => {
                         <div className="mb-2">
                             <span style={{ fontSize: '64px', fontWeight: '800', color: '#1E2A0E', fontFamily: 'Georgia, serif', lineHeight: 1 }}>$10</span>
                         </div>
-                        <p className="mb-8" style={{ color: '#7A6E5E', fontSize: '14px' }}>/ 년 · yourfamily.orgcell.com</p>
+                        <p className="mb-8" style={{ color: '#7A6E5E', fontSize: '14px' }}>{t('familyWebsite.priceYearLabel')}</p>
 
                         {/* Features */}
                         <ul className="text-left space-y-3 mb-8 max-w-[300px] mx-auto">
                             {[
-                                '가족 전용 서브도메인',
-                                'Google Drive 사진 무제한 연결',
-                                '4세대 가계도 + 그룹 앨범',
-                                'Admin 관리 + 가족 초대',
-                                '앱 아이콘 설치 링크',
-                                '가족 채팅방',
+                                t('familyWebsite.priceFeature1'),
+                                t('familyWebsite.priceFeature2'),
+                                t('familyWebsite.priceFeature3'),
+                                t('familyWebsite.priceFeature4'),
+                                t('familyWebsite.priceFeature5'),
+                                t('familyWebsite.priceFeature6'),
                             ].map(f => (
                                 <li key={f} className="flex items-center gap-2.5 text-[14px]" style={{ color: '#1E2A0E' }}>
                                     <span style={{ color: '#5A9460', fontWeight: '700', flexShrink: 0 }}>✓</span>
@@ -316,7 +320,7 @@ const FamilyWebsitePage = () => {
                             className="w-full py-4 rounded-full font-bold text-[15px] text-white transition-all hover:brightness-110 active:scale-95 cursor-pointer disabled:opacity-60"
                             style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
                         >
-                            {checkoutLoading ? '이동 중…' : '지금 시작하기 · 연 $10'}
+                            {checkoutLoading ? t('familyWebsite.loading') : t('familyWebsite.ctaStart')}
                         </button>
                     </div>
 
@@ -326,7 +330,7 @@ const FamilyWebsitePage = () => {
                         className="text-[13.5px] font-semibold transition-all cursor-pointer hover:underline"
                         style={{ color: '#4A7F4A' }}
                     >
-                        ksarang.org에서 5명을 소개하면 무료로 이용할 수 있습니다 →
+                        {t('familyWebsite.referral')}
                     </button>
                 </div>
             </section>
@@ -343,10 +347,10 @@ const FamilyWebsitePage = () => {
                             color: '#1E2A0E',
                         }}
                     >
-                        가계도로 연결되는 우리 가족
+                        {t('familyWebsite.treeTitle')}
                     </h2>
                     <p className="text-center mb-12 max-w-2xl mx-auto" style={{ color: '#7A6E5E', fontSize: '15px' }}>
-                        증조부모부터 증손주까지, 4세대 이상의 가족 역사를 한눈에
+                        {t('familyWebsite.treeSubtitle')}
                     </p>
 
                     {/* Family Tree Mockup */}
@@ -419,7 +423,7 @@ const FamilyWebsitePage = () => {
                     </div>
 
                     <p className="text-center" style={{ color: '#7A6E5E', fontSize: '14px' }}>
-                        각 구성원은 자신의 사진 폴더와 갤러리를 가집니다
+                        {t('familyWebsite.memberDesc')}
                     </p>
                 </div>
             </section>
@@ -442,10 +446,10 @@ const FamilyWebsitePage = () => {
                             color: '#FAFAF7',
                         }}
                     >
-                        가족의 역사를 지금 시작하세요
+                        {t('familyWebsite.finalCtaTitle')}
                     </h2>
                     <p className="mb-8 max-w-2xl mx-auto" style={{ color: '#C8B998', fontSize: '15px' }}>
-                        가입 후 즉시 yourfamily.orgcell.com 도메인을 만들 수 있습니다
+                        {t('familyWebsite.finalCtaSubtitle')}
                     </p>
 
                     <button
@@ -454,13 +458,9 @@ const FamilyWebsitePage = () => {
                         className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-bold text-[15px] transition-all hover:brightness-110 active:scale-95 text-white cursor-pointer disabled:opacity-60"
                         style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
                     >
-                        {checkoutLoading ? '이동 중…' : '지금 시작하기 · 연 $10'}
+                        {checkoutLoading ? t('familyWebsite.loading') : t('familyWebsite.googleStart')}
                         {!checkoutLoading && <ArrowRight size={18} />}
                     </button>
-
-                    <p className="mt-4" style={{ color: '#A89880', fontSize: '13px' }}>
-                        Google 계정으로 시작 · 도메인 등록은 가입 후 진행
-                    </p>
 
                     <div className="mt-4">
                         <button
@@ -468,7 +468,7 @@ const FamilyWebsitePage = () => {
                             className="text-[13px] font-semibold transition-all cursor-pointer hover:underline"
                             style={{ color: '#8DC88D' }}
                         >
-                            ksarang.org에서 5명을 소개하면 무료로 이용할 수 있습니다 →
+                            {t('familyWebsite.referral')}
                         </button>
                     </div>
                 </div>

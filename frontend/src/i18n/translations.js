@@ -1,7 +1,7 @@
 // Shared translations for all Orgcell views
-// Languages: en (English), es (Español), ko (한국어), hi (हिन्दी)
+// Languages: en (English), ko (한국어), ja (日本語), zh-CN (中文), es (Español)
 
-export const langLabels = { en: 'English', es: 'Español', ko: '한국어', hi: 'हिन्दी' };
+export const langLabels = { en: 'English', ko: '한국어', ja: '日本語', 'zh-CN': '中文', es: 'Español' };
 
 const translations = {
     // ─── Landing Page ───
