@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Globe, Search, Lock, ShieldCheck, CreditCard, Check, Copy, Share2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Globe, Search, Lock, ShieldCheck, CreditCard, Check, Copy, Share2, Mail, MessageCircle, Link2 } from 'lucide-react';
 import FamilyTreeView from '../../components/museum/FamilyTreeView';
 import AdBanner from '../../components/common/AdBanner';
 import LanguageSwitcher from '../../components/common/LanguageSwitcher';
@@ -21,7 +21,97 @@ export default function FamilyWebsiteView() {
     const [paymentDone, setPaymentDone] = useState(false);
     const [adminKey, setAdminKey] = useState('');
     const [selectedPlan, setSelectedPlan] = useState('annual');
+    const [toast, setToast] = useState('');
     const navigate = useNavigate();
+
+    // Kakao SDK init
+    useEffect(() => {
+        const kakaoKey = import.meta.env.VITE_KAKAO_APP_KEY || '';
+        if (kakaoKey && window.Kakao && !window.Kakao.isInitialized()) {
+            window.Kakao.init(kakaoKey);
+        }
+    }, []);
+
+    const shareUrl = `https://${subdomain || 'your-family'}.orgcell.com`;
+    const shareTitle = t.shareInviteTitle || 'You are invited to our Family Museum';
+    const shareDesc = t.shareInviteDesc || 'Share precious family moments together on orgcell.com';
+
+    const showToast = (msg) => {
+        setToast(msg);
+        setTimeout(() => setToast(''), 2500);
+    };
+
+    const handleCopyLink = () => {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            showToast(t.linkCopiedToast || 'Link copied!');
+        }).catch(() => {
+            showToast('Copy failed');
+        });
+    };
+
+    const handleShareEmail = () => {
+        const subject = encodeURIComponent(shareTitle);
+        const body = encodeURIComponent(`${shareDesc}\n\n${shareUrl}`);
+        window.open(`mailto:?subject=${subject}&body=${body}`, '_self');
+    };
+
+    const handleShareSMS = () => {
+        const text = `${shareTitle} - ${shareUrl}`;
+        if (navigator.share) {
+            navigator.share({ title: shareTitle, text: shareDesc, url: shareUrl }).catch(() => {});
+        } else {
+            window.open(`sms:?body=${encodeURIComponent(text)}`, '_self');
+        }
+    };
+
+    const handleShareSNS = () => {
+        const encoded = encodeURIComponent(shareUrl);
+        const textEncoded = encodeURIComponent(`${shareTitle} ${shareUrl}`);
+
+        if (lang === 'ko') {
+            // 카카오톡
+            if (window.Kakao && window.Kakao.isInitialized()) {
+                window.Kakao.Share.sendDefault({
+                    objectType: 'feed',
+                    content: {
+                        title: shareTitle,
+                        description: shareDesc,
+                        imageUrl: 'https://orgcell.com/pwa-512x512.png',
+                        link: { mobileWebUrl: shareUrl, webUrl: shareUrl },
+                    },
+                    buttons: [{ title: t.shareOpenBtn || 'Open', link: { mobileWebUrl: shareUrl, webUrl: shareUrl } }],
+                });
+            } else {
+                window.open(`https://story.kakao.com/share?url=${encoded}`, '_blank');
+            }
+        } else if (lang === 'ja') {
+            // LINE + Twitter(X)
+            window.open(`https://social-plugins.line.me/lineit/share?url=${encoded}`, '_blank');
+        } else if (lang === 'zh-CN' || lang === 'zh') {
+            // WeChat QR + Weibo
+            window.open(`https://service.weibo.com/share/share.php?url=${encoded}&title=${encodeURIComponent(shareTitle)}`, '_blank');
+        } else if (lang === 'es') {
+            // WhatsApp
+            window.open(`https://wa.me/?text=${textEncoded}`, '_blank');
+        } else {
+            // en, hi, default → Facebook
+            window.open(`https://www.facebook.com/sharer/sharer.php?u=${encoded}`, '_blank');
+        }
+    };
+
+    const getSNSLabel = () => {
+        if (lang === 'ko') return t.shareKakao || 'KakaoTalk';
+        if (lang === 'ja') return t.shareLINE || 'LINE';
+        if (lang === 'zh-CN' || lang === 'zh') return t.shareWeibo || 'Weibo';
+        if (lang === 'es') return t.shareWhatsApp || 'WhatsApp';
+        return t.shareFacebook || 'Facebook';
+    };
+
+    const getSNSIcon = () => {
+        // Simple colored circle with initial letter
+        const labels = { ko: '💬', ja: '💚', 'zh-CN': '🔴', zh: '🔴', es: '💬' };
+        return labels[lang] || '📘';
+    };
 
     const handlePayment = async () => {
         if (!subdomain || subdomain.length < 3 || !isAvailable) {
@@ -443,26 +533,29 @@ export default function FamilyWebsiteView() {
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-3 mt-4">
-                                    <button onClick={() => {
-                                        navigator.clipboard.writeText(`https://${subdomain || 'your-family'}.orgcell.com`);
-                                        alert(t.copied);
-                                    }}
+                                    {/* 1. 링크 복사 */}
+                                    <button onClick={handleCopyLink}
                                         className="py-3 rounded-xl font-bold transition-colors text-sm flex items-center justify-center gap-2"
                                         style={{ background: '#e8e0d0', color: '#5a5040' }}>
-                                        <Copy size={16} /> {t.copyLink}
+                                        <Link2 size={16} /> {t.copyLink || 'Copy Link'}
                                     </button>
-                                    <button onClick={() => {
-                                        const url = `https://${subdomain || 'your-family'}.orgcell.com`;
-                                        const text = `${t.heroTitle || 'Family can be together forever'} - ${url}`;
-                                        if (navigator.share) {
-                                            navigator.share({ title: 'Orgcell Family', text, url }).catch(() => {});
-                                        } else {
-                                            window.open(`sms:?body=${encodeURIComponent(text)}`, '_self');
-                                        }
-                                    }}
+                                    {/* 2. 이메일 */}
+                                    <button onClick={handleShareEmail}
                                         className="py-3 rounded-xl font-bold transition-colors text-sm flex items-center justify-center gap-2"
                                         style={{ background: '#e8e0d0', color: '#5a5040' }}>
-                                        <Share2 size={16} /> {t.shareSMS}
+                                        <Mail size={16} /> {t.shareEmail || 'Email'}
+                                    </button>
+                                    {/* 3. 문자/SMS */}
+                                    <button onClick={handleShareSMS}
+                                        className="py-3 rounded-xl font-bold transition-colors text-sm flex items-center justify-center gap-2"
+                                        style={{ background: '#e8e0d0', color: '#5a5040' }}>
+                                        <MessageCircle size={16} /> {t.shareSMS || 'SMS'}
+                                    </button>
+                                    {/* 4. SNS (언어별) */}
+                                    <button onClick={handleShareSNS}
+                                        className="py-3 rounded-xl font-bold transition-colors text-sm flex items-center justify-center gap-2"
+                                        style={{ background: '#e8e0d0', color: '#5a5040' }}>
+                                        <span className="text-base leading-none">{getSNSIcon()}</span> {getSNSLabel()}
                                     </button>
                                 </div>
 
@@ -479,6 +572,14 @@ export default function FamilyWebsiteView() {
                             </div>
                         )}
                     </div>
+                </div>
+            )}
+
+            {/* ══ Toast ══ */}
+            {toast && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] px-6 py-3 rounded-xl shadow-lg text-sm font-bold animate-bounce"
+                    style={{ background: '#3a3a2a', color: '#ffffff' }}>
+                    {toast}
                 </div>
             )}
         </div>
