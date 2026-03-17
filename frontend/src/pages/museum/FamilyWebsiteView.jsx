@@ -560,7 +560,7 @@ export default function FamilyWebsiteView() {
                                 </div>
 
                                 <p className="text-sm" style={{ color: '#8a8a7a' }}>{t.setupDesc}<br />{t.setupAction}</p>
-                                <button onClick={() => { setShowPayment(false); navigate('/family-dashboard'); }}
+                                <button onClick={() => { setShowPayment(false); navigate('/museum'); }}
                                     className="w-full py-4 mt-2 rounded-xl font-bold transition-colors hover:brightness-105"
                                     style={{
                                         background: 'linear-gradient(135deg, #3a8a3a 0%, #2a7a2a 100%)',
