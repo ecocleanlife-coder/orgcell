@@ -1,7 +1,7 @@
 -- ─── 전시관 (exhibitions) ───
 CREATE TABLE IF NOT EXISTS exhibitions (
     id SERIAL PRIMARY KEY,
-    site_id INTEGER NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    site_id INTEGER NOT NULL REFERENCES family_sites(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
     description TEXT,
     visibility VARCHAR(20) NOT NULL DEFAULT 'family' CHECK (visibility IN ('public', 'family')),
@@ -29,7 +29,7 @@ CREATE INDEX IF NOT EXISTS idx_guestbooks_exhibition_id ON guestbooks(exhibition
 -- ─── 가족 게시판 글 (board_posts) ───
 CREATE TABLE IF NOT EXISTS board_posts (
     id SERIAL PRIMARY KEY,
-    site_id INTEGER NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    site_id INTEGER NOT NULL REFERENCES family_sites(id) ON DELETE CASCADE,
     category VARCHAR(50) NOT NULL DEFAULT 'daily' CHECK (category IN ('notice', 'daily', 'event', 'memory')),
     title VARCHAR(255) NOT NULL,
     content TEXT NOT NULL,
