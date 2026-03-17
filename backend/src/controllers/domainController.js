@@ -41,17 +41,34 @@ exports.checkDomain = async (req, res) => {
 exports.registerDomain = async (req, res) => {
     try {
         const { subdomain } = req.body;
-        const userId = req.user ? req.user.id : null; // Assuming authMiddleware sets req.user
+        const userId = req.user ? req.user.id : null;
 
         if (!subdomain) {
             return res.status(400).json({ success: false, message: 'Subdomain is required' });
         }
 
-        // Check availability again to prevent race conditions
-        const checkResult = await db.query('SELECT id FROM domains WHERE subdomain = $1', [subdomain]);
-        if (checkResult.rows.length > 0) {
+        // Ensure domains table exists
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS domains (
+                id SERIAL PRIMARY KEY,
+                subdomain VARCHAR(255) UNIQUE NOT NULL,
+                admin_key VARCHAR(50) UNIQUE NOT NULL,
+                user_id INTEGER,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Check availability (both tables)
+        const r1 = await db.query('SELECT id FROM domains WHERE subdomain = $1', [subdomain]);
+        if (r1.rows.length > 0) {
             return res.status(400).json({ success: false, message: 'Domain is already taken' });
         }
+        try {
+            const r2 = await db.query('SELECT id FROM family_sites WHERE subdomain = $1', [subdomain]);
+            if (r2.rows.length > 0) {
+                return res.status(400).json({ success: false, message: 'Domain is already taken' });
+            }
+        } catch (e) { /* family_sites may not exist */ }
 
         // Generate Admin Key (e.g., ORG-FD-1A2B3C)
         const adminKey = 'ORG-FD-' + crypto.randomBytes(3).toString('hex').toUpperCase();

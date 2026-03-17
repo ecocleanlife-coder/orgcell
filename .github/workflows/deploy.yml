@@ -240,6 +240,10 @@ jobs:
             # ── Run DB migrations (idempotent — safe to run every deploy) ──
             echo "Running DB migrations..."
             docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "CREATE TABLE IF NOT EXISTS domains (id SERIAL PRIMARY KEY, subdomain VARCHAR(255) UNIQUE NOT NULL, admin_key VARCHAR(50) UNIQUE NOT NULL, user_id INTEGER, created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_domains_subdomain ON domains(subdomain);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_domains_admin_key ON domains(admin_key);"
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
               -c "CREATE TABLE IF NOT EXISTS families (id SERIAL PRIMARY KEY, name VARCHAR(255) NOT NULL DEFAULT 'My Family', admin_user_id INTEGER NOT NULL REFERENCES users(id), admin_key VARCHAR(50) UNIQUE NOT NULL, subdomain VARCHAR(255) UNIQUE, google_drive_token TEXT, plan VARCHAR(20) DEFAULT 'basic', status VARCHAR(20) DEFAULT 'active', created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP);" \
               -c "ALTER TABLE users ADD COLUMN IF NOT EXISTS family_id INTEGER REFERENCES families(id);" \
               -c "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'guest';" \
