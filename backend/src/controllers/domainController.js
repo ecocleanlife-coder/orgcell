@@ -8,10 +8,30 @@ exports.checkDomain = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Subdomain is required' });
         }
 
-        const result = await db.query('SELECT id FROM domains WHERE subdomain = $1', [subdomain]);
-        const isAvailable = result.rows.length === 0;
+        if (subdomain.length < 3) {
+            return res.json({ success: true, available: false, reason: 'too_short' });
+        }
 
-        res.json({ success: true, available: isAvailable });
+        // Check both domains and family_sites tables
+        let taken = false;
+
+        try {
+            const r1 = await db.query('SELECT id FROM domains WHERE subdomain = $1', [subdomain]);
+            if (r1.rows.length > 0) taken = true;
+        } catch (e) {
+            // domains table may not exist — ignore
+        }
+
+        if (!taken) {
+            try {
+                const r2 = await db.query('SELECT id FROM family_sites WHERE subdomain = $1', [subdomain]);
+                if (r2.rows.length > 0) taken = true;
+            } catch (e) {
+                // family_sites table may not exist — ignore
+            }
+        }
+
+        res.json({ success: true, available: !taken, reason: taken ? 'taken' : null });
     } catch (error) {
         console.error('Check Domain Error:', error);
         res.status(500).json({ success: false, message: 'Internal server error' });

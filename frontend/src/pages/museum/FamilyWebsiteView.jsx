@@ -14,7 +14,8 @@ export default function FamilyWebsiteView() {
     const lt = getT('pricing', lang);
 
     const [subdomain, setSubdomain] = useState('');
-    const [isAvailable, setIsAvailable] = useState(null);
+    const [isAvailable, setIsAvailable] = useState(null);   // true | false | null
+    const [domainError, setDomainError] = useState('');      // 'too_short' | 'taken' | 'error' | ''
     const [showPayment, setShowPayment] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [paymentDone, setPaymentDone] = useState(false);
@@ -51,17 +52,25 @@ export default function FamilyWebsiteView() {
     };
 
     const handleCheckDomain = async () => {
-        if (subdomain.length > 2) {
-            try {
-                const res = await fetch(`/api/domain/check?subdomain=${subdomain}`);
-                const data = await res.json();
-                setIsAvailable(data.success && data.available);
-            } catch (err) {
-                console.error(err);
-                setIsAvailable(false);
-            }
-        } else {
+        if (subdomain.length < 3) {
             setIsAvailable(false);
+            setDomainError('too_short');
+            return;
+        }
+        try {
+            const res = await fetch(`/api/domain/check?subdomain=${subdomain}`);
+            const data = await res.json();
+            if (data.success && data.available) {
+                setIsAvailable(true);
+                setDomainError('');
+            } else {
+                setIsAvailable(false);
+                setDomainError(data.reason === 'too_short' ? 'too_short' : 'taken');
+            }
+        } catch (err) {
+            console.error(err);
+            setIsAvailable(false);
+            setDomainError('error');
         }
     };
 
@@ -122,7 +131,7 @@ export default function FamilyWebsiteView() {
                                     <input
                                         type="text"
                                         value={subdomain}
-                                        onChange={(e) => { setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); setIsAvailable(null); }}
+                                        onChange={(e) => { setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); setIsAvailable(null); setDomainError(''); }}
                                         placeholder="smith-family"
                                         className="flex-1 px-4 py-3 outline-none font-medium bg-transparent"
                                         style={{ color: '#4a4a4a' }}
@@ -143,7 +152,13 @@ export default function FamilyWebsiteView() {
 
                             {isAvailable !== null && (
                                 <div className={`text-sm font-bold mb-3 ${isAvailable ? 'text-emerald-600' : 'text-red-500'}`}>
-                                    {isAvailable ? `${subdomain}.orgcell.com is available!` : t.domainUnavailable || 'Domain is not available'}
+                                    {isAvailable
+                                        ? (t.domainAvailable || `${subdomain}.orgcell.com is available!`)
+                                        : domainError === 'too_short'
+                                            ? (t.domainTooShort || 'Subdomain must be at least 3 characters.')
+                                            : domainError === 'error'
+                                                ? (t.domainCheckError || 'Failed to check domain. Please try again.')
+                                                : (t.domainTaken || 'This domain is already taken.')}
                                 </div>
                             )}
 
