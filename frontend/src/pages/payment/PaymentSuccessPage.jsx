@@ -1,11 +1,13 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { useTranslation } from 'react-i18next';
+import useUiStore from '../../store/uiStore';
+import { getT } from '../../i18n/translations';
 
 export default function PaymentSuccessPage() {
-    const { t } = useTranslation();
     const navigate = useNavigate();
+    const lang = useUiStore((s) => s.lang);
+    const t = getT('paymentSuccess', lang);
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -24,8 +26,8 @@ export default function PaymentSuccessPage() {
             }}
         >
             <Helmet>
-                <title>결제 완료 — Orgcell</title>
-                <meta name="description" content="결제가 완료되었습니다. 가족 박물관을 시작해 보세요!" />
+                <title>{t.title || '결제 완료'} — Orgcell</title>
+                <meta name="description" content={t.desc || '결제가 완료되었습니다. 가족 박물관을 시작해 보세요!'} />
             </Helmet>
 
             <div
@@ -52,6 +54,7 @@ export default function PaymentSuccessPage() {
                         justifyContent: 'center',
                         margin: '0 auto 24px',
                         fontSize: 32,
+                        color: 'white',
                     }}
                 >
                     ✓
@@ -65,7 +68,7 @@ export default function PaymentSuccessPage() {
                         marginBottom: 12,
                     }}
                 >
-                    {t('paymentSuccess.title')}
+                    {t.title}
                 </h1>
 
                 <p
@@ -76,7 +79,7 @@ export default function PaymentSuccessPage() {
                         marginBottom: 32,
                     }}
                 >
-                    {t('paymentSuccess.desc').split('\n').map((line, i, arr) => (
+                    {(t.desc || '').split('\n').map((line, i, arr) => (
                         <React.Fragment key={i}>{line}{i < arr.length - 1 && <br />}</React.Fragment>
                     ))}
                 </p>
@@ -93,15 +96,15 @@ export default function PaymentSuccessPage() {
                     }}
                 >
                     <p style={{ fontSize: 13, color: '#3a5a2a', margin: 0, lineHeight: 1.7 }}>
-                        {t('paymentSuccess.infoEmail')}<br />
-                        {t('paymentSuccess.infoManage')}
+                        {t.infoEmail}<br />
+                        {t.infoManage}
                     </p>
                 </div>
 
                 {/* CTA 버튼들 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <button
-                        onClick={() => navigate('/family-website')}
+                        onClick={() => navigate('/family-setup')}
                         style={{
                             padding: '15px 24px',
                             borderRadius: 14,
@@ -113,7 +116,7 @@ export default function PaymentSuccessPage() {
                             cursor: 'pointer',
                         }}
                     >
-                        {t('paymentSuccess.ctaMuseum')}
+                        {t.ctaMuseum}
                     </button>
 
                     <button
@@ -129,7 +132,7 @@ export default function PaymentSuccessPage() {
                             cursor: 'pointer',
                         }}
                     >
-                        {t('paymentSuccess.ctaHome')}
+                        {t.ctaHome}
                     </button>
                 </div>
             </div>
