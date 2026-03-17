@@ -14,10 +14,8 @@ const MagicLinkVerify = lazy(() => import('./pages/auth/MagicLinkVerify'));
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'));
 
-const SmartSortView = lazy(() => import('./pages/smart-sort/SmartSortView'));
-const FamilyWebsiteView = lazy(() => import('./pages/museum/FamilyWebsiteView'));
+const FamilySetupPage = lazy(() => import('./pages/museum/FamilySetupPage'));
 const FamilyDomainDashboard = lazy(() => import('./pages/museum/FamilyDomainDashboard'));
-const LiveSharingView = lazy(() => import('./pages/sharing/LiveSharingView'));
 
 const SmartSortPage = lazy(() => import('./pages/smart-sort/SmartSortPage'));
 const FamilyWebsitePage = lazy(() => import('./pages/museum/FamilyWebsitePage'));
@@ -26,6 +24,7 @@ const RedeemPage = lazy(() => import('./pages/redeem/RedeemPage'));
 const PaymentSuccessPage = lazy(() => import('./pages/payment/PaymentSuccessPage'));
 const FamilyTreeView = lazy(() => import('./components/museum/FamilyTreeView'));
 const PersonFolderView = lazy(() => import('./components/museum/PersonFolderView'));
+const ExhibitionDetailPage = lazy(() => import('./pages/museum/ExhibitionDetailPage'));
 
 const PageLoader = () => (
   <div className="flex h-64 w-full items-center justify-center">
@@ -33,24 +32,36 @@ const PageLoader = () => (
   </div>
 );
 
-// Authenticated home: redirect based on family site status
+// Authenticated home: 3-way redirect
+// 1. No subscription → /family-website (marketing page)
+// 2. Subscription + no museum → /family-setup (onboarding)
+// 3. Subscription + museum → /museum (museum main)
 function AuthHome() {
   const navigate = useNavigate();
-  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    axios.get('/api/sites/mine')
-      .then(res => {
-        if (res.data?.success && res.data?.data) {
-          navigate('/family-dashboard', { replace: true });
-        } else {
+    (async () => {
+      try {
+        // Check subscription and site in parallel
+        const [subRes, siteRes] = await Promise.all([
+          axios.get('/api/subscriptions/status'),
+          axios.get('/api/sites/mine'),
+        ]);
+
+        const hasSubscription = subRes.data?.hasSubscription;
+        const hasSite = siteRes.data?.success && siteRes.data?.data;
+
+        if (!hasSubscription) {
           navigate('/family-website', { replace: true });
+        } else if (!hasSite) {
+          navigate('/family-setup', { replace: true });
+        } else {
+          navigate('/museum', { replace: true });
         }
-      })
-      .catch(() => {
+      } catch {
         navigate('/family-website', { replace: true });
-      })
-      .finally(() => setChecked(true));
+      }
+    })();
   }, [navigate]);
 
   return <PageLoader />;
@@ -125,7 +136,7 @@ function App() {
           element={
             <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>
-                {isPendingAuth ? <PageLoader /> : isAuthenticated ? <SmartSortView /> : <SmartSortPage />}
+                <SmartSortPage />
               </Suspense>
             </ErrorBoundary>
           }
@@ -135,13 +146,23 @@ function App() {
           element={
             <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>
-                {token ? <FamilyWebsiteView /> : <FamilyWebsitePage />}
+                <FamilyWebsitePage />
               </Suspense>
             </ErrorBoundary>
           }
         />
         <Route
-          path="/family-dashboard"
+          path="/family-setup"
+          element={
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <FamilySetupPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/museum"
           element={
             <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>
@@ -149,6 +170,10 @@ function App() {
               </Suspense>
             </ErrorBoundary>
           }
+        />
+        <Route
+          path="/family-dashboard"
+          element={<Navigate to="/museum" replace />}
         />
         <Route
           path="/family-tree"
@@ -171,11 +196,21 @@ function App() {
           }
         />
         <Route
+          path="/museum/gallery/:id"
+          element={
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <ExhibitionDetailPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+        <Route
           path="/live-sharing"
           element={
             <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>
-                {isPendingAuth ? <PageLoader /> : isAuthenticated ? <LiveSharingView /> : <LiveSharingPage />}
+                <LiveSharingPage />
               </Suspense>
             </ErrorBoundary>
           }

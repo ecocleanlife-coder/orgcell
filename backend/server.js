@@ -37,6 +37,7 @@ app.use('/api/family', require('./src/routes/familyRoutes'));
 app.use('/api/referral', require('./src/routes/referralRoutes'));
 app.use('/api/subscriptions', require('./src/routes/subscriptionRoutes'));
 app.use('/api/exhibitions', require('./src/routes/exhibitionRoutes'));
+app.use('/uploads', require('express').static(require('path').join(__dirname, 'uploads')));
 app.use('/api/board', require('./src/routes/boardRoutes'));
 
 // 404 handler for /api/*

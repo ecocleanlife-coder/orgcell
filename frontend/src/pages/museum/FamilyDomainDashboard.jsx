@@ -5,6 +5,7 @@ import {
     Copy, Check, LogOut, MessageSquare, Calendar, Star, Bell,
 } from 'lucide-react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import LanguageSwitcher from '../../components/common/LanguageSwitcher';
 import FamilyTreeView from '../../components/museum/FamilyTreeView';
 import useUiStore from '../../store/uiStore';
@@ -33,9 +34,10 @@ function SkeletonCard() {
 }
 
 // ─── Exhibition Card ───
-function ExhibitionCard({ exh, t }) {
+function ExhibitionCard({ exh, t, onClick }) {
     return (
         <div
+            onClick={onClick}
             className="rounded-2xl border bg-white overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
             style={{ borderColor: '#e8e0d0' }}
         >
@@ -108,6 +110,7 @@ export default function FamilyDomainDashboard() {
     const lang = useUiStore((s) => s.lang);
     const t = getT('museum', lang);
     const { logout } = useAuthStore();
+    const navigate = useNavigate();
 
     // ── Site info ──
     const [site, setSite] = useState(null);
@@ -323,7 +326,7 @@ export default function FamilyDomainDashboard() {
                         ) : (
                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {exhibitions.map((exh) => (
-                                    <ExhibitionCard key={exh.id} exh={exh} t={t} />
+                                    <ExhibitionCard key={exh.id} exh={exh} t={t} onClick={() => navigate(`/museum/gallery/${exh.id}`)} />
                                 ))}
                             </div>
                         )}
