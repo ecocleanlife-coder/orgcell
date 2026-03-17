@@ -451,7 +451,15 @@ export default function FamilyWebsiteView() {
                                         style={{ background: '#e8e0d0', color: '#5a5040' }}>
                                         <Copy size={16} /> {t.copyLink}
                                     </button>
-                                    <button
+                                    <button onClick={() => {
+                                        const url = `https://${subdomain || 'your-family'}.orgcell.com`;
+                                        const text = `${t.heroTitle || 'Family can be together forever'} - ${url}`;
+                                        if (navigator.share) {
+                                            navigator.share({ title: 'Orgcell Family', text, url }).catch(() => {});
+                                        } else {
+                                            window.open(`sms:?body=${encodeURIComponent(text)}`, '_self');
+                                        }
+                                    }}
                                         className="py-3 rounded-xl font-bold transition-colors text-sm flex items-center justify-center gap-2"
                                         style={{ background: '#e8e0d0', color: '#5a5040' }}>
                                         <Share2 size={16} /> {t.shareSMS}
