@@ -24,6 +24,10 @@ export default function FamilyWebsiteView() {
     const navigate = useNavigate();
 
     const handlePayment = async () => {
+        if (!subdomain || subdomain.length < 3 || !isAvailable) {
+            alert(t.domainTooShort || 'Please check domain availability first.');
+            return;
+        }
         setProcessing(true);
         try {
             const token = useAuthStore.getState().token;
@@ -164,8 +168,9 @@ export default function FamilyWebsiteView() {
 
                             {/* Secure Payment Button */}
                             <button
-                                onClick={() => setShowPayment(true)}
-                                className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-bold text-base transition-all hover:shadow-lg hover:brightness-105 mb-2"
+                                onClick={() => isAvailable ? setShowPayment(true) : handleCheckDomain()}
+                                disabled={!subdomain || subdomain.length < 3}
+                                className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-bold text-base transition-all hover:shadow-lg hover:brightness-105 mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                 style={{
                                     background: 'linear-gradient(135deg, #3a8a3a 0%, #2a7a2a 100%)',
                                     color: '#ffffff',
