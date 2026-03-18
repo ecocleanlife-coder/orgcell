@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
+const { sendPaymentConfirmationEmail, sendAdminPaymentNotification } = require('../services/emailService');
 
 // Lazy-initialize Stripe so missing key doesn't crash the server on startup
 function getStripe() {
@@ -98,6 +99,16 @@ router.post('/webhook', async (req, res) => {
                 );
 
                 console.log(`[Webhook] Subscription saved for ${email}`);
+
+                // Send confirmation email to customer + admin notification (non-blocking)
+                const paidAt = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+                const emailPayload = { amountUsd: session.amount_total, sessionId: session.id };
+                sendPaymentConfirmationEmail(email, emailPayload)
+                    .then(() => console.log(`[Email] Confirmation sent to ${email}`))
+                    .catch(err => console.error('[Email] Confirmation failed:', err.message));
+                sendAdminPaymentNotification({ email, amountUsd: session.amount_total, paidAt })
+                    .then(() => console.log('[Email] Admin notification sent'))
+                    .catch(err => console.error('[Email] Admin notification failed:', err.message));
             } catch (dbErr) {
                 console.error('Failed to save subscription to DB:', dbErr);
                 // Return 500 so Stripe retries
