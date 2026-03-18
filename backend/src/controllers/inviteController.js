@@ -51,13 +51,15 @@ exports.acceptInvite = async (req, res) => {
         if (!code) return res.status(400).json({ success: false, message: 'code required' });
 
         const { rows } = await db.query(
-            `SELECT fi.site_id FROM family_invites fi
+            `SELECT fi.site_id, fs.subdomain FROM family_invites fi
+             JOIN family_sites fs ON fs.id = fi.site_id
              WHERE fi.code = $1 AND fi.expires_at > CURRENT_TIMESTAMP AND fi.status = 'pending'`,
             [code]
         );
         if (!rows.length) return res.status(404).json({ success: false, message: 'Invalid or expired code' });
 
         const siteId = rows[0].site_id;
+        const subdomain = rows[0].subdomain;
         const userId = req.user.id;
 
         await db.query(
@@ -71,7 +73,7 @@ exports.acceptInvite = async (req, res) => {
             [code]
         );
 
-        res.json({ success: true, data: { site_id: siteId } });
+        res.json({ success: true, data: { site_id: siteId, subdomain } });
     } catch (err) {
         console.error('acceptInvite error:', err);
         res.status(500).json({ success: false, message: 'Internal server error' });

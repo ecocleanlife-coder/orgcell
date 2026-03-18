@@ -16,6 +16,7 @@ const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'))
 
 const FamilySetupPage = lazy(() => import('./pages/museum/FamilySetupPage'));
 const FamilyDomainDashboard = lazy(() => import('./pages/museum/FamilyDomainDashboard'));
+const MuseumPage = lazy(() => import('./pages/museum/MuseumPage'));
 
 const SmartSortPage = lazy(() => import('./pages/smart-sort/SmartSortPage'));
 const FamilyWebsitePage = lazy(() => import('./pages/museum/FamilyWebsitePage'));
@@ -50,11 +51,11 @@ function AuthHome() {
         ]);
 
         const hasSubscription = subRes.data?.hasSubscription;
-        const hasSite = siteRes.data?.success && siteRes.data?.data;
+        const siteData = siteRes.data?.success && siteRes.data?.data;
 
         // hasSite also covers invited members (joined via invite)
-        if (hasSite) {
-          navigate('/museum', { replace: true });
+        if (siteData) {
+          navigate(`/${siteData.subdomain}`, { replace: true });
         } else if (!hasSubscription) {
           navigate('/family-website', { replace: true });
         } else {
@@ -178,6 +179,36 @@ function App() {
           element={<Navigate to="/museum" replace />}
         />
         <Route
+          path="/:subdomain/gallery/:id"
+          element={
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <ExhibitionDetailPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/:subdomain/board"
+          element={
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <MuseumPage initialTab="board" />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/:subdomain"
+          element={
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <MuseumPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+        <Route
           path="/family-tree"
           element={
             <ErrorBoundary>
@@ -193,16 +224,6 @@ function App() {
             <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>
                 <PersonFolderView />
-              </Suspense>
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/museum/gallery/:id"
-          element={
-            <ErrorBoundary>
-              <Suspense fallback={<PageLoader />}>
-                <ExhibitionDetailPage />
               </Suspense>
             </ErrorBoundary>
           }

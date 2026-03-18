@@ -49,7 +49,7 @@ export default function FamilySetupPage() {
         try {
             const res = await axios.post('/api/sites', { subdomain });
             if (res.data?.success) {
-                navigate('/museum', { replace: true });
+                navigate(`/${subdomain}`, { replace: true });
             } else {
                 setError(res.data?.message || 'Failed to create site');
             }

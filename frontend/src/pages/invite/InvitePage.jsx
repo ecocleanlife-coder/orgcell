@@ -29,8 +29,9 @@ export default function InvitePage() {
     const doAccept = async () => {
         setAccepting(true);
         try {
-            await axios.post('/api/invite/accept', { code });
-            navigate('/museum');
+            const acceptRes = await axios.post('/api/invite/accept', { code });
+            const subdomain = acceptRes.data?.data?.subdomain || info?.subdomain;
+            navigate(subdomain ? `/${subdomain}` : '/museum');
         } catch {
             setError('accept_failed');
         } finally {

@@ -1083,6 +1083,9 @@ const translations = {
             inviteSending: 'Sending...',
             inviteSent: 'Invitation sent!',
             inviteExpiry: 'Invite links expire after 7 days.',
+            publicBanner: 'Sign in to view family-only exhibitions and the family board.',
+            loginBtn: 'Sign In',
+            notFound: 'Museum not found.',
         },
         ko: {
             tabTree: '가족 트리',
@@ -1144,6 +1147,9 @@ const translations = {
             inviteSending: '발송 중...',
             inviteSent: '초대 이메일이 발송되었습니다!',
             inviteExpiry: '초대 링크는 7일간 유효합니다.',
+            publicBanner: '가족 전용 전시관과 가족 게시판을 보려면 로그인하세요.',
+            loginBtn: '로그인',
+            notFound: '박물관을 찾을 수 없습니다.',
         },
         ja: {
             tabTree: '家族ツリー',
@@ -1205,6 +1211,9 @@ const translations = {
             inviteSending: '送信中...',
             inviteSent: '招待メールを送信しました！',
             inviteExpiry: '招待リンクは7日間有効です。',
+            publicBanner: 'ファミリー専用の展示館と掲示板を見るにはサインインしてください。',
+            loginBtn: 'サインイン',
+            notFound: 'ミュージアムが見つかりません。',
         },
         'zh-CN': {
             tabTree: '家族树',
@@ -1266,6 +1275,9 @@ const translations = {
             inviteSending: '发送中...',
             inviteSent: '邀请邮件已发送！',
             inviteExpiry: '邀请链接有效期为7天。',
+            publicBanner: '登录查看家族专属展览馆和家族公告板。',
+            loginBtn: '登录',
+            notFound: '未找到博物馆。',
         },
         es: {
             tabTree: 'Árbol Familiar',
@@ -1327,6 +1339,9 @@ const translations = {
             inviteSending: 'Enviando...',
             inviteSent: '¡Invitación enviada!',
             inviteExpiry: 'Los enlaces de invitación expiran en 7 días.',
+            publicBanner: 'Inicia sesión para ver las salas familiares y el tablero familiar.',
+            loginBtn: 'Iniciar Sesión',
+            notFound: 'Museo no encontrado.',
         },
     },
     // ─── Exhibition Detail Page ───

@@ -379,7 +379,7 @@ export default function FamilyDomainDashboard() {
                         ) : (
                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {exhibitions.map((exh) => (
-                                    <ExhibitionCard key={exh.id} exh={exh} t={t} onClick={() => navigate(`/museum/gallery/${exh.id}`)} />
+                                    <ExhibitionCard key={exh.id} exh={exh} t={t} onClick={() => navigate(`/${site?.subdomain}/gallery/${exh.id}`)} />
                                 ))}
                             </div>
                         )}
