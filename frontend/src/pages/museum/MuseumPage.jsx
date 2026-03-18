@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import {
     Globe, Lock, Image as ImageIcon,
     GalleryThumbnails, ClipboardList, TreePine, Settings,
-    LogIn, Bell, Star, Calendar, MessageSquare, ChevronRight,
+    LogIn, Bell, Star, Calendar, MessageSquare, ChevronRight, Download,
 } from 'lucide-react';
 import axios from 'axios';
 import LanguageSwitcher from '../../components/common/LanguageSwitcher';
@@ -118,6 +119,7 @@ export default function MuseumPage({ initialTab }) {
     const navigate = useNavigate();
     const lang = useUiStore((s) => s.lang);
     const t = getT('museum', lang);
+    const pt = getT('pwa', lang);
     const { token } = useAuthStore();
 
     const [site, setSite] = useState(null);
@@ -132,6 +134,24 @@ export default function MuseumPage({ initialTab }) {
     const [posts, setPosts] = useState([]);
     const [boardLoading, setBoardLoading] = useState(false);
     const [boardCategory, setBoardCategory] = useState('all');
+
+    // ── PWA install prompt ──
+    const [installPrompt, setInstallPrompt] = useState(null);
+    const [isInstalled, setIsInstalled] = useState(false);
+
+    useEffect(() => {
+        // Detect standalone mode (already installed)
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            setIsInstalled(true);
+        }
+        const handler = (e) => {
+            e.preventDefault();
+            setInstallPrompt(e);
+        };
+        window.addEventListener('beforeinstallprompt', handler);
+        window.addEventListener('appinstalled', () => setIsInstalled(true));
+        return () => window.removeEventListener('beforeinstallprompt', handler);
+    }, []);
 
     // ── Fetch museum info ──
     useEffect(() => {
@@ -190,6 +210,16 @@ export default function MuseumPage({ initialTab }) {
         if (activeTab === 'board' && site) fetchPosts(boardCategory);
     }, [activeTab, boardCategory, site, fetchPosts]);
 
+    const handleInstall = async () => {
+        if (!installPrompt) return;
+        installPrompt.prompt();
+        const { outcome } = await installPrompt.userChoice;
+        if (outcome === 'accepted') {
+            setIsInstalled(true);
+            setInstallPrompt(null);
+        }
+    };
+
     if (loading) return <PageLoader />;
 
     if (notFound) {
@@ -218,6 +248,11 @@ export default function MuseumPage({ initialTab }) {
 
     return (
         <div className="min-h-screen font-sans" style={{ background: '#f0ece4' }}>
+            {/* ── Dynamic manifest per subdomain ── */}
+            <Helmet>
+                <link rel="manifest" href={`/api/manifest/${subdomain}`} />
+                <meta name="theme-color" content="#4a7a3a" />
+            </Helmet>
 
             {/* ── Public visitor banner ── */}
             {role === 'public' && (
@@ -246,6 +281,17 @@ export default function MuseumPage({ initialTab }) {
                         </span>
                     </div>
                     <div className="flex items-center gap-2">
+                        {/* PWA install button — shown to owner when installable */}
+                        {role === 'owner' && installPrompt && !isInstalled && (
+                            <button
+                                onClick={handleInstall}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                                style={{ background: '#4a7a3a', color: '#fff' }}
+                            >
+                                <Download size={13} />
+                                {pt.installBtn}
+                            </button>
+                        )}
                         {role === 'owner' && (
                             <button
                                 onClick={() => navigate('/museum')}

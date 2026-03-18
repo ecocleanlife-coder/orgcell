@@ -12,6 +12,7 @@ export default function InvitePage() {
     const { token, user } = useAuthStore();
     const lang = useUiStore((s) => s.lang);
     const t = getT('invite', lang);
+    const pt = getT('pwa', lang);
 
     const [info, setInfo] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -141,6 +142,20 @@ export default function InvitePage() {
                 {!token && (
                     <p style={{ color: '#9a9a8a', fontSize: 12, marginTop: 12 }}>{t.loginHint}</p>
                 )}
+
+                {/* PWA install hint */}
+                <div style={{
+                    marginTop: 24,
+                    padding: '12px 16px',
+                    background: '#f0f7e8',
+                    borderRadius: 12,
+                    border: '1px solid #d0e8c0',
+                    textAlign: 'left',
+                }}>
+                    <p style={{ fontSize: 12, color: '#5a7a4a', lineHeight: 1.6, margin: 0 }}>
+                        📱 {pt.installHint}
+                    </p>
+                </div>
             </div>
         </div>
     );

@@ -1703,6 +1703,30 @@ const translations = {
             goHome: 'Ir a orgcell.com',
             successTitle: '¡Bienvenido a la Familia!',
             successDesc: 'Te has unido exitosamente al museo familiar.',
+            installHint: 'Después de unirte, añade el museo a tu pantalla de inicio para acceder rápidamente.',
+        },
+    },
+    // ─── PWA Install ───
+    pwa: {
+        en: {
+            installBtn: '📱 Install App',
+            installHint: 'After accepting the invite, add this museum to your home screen for quick access.',
+        },
+        ko: {
+            installBtn: '📱 앱으로 설치하기',
+            installHint: '초대를 수락한 후 홈 화면에 추가하면 언제든 바로 가족 박물관에 접속할 수 있습니다.',
+        },
+        ja: {
+            installBtn: '📱 アプリとしてインストール',
+            installHint: '招待を承諾した後、ホーム画面に追加するといつでも直接ファミリーミュージアムにアクセスできます。',
+        },
+        'zh-CN': {
+            installBtn: '📱 安装为应用',
+            installHint: '接受邀请后，将博物馆添加到主屏幕，随时快速访问。',
+        },
+        es: {
+            installBtn: '📱 Instalar App',
+            installHint: 'Después de aceptar la invitación, añade el museo a tu pantalla de inicio para acceso rápido.',
         },
     },
 };

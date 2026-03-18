@@ -140,7 +140,15 @@ exports.sendInviteEmail = async ({ to, code, inviterName, subdomain }) => {
                     초대 수락하기 →
                 </a>
 
-                <p style="color: #9ca3af; font-size: 12px; margin-top: 36px; line-height: 1.8;">
+                <div style="margin-top: 28px; padding: 16px; background: #f0f7e8; border-radius: 12px; border: 1px solid #d0e8c0;">
+                    <p style="margin: 0; font-size: 13px; color: #5a7a4a; line-height: 1.7;">
+                        📱 <strong>홈 화면에 추가하기</strong><br/>
+                        초대를 수락한 후 홈 화면에 추가하면 언제든 바로 가족 박물관에 접속할 수 있습니다.<br/>
+                        Safari: 공유 버튼 → "홈 화면에 추가" / Chrome: 주소창 우측 설치 버튼
+                    </p>
+                </div>
+
+                <p style="color: #9ca3af; font-size: 12px; margin-top: 24px; line-height: 1.8;">
                     이 초대 링크는 7일간 유효합니다.<br/>
                     초대를 원하지 않으시면 이 이메일을 무시하세요.<br/>
                     직접 접속: <a href="${inviteUrl}" style="color: #5a8a4a; word-break: break-all;">${inviteUrl}</a>
