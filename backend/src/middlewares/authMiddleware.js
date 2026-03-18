@@ -1,5 +1,20 @@
 const jwt = require('jsonwebtoken');
 
+// Optional auth — sets req.user if token present, but never blocks
+exports.optionalAuth = (req, res, next) => {
+    try {
+        const header = req.headers.authorization;
+        if (header && header.startsWith('Bearer ')) {
+            const token = header.split(' ')[1];
+            if (token) {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                req.user = decoded.user;
+            }
+        }
+    } catch { /* token invalid or missing — proceed as guest */ }
+    next();
+};
+
 exports.protect = (req, res, next) => {
     let token;
 
