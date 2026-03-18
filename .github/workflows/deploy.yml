@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 env:
-  AWS_REGION: ap-northeast-2
+  AWS_REGION: us-east-2
   ECR_BACKEND: orgcell/backend
   ECR_FRONTEND: orgcell/frontend
 
@@ -70,7 +70,7 @@ jobs:
           envs: ECR_REGISTRY,IMAGE_TAG,BACKEND_IMAGE,FRONTEND_IMAGE,STRIPE_SECRET_KEY,STRIPE_WEBHOOK_SECRET
           script: |
             # ECR login
-            aws ecr get-login-password --region ap-northeast-2 | \
+            aws ecr get-login-password --region us-east-2 | \
               docker login --username AWS --password-stdin $ECR_REGISTRY
 
             mkdir -p /opt/orgcell
