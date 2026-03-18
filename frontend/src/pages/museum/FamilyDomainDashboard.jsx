@@ -3,6 +3,7 @@ import {
     TreePine, GalleryThumbnails, ClipboardList, Settings,
     Plus, Image as ImageIcon, Globe, Lock, X, ChevronRight,
     Copy, Check, LogOut, MessageSquare, Calendar, Star, Bell,
+    UserPlus, Link, Mail, Share2,
 } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -137,6 +138,14 @@ export default function FamilyDomainDashboard() {
     // ── Settings ──
     const [copied, setCopied] = useState(false);
 
+    // ── Invite ──
+    const [inviteUrl, setInviteUrl] = useState('');
+    const [inviteGenerating, setInviteGenerating] = useState(false);
+    const [inviteLinkCopied, setInviteLinkCopied] = useState(false);
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [inviteSending, setInviteSending] = useState(false);
+    const [inviteSent, setInviteSent] = useState(false);
+
     // ── Fetch site ──
     useEffect(() => {
         axios.get('/api/sites/mine').then((r) => {
@@ -200,6 +209,50 @@ export default function FamilyDomainDashboard() {
             fetchPosts(boardCategory);
         } catch { /* silent */ }
         finally { setPostingPost(false); }
+    };
+
+    // ── Generate invite link ──
+    const handleGenerateInvite = async () => {
+        if (!site) return;
+        setInviteGenerating(true);
+        try {
+            const res = await axios.post('/api/invite/create', { site_id: site.id });
+            if (res.data?.success) setInviteUrl(res.data.data.url);
+        } catch { /* silent */ }
+        finally { setInviteGenerating(false); }
+    };
+
+    const handleCopyInviteLink = () => {
+        navigator.clipboard.writeText(inviteUrl).then(() => {
+            setInviteLinkCopied(true);
+            setTimeout(() => setInviteLinkCopied(false), 2000);
+        });
+    };
+
+    const handleShareInvite = () => {
+        const text = t.inviteLinkDesc + '\n' + inviteUrl;
+        if (lang === 'ko') {
+            window.open(`https://open.kakao.com/o/share?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent(text)}`);
+        } else if (lang === 'ja') {
+            window.open(`https://line.me/R/msg/text/?${encodeURIComponent(text)}`);
+        } else if (lang === 'es') {
+            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`);
+        } else {
+            window.open(`sms:?body=${encodeURIComponent(text)}`);
+        }
+    };
+
+    const handleSendInviteEmail = async () => {
+        if (!inviteEmail.trim() || !inviteUrl || !site) return;
+        const code = new URL(inviteUrl).searchParams.get('code');
+        setInviteSending(true);
+        try {
+            await axios.post('/api/invite/send-email', { email: inviteEmail, code, subdomain: site.subdomain });
+            setInviteSent(true);
+            setInviteEmail('');
+            setTimeout(() => setInviteSent(false), 3000);
+        } catch { /* silent */ }
+        finally { setInviteSending(false); }
     };
 
     // ── Copy share link ──
@@ -423,6 +476,111 @@ export default function FamilyDomainDashboard() {
                                     {copied ? <Check size={14} /> : <Copy size={14} />}
                                     {copied ? t.settingsCopied : t.settingsCopy}
                                 </button>
+                            </div>
+                        </div>
+
+                        {/* ── 가족 초대하기 ── */}
+                        <div
+                            className="bg-white rounded-2xl p-5 shadow-sm space-y-5"
+                            style={{ border: '1px solid #e8e0d0' }}
+                        >
+                            <div className="flex items-center gap-2">
+                                <UserPlus size={16} style={{ color: '#5a8a4a' }} />
+                                <p className="text-sm font-bold" style={{ color: '#3a3a2a' }}>{t.inviteTitle}</p>
+                            </div>
+
+                            {/* 방법 A — 초대 링크 */}
+                            <div>
+                                <p className="text-xs font-bold mb-1" style={{ color: '#7a7a6a' }}>{t.inviteLinkTitle}</p>
+                                <p className="text-xs mb-3" style={{ color: '#9a9a8a' }}>{t.inviteLinkDesc}</p>
+
+                                {!inviteUrl ? (
+                                    <button
+                                        onClick={handleGenerateInvite}
+                                        disabled={inviteGenerating || !site}
+                                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-50 transition-all"
+                                        style={{ background: '#5a8a4a', color: '#fff' }}
+                                    >
+                                        <Link size={13} />
+                                        {inviteGenerating ? t.inviteGenerating : t.inviteGenerate}
+                                    </button>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <span
+                                                className="flex-1 text-xs px-3 py-2 rounded-lg truncate"
+                                                style={{ background: '#f0ece4', color: '#5a5a4a' }}
+                                            >
+                                                {inviteUrl}
+                                            </span>
+                                            <button
+                                                onClick={handleCopyInviteLink}
+                                                className="px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0 transition-all"
+                                                style={{
+                                                    background: inviteLinkCopied ? '#e8f5e0' : '#e8e0d0',
+                                                    color: inviteLinkCopied ? '#3a7a2a' : '#5a5040',
+                                                }}
+                                            >
+                                                {inviteLinkCopied ? <Check size={12} /> : <Copy size={12} />}
+                                                {inviteLinkCopied ? t.inviteLinkCopied : t.inviteLinkCopy}
+                                            </button>
+                                        </div>
+                                        <div className="flex gap-2 flex-wrap">
+                                            <button
+                                                onClick={handleShareInvite}
+                                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                                                style={{ background: '#f0ece4', color: '#5a5040' }}
+                                            >
+                                                <Share2 size={11} />
+                                                {lang === 'ko' ? t.inviteShareKakao : lang === 'ja' ? t.inviteShareKakao : lang === 'es' ? t.inviteShareKakao : t.inviteShareSms}
+                                            </button>
+                                            <button
+                                                onClick={() => window.open(`mailto:?subject=Orgcell%20Family%20Invite&body=${encodeURIComponent(inviteUrl)}`)}
+                                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                                                style={{ background: '#f0ece4', color: '#5a5040' }}
+                                            >
+                                                <Mail size={11} />
+                                                {t.inviteShareEmail}
+                                            </button>
+                                            <button
+                                                onClick={handleGenerateInvite}
+                                                className="px-3 py-1.5 rounded-lg text-xs transition-all"
+                                                style={{ color: '#9a9a8a' }}
+                                            >
+                                                ↻ {t.inviteGenerate}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* 방법 B — 이메일 초대 */}
+                            <div style={{ borderTop: '1px solid #f0ece4', paddingTop: 16 }}>
+                                <p className="text-xs font-bold mb-2" style={{ color: '#7a7a6a' }}>{t.inviteEmailTitle}</p>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="email"
+                                        value={inviteEmail}
+                                        onChange={(e) => setInviteEmail(e.target.value)}
+                                        placeholder={t.inviteEmailPlaceholder}
+                                        className="flex-1 px-3 py-2 rounded-xl outline-none text-xs"
+                                        style={{ border: '1.5px solid #d8d0c0', color: '#3a3a2a' }}
+                                        onKeyDown={(e) => e.key === 'Enter' && !inviteUrl && handleGenerateInvite()}
+                                    />
+                                    <button
+                                        onClick={async () => {
+                                            if (!inviteUrl) await handleGenerateInvite();
+                                            handleSendInviteEmail();
+                                        }}
+                                        disabled={!inviteEmail.trim() || inviteSending}
+                                        className="px-3 py-2 rounded-xl text-xs font-bold disabled:opacity-50 shrink-0 flex items-center gap-1 transition-all"
+                                        style={{ background: inviteSent ? '#e8f5e0' : '#3a3a2a', color: inviteSent ? '#3a7a2a' : '#fff' }}
+                                    >
+                                        {inviteSent ? <Check size={12} /> : <Mail size={12} />}
+                                        {inviteSent ? t.inviteSent : inviteSending ? t.inviteSending : t.inviteSendBtn}
+                                    </button>
+                                </div>
+                                <p className="text-xs mt-2" style={{ color: '#b0b0a0' }}>{t.inviteExpiry}</p>
                             </div>
                         </div>
 

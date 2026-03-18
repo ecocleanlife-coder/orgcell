@@ -101,6 +101,45 @@ export default function PaymentSuccessPage() {
                     </p>
                 </div>
 
+                {/* 다음 접속 방법 */}
+                <div
+                    style={{
+                        background: '#f0f7e8',
+                        border: '1px solid #c8d8a8',
+                        borderRadius: 14,
+                        padding: '16px 20px',
+                        marginBottom: 16,
+                        textAlign: 'left',
+                    }}
+                >
+                    <p style={{ fontSize: 13, fontWeight: 700, color: '#3a5a2a', margin: '0 0 8px' }}>
+                        📌 {t.accessTitle}
+                    </p>
+                    <ol style={{ margin: 0, paddingLeft: 18, color: '#4a6a3a', fontSize: 13, lineHeight: 2 }}>
+                        <li>{t.accessStep1}</li>
+                        <li>{t.accessStep2}</li>
+                        <li>{t.accessStep3}</li>
+                    </ol>
+                    <p style={{ margin: '8px 0 0', fontSize: 12, color: '#6a8a5a' }}>{t.accessBookmark}</p>
+                </div>
+
+                {/* 가족 초대 방법 */}
+                <div
+                    style={{
+                        background: '#f8f4ec',
+                        border: '1px solid #d8cca8',
+                        borderRadius: 14,
+                        padding: '14px 20px',
+                        marginBottom: 24,
+                        textAlign: 'left',
+                    }}
+                >
+                    <p style={{ fontSize: 13, fontWeight: 700, color: '#5a4a2a', margin: '0 0 6px' }}>
+                        👨‍👩‍👧 {t.inviteTitle}
+                    </p>
+                    <p style={{ margin: 0, fontSize: 12, color: '#6a5a3a', lineHeight: 1.7 }}>{t.inviteDesc}</p>
+                </div>
+
                 {/* CTA 버튼들 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <button

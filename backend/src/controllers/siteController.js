@@ -49,8 +49,20 @@ exports.getMySite = async (req, res) => {
             `SELECT * FROM family_sites WHERE user_id = $1`, [userId]
         );
 
+        // If no owned site, check if user is a member of someone else's site
         if (rows.length === 0) {
-            return res.json({ success: true, data: null });
+            const joined = await db.query(
+                `SELECT fs.* FROM family_sites fs
+                 JOIN site_members sm ON sm.site_id = fs.id
+                 WHERE sm.user_id = $1 LIMIT 1`,
+                [userId]
+            );
+            if (!joined.rows.length) return res.json({ success: true, data: null });
+            const joinedSite = joined.rows[0];
+            return res.json({
+                success: true,
+                data: { ...joinedSite, url: `https://${joinedSite.subdomain}.orgcell.com`, folders: [], role: 'member' },
+            });
         }
 
         const site = rows[0];

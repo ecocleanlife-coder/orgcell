@@ -57,7 +57,22 @@ exports.sendPaymentConfirmationEmail = async (to, { amountUsd, sessionId }) => {
                     박물관 설정 시작하기 →
                 </a>
 
-                <p style="color: #9ca3af; font-size: 12px; margin-top: 40px; line-height: 1.8;">
+                <div style="margin-top: 36px; padding: 20px; background: #f0f7e8; border-radius: 12px; text-align: left;">
+                    <p style="font-weight: 700; font-size: 14px; color: #3a5a2a; margin: 0 0 10px;">📌 다음부터 접속하는 방법</p>
+                    <ol style="margin: 0; padding-left: 20px; color: #4a6a3a; font-size: 13px; line-height: 2;">
+                        <li>orgcell.com 접속</li>
+                        <li>Google 로그인 클릭</li>
+                        <li>바로 박물관으로 이동</li>
+                    </ol>
+                    <p style="margin: 10px 0 0; font-size: 12px; color: #6a8a5a;">💡 브라우저에서 orgcell.com을 북마크 저장해 두시면 편리합니다.</p>
+                </div>
+
+                <div style="margin-top: 16px; padding: 16px 20px; background: #f8f4ec; border-radius: 12px; text-align: left;">
+                    <p style="font-weight: 700; font-size: 14px; color: #5a4a2a; margin: 0 0 6px;">👨‍👩‍👧 가족 초대 방법</p>
+                    <p style="margin: 0; font-size: 13px; color: #6a5a3a; line-height: 1.7;">박물관 설정 후 <strong>설정 탭 → 가족 초대하기</strong>에서 초대 링크를 생성하거나 이메일로 직접 초대할 수 있습니다.</p>
+                </div>
+
+                <p style="color: #9ca3af; font-size: 12px; margin-top: 32px; line-height: 1.8;">
                     문의사항이 있으시면 ecocleanlife@gmail.com 으로 연락해 주세요.<br/>
                     © Orgcell
                 </p>
@@ -93,6 +108,43 @@ exports.sendAdminPaymentNotification = async ({ email, amountUsd, paidAt }) => {
                         <td style="padding: 10px 0; font-size: 14px;">${paidAt}</td>
                     </tr>
                 </table>
+            </div>
+        `,
+    };
+    return transporter.sendMail(mailOptions);
+};
+
+/**
+ * Send family invite email
+ */
+exports.sendInviteEmail = async ({ to, code, inviterName, subdomain }) => {
+    const inviteUrl = `https://orgcell.com/invite?code=${code}`;
+    const museumLabel = subdomain ? `${subdomain}.orgcell.com` : 'Orgcell';
+    const mailOptions = {
+        from: `"Orgcell" <${process.env.SMTP_USER || 'noreply@orgcell.com'}>`,
+        to,
+        subject: `[Orgcell] ${inviterName}님이 가족 박물관에 초대했습니다 🏛️`,
+        html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 20px;">
+                <h1 style="font-size: 26px; font-weight: 800; color: #111; margin-bottom: 4px;">Orgcell</h1>
+                <p style="color: #888; font-size: 13px; margin-top: 0; margin-bottom: 32px;">디지털 가족 박물관</p>
+
+                <h2 style="font-size: 20px; color: #3a3a2a; margin-bottom: 8px;">가족 박물관 초대장 🏛️</h2>
+                <p style="color: #555; font-size: 15px; line-height: 1.7; margin-bottom: 28px;">
+                    <strong>${inviterName}</strong>님이 <strong>${museumLabel}</strong> 가족 박물관에 초대했습니다.<br/>
+                    아래 버튼을 눌러 가족 구성원으로 합류하세요.
+                </p>
+
+                <a href="${inviteUrl}"
+                   style="display: inline-block; padding: 14px 36px; background: linear-gradient(135deg, #5A9460, #4A7F4A); color: #fff; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 15px;">
+                    초대 수락하기 →
+                </a>
+
+                <p style="color: #9ca3af; font-size: 12px; margin-top: 36px; line-height: 1.8;">
+                    이 초대 링크는 7일간 유효합니다.<br/>
+                    초대를 원하지 않으시면 이 이메일을 무시하세요.<br/>
+                    직접 접속: <a href="${inviteUrl}" style="color: #5a8a4a; word-break: break-all;">${inviteUrl}</a>
+                </p>
             </div>
         `,
     };

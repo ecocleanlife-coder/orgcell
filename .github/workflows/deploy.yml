@@ -276,6 +276,14 @@ jobs:
               -c "CREATE TABLE IF NOT EXISTS exhibition_photos (id SERIAL PRIMARY KEY, exhibition_id INTEGER NOT NULL REFERENCES exhibitions(id) ON DELETE CASCADE, uploaded_by INTEGER REFERENCES users(id), filename TEXT NOT NULL, original_name TEXT, mime_type VARCHAR(100), file_size INTEGER, width INTEGER, height INTEGER, visibility VARCHAR(20) NOT NULL DEFAULT 'private' CHECK (visibility IN ('public','family','private')), is_cover BOOLEAN DEFAULT FALSE, url TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP);" \
               -c "CREATE INDEX IF NOT EXISTS idx_exhibition_photos_exhibition_id ON exhibition_photos(exhibition_id);" \
               -c "CREATE UNIQUE INDEX IF NOT EXISTS idx_exhibition_photos_cover ON exhibition_photos(exhibition_id) WHERE is_cover = TRUE;"
+            # ── 011: site_members, family_invites ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "CREATE TABLE IF NOT EXISTS site_members (id SERIAL PRIMARY KEY, site_id INTEGER NOT NULL REFERENCES family_sites(id) ON DELETE CASCADE, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, role VARCHAR(20) DEFAULT 'member', joined_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, UNIQUE(site_id, user_id));" \
+              -c "CREATE INDEX IF NOT EXISTS idx_site_members_site_id ON site_members(site_id);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_site_members_user_id ON site_members(user_id);" \
+              -c "CREATE TABLE IF NOT EXISTS family_invites (id SERIAL PRIMARY KEY, site_id INTEGER NOT NULL REFERENCES family_sites(id) ON DELETE CASCADE, code VARCHAR(20) UNIQUE NOT NULL, email VARCHAR(255), inviter_id INTEGER REFERENCES users(id), status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending','accepted')), created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, expires_at TIMESTAMPTZ DEFAULT (CURRENT_TIMESTAMP + INTERVAL '7 days'));" \
+              -c "CREATE INDEX IF NOT EXISTS idx_family_invites_code ON family_invites(code);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_family_invites_site_id ON family_invites(site_id);"
             echo "Migrations done"
             # ─────────────────────────────────────────────────────────────
 

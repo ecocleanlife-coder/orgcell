@@ -25,6 +25,7 @@ const PaymentSuccessPage = lazy(() => import('./pages/payment/PaymentSuccessPage
 const FamilyTreeView = lazy(() => import('./components/museum/FamilyTreeView'));
 const PersonFolderView = lazy(() => import('./components/museum/PersonFolderView'));
 const ExhibitionDetailPage = lazy(() => import('./pages/museum/ExhibitionDetailPage'));
+const InvitePage = lazy(() => import('./pages/invite/InvitePage'));
 
 const PageLoader = () => (
   <div className="flex h-64 w-full items-center justify-center">
@@ -51,12 +52,13 @@ function AuthHome() {
         const hasSubscription = subRes.data?.hasSubscription;
         const hasSite = siteRes.data?.success && siteRes.data?.data;
 
-        if (!hasSubscription) {
-          navigate('/family-website', { replace: true });
-        } else if (!hasSite) {
-          navigate('/family-setup', { replace: true });
-        } else {
+        // hasSite also covers invited members (joined via invite)
+        if (hasSite) {
           navigate('/museum', { replace: true });
+        } else if (!hasSubscription) {
+          navigate('/family-website', { replace: true });
+        } else {
+          navigate('/family-setup', { replace: true });
         }
       } catch {
         navigate('/family-website', { replace: true });
@@ -221,6 +223,16 @@ function App() {
             <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>
                 <RedeemPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/invite"
+          element={
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <InvitePage />
               </Suspense>
             </ErrorBoundary>
           }
