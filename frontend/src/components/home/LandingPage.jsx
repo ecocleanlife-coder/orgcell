@@ -186,7 +186,9 @@ function LandingPage() {
                         <div className="relative flex justify-center lg:justify-end items-start pt-4 lg:pt-6 pr-4 lg:pr-6">
                             <img
                                 src="/images/landing/hero-family-tree.png"
-                                alt="Family Tree"
+                                alt="Orgcell 가족 박물관 - 가계도 시각화"
+                                width="480"
+                                height="400"
                                 className="relative z-10 w-full max-w-[480px]"
                                 style={{
                                     filter: 'drop-shadow(8px 12px 24px rgba(50, 30, 10, 0.30))',
@@ -221,7 +223,8 @@ function LandingPage() {
                             <div className="relative -mt-[110px] mb-3 flex justify-center pointer-events-none">
                                 <img
                                     src="/images/landing/card-ai-sort.png"
-                                    alt=""
+                                    alt="AI Smart Sort - 사진 자동 분류"
+                                    loading="lazy"
                                     className="w-[62%] group-hover:scale-105 transition-transform duration-300"
                                     style={{ filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.13))' }}
                                 />
@@ -245,7 +248,8 @@ function LandingPage() {
                             <div className="relative -mt-[120px] mb-3 flex justify-center pointer-events-none">
                                 <img
                                     src="/images/landing/card-museum.png"
-                                    alt=""
+                                    alt="가족 박물관 - $10 도메인 개설"
+                                    loading="lazy"
                                     className="w-[55%] group-hover:scale-105 transition-transform duration-300"
                                     style={{ filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.13))' }}
                                 />
@@ -290,7 +294,8 @@ function LandingPage() {
                             <div className="relative -mt-[95px] mb-3 flex justify-center pointer-events-none">
                                 <img
                                     src="/images/landing/card-live-share.png"
-                                    alt=""
+                                    alt="Live Photo Sharing - 실시간 사진 공유"
+                                    loading="lazy"
                                     className="w-[72%] group-hover:scale-105 transition-transform duration-300"
                                     style={{ filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.13))' }}
                                 />

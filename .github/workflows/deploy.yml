@@ -63,11 +63,12 @@ jobs:
           FRONTEND_IMAGE: ${{ steps.login-ecr.outputs.registry }}/orgcell/frontend
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: ECR_REGISTRY,IMAGE_TAG,BACKEND_IMAGE,FRONTEND_IMAGE,STRIPE_SECRET_KEY,STRIPE_WEBHOOK_SECRET
+          envs: ECR_REGISTRY,IMAGE_TAG,BACKEND_IMAGE,FRONTEND_IMAGE,STRIPE_SECRET_KEY,STRIPE_WEBHOOK_SECRET,RESEND_API_KEY
           script: |
             # ECR login
             aws ecr get-login-password --region us-east-2 | \
@@ -96,68 +97,17 @@ jobs:
             [ -n "$STRIPE_SECRET_KEY" ]      && upsert_env STRIPE_SECRET_KEY "$STRIPE_SECRET_KEY"
             [ -n "$STRIPE_WEBHOOK_SECRET" ]  && upsert_env STRIPE_WEBHOOK_SECRET "$STRIPE_WEBHOOK_SECRET"
 
+            # Resend email API key
+            [ -n "$RESEND_API_KEY" ]         && upsert_env RESEND_API_KEY "$RESEND_API_KEY"
+
             echo "✅ /opt/orgcell/.env env keys:"
             grep -o "^[^=]*" "$ENV_FILE" | sort
             # ─────────────────────────────────────────────────────────────
 
-            # Generate nginx SSL config (preserved across deploys)
-            cat > nginx-ssl.conf <<'NGINXEOF'
-            server {
-                listen 80;
-                server_name orgcell.com www.orgcell.com;
-                return 301 https://$host$request_uri;
-            }
-            server {
-                listen 443 ssl;
-                server_name orgcell.com www.orgcell.com;
-                ssl_certificate /etc/letsencrypt/live/orgcell.com/fullchain.pem;
-                ssl_certificate_key /etc/letsencrypt/live/orgcell.com/privkey.pem;
-                ssl_protocols TLSv1.2 TLSv1.3;
-                ssl_prefer_server_ciphers on;
-                root /usr/share/nginx/html;
-                index index.html;
+            # SSL은 호스트 nginx가 처리 (/etc/nginx/conf.d/orgcell.conf)
+            # orgcell-frontend는 8081 포트로 정적 파일만 서빙
 
-                # Never cache HTML, SW, manifest - always fetch fresh from server
-                location ~* ^/(index\.html|sw\.js|registerSW\.js|manifest\.webmanifest)$ {
-                    add_header Cache-Control "no-cache, no-store, must-revalidate";
-                    add_header Pragma "no-cache";
-                    add_header Expires "0";
-                    try_files $uri /index.html;
-                }
-
-                # Hashed JS/CSS assets - safe to cache forever
-                location /assets/ {
-                    add_header Cache-Control "public, max-age=31536000, immutable";
-                }
-
-                # Default: no cache for SPA fallback
-                location / {
-                    add_header Cache-Control "no-cache, no-store, must-revalidate";
-                    try_files $uri $uri/ /index.html;
-                }
-                location /api/ {
-                    proxy_pass http://orgcell-backend:5001;
-                    proxy_http_version 1.1;
-                    proxy_set_header Upgrade $http_upgrade;
-                    proxy_set_header Connection "upgrade";
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto $scheme;
-                    client_max_body_size 25M;
-                }
-                location /socket.io/ {
-                    proxy_pass http://orgcell-backend:5001;
-                    proxy_http_version 1.1;
-                    proxy_set_header Upgrade $http_upgrade;
-                    proxy_set_header Connection "upgrade";
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                }
-            }
-            NGINXEOF
-
-            # Generate docker-compose.yml with SSL
+            # Generate docker-compose.yml
             cat > docker-compose.yml <<EOF
             services:
               backend:
@@ -189,11 +139,7 @@ jobs:
                 container_name: orgcell-frontend
                 restart: unless-stopped
                 ports:
-                  - "80:80"
-                  - "443:443"
-                volumes:
-                  - /etc/letsencrypt:/etc/letsencrypt:ro
-                  - /opt/orgcell/nginx-ssl.conf:/etc/nginx/conf.d/default.conf:ro
+                  - "8081:80"
                 depends_on:
                   backend:
                     condition: service_healthy
@@ -223,12 +169,10 @@ jobs:
                 driver: bridge
             EOF
 
-            # Stop host nginx if running (it holds ports 80/443 before Docker can bind them)
-            sudo systemctl stop nginx 2>/dev/null || true
-            sudo fuser -k 80/tcp 2>/dev/null || true
-            sudo fuser -k 443/tcp 2>/dev/null || true
+            # CRITICAL: 절대 호스트 nginx를 중지하지 않음 (80/443은 호스트 nginx가 관리)
+            # orgcell-frontend는 8081 포트만 사용, 호스트 nginx가 리버스 프록시
 
-            # Stop existing containers cleanly to free ports before recreating
+            # Stop existing containers cleanly before recreating
             docker-compose down --remove-orphans || true
             docker rm -f orgcell-frontend orgcell-backend orgcell-db 2>/dev/null || true
 
@@ -236,6 +180,11 @@ jobs:
             docker-compose pull
             docker-compose up -d
             docker image prune -f
+
+            # 배포 후 호스트 nginx 상태 확인 (반드시 active 여야 함)
+            echo "=== Host nginx status ==="
+            sudo systemctl status nginx --no-pager | head -5
+            sudo systemctl is-active nginx || (echo "CRITICAL: Host nginx is DOWN! Starting..." && sudo systemctl start nginx)
 
             # ── Run DB migrations (idempotent — safe to run every deploy) ──
             echo "Running DB migrations..."

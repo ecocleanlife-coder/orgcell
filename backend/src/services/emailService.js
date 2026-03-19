@@ -1,13 +1,13 @@
 const nodemailer = require('nodemailer');
 
-// Gmail SMTP (uses app password) or any SMTP provider
+// Resend SMTP
 const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: false,
+    host: 'smtp.resend.com',
+    port: 465,
+    secure: true,
     auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user: 'resend',
+        pass: process.env.RESEND_API_KEY,
     },
 });
 
@@ -22,7 +22,7 @@ const transporter = nodemailer.createTransport({
 exports.sendPaymentConfirmationEmail = async (to, { amountUsd, sessionId }) => {
     const amountDisplay = `$${(amountUsd / 100).toFixed(2)}`;
     const mailOptions = {
-        from: `"Orgcell" <${process.env.SMTP_USER || 'noreply@orgcell.com'}>`,
+        from: '"Orgcell" <noreply@orgcell.com>',
         to,
         subject: '[Orgcell] 결제가 완료되었습니다 🎉',
         html: `
@@ -88,7 +88,7 @@ exports.sendPaymentConfirmationEmail = async (to, { amountUsd, sessionId }) => {
 exports.sendAdminPaymentNotification = async ({ email, amountUsd, paidAt }) => {
     const amountDisplay = `$${(amountUsd / 100).toFixed(2)}`;
     const mailOptions = {
-        from: `"Orgcell" <${process.env.SMTP_USER || 'noreply@orgcell.com'}>`,
+        from: '"Orgcell" <noreply@orgcell.com>',
         to: 'ecocleanlife@gmail.com',
         subject: '[Orgcell] 새 결제 발생',
         html: `
@@ -121,7 +121,7 @@ exports.sendInviteEmail = async ({ to, code, inviterName, subdomain }) => {
     const inviteUrl = `https://orgcell.com/invite?code=${code}`;
     const museumLabel = subdomain ? `${subdomain}.orgcell.com` : 'Orgcell';
     const mailOptions = {
-        from: `"Orgcell" <${process.env.SMTP_USER || 'noreply@orgcell.com'}>`,
+        from: '"Orgcell" <noreply@orgcell.com>',
         to,
         subject: `[Orgcell] ${inviterName}님이 가족 박물관에 초대했습니다 🏛️`,
         html: `
@@ -161,7 +161,7 @@ exports.sendInviteEmail = async ({ to, code, inviterName, subdomain }) => {
 
 exports.sendMagicLinkEmail = async (to, magicLink) => {
     const mailOptions = {
-        from: `"Orgcell" <${process.env.SMTP_USER || 'noreply@orgcell.com'}>`,
+        from: '"Orgcell" <noreply@orgcell.com>',
         to,
         subject: 'Orgcell Login Link',
         html: `

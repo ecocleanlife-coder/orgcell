@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /drive-callback
+Disallow: /auth/verify
+
+Sitemap: https://orgcell.com/sitemap.xml
