@@ -4,3 +4,6 @@ node_modules/
 dist/
 gcp_token.json
 *.token.json
+.playwright-mcp/
+*.log
+smoke-test-*.png
