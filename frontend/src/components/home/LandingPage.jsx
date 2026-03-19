@@ -308,6 +308,26 @@ function LandingPage() {
             </div>
 
             {/* ================================================================
+                STATS BANNER
+                ================================================================ */}
+            <div className="max-w-[960px] mx-auto px-6 py-6">
+                <div className="grid grid-cols-3 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #4a7f4a 0%, #3d6b3d 100%)' }}>
+                    <div className="text-center py-7 px-4">
+                        <div className="text-[34px] font-black text-white leading-none">$10</div>
+                        <div className="text-[11px] text-green-200 mt-2 leading-tight">{t('landing.statPriceLabel')}</div>
+                    </div>
+                    <div className="text-center py-7 px-4" style={{ borderLeft: '1px solid rgba(255,255,255,0.2)', borderRight: '1px solid rgba(255,255,255,0.2)' }}>
+                        <div className="text-[34px] font-black text-white leading-none">∞</div>
+                        <div className="text-[11px] text-green-200 mt-2 leading-tight">{t('landing.statStorageLabel')}</div>
+                    </div>
+                    <div className="text-center py-7 px-4">
+                        <div className="text-[34px] font-black text-white leading-none">0</div>
+                        <div className="text-[11px] text-green-200 mt-2 leading-tight">{t('landing.statServerLabel')}</div>
+                    </div>
+                </div>
+            </div>
+
+            {/* ================================================================
                 PROBLEM SECTION — 이런 경험 있으신가요?
                 ================================================================ */}
             <section className="max-w-[960px] mx-auto px-6 pt-24 pb-10">
@@ -448,6 +468,33 @@ function LandingPage() {
             </section>
 
             {/* ================================================================
+                TESTIMONIALS SECTION
+                ================================================================ */}
+            <section className="max-w-[960px] mx-auto px-6 pt-4 pb-10">
+                <div className="text-center mb-8">
+                    <h2 className="text-[22px] font-bold text-[#3D2008] tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>{t('landing.testimonialsTitle')}</h2>
+                </div>
+                <div className="grid md:grid-cols-3 gap-4">
+                    {[
+                        { nameKey: 'review1Name', roleKey: 'review1Role', textKey: 'review1Text' },
+                        { nameKey: 'review2Name', roleKey: 'review2Role', textKey: 'review2Text' },
+                        { nameKey: 'review3Name', roleKey: 'review3Role', textKey: 'review3Text' },
+                    ].map(({ nameKey, roleKey, textKey }) => (
+                        <div key={nameKey} className="bg-white/80 rounded-2xl p-5 shadow-sm border border-[#e8e2d6] flex flex-col">
+                            <div className="flex gap-0.5 mb-3">
+                                {[1,2,3,4,5].map(i => <span key={i} className="text-amber-400 text-sm">★</span>)}
+                            </div>
+                            <p className="text-[13px] text-[#6b5d4d] leading-relaxed flex-1 mb-4">"{t(`landing.${textKey}`)}"</p>
+                            <div>
+                                <p className="text-[12px] font-bold text-[#3D2008]">{t(`landing.${nameKey}`)}</p>
+                                <p className="text-[11px] text-[#a09080]">{t(`landing.${roleKey}`)}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {/* ================================================================
                 FAQ / Q&A SECTION
                 ================================================================ */}
             <section id="qa-section" className="max-w-[800px] mx-auto px-6 pt-12 pb-16">
@@ -477,6 +524,15 @@ function LandingPage() {
                             <span className="font-bold text-[#3D2008]">A. {t('landing.faq3AHead')}</span> {t('landing.faq3A')}
                         </div>
                     </div>
+                    {/* Q4-Q8 */}
+                    {[4, 5, 6, 7, 8].map(n => (
+                        <div key={n} className="bg-white/80 rounded-2xl p-6 shadow-sm border border-[#e8e2d6]">
+                            <h3 className="font-bold text-[#3D2008] text-[15px] mb-2 flex gap-2 items-start"><span className="text-amber-600">Q.</span> {t(`landing.faq${n}Q`)}</h3>
+                            <div className="text-[#6b5d4d] text-[13.5px] leading-relaxed pl-6">
+                                <span className="font-bold text-[#3D2008]">A. {t(`landing.faq${n}AHead`)}</span> {t(`landing.faq${n}A`)}
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </section>
 
