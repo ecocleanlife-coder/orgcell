@@ -22,19 +22,19 @@ router.post('/create-checkout-session', async (req, res) => {
             });
         }
 
+        const priceId = process.env.STRIPE_PRICE_ORGCELL;
+        if (!priceId) {
+            return res.status(503).json({
+                success: false,
+                message: 'Stripe price not configured. Please set STRIPE_PRICE_ORGCELL.',
+            });
+        }
+
         const session = await stripe.checkout.sessions.create({
-            mode: 'payment',
+            mode: 'subscription',
             line_items: [
                 {
-                    price_data: {
-                        currency: 'usd',
-                        product_data: {
-                            name: '$10 Family Website — Orgcell',
-                            description: '1년 이용권 · yourfamily.orgcell.com 전용 도메인',
-                            images: ['https://orgcell.com/pwa-512x512.png'],
-                        },
-                        unit_amount: 1000, // $10.00 in cents
-                    },
+                    price: priceId,
                     quantity: 1,
                 },
             ],
