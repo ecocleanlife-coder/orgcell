@@ -1,17 +1,48 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
+import axios from 'axios';
 import useUiStore from '../../store/uiStore';
 import { getT } from '../../i18n/translations';
+
+const MAX_RETRIES = 5;
+const RETRY_INTERVAL_MS = 2000;
 
 export default function PaymentSuccessPage() {
     const navigate = useNavigate();
     const lang = useUiStore((s) => s.lang);
     const t = getT('paymentSuccess', lang);
 
+    const [checking, setChecking] = useState(false);
+    const [retryFailed, setRetryFailed] = useState(false);
+
     useEffect(() => {
         window.scrollTo(0, 0);
     }, []);
+
+    const handleGoSetup = useCallback(async () => {
+        if (checking) return;
+        setChecking(true);
+        setRetryFailed(false);
+
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+            try {
+                const res = await axios.get('/api/subscriptions/status');
+                if (res.data?.hasSubscription) {
+                    navigate('/family-setup', { replace: true });
+                    return;
+                }
+            } catch {
+                // 네트워크 오류는 무시하고 재시도
+            }
+            if (attempt < MAX_RETRIES - 1) {
+                await new Promise(resolve => setTimeout(resolve, RETRY_INTERVAL_MS));
+            }
+        }
+
+        setChecking(false);
+        setRetryFailed(true);
+    }, [checking, navigate]);
 
     return (
         <div
@@ -143,20 +174,55 @@ export default function PaymentSuccessPage() {
                 {/* CTA 버튼들 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <button
-                        onClick={() => navigate('/family-setup')}
+                        onClick={handleGoSetup}
+                        disabled={checking}
                         style={{
                             padding: '15px 24px',
                             borderRadius: 14,
-                            background: 'linear-gradient(135deg, #5A9460, #4A7F4A)',
+                            background: checking ? '#8DB86B' : 'linear-gradient(135deg, #5A9460, #4A7F4A)',
                             color: 'white',
                             fontWeight: 700,
                             fontSize: 15,
                             border: 'none',
-                            cursor: 'pointer',
+                            cursor: checking ? 'not-allowed' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 8,
+                            opacity: checking ? 0.8 : 1,
                         }}
                     >
-                        {t.ctaMuseum}
+                        {checking && (
+                            <span style={{
+                                width: 16, height: 16, border: '2px solid rgba(255,255,255,0.4)',
+                                borderTopColor: '#fff', borderRadius: '50%',
+                                display: 'inline-block', animation: 'spin 0.8s linear infinite',
+                            }} />
+                        )}
+                        {checking ? '구독 확인 중...' : t.ctaMuseum}
                     </button>
+                    <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+
+                    {retryFailed && (
+                        <div style={{
+                            padding: '12px 16px', borderRadius: 12,
+                            background: '#fff8e8', border: '1px solid #f0d888',
+                            fontSize: 13, color: '#7a5a10', lineHeight: 1.6,
+                        }}>
+                            구독 확인이 지연되고 있습니다. 잠시 후 다시 시도해주세요.
+                            <br />
+                            <button
+                                onClick={handleGoSetup}
+                                style={{
+                                    marginTop: 8, padding: '6px 14px', borderRadius: 8,
+                                    background: '#f0d888', border: 'none',
+                                    fontWeight: 700, fontSize: 12, cursor: 'pointer', color: '#5a4010',
+                                }}
+                            >
+                                다시 시도
+                            </button>
+                        </div>
+                    )}
 
                     <button
                         onClick={() => navigate('/')}
