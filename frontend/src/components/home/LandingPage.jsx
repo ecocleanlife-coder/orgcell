@@ -178,6 +178,11 @@ function LandingPage() {
                                     {t('landing.ctaExplore')}
                                 </button>
                             </div>
+                            {/* 플랜 안내 */}
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3">
+                                <span className="text-[12px] text-[#7a6e5e]">🆓 {t('landing.freePlanNote')}</span>
+                                <span className="text-[12px] text-[#5a9460] font-medium">⭐ {t('landing.paidPlanNote')}</span>
+                            </div>
                         </div>
 
                         {/* ── 우측: 가계도 액자 ──

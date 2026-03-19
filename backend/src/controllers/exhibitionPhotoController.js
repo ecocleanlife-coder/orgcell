@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const fs = require('fs');
 const path = require('path');
+const { FREE_PHOTO_LIMIT } = require('../config/constants');
 
 // GET /api/exhibitions/:id/photos
 exports.listPhotos = async (req, res) => {
@@ -25,6 +26,33 @@ exports.uploadPhotos = async (req, res) => {
 
         if (!files || files.length === 0) {
             return res.status(400).json({ success: false, message: 'No files uploaded' });
+        }
+
+        // 무료 플랜 사진 수 제한 체크
+        const { rows: subRows } = await db.query(
+            `SELECT id FROM subscriptions WHERE email = $1 AND status = 'active' LIMIT 1`,
+            [(req.user?.email || '').toLowerCase()]
+        );
+        const hasSubscription = subRows.length > 0;
+
+        if (!hasSubscription) {
+            const { rows: countRows } = await db.query(
+                `SELECT COUNT(*) AS total FROM exhibition_photos WHERE uploaded_by = $1`,
+                [userId]
+            );
+            const currentCount = parseInt(countRows[0].total, 10);
+            if (currentCount + files.length > FREE_PHOTO_LIMIT) {
+                // 임시 업로드 파일 삭제
+                files.forEach(f => {
+                    const fp = path.join(__dirname, '../../uploads/exhibitions', f.filename);
+                    if (fs.existsSync(fp)) fs.unlinkSync(fp);
+                });
+                return res.status(403).json({
+                    error: 'FREE_LIMIT_EXCEEDED',
+                    message: `무료 플랜은 최대 ${FREE_PHOTO_LIMIT}장까지 업로드 가능합니다. 연 $10 플랜으로 업그레이드하세요.`,
+                    upgradeUrl: '/payment',
+                });
+            }
         }
 
         const vis = ['public', 'family', 'private'].includes(visibility) ? visibility : 'private';

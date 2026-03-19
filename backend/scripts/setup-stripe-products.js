@@ -13,7 +13,7 @@ async function createProducts() {
     product: orgcell.id,
     unit_amount: 1000, // $10.00
     currency: 'usd',
-    recurring: { interval: 'month' },
+    recurring: { interval: 'year' },
   });
   console.log('✅ Orgcell Family Museum');
   console.log('   Product ID:', orgcell.id);
