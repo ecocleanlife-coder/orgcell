@@ -95,6 +95,13 @@ const LiveSharingPage = () => {
             </button>
           </div>
 
+          {/* Hero Image */}
+          <img
+            src="/images/landing/card-live-share.png"
+            alt="Live Photo Sharing"
+            style={{ maxWidth: '320px', width: '100%', margin: '0 auto 32px', display: 'block' }}
+          />
+
           {/* Stats Pills */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-white rounded-lg p-4 shadow-sm border border-[#E0E0E0]">

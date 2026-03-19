@@ -139,6 +139,13 @@ const FamilyWebsitePage = () => {
                         </button>
                     </div>
 
+                    {/* Hero Image */}
+                    <img
+                        src="/images/landing/card-museum.png"
+                        alt="Family Website"
+                        style={{ maxWidth: '320px', width: '100%', margin: '0 auto 32px', display: 'block' }}
+                    />
+
                     {/* Stat Pills */}
                     <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
                         {[t('familyWebsite.stat1'), t('familyWebsite.stat2'), t('familyWebsite.stat3')].map((stat, i) => (
@@ -471,6 +478,23 @@ const FamilyWebsitePage = () => {
                             {t('familyWebsite.referral')}
                         </button>
                     </div>
+                </div>
+            </section>
+
+            {/* ══ Family Tree Sample Image ══ */}
+            <section className="py-12 px-5" style={{ background: '#FAFAF7' }}>
+                <div className="max-w-[1040px] mx-auto">
+                    <img
+                        src="/images/landing/familytree-sample.png"
+                        alt="Digital Family Museum - Family Tree"
+                        style={{
+                            maxWidth: '100%',
+                            borderRadius: '12px',
+                            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                            margin: '2rem auto',
+                            display: 'block',
+                        }}
+                    />
                 </div>
             </section>
 

@@ -91,6 +91,13 @@ const SmartSortPage = () => {
             </button>
           </div>
 
+          {/* Hero Image */}
+          <img
+            src="/images/landing/card-ai-sort.png"
+            alt="AI Smart Sort"
+            style={{ maxWidth: '320px', width: '100%', margin: '0 auto 32px', display: 'block' }}
+          />
+
           {/* Stats Row */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-white/50 backdrop-blur-sm rounded-lg p-6 border border-white/80">
             <div className="text-center">
