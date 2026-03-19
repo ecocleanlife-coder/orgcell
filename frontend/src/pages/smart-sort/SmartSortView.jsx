@@ -13,6 +13,8 @@ export default function SmartSortView() {
     const lang = useUiStore((s) => s.lang);
     const t = getT('smartSort', lang);
 
+    const folderApiSupported = typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function';
+
     const [mode, setMode] = useState('folder'); // 'folder' | 'upload'
     const [step, setStep] = useState(1);
     const [sourceType, setSourceType] = useState('local'); // 'local' or 'drive'
@@ -37,12 +39,16 @@ export default function SmartSortView() {
     const destDirRef = useRef(null);
 
     const handleBrowseFolder = async (setter, dirRef) => {
+        if (!folderApiSupported) {
+            setScanError(t.browserNotSupported || 'Chrome 또는 Edge 86+ 브라우저에서만 사용할 수 있습니다. Safari·Firefox는 미지원입니다.');
+            return;
+        }
         try {
             const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
             setter(dirHandle.name);
             if (dirRef) dirRef.current = dirHandle;
         } catch (err) {
-            // User cancelled or browser doesn't support
+            // User cancelled — no action needed
         }
     };
 
@@ -188,6 +194,21 @@ export default function SmartSortView() {
             )}
 
             {/* ══ Step Tabs + Folder Mode (folder mode only) ══ */}
+            {mode === 'folder' && !folderApiSupported && (
+                <div className="max-w-4xl mx-auto px-4 mb-4">
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+                        <AlertCircle size={20} className="text-amber-500 shrink-0 mt-0.5" />
+                        <div>
+                            <p className="text-sm font-bold text-amber-800">브라우저 미지원</p>
+                            <p className="text-sm text-amber-700 mt-0.5">
+                                폴더 정렬 기능은 <strong>Chrome</strong> 또는 <strong>Edge 86+</strong>에서만 사용 가능합니다.
+                                Safari·Firefox는 지원하지 않습니다.
+                                <br />대신 <button onClick={() => setMode('upload')} className="underline font-semibold cursor-pointer">웹 업로드 분류</button> 탭을 사용해 주세요.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
             {mode === 'folder' && <>
             <div className="flex justify-center gap-2 md:gap-3 px-4 pb-6">
                 {stepTabs.map((tab) => (
