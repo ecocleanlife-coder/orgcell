@@ -58,8 +58,10 @@ const LiveSharingPage = () => {
       <section className="bg-gradient-to-b from-[#EEF4FD] to-[#E4EEFA] pt-16 pb-24 px-4 md:px-8">
         <div className="max-w-4xl mx-auto">
           {/* Breadcrumb */}
-          <div className="text-sm text-[#7A6E5E] mb-8">
-            Orgcell &gt; {t('liveSharing.breadcrumb')}
+          <div className="text-sm text-[#7A6E5E] mb-8 flex items-center gap-2">
+            <button onClick={() => navigate('/')} className="hover:underline cursor-pointer font-semibold" style={{ color: '#4B7DB8' }}>← Orgcell.com</button>
+            <span>›</span>
+            <span>{t('liveSharing.breadcrumb')}</span>
           </div>
 
           {/* Tagline Pill */}

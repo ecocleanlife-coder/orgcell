@@ -70,8 +70,10 @@ const FamilyWebsitePage = () => {
             >
                 <div className="max-w-[1040px] mx-auto">
                     {/* Breadcrumb */}
-                    <div className="text-[13px] font-semibold mb-6" style={{ color: '#7A6E5E' }}>
-                        {t('familyWebsite.breadcrumb')}
+                    <div className="text-[13px] mb-6 flex items-center gap-2" style={{ color: '#7A6E5E' }}>
+                        <button onClick={() => navigate('/')} className="hover:underline cursor-pointer font-semibold" style={{ color: '#5A9460' }}>← Orgcell.com</button>
+                        <span>›</span>
+                        <span>{t('familyWebsite.breadcrumb')}</span>
                     </div>
 
                     {/* Domain badge */}

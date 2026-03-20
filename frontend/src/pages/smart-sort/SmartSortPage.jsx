@@ -59,7 +59,7 @@ const SmartSortPage = () => {
         <div className="max-w-4xl mx-auto">
           {/* Breadcrumb */}
           <div className="text-sm text-[#7A6E5E] mb-6 flex items-center gap-2">
-            <span>Orgcell</span>
+            <button onClick={() => navigate('/')} className="hover:underline cursor-pointer font-semibold" style={{ color: '#5A9460' }}>← Orgcell.com</button>
             <span>›</span>
             <span>{t('smartSort.breadcrumb')}</span>
           </div>

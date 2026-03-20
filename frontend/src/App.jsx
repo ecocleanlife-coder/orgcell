@@ -36,7 +36,7 @@ const PageLoader = () => (
 );
 
 // Authenticated home: 3-way redirect
-// 1. No subscription → /family-website (marketing page)
+// 1. No subscription → / (landing page)
 // 2. Subscription + no museum → /family-setup (onboarding)
 // 3. Subscription + museum → /museum (museum main)
 function AuthHome() {
@@ -58,12 +58,12 @@ function AuthHome() {
         if (siteData) {
           navigate(`/${siteData.subdomain}`, { replace: true });
         } else if (!hasSubscription) {
-          navigate('/family-website', { replace: true });
+          navigate('/', { replace: true });
         } else {
           navigate('/family-setup', { replace: true });
         }
       } catch {
-        navigate('/family-website', { replace: true });
+        navigate('/', { replace: true });
       }
     })();
   }, [navigate]);
