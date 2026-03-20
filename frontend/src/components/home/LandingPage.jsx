@@ -161,7 +161,7 @@ function LandingPage() {
                                 {t('landing.heroSub')}
                             </p>
 
-                            {/* CTA 버튼 3개 */}
+                            {/* CTA 버튼 — 1줄: 무료시작 + 예시보기 */}
                             <div className="flex flex-wrap gap-3 mt-6">
                                 <button
                                     onClick={() => navigate('/auth/login')}
@@ -171,27 +171,23 @@ function LandingPage() {
                                     {t('landing.startFreeBtn')}
                                 </button>
                                 <button
-                                    onClick={handleCheckout}
-                                    disabled={checkoutLoading}
-                                    className="px-6 py-3 rounded-full font-bold text-[15px] cursor-pointer transition-all hover:bg-[#f0f9f0] whitespace-nowrap disabled:opacity-60"
+                                    onClick={() => navigate('/demo')}
+                                    className="px-6 py-3 rounded-full font-bold text-[15px] cursor-pointer transition-all hover:bg-[#f0f9f0] active:scale-95 whitespace-nowrap"
                                     style={{ background: '#fff', border: '1.5px solid #8DB86B', color: '#3a6e3a' }}
                                 >
-                                    {checkoutLoading ? t('landing.checkoutLoading') : t('landing.subscribeBtn')}
+                                    {t('landing.demoBtn')}
                                 </button>
                             </div>
+                            {/* CTA 버튼 — 2줄: 구독 */}
                             <div className="mt-2">
                                 <button
-                                    onClick={() => navigate('/demo')}
-                                    className="text-[13px] font-semibold cursor-pointer hover:underline transition-all"
+                                    onClick={handleCheckout}
+                                    disabled={checkoutLoading}
+                                    className="text-[13px] font-semibold cursor-pointer hover:underline transition-all disabled:opacity-60"
                                     style={{ color: '#7a6e5e' }}
                                 >
-                                    {t('landing.demoBtn')} →
+                                    {checkoutLoading ? t('landing.checkoutLoading') : t('landing.subscribeBtn')} →
                                 </button>
-                            </div>
-                            {/* 플랜 안내 */}
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
-                                <span className="text-[12px] text-[#7a6e5e]">🆓 {t('landing.freePlanNote')}</span>
-                                <span className="text-[12px] text-[#3a7a3a] font-semibold">🔒 {t('landing.privacyBadge')}</span>
                             </div>
                         </div>
 
@@ -253,7 +249,7 @@ function LandingPage() {
                         원본: 다른 카드보다 위에 위치 (살짝 올라감) */}
                     <div className="relative group md:-mt-6 cursor-pointer" onClick={() => navigate('/family-website')}>
                         <div
-                            className="rounded-[18px] pt-5 pb-6 px-5 text-center overflow-visible relative"
+                            className="rounded-[18px] pt-5 pb-7 px-5 text-center overflow-visible relative transition-all"
                             style={{
                                 background: 'linear-gradient(160deg, #d6e8d8 0%, #c8ddc9 100%)',
                                 boxShadow: '4px 8px 24px rgba(60, 110, 60, 0.18), 0 2px 6px rgba(0,0,0,0.06)',
@@ -270,18 +266,7 @@ function LandingPage() {
                                 />
                             </div>
                             <h3 className="text-[15px] font-extrabold text-[#1e3020] mb-1" style={{ fontFamily: 'Georgia, serif' }}>{t('landing.card2Title')}</h3>
-                            <p className="text-[#485a49] text-[12.5px] leading-[1.6] mb-3">{t('landing.card2Desc')}</p>
-
-                            {/* 가격 + CTA */}
-                            <button
-                                onClick={handleCheckout}
-                                disabled={checkoutLoading}
-                                className="w-full py-2.5 rounded-full font-bold text-[13px] text-white transition-all hover:brightness-110 active:scale-95 cursor-pointer mb-2 disabled:opacity-60"
-                                style={{ background: 'linear-gradient(135deg, #4A7F4A, #3a6e3a)' }}
-                            >
-                                {checkoutLoading ? t('landing.checkoutLoading') : t('landing.checkoutCta')}
-                            </button>
-
+                            <p className="text-[#485a49] text-[12.5px] leading-[1.6]">{t('landing.card2Desc')}</p>
                         </div>
                     </div>
 
@@ -315,21 +300,21 @@ function LandingPage() {
             </div>
 
             {/* ================================================================
-                STATS BANNER
+                STATS — 베이지 텍스트 3줄
                 ================================================================ */}
-            <div className="max-w-[960px] mx-auto px-6 py-6">
-                <div className="grid grid-cols-3 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #4a7f4a 0%, #3d6b3d 100%)' }}>
-                    <div className="text-center py-7 px-4">
-                        <div className="text-[34px] font-black text-white leading-none">0</div>
-                        <div className="text-[11px] text-green-200 mt-2 leading-tight">{t('landing.statServerLabel')}</div>
+            <div className="max-w-[960px] mx-auto px-6 py-4">
+                <div className="grid grid-cols-3 divide-x divide-[#ddd7cc]" style={{ borderTop: '1px solid #ddd7cc', borderBottom: '1px solid #ddd7cc' }}>
+                    <div className="text-center py-5 px-3">
+                        <div className="text-[13px] font-bold text-[#3a7a3a] mb-0.5">🔒</div>
+                        <p className="text-[12px] text-[#6b5d4d] leading-snug">{t('landing.statPrivacyText')}</p>
                     </div>
-                    <div className="text-center py-7 px-4" style={{ borderLeft: '1px solid rgba(255,255,255,0.2)', borderRight: '1px solid rgba(255,255,255,0.2)' }}>
-                        <div className="text-[34px] font-black text-white leading-none">∞</div>
-                        <div className="text-[11px] text-green-200 mt-2 leading-tight">{t('landing.statStorageLabel')}</div>
+                    <div className="text-center py-5 px-3">
+                        <div className="text-[13px] font-bold text-[#3a6e8a] mb-0.5">👨‍👩‍👧‍👦</div>
+                        <p className="text-[12px] text-[#6b5d4d] leading-snug">{t('landing.statMembersText')}</p>
                     </div>
-                    <div className="text-center py-7 px-4">
-                        <div className="text-[34px] font-black text-white leading-none">100</div>
-                        <div className="text-[11px] text-green-200 mt-2 leading-tight">{t('landing.statFreeLabel')}</div>
+                    <div className="text-center py-5 px-3">
+                        <div className="text-[13px] font-bold text-[#8a7a3a] mb-0.5">🆓</div>
+                        <p className="text-[12px] text-[#6b5d4d] leading-snug">{t('landing.statFreeText')}</p>
                     </div>
                 </div>
             </div>
