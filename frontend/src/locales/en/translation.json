@@ -13,6 +13,9 @@
     "heroSub": "Connect 4+ generations, forever.",
     "ctaCreate": "Create Your Museum",
     "ctaExplore": "Explore an Example",
+    "startFreeBtn": "Start Free",
+    "subscribeBtn": "Subscribe to Family Museum",
+    "demoBtn": "Explore an Example",
     "freePlanNote": "Free up to 100 photos · No credit card",
     "privacyBadge": "Zero photos on our servers",
     "card1Title": "AI Smart Sort",
@@ -306,5 +309,16 @@
     "infoManage": "📌 Manage your subscription through the Stripe link in the email.",
     "ctaMuseum": "Create Family Museum →",
     "ctaHome": "Back to Home"
+  },
+  "demo": {
+    "badge": "Example Museum",
+    "subtitle": "This is a sample family museum. Create your own with one click.",
+    "treeTitle": "Family Tree",
+    "albumsTitle": "Photo Albums",
+    "photos": "photos",
+    "exampleOnly": "Example only",
+    "ctaTitle": "Create Your Own Family Museum",
+    "ctaSubtitle": "Free up to 100 photos · No credit card needed",
+    "ctaBtn": "Create My Museum"
   }
 }

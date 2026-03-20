@@ -13,6 +13,9 @@
     "heroSub": "永远连接4代以上的家人。",
     "ctaCreate": "创建您的博物馆",
     "ctaExplore": "查看示例",
+    "startFreeBtn": "免费开始",
+    "subscribeBtn": "订阅Family Museum",
+    "demoBtn": "查看示例",
     "freePlanNote": "最多100张免费 · 无需信用卡",
     "privacyBadge": "服务器零照片存储",
     "card1Title": "AI智能整理",
@@ -306,5 +309,16 @@
     "infoManage": "📌 通过邮件中的Stripe链接管理您的订阅。",
     "ctaMuseum": "创建家庭博物馆 →",
     "ctaHome": "返回首页"
+  },
+  "demo": {
+    "badge": "示例博物馆",
+    "subtitle": "这是一个示例家庭博物馆。一键创建您自己的博物馆。",
+    "treeTitle": "家谱树",
+    "albumsTitle": "照片相册",
+    "photos": "张",
+    "exampleOnly": "仅示例",
+    "ctaTitle": "创建您自己的家庭博物馆",
+    "ctaSubtitle": "最多100张免费 · 无需信用卡",
+    "ctaBtn": "创建我的博物馆"
   }
 }

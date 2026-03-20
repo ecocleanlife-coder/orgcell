@@ -13,6 +13,9 @@
     "heroSub": "4世代以上を永遠につなぐ。",
     "ctaCreate": "博物館を作る",
     "ctaExplore": "サンプルを見る",
+    "startFreeBtn": "無料で始める",
+    "subscribeBtn": "Family Museumに登録する",
+    "demoBtn": "サンプルを見る",
     "freePlanNote": "100枚まで無料 · クレジットカード不要",
     "privacyBadge": "サーバーに写真ゼロ",
     "card1Title": "AIスマート整理",
@@ -306,5 +309,16 @@
     "infoManage": "📌 メール内のStripeリンクからサブスクリプションを管理してください。",
     "ctaMuseum": "家族博物館を作る →",
     "ctaHome": "ホームに戻る"
+  },
+  "demo": {
+    "badge": "サンプル博物館",
+    "subtitle": "これはサンプルの家族博物館です。ワンクリックで自分だけの博物館を作りましょう。",
+    "treeTitle": "家族ツリー",
+    "albumsTitle": "フォトアルバム",
+    "photos": "枚",
+    "exampleOnly": "サンプルのみ",
+    "ctaTitle": "あなただけの家族博物館を作ろう",
+    "ctaSubtitle": "100枚まで無料 · クレジットカード不要",
+    "ctaBtn": "私の博物館を作る"
   }
 }

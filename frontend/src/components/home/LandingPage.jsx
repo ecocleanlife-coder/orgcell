@@ -82,9 +82,9 @@ function LandingPage() {
         <div className="min-h-screen bg-[#F5F2EC] font-sans text-slate-800 overflow-x-hidden">
             <Helmet>
                 <title>Orgcell — AI 가족 사진 자동 정리 · Digital Family Museum</title>
-                <meta name="description" content="AI Smart Sort로 중복 사진 정리, $10 Family Website로 가족 도메인 개설, Live Sharing으로 실시간 공유. 가족 사진의 모든 것을 Orgcell에서." />
+                <meta name="description" content="AI Smart Sort로 중복 사진 정리, 가족 도메인 개설, Live Sharing으로 실시간 공유. 100장 무료. 가족 사진의 모든 것을 Orgcell에서." />
                 <meta property="og:title" content="Orgcell — AI 가족 사진 자동 정리" />
-                <meta property="og:description" content="AI가 사진을 정리하고, $10으로 나만의 가족 웹사이트를 만드세요. 원본은 구글 드라이브에 안전하게." />
+                <meta property="og:description" content="AI가 사진을 정리하고 나만의 가족 박물관을 무료로 시작하세요. 원본은 구글 드라이브에 안전하게." />
                 <meta property="og:image" content="/pwa-512x512.png" />
             </Helmet>
 
@@ -161,25 +161,35 @@ function LandingPage() {
                                 {t('landing.heroSub')}
                             </p>
 
-                            {/* CTA 버튼 2개 — 원본: 초록 둥근 + 흰색 테두리 둥근 */}
-                            <div className="flex gap-3 mt-6">
+                            {/* CTA 버튼 3개 */}
+                            <div className="flex flex-wrap gap-3 mt-6">
                                 <button
-                                    onClick={scrollToLogin}
+                                    onClick={() => navigate('/auth/login')}
                                     className="px-6 py-3 rounded-full font-bold text-[15px] shadow-md cursor-pointer transition-all hover:brightness-105 active:scale-95 whitespace-nowrap"
                                     style={{ background: '#8DB86B', color: '#fff' }}
                                 >
-                                    {t('landing.ctaCreate')}
+                                    {t('landing.startFreeBtn')}
                                 </button>
                                 <button
-                                    onClick={() => navigate('/family-website')}
-                                    className="px-6 py-3 rounded-full font-bold text-[15px] cursor-pointer transition-all hover:bg-white whitespace-nowrap"
-                                    style={{ background: '#fff', border: '1.5px solid #c5bfb3', color: '#4a4031' }}
+                                    onClick={handleCheckout}
+                                    disabled={checkoutLoading}
+                                    className="px-6 py-3 rounded-full font-bold text-[15px] cursor-pointer transition-all hover:bg-[#f0f9f0] whitespace-nowrap disabled:opacity-60"
+                                    style={{ background: '#fff', border: '1.5px solid #8DB86B', color: '#3a6e3a' }}
                                 >
-                                    {t('landing.ctaExplore')}
+                                    {checkoutLoading ? t('landing.checkoutLoading') : t('landing.subscribeBtn')}
+                                </button>
+                            </div>
+                            <div className="mt-2">
+                                <button
+                                    onClick={() => navigate('/demo')}
+                                    className="text-[13px] font-semibold cursor-pointer hover:underline transition-all"
+                                    style={{ color: '#7a6e5e' }}
+                                >
+                                    {t('landing.demoBtn')} →
                                 </button>
                             </div>
                             {/* 플랜 안내 */}
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3">
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
                                 <span className="text-[12px] text-[#7a6e5e]">🆓 {t('landing.freePlanNote')}</span>
                                 <span className="text-[12px] text-[#3a7a3a] font-semibold">🔒 {t('landing.privacyBadge')}</span>
                             </div>

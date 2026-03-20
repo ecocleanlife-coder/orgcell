@@ -27,6 +27,7 @@ const FamilyTreeView = lazy(() => import('./components/museum/FamilyTreeView'));
 const PersonFolderView = lazy(() => import('./components/museum/PersonFolderView'));
 const ExhibitionDetailPage = lazy(() => import('./pages/museum/ExhibitionDetailPage'));
 const InvitePage = lazy(() => import('./pages/invite/InvitePage'));
+const DemoMuseumPage = lazy(() => import('./pages/demo/DemoMuseumPage'));
 
 const PageLoader = () => (
   <div className="flex h-64 w-full items-center justify-center">
@@ -266,6 +267,14 @@ function App() {
                 <PaymentSuccessPage />
               </Suspense>
             </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/demo"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <DemoMuseumPage />
+            </Suspense>
           }
         />
       </Routes>

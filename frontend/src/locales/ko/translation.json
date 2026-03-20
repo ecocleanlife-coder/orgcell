@@ -13,6 +13,9 @@
     "heroSub": "4대+를 영원히 연결하세요.",
     "ctaCreate": "나만의 박물관 만들기",
     "ctaExplore": "예시 둘러보기",
+    "startFreeBtn": "무료로 시작하기",
+    "subscribeBtn": "Family Museum 구독하기",
+    "demoBtn": "예시 보기",
     "freePlanNote": "100장까지 무료 · 신용카드 불필요",
     "privacyBadge": "서버에 사진 저장 없음",
     "card1Title": "AI 스마트 분류",
@@ -306,5 +309,16 @@
     "infoManage": "📌 이메일의 Stripe 링크를 통해 구독을 관리하세요.",
     "ctaMuseum": "가족 박물관 만들기 →",
     "ctaHome": "홈으로 돌아가기"
+  },
+  "demo": {
+    "badge": "예시 박물관",
+    "subtitle": "이것은 샘플 가족 박물관입니다. 클릭 한 번으로 나만의 박물관을 만드세요.",
+    "treeTitle": "가족 나무",
+    "albumsTitle": "사진 앨범",
+    "photos": "장",
+    "exampleOnly": "예시 전용",
+    "ctaTitle": "나만의 가족 박물관 만들기",
+    "ctaSubtitle": "100장까지 무료 · 신용카드 불필요",
+    "ctaBtn": "내 박물관 만들기"
   }
 }

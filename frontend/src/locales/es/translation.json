@@ -13,6 +13,9 @@
     "heroSub": "Conecta 4+ generaciones, para siempre.",
     "ctaCreate": "Crea Tu Museo",
     "ctaExplore": "Ver un Ejemplo",
+    "startFreeBtn": "Empezar Gratis",
+    "subscribeBtn": "Suscribirse al Family Museum",
+    "demoBtn": "Ver un Ejemplo",
     "freePlanNote": "Gratis hasta 100 fotos · Sin tarjeta de crédito",
     "privacyBadge": "Cero fotos en nuestros servidores",
     "card1Title": "Organización IA",
@@ -306,5 +309,16 @@
     "infoManage": "📌 Gestiona tu suscripción a través del enlace de Stripe en el correo.",
     "ctaMuseum": "Crear Museo Familiar →",
     "ctaHome": "Volver al Inicio"
+  },
+  "demo": {
+    "badge": "Museo de Ejemplo",
+    "subtitle": "Este es un museo familiar de muestra. Crea el tuyo con un clic.",
+    "treeTitle": "Árbol Genealógico",
+    "albumsTitle": "Álbumes de Fotos",
+    "photos": "fotos",
+    "exampleOnly": "Solo ejemplo",
+    "ctaTitle": "Crea Tu Propio Museo Familiar",
+    "ctaSubtitle": "Gratis hasta 100 fotos · Sin tarjeta de crédito",
+    "ctaBtn": "Crear Mi Museo"
   }
 }
