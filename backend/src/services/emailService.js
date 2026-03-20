@@ -183,5 +183,11 @@ exports.sendMagicLinkEmail = async (to, magicLink) => {
         `,
     };
 
-    return transporter.sendMail(mailOptions);
+    try {
+        const result = await transporter.sendMail(mailOptions);
+        return result;
+    } catch (error) {
+        console.error('Email send failed:', error.message, error.code, error.response);
+        throw error;
+    }
 };
