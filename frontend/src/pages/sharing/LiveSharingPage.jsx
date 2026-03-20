@@ -114,6 +114,13 @@ const LiveSharingPage = () => {
               <p className="font-semibold text-[#0E1E2A]">{t('liveSharing.stat3')}</p>
             </div>
           </div>
+
+          {/* Privacy Badge */}
+          <div className="mt-6 flex justify-center">
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-[#4B7DB8] bg-white border border-[#b0c8e0]">
+              🆓 Free · No account needed for viewers
+            </span>
+          </div>
         </div>
       </section>
 
@@ -376,6 +383,25 @@ const LiveSharingPage = () => {
                 </li>
               </ul>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-12 px-4 bg-[#EEF4FD]">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#0E1E2A] mb-8 text-center">{t('landing.faqTitle')}</h2>
+          <div className="space-y-4">
+            {[1, 2, 3].map(n => (
+              <div key={n} className="bg-white rounded-2xl p-6 shadow-sm border border-[#dce8f5]">
+                <h3 className="font-bold text-[#0E1E2A] text-[15px] mb-2 flex gap-2 items-start">
+                  <span className="text-[#4B7DB8]">Q.</span> {t(`liveSharing.faq${n}Q`)}
+                </h3>
+                <p className="text-[#6b5d4d] text-[13.5px] leading-relaxed pl-6">
+                  <span className="font-bold text-[#0E1E2A]">A. </span>{t(`liveSharing.faq${n}A`)}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </section>

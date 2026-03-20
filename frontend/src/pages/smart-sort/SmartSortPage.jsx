@@ -113,6 +113,13 @@ const SmartSortPage = () => {
               <p className="text-sm text-[#7A6E5E] mt-1">{t('smartSort.stat3label')}</p>
             </div>
           </div>
+
+          {/* Privacy Badge */}
+          <div className="mt-6 flex justify-center">
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-[#3a6e3a] bg-white/70 border border-[#b0d0b0]">
+              🔒 No upload · Works in your browser
+            </span>
+          </div>
         </div>
       </section>
 
@@ -348,6 +355,25 @@ const SmartSortPage = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-12 px-4 bg-[#FAFAF7]">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-serif text-[#2D1E0E] mb-8 text-center">{t('landing.faqTitle')}</h2>
+          <div className="space-y-4">
+            {[1, 2, 3].map(n => (
+              <div key={n} className="bg-white rounded-2xl p-6 shadow-sm border border-[#e8e2d6]">
+                <h3 className="font-bold text-[#2D1E0E] text-[15px] mb-2 flex gap-2 items-start">
+                  <span className="text-[#7B66B2]">Q.</span> {t(`smartSort.faq${n}Q`)}
+                </h3>
+                <p className="text-[#6b5d4d] text-[13.5px] leading-relaxed pl-6">
+                  <span className="font-bold text-[#2D1E0E]">A. </span>{t(`smartSort.faq${n}A`)}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </section>

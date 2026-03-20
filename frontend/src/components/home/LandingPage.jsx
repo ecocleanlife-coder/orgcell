@@ -181,7 +181,7 @@ function LandingPage() {
                             {/* 플랜 안내 */}
                             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3">
                                 <span className="text-[12px] text-[#7a6e5e]">🆓 {t('landing.freePlanNote')}</span>
-                                <span className="text-[12px] text-[#5a9460] font-medium">⭐ {t('landing.paidPlanNote')}</span>
+                                <span className="text-[12px] text-[#3a7a3a] font-semibold">🔒 {t('landing.privacyBadge')}</span>
                             </div>
                         </div>
 
@@ -253,7 +253,7 @@ function LandingPage() {
                             <div className="relative -mt-[120px] mb-3 flex justify-center pointer-events-none">
                                 <img
                                     src="/images/landing/card-museum.png"
-                                    alt="가족 박물관 - $10 도메인 개설"
+                                    alt="가족 박물관 - 디지털 가족 공간"
                                     loading="lazy"
                                     className="w-[55%] group-hover:scale-105 transition-transform duration-300"
                                     style={{ filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.13))' }}
@@ -318,16 +318,16 @@ function LandingPage() {
             <div className="max-w-[960px] mx-auto px-6 py-6">
                 <div className="grid grid-cols-3 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #4a7f4a 0%, #3d6b3d 100%)' }}>
                     <div className="text-center py-7 px-4">
-                        <div className="text-[34px] font-black text-white leading-none">$10</div>
-                        <div className="text-[11px] text-green-200 mt-2 leading-tight">{t('landing.statPriceLabel')}</div>
+                        <div className="text-[34px] font-black text-white leading-none">0</div>
+                        <div className="text-[11px] text-green-200 mt-2 leading-tight">{t('landing.statServerLabel')}</div>
                     </div>
                     <div className="text-center py-7 px-4" style={{ borderLeft: '1px solid rgba(255,255,255,0.2)', borderRight: '1px solid rgba(255,255,255,0.2)' }}>
                         <div className="text-[34px] font-black text-white leading-none">∞</div>
                         <div className="text-[11px] text-green-200 mt-2 leading-tight">{t('landing.statStorageLabel')}</div>
                     </div>
                     <div className="text-center py-7 px-4">
-                        <div className="text-[34px] font-black text-white leading-none">0</div>
-                        <div className="text-[11px] text-green-200 mt-2 leading-tight">{t('landing.statServerLabel')}</div>
+                        <div className="text-[34px] font-black text-white leading-none">100</div>
+                        <div className="text-[11px] text-green-200 mt-2 leading-tight">{t('landing.statFreeLabel')}</div>
                     </div>
                 </div>
             </div>

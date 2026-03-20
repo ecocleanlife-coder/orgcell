@@ -50,10 +50,10 @@ const FamilyWebsitePage = () => {
     return (
         <div style={{ background: '#FAFAF7', color: '#1E2A0E' }}>
                 <Helmet>
-                <title>$10 Family Website — Orgcell</title>
-                <meta name="description" content="연 $10에 나만의 가족 도메인(yourfamily.orgcell.com)을 만드세요. 4세대 가계도, 사진 갤러리, 가족 채팅 포함." />
-                <meta property="og:title" content="$10 Family Website — Orgcell" />
-                <meta property="og:description" content="연 $10으로 yourfamily.orgcell.com 도메인 개설. 가계도·앨범·라이브 공유 포함." />
+                <title>Family Museum — Orgcell</title>
+                <meta name="description" content="나만의 가족 도메인(yourfamily.orgcell.com)을 무료로 시작하세요. 4세대 가계도, 사진 갤러리, 가족 채팅 포함. 100장까지 무료." />
+                <meta property="og:title" content="Family Museum — Orgcell" />
+                <meta property="og:description" content="yourfamily.orgcell.com 도메인 개설. 100장 무료 시작, 가계도·앨범·라이브 공유 포함." />
                 <meta property="og:image" content="/pwa-512x512.png" />
             </Helmet>
 
@@ -299,7 +299,7 @@ const FamilyWebsitePage = () => {
                     >
                         {/* Price display */}
                         <div className="mb-2">
-                            <span style={{ fontSize: '64px', fontWeight: '800', color: '#1E2A0E', fontFamily: 'Georgia, serif', lineHeight: 1 }}>$10</span>
+                            <span style={{ fontSize: '64px', fontWeight: '800', color: '#5A9460', fontFamily: 'Georgia, serif', lineHeight: 1 }}>Free</span>
                         </div>
                         <p className="mb-8" style={{ color: '#7A6E5E', fontSize: '14px' }}>{t('familyWebsite.priceYearLabel')}</p>
 
@@ -432,6 +432,27 @@ const FamilyWebsitePage = () => {
                     <p className="text-center" style={{ color: '#7A6E5E', fontSize: '14px' }}>
                         {t('familyWebsite.memberDesc')}
                     </p>
+                </div>
+            </section>
+
+            {/* ══ FAQ Section ══ */}
+            <section className="py-12 px-5" style={{ background: '#FAFAF7' }}>
+                <div className="max-w-[800px] mx-auto">
+                    <h2 className="text-center mb-8" style={{ fontSize: '28px', fontWeight: '700', fontFamily: 'Georgia, serif', color: '#1E2A0E' }}>
+                        {t('landing.faqTitle')}
+                    </h2>
+                    <div className="space-y-4">
+                        {[1, 2, 3].map(n => (
+                            <div key={n} className="bg-white rounded-2xl p-6 shadow-sm border border-[#e8e2d6]">
+                                <h3 className="font-bold text-[#1E2A0E] text-[15px] mb-2 flex gap-2 items-start">
+                                    <span style={{ color: '#5A9460' }}>Q.</span> {t(`familyWebsite.faq${n}Q`)}
+                                </h3>
+                                <p className="text-[#6b5d4d] text-[13.5px] leading-relaxed pl-6">
+                                    <span className="font-bold text-[#1E2A0E]">A. </span>{t(`familyWebsite.faq${n}A`)}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </section>
 
