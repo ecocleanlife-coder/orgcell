@@ -249,9 +249,9 @@ function LandingPage() {
                         </div>
                     </button>
 
-                    {/* ─ 초록 카드: $10 Family Website ─
+                    {/* ─ 초록 카드: Family Museum ─
                         원본: 다른 카드보다 위에 위치 (살짝 올라감) */}
-                    <div className="relative group md:-mt-6">
+                    <div className="relative group md:-mt-6 cursor-pointer" onClick={() => navigate('/family-website')}>
                         <div
                             className="rounded-[18px] pt-5 pb-6 px-5 text-center overflow-visible relative"
                             style={{
