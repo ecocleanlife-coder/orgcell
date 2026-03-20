@@ -1,44 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../../components/common/Navbar';
 import Footer from '../../components/common/Footer';
 import { Globe, Lock, Users, FolderTree, Shield, Star, ArrowRight, Crown, Image } from 'lucide-react';
-import useAuthStore from '../../store/authStore';
 
 const FamilyWebsitePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
-    const token = useAuthStore(s => s.token);
-    const user = useAuthStore(s => s.user);
-    const isAuthenticated = !!(token && user);
-    const [checkoutLoading, setCheckoutLoading] = useState(false);
 
     useEffect(() => {
         window.scrollTo(0, 0);
     }, []);
-
-    const handleCheckout = async () => {
-        if (!isAuthenticated) {
-            navigate('/auth/login?next=checkout');
-            return;
-        }
-        if (checkoutLoading) return;
-        setCheckoutLoading(true);
-        try {
-            const res = await axios.post('/api/payment/create-checkout-session', { email: user?.email });
-            if (res.data?.url) {
-                window.location.href = res.data.url;
-            }
-        } catch (err) {
-            console.error('Checkout error:', err);
-            alert('결제 세션을 시작할 수 없습니다. 잠시 후 다시 시도해 주세요.');
-        } finally {
-            setCheckoutLoading(false);
-        }
-    };
 
     const scrollToLogin = () => {
         navigate('/');
@@ -114,12 +88,11 @@ const FamilyWebsitePage = () => {
                     {/* CTA Buttons */}
                     <div className="flex flex-col sm:flex-row gap-4 mb-4">
                         <button
-                            onClick={handleCheckout}
-                            disabled={checkoutLoading}
-                            className="px-8 py-3 rounded-full font-bold text-[14px] transition-all hover:brightness-110 active:scale-95 text-white disabled:opacity-60"
+                            onClick={() => navigate('/auth/login')}
+                            className="px-8 py-3 rounded-full font-bold text-[14px] transition-all hover:brightness-110 active:scale-95 text-white"
                             style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
                         >
-                            {checkoutLoading ? t('familyWebsite.loading') : t('familyWebsite.ctaStart')}
+                            {t('familyWebsite.ctaStart')}
                         </button>
                         <button
                             onClick={() => navigate('/family-website')}
@@ -325,12 +298,11 @@ const FamilyWebsitePage = () => {
 
                         {/* Primary CTA */}
                         <button
-                            onClick={handleCheckout}
-                            disabled={checkoutLoading}
-                            className="w-full py-4 rounded-full font-bold text-[15px] text-white transition-all hover:brightness-110 active:scale-95 cursor-pointer disabled:opacity-60"
+                            onClick={() => navigate('/auth/login')}
+                            className="w-full py-4 rounded-full font-bold text-[15px] text-white transition-all hover:brightness-110 active:scale-95 cursor-pointer"
                             style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
                         >
-                            {checkoutLoading ? t('familyWebsite.loading') : t('familyWebsite.ctaStart')}
+                            {t('familyWebsite.ctaStart')}
                         </button>
                     </div>
 
@@ -484,13 +456,12 @@ const FamilyWebsitePage = () => {
                     </p>
 
                     <button
-                        onClick={handleCheckout}
-                        disabled={checkoutLoading}
-                        className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-bold text-[15px] transition-all hover:brightness-110 active:scale-95 text-white cursor-pointer disabled:opacity-60"
+                        onClick={() => navigate('/auth/login')}
+                        className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-bold text-[15px] transition-all hover:brightness-110 active:scale-95 text-white cursor-pointer"
                         style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
                     >
-                        {checkoutLoading ? t('familyWebsite.loading') : t('familyWebsite.googleStart')}
-                        {!checkoutLoading && <ArrowRight size={18} />}
+                        {t('familyWebsite.googleStart')}
+                        <ArrowRight size={18} />
                     </button>
 
                     <div className="mt-4">
