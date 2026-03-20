@@ -143,7 +143,8 @@ const FamilyWebsitePage = () => {
                     <img
                         src="/images/landing/card-museum.png"
                         alt="Family Website"
-                        style={{ maxWidth: '320px', width: '100%', margin: '0 auto 32px', display: 'block' }}
+                        style={{ maxWidth: '320px', width: '100%', margin: '0 auto 32px', display: 'block', cursor: 'pointer' }}
+                        onClick={() => navigate('/auth/login')}
                     />
 
                     {/* Stat Pills */}

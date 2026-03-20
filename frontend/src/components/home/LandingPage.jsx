@@ -272,14 +272,6 @@ function LandingPage() {
                                 {checkoutLoading ? t('landing.checkoutLoading') : t('landing.checkoutCta')}
                             </button>
 
-                            {/* 소개 무료 링크 */}
-                            <button
-                                onClick={(e) => { e.stopPropagation(); navigate('/redeem'); }}
-                                className="text-[11px] font-semibold leading-snug transition-all cursor-pointer hover:underline"
-                                style={{ color: '#3a6e3a' }}
-                            >
-                                {t('landing.referralCta')}
-                            </button>
                         </div>
                     </div>
 
