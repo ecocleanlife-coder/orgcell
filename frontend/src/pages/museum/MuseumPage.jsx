@@ -5,10 +5,13 @@ import {
     Globe, Lock, Image as ImageIcon,
     GalleryThumbnails, ClipboardList, TreePine, Settings,
     LogIn, Bell, Star, Calendar, MessageSquare, ChevronRight, Download,
+    BookOpen, CalendarDays,
 } from 'lucide-react';
 import axios from 'axios';
 import LanguageSwitcher from '../../components/common/LanguageSwitcher';
 import FamilyTreeView from '../../components/museum/FamilyTreeView';
+import FamilyCalendar from '../../components/museum/FamilyCalendar';
+import AncestorHallTab from '../../components/museum/AncestorHallTab';
 import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
 import { getT } from '../../i18n/translations';
@@ -235,6 +238,8 @@ export default function MuseumPage({ initialTab }) {
     const TABS = [
         { key: 'tree',       icon: TreePine,          label: t.tabTree },
         { key: 'exhibition', icon: GalleryThumbnails, label: t.tabExhibition },
+        { key: 'ancestor',   icon: BookOpen,          label: t.tabAncestor },
+        { key: 'calendar',   icon: CalendarDays,      label: t.tabCalendar },
         ...(role !== 'public' ? [{ key: 'board', icon: ClipboardList, label: t.tabBoard }] : []),
     ];
 
@@ -384,6 +389,20 @@ export default function MuseumPage({ initialTab }) {
                                 ))}
                             </div>
                         )}
+                    </div>
+                )}
+
+                {/* ══ Ancestor Hall ══ */}
+                {activeTab === 'ancestor' && (
+                    <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: '1px solid #e8e0d0' }}>
+                        <AncestorHallTab siteId={site?.id} subdomain={subdomain} role={role} t={t} />
+                    </div>
+                )}
+
+                {/* ══ Family Calendar ══ */}
+                {activeTab === 'calendar' && (
+                    <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: '1px solid #e8e0d0' }}>
+                        <FamilyCalendar siteId={site?.id} role={role} t={t} />
                     </div>
                 )}
 

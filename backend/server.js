@@ -40,6 +40,7 @@ app.use('/api/invite', require('./src/routes/inviteRoutes'));
 app.use('/api/museum', require('./src/routes/museumRoutes'));
 app.use('/api/manifest', require('./src/routes/manifestRoutes'));
 app.use('/api/exhibitions', require('./src/routes/exhibitionRoutes'));
+app.use('/api/calendar', require('./src/routes/calendarRoutes'));
 app.use('/uploads', require('express').static(require('path').join(__dirname, 'uploads')));
 app.use('/api/board', require('./src/routes/boardRoutes'));
 

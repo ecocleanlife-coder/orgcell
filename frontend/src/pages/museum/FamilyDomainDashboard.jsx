@@ -3,12 +3,14 @@ import {
     TreePine, GalleryThumbnails, ClipboardList, Settings,
     Plus, Image as ImageIcon, Globe, Lock, X, ChevronRight,
     Copy, Check, LogOut, MessageSquare, Calendar, Star, Bell,
-    UserPlus, Link, Mail, Share2,
+    UserPlus, Link, Mail, Share2, BookOpen, CalendarDays,
 } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import LanguageSwitcher from '../../components/common/LanguageSwitcher';
 import FamilyTreeView from '../../components/museum/FamilyTreeView';
+import FamilyCalendar from '../../components/museum/FamilyCalendar';
+import AncestorHallTab from '../../components/museum/AncestorHallTab';
 import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
 import { getT } from '../../i18n/translations';
@@ -270,6 +272,8 @@ export default function FamilyDomainDashboard() {
     const TABS = [
         { key: 'tree',       icon: TreePine,          label: t.tabTree },
         { key: 'exhibition', icon: GalleryThumbnails, label: t.tabExhibition },
+        { key: 'ancestor',   icon: BookOpen,          label: t.tabAncestor },
+        { key: 'calendar',   icon: CalendarDays,      label: t.tabCalendar },
         { key: 'board',      icon: ClipboardList,     label: t.tabBoard },
         { key: 'settings',   icon: Settings,          label: t.tabSettings },
     ];
@@ -383,6 +387,20 @@ export default function FamilyDomainDashboard() {
                                 ))}
                             </div>
                         )}
+                    </div>
+                )}
+
+                {/* ══════════ 조상전시관 ══════════ */}
+                {activeTab === 'ancestor' && (
+                    <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: '1px solid #e8e0d0' }}>
+                        <AncestorHallTab siteId={site?.id} subdomain={site?.subdomain} role="owner" t={t} />
+                    </div>
+                )}
+
+                {/* ══════════ 가족 달력 ══════════ */}
+                {activeTab === 'calendar' && (
+                    <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: '1px solid #e8e0d0' }}>
+                        <FamilyCalendar siteId={site?.id} role="owner" t={t} />
                     </div>
                 )}
 

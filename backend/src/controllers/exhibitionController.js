@@ -1,9 +1,9 @@
 const db = require('../config/db');
 
-// GET /api/exhibitions?site_id=X&visibility=public|family
+// GET /api/exhibitions?site_id=X&visibility=public|family&hall_type=general|ancestor
 exports.listExhibitions = async (req, res) => {
     try {
-        const { site_id, visibility } = req.query;
+        const { site_id, visibility, hall_type } = req.query;
         if (!site_id) return res.status(400).json({ success: false, message: 'site_id required' });
 
         let query = `
@@ -20,8 +20,12 @@ exports.listExhibitions = async (req, res) => {
         const params = [site_id];
 
         if (visibility) {
-            query += ` AND e.visibility = $2`;
+            query += ` AND e.visibility = $${params.length + 1}`;
             params.push(visibility);
+        }
+        if (hall_type) {
+            query += ` AND COALESCE(e.hall_type, 'general') = $${params.length + 1}`;
+            params.push(hall_type);
         }
         query += ` ORDER BY e.created_at DESC`;
 
@@ -36,14 +40,23 @@ exports.listExhibitions = async (req, res) => {
 // POST /api/exhibitions
 exports.createExhibition = async (req, res) => {
     try {
-        const { site_id, title, description, visibility } = req.body;
+        const {
+            site_id, title, description, visibility,
+            hall_type, birth_year, death_year, memoir, relation
+        } = req.body;
         if (!site_id || !title) return res.status(400).json({ success: false, message: 'site_id and title required' });
 
         const vis = ['public', 'family'].includes(visibility) ? visibility : 'family';
+        const hType = ['general', 'ancestor'].includes(hall_type) ? hall_type : 'general';
+
         const { rows } = await db.query(
-            `INSERT INTO exhibitions (site_id, title, description, visibility, created_by)
-             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-            [site_id, title, description || '', vis, req.user?.id || null]
+            `INSERT INTO exhibitions
+               (site_id, title, description, visibility, created_by,
+                hall_type, birth_year, death_year, memoir, relation)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+             RETURNING *`,
+            [site_id, title, description || '', vis, req.user?.id || null,
+             hType, birth_year || null, death_year || null, memoir || null, relation || null]
         );
         res.status(201).json({ success: true, data: rows[0] });
     } catch (err) {
