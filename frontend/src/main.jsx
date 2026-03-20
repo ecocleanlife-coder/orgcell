@@ -4,6 +4,15 @@ import axios from 'axios'
 import App from './App.jsx'
 import './index.css'
 import './i18n'
+import { registerSW } from 'virtual:pwa-register'
+
+// Auto-reload when a new service worker version is deployed
+registerSW({
+  onNeedRefresh() {
+    window.location.reload();
+  },
+  onOfflineReady() {},
+});
 
 // Global Axios configuration for API routing
 axios.defaults.baseURL = import.meta.env.VITE_API_URL || '';
