@@ -1,6 +1,7 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Network, Plus, User, UserPlus, ExternalLink, MessageSquare, Image as ImageIcon, Send, X, ChevronLeft, ChevronRight, Play, Heart } from 'lucide-react';
+import axios from 'axios';
 import FamilyBanner from '../common/FamilyBanner';
 import useUiStore from '../../store/uiStore';
 import { getT } from '../../i18n/translations';
@@ -67,6 +68,74 @@ const INITIAL = {
         { id: 'daughter2', name: 'Daughter2', coverUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200', parentPairs: [], children: [] },
     ]
 };
+
+// ── Flat DB rows → nested tree conversion ──
+function buildTreeFromPersons(persons) {
+    if (!persons || persons.length === 0) return null;
+
+    const byId = {};
+    for (const p of persons) {
+        byId[p.id] = {
+            id: String(p.id),
+            name: p.name,
+            coverUrl: p.photo_url || null,
+            parentPairs: [],
+            children: [],
+            spouse: null,
+            _raw: p,
+        };
+    }
+
+    // 자녀 관계 설정 (parent1_id 기준)
+    for (const p of persons) {
+        if (p.parent1_id && byId[p.parent1_id]) {
+            const parent = byId[p.parent1_id];
+            // 이미 추가된 자녀인지 확인
+            if (!parent.children.find(c => c.id === String(p.id))) {
+                parent.children.push(byId[p.id]);
+            }
+        }
+    }
+
+    // 배우자 관계 설정
+    for (const p of persons) {
+        if (p.spouse_id && byId[p.spouse_id]) {
+            byId[p.id].spouse = byId[p.spouse_id];
+        }
+    }
+
+    // 부모 관계 → parentPairs 설정
+    for (const p of persons) {
+        if (p.parent1_id && p.parent2_id && byId[p.parent1_id] && byId[p.parent2_id]) {
+            const node = byId[p.id];
+            const existingPair = node.parentPairs.find(pp =>
+                pp.parent1?.id === String(p.parent1_id) && pp.parent2?.id === String(p.parent2_id)
+            );
+            if (!existingPair) {
+                node.parentPairs.push({
+                    id: `pp_${p.parent1_id}_${p.parent2_id}`,
+                    label: 'Birth Parents',
+                    parent1: byId[p.parent1_id],
+                    parent2: byId[p.parent2_id],
+                });
+            }
+        }
+    }
+
+    // 루트 찾기: parent1_id가 없는 generation 1 노드 (또는 가장 낮은 generation의 부모)
+    // 중심 인물 = generation 1 중 parent가 있는 첫 번째 (부모 세대)
+    const gen1 = persons.filter(p => p.generation === 1);
+    if (gen1.length > 0) {
+        const mainPerson = byId[gen1[0].id];
+        return mainPerson;
+    }
+
+    // generation 1이 없으면 parent가 없는 첫 번째 사람
+    const roots = persons.filter(p => !p.parent1_id);
+    if (roots.length > 0) return byId[roots[0].id];
+
+    return byId[persons[0].id];
+}
 
 // ── UI Components ──
 
@@ -142,11 +211,46 @@ const PARENT_TYPE_KEYS = [
     { value: 'other', tKey: 'other' },
 ];
 
-export default function FamilyTreeView() {
+export default function FamilyTreeView({ siteId, readOnly }) {
     const navigate = useNavigate();
     const lang = useUiStore((s) => s.lang);
     const t = getT('familyTree', lang);
-    const [root, setRoot] = useState(INITIAL);
+    const [root, setRoot] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState(null);
+
+    // DB에서 persons 로드
+    useEffect(() => {
+        if (!siteId) {
+            setRoot(INITIAL);
+            setIsLoading(false);
+            return;
+        }
+
+        let cancelled = false;
+        (async () => {
+            try {
+                setIsLoading(true);
+                const res = await axios.get(`/api/persons/${siteId}`);
+                if (cancelled) return;
+                if (res.data?.success && res.data.data?.length > 0) {
+                    const tree = buildTreeFromPersons(res.data.data);
+                    setRoot(tree || INITIAL);
+                } else {
+                    setRoot(null);
+                }
+            } catch (err) {
+                if (cancelled) return;
+                console.error('Failed to load persons:', err);
+                setLoadError(err.message);
+                setRoot(INITIAL);
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        })();
+
+        return () => { cancelled = true; };
+    }, [siteId]);
 
     // Modal state
     const [modal, setModal] = useState(null);
@@ -366,14 +470,14 @@ export default function FamilyTreeView() {
 
     // ── Main root person's parents (both own + spouse's) ──
     const renderRootParents = () => {
-        const myPairs = root.parentPairs || [];
-        const spousePairs = root.spouse?.parentPairs || [];
+        const myPairs = treeRoot.parentPairs || [];
+        const spousePairs = treeRoot.spouse?.parentPairs || [];
 
         return (
             <div className="flex items-end justify-center gap-10 md:gap-16">
                 {/* My parents */}
                 <div className="flex flex-col items-center">
-                    <div className="text-[10px] font-bold text-gray-500 mb-2">{root.name}{t.parentsOf}</div>
+                    <div className="text-[10px] font-bold text-gray-500 mb-2">{treeRoot.name}{t.parentsOf}</div>
                     <div className="flex items-end gap-6">
                         {myPairs.map((pair, pi) => (
                             <div key={pair.id} className="flex flex-col items-center">
@@ -384,9 +488,9 @@ export default function FamilyTreeView() {
                     </div>
                 </div>
                 {/* Spouse's parents */}
-                {root.spouse && (
+                {treeRoot.spouse && (
                     <div className="flex flex-col items-center">
-                        <div className="text-[10px] font-bold text-gray-500 mb-2">{root.spouse.name}{t.parentsOf}</div>
+                        <div className="text-[10px] font-bold text-gray-500 mb-2">{treeRoot.spouse.name}{t.parentsOf}</div>
                         <div className="flex items-end gap-6">
                             {spousePairs.map((pair, pi) => (
                                 <div key={pair.id} className="flex flex-col items-center">
@@ -400,6 +504,33 @@ export default function FamilyTreeView() {
             </div>
         );
     };
+
+    // 로딩 중
+    if (isLoading) {
+        return (
+            <div className="w-full min-h-[40vh] flex items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
+            </div>
+        );
+    }
+
+    // 데이터 없음 (siteId는 있지만 persons 없음)
+    if (!root && siteId) {
+        return (
+            <div className="w-full min-h-[40vh] flex flex-col items-center justify-center gap-4 text-center p-8">
+                <Network className="text-slate-300" size={64} />
+                <h3 className="text-xl font-bold text-slate-600 dark:text-slate-300">
+                    {lang === 'ko' ? '아직 가족 구성원이 없습니다' : 'No family members yet'}
+                </h3>
+                <p className="text-slate-400 text-sm">
+                    {lang === 'ko' ? '가족을 추가해서 나만의 패밀리트리를 만들어보세요!' : 'Add your family members to build your family tree!'}
+                </p>
+            </div>
+        );
+    }
+
+    // root가 null이고 siteId도 없으면 INITIAL 사용
+    const treeRoot = root || INITIAL;
 
     return (
         <div className="w-full min-h-[70vh] bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-inner overflow-x-auto custom-scrollbar">
@@ -513,11 +644,11 @@ export default function FamilyTreeView() {
 
                 {/* Center couple */}
                 <div className="flex items-center gap-1">
-                    <FolderNode person={root} onClick={goToPerson} size="lg" />
-                    {root.spouse ? (
+                    <FolderNode person={treeRoot} onClick={goToPerson} size="lg" />
+                    {treeRoot.spouse ? (
                         <>
                             <PlusConnector />
-                            <FolderNode person={root.spouse} onClick={goToPerson} size="lg" />
+                            <FolderNode person={treeRoot.spouse} onClick={goToPerson} size="lg" />
                         </>
                     ) : (
                         <AddBtn onClick={() => openMemberModal([], [{ value: 'spouse', label: t.spouseOption }])} title={t.addSpouse} direction="right" />
@@ -528,13 +659,13 @@ export default function FamilyTreeView() {
                 <VLine h={24} />
 
                 {/* Children */}
-                {(root.children || []).length > 0 && (
+                {(treeRoot.children || []).length > 0 && (
                     <>
-                        <div className="flex items-center" style={{ width: `${Math.max(root.children.length * 160, 200)}px` }}>
+                        <div className="flex items-center" style={{ width: `${Math.max(treeRoot.children.length * 160, 200)}px` }}>
                             <HLine />
                         </div>
                         <div className="flex items-start justify-center gap-4 md:gap-8">
-                            {root.children.map((child, ci) => renderChild(child, [`children[${ci}]`]))}
+                            {treeRoot.children.map((child, ci) => renderChild(child, [`children[${ci}]`]))}
                         </div>
                     </>
                 )}

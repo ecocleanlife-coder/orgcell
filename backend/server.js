@@ -43,6 +43,7 @@ app.use('/api/exhibitions', require('./src/routes/exhibitionRoutes'));
 app.use('/api/calendar', require('./src/routes/calendarRoutes'));
 app.use('/uploads', require('express').static(require('path').join(__dirname, 'uploads')));
 app.use('/api/board', require('./src/routes/boardRoutes'));
+app.use('/api/persons', require('./src/routes/personRoutes'));
 
 // 404 handler for /api/*
 app.use('/api/*', (req, res) => {

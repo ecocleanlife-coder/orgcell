@@ -1,11 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const domainController = require('../controllers/domainController');
-
-// Optional auth middleware integration
-// const { authenticate } = require('../middlewares/authMiddleware');
+const { protect } = require('../middlewares/authMiddleware');
 
 router.get('/check', domainController.checkDomain);
-router.post('/register', domainController.registerDomain);
+router.post('/register', protect, domainController.registerDomain);
 
 module.exports = router;
