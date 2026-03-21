@@ -3,7 +3,7 @@ import {
     TreePine, GalleryThumbnails, ClipboardList, Settings,
     Plus, Image as ImageIcon, Globe, Lock, X, ChevronRight,
     Copy, Check, LogOut, MessageSquare, Calendar, Star, Bell,
-    UserPlus, Link, Mail, Share2, BookOpen, CalendarDays, Users,
+    UserPlus, Link, Mail, Share2, BookOpen, CalendarDays, Users, HardDrive,
 } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -22,6 +22,50 @@ const CATEGORY_META = {
     event:  { icon: Calendar,      color: '#3498db' },
     memory: { icon: MessageSquare, color: '#9b59b6' },
 };
+
+// ─── Drive status card ───
+function DriveStatusCard({ t }) {
+    const [status, setStatus] = useState(null); // null=loading, true=connected, false=not
+    const [connecting, setConnecting] = useState(false);
+
+    useEffect(() => {
+        axios.get('/api/drive/status')
+            .then(r => setStatus(!!r.data?.connected))
+            .catch(() => setStatus(false));
+    }, []);
+
+    const handleConnect = async () => {
+        setConnecting(true);
+        try {
+            const res = await axios.get('/api/drive/auth');
+            if (res.data?.url) window.location.href = res.data.url;
+        } catch { setConnecting(false); }
+    };
+
+    return (
+        <div className="bg-white rounded-2xl p-5 shadow-sm" style={{ border: '1px solid #e8e0d0' }}>
+            <div className="flex items-center gap-2 mb-2">
+                <HardDrive size={16} style={{ color: status ? '#5a8a4a' : '#9a9a8a' }} />
+                <p className="text-xs font-bold" style={{ color: '#9a9a8a' }}>Google Drive</p>
+            </div>
+            {status === null ? (
+                <p className="text-xs" style={{ color: '#9a9a8a' }}>{t.loading || 'Loading...'}</p>
+            ) : status ? (
+                <p className="text-sm font-semibold" style={{ color: '#3a7a2a' }}>✓ {t.driveConnected || 'Connected'}</p>
+            ) : (
+                <button
+                    onClick={handleConnect}
+                    disabled={connecting}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition"
+                    style={{ background: '#4285F4' }}
+                >
+                    <HardDrive size={13} />
+                    {connecting ? (t.driveConnecting || 'Connecting...') : (t.driveConnect || 'Connect')}
+                </button>
+            )}
+        </div>
+    );
+}
 
 // ─── Skeleton card ───
 function SkeletonCard() {
@@ -504,6 +548,9 @@ export default function FamilyDomainDashboard() {
                                 {site?.subdomain ? `${site.subdomain}.orgcell.com` : '—'}
                             </p>
                         </div>
+
+                        {/* Google Drive status */}
+                        <DriveStatusCard t={t} />
 
                         {/* Share link */}
                         <div
