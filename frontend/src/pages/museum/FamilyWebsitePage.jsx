@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useTranslation } from 'react-i18next';
+import axios from 'axios';
 import Navbar from '../../components/common/Navbar';
 import Footer from '../../components/common/Footer';
 import useAuthStore from '../../store/authStore';
@@ -11,12 +12,27 @@ const FamilyWebsitePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const token = useAuthStore((s) => s.token);
+    const [startLoading, setStartLoading] = useState(false);
 
-    const handleStartFree = () => {
-        if (token) {
-            navigate('/family-setup');
-        } else {
+    const handleStartFree = async () => {
+        if (!token) {
             navigate('/auth/login');
+            return;
+        }
+        setStartLoading(true);
+        try {
+            const { data } = await axios.get('/api/sites/mine', {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (data.data?.subdomain) {
+                navigate(`/${data.data.subdomain}`);
+            } else {
+                navigate('/family-setup');
+            }
+        } catch {
+            navigate('/family-setup');
+        } finally {
+            setStartLoading(false);
         }
     };
 
