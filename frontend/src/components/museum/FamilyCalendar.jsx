@@ -179,7 +179,7 @@ export default function FamilyCalendar({ siteId, role, t }) {
                                                         onClick={e => e.stopPropagation()}
                                                     >
                                                         <span className="truncate">{ev.title}</span>
-                                                        {canEdit && (
+                                                        {canEdit && !ev.auto_generated && (
                                                             <button
                                                                 onClick={() => handleDelete(ev.id)}
                                                                 className="hidden group-hover:flex ml-0.5 text-slate-400 hover:text-red-500 cursor-pointer"
@@ -228,7 +228,7 @@ export default function FamilyCalendar({ siteId, role, t }) {
                                         </div>
                                         {ev.description && <p className="text-[11px] text-slate-500 mt-0.5 truncate">{ev.description}</p>}
                                     </div>
-                                    {canEdit && (
+                                    {canEdit && !ev.auto_generated && (
                                         <button onClick={() => handleDelete(ev.id)} className="text-slate-300 hover:text-red-400 cursor-pointer flex-shrink-0">
                                             <Trash2 size={14} />
                                         </button>

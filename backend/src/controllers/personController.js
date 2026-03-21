@@ -7,7 +7,7 @@ exports.listPersons = async (req, res) => {
         const { rows } = await db.query(
             `SELECT id, site_id, name, birth_year, death_year, gender,
                     privacy_level, parent1_id, parent2_id, spouse_id,
-                    generation, photo_url, created_at
+                    generation, photo_url, birth_date, death_date, created_at
              FROM persons WHERE site_id = $1
              ORDER BY generation ASC, id ASC`,
             [siteId]
@@ -23,17 +23,17 @@ exports.listPersons = async (req, res) => {
 exports.createPerson = async (req, res) => {
     try {
         const { siteId } = req.params;
-        const { name, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url } = req.body;
+        const { name, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date } = req.body;
 
         if (!name) {
             return res.status(400).json({ success: false, message: 'name is required' });
         }
 
         const { rows } = await db.query(
-            `INSERT INTO persons (site_id, name, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            `INSERT INTO persons (site_id, name, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
              RETURNING *`,
-            [siteId, name, birth_year || null, death_year || null, gender || null, privacy_level || 'family', parent1_id || null, parent2_id || null, spouse_id || null, generation || 0, photo_url || null]
+            [siteId, name, birth_year || null, death_year || null, gender || null, privacy_level || 'family', parent1_id || null, parent2_id || null, spouse_id || null, generation || 0, photo_url || null, birth_date || null, death_date || null]
         );
 
         res.status(201).json({ success: true, data: rows[0] });
@@ -47,7 +47,7 @@ exports.createPerson = async (req, res) => {
 exports.updatePerson = async (req, res) => {
     try {
         const { siteId, personId } = req.params;
-        const { name, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url } = req.body;
+        const { name, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date } = req.body;
 
         const { rows } = await db.query(
             `UPDATE persons SET
@@ -60,10 +60,12 @@ exports.updatePerson = async (req, res) => {
                 parent2_id = $7,
                 spouse_id = $8,
                 generation = COALESCE($9, generation),
-                photo_url = $10
-             WHERE id = $11 AND site_id = $12
+                photo_url = $10,
+                birth_date = $11,
+                death_date = $12
+             WHERE id = $13 AND site_id = $14
              RETURNING *`,
-            [name, birth_year, death_year, gender, privacy_level, parent1_id || null, parent2_id || null, spouse_id || null, generation, photo_url, personId, siteId]
+            [name, birth_year, death_year, gender, privacy_level, parent1_id || null, parent2_id || null, spouse_id || null, generation, photo_url, birth_date || null, death_date || null, personId, siteId]
         );
 
         if (!rows.length) {

@@ -12,6 +12,7 @@ import LanguageSwitcher from '../../components/common/LanguageSwitcher';
 import FamilyTreeView from '../../components/museum/FamilyTreeView';
 import FamilyCalendar from '../../components/museum/FamilyCalendar';
 import AncestorHallTab from '../../components/museum/AncestorHallTab';
+import UpcomingEventsWidget from '../../components/museum/UpcomingEventsWidget';
 import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
 import { getT } from '../../i18n/translations';
@@ -309,6 +310,11 @@ export default function MuseumPage({ initialTab }) {
                         )}
                         <LanguageSwitcher />
                     </div>
+                </div>
+
+                {/* Upcoming events widget */}
+                <div className="max-w-6xl mx-auto px-4 mt-3">
+                    <UpcomingEventsWidget siteId={museum?.id} t={t} />
                 </div>
 
                 {/* Tab bar */}

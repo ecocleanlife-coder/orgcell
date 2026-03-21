@@ -25,7 +25,50 @@ exports.listEvents = async (req, res) => {
             [site_id, y, m]
         );
 
-        res.json({ success: true, data: rows });
+        // persons 테이블에서 생일/기일 자동 생성 (birth_date, death_date 컬럼)
+        const { rows: persons } = await db.query(
+            `SELECT id, name, birth_date, death_date FROM persons
+             WHERE site_id = $1 AND (birth_date IS NOT NULL OR death_date IS NOT NULL)`,
+            [site_id]
+        );
+
+        const autoEvents = [];
+        for (const p of persons) {
+            if (p.birth_date) {
+                const bd = new Date(p.birth_date);
+                if (bd.getUTCMonth() + 1 === m) {
+                    autoEvents.push({
+                        id: `auto-birth-${p.id}`,
+                        site_id: parseInt(site_id),
+                        title: `${p.name} 🎂`,
+                        event_date: p.birth_date,
+                        event_type: 'birthday',
+                        is_recurring: true,
+                        person_name: p.name,
+                        description: null,
+                        auto_generated: true,
+                    });
+                }
+            }
+            if (p.death_date) {
+                const dd = new Date(p.death_date);
+                if (dd.getUTCMonth() + 1 === m) {
+                    autoEvents.push({
+                        id: `auto-memorial-${p.id}`,
+                        site_id: parseInt(site_id),
+                        title: `${p.name} 🕯️`,
+                        event_date: p.death_date,
+                        event_type: 'memorial',
+                        is_recurring: true,
+                        person_name: p.name,
+                        description: null,
+                        auto_generated: true,
+                    });
+                }
+            }
+        }
+
+        res.json({ success: true, data: [...rows, ...autoEvents] });
     } catch (err) {
         console.error('listEvents error:', err);
         res.status(500).json({ success: false, message: 'Internal server error' });
