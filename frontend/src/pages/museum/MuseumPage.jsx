@@ -14,6 +14,7 @@ import FamilyCalendar from '../../components/museum/FamilyCalendar';
 import AncestorHallTab from '../../components/museum/AncestorHallTab';
 import UpcomingEventsWidget from '../../components/museum/UpcomingEventsWidget';
 import PostDetailModal from '../../components/museum/PostDetailModal';
+import OnboardingGuide from '../../components/museum/OnboardingGuide';
 import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
 import { getT } from '../../i18n/translations';
@@ -141,6 +142,7 @@ export default function MuseumPage({ initialTab }) {
     const [boardLoading, setBoardLoading] = useState(false);
     const [boardCategory, setBoardCategory] = useState('all');
     const [selectedPostId, setSelectedPostId] = useState(null);
+    const [showOnboarding, setShowOnboarding] = useState(false);
 
     // ── PWA install prompt ──
     const [installPrompt, setInstallPrompt] = useState(null);
@@ -179,6 +181,17 @@ export default function MuseumPage({ initialTab }) {
             })
             .finally(() => setLoading(false));
     }, [subdomain, token]);
+
+    // ── Show onboarding for owner on first visit ──
+    useEffect(() => {
+        if (role === 'owner' && site) {
+            const key = `onboarding_seen_${site.id}`;
+            if (!localStorage.getItem(key)) {
+                setShowOnboarding(true);
+                localStorage.setItem(key, '1');
+            }
+        }
+    }, [role, site]);
 
     // ── Fetch exhibitions ──
     const fetchExhibitions = useCallback(async (vis) => {
@@ -317,7 +330,7 @@ export default function MuseumPage({ initialTab }) {
 
                 {/* Upcoming events widget */}
                 <div className="max-w-6xl mx-auto px-4 mt-3">
-                    <UpcomingEventsWidget siteId={museum?.id} t={t} />
+                    <UpcomingEventsWidget siteId={site?.id} t={t} />
                 </div>
 
                 {/* Tab bar */}
@@ -464,6 +477,15 @@ export default function MuseumPage({ initialTab }) {
                     postId={selectedPostId}
                     onClose={() => { setSelectedPostId(null); if (role !== 'public') fetchPosts(boardCategory); }}
                     canComment={role !== 'public'}
+                    t={t}
+                />
+            )}
+
+            {/* ════ Onboarding Guide ════ */}
+            {showOnboarding && (
+                <OnboardingGuide
+                    onGoToTab={setActiveTab}
+                    onClose={() => setShowOnboarding(false)}
                     t={t}
                 />
             )}
