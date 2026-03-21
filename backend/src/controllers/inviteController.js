@@ -17,7 +17,7 @@ exports.createInvite = async (req, res) => {
         const finalCode = rows[0].code;
         res.json({ success: true, data: { code: finalCode, url: `https://orgcell.com/invite?code=${finalCode}` } });
     } catch (err) {
-        console.error('createInvite error:', err);
+        console.error('createInvite error:', err.message);
         res.status(500).json({ success: false, message: 'Internal server error' });
     }
 };
@@ -39,7 +39,7 @@ exports.getInviteInfo = async (req, res) => {
         if (!rows.length) return res.status(404).json({ success: false, message: 'Invalid or expired code' });
         res.json({ success: true, data: rows[0] });
     } catch (err) {
-        console.error('getInviteInfo error:', err);
+        console.error('getInviteInfo error:', err.message);
         res.status(500).json({ success: false, message: 'Internal server error' });
     }
 };
@@ -75,7 +75,7 @@ exports.acceptInvite = async (req, res) => {
 
         res.json({ success: true, data: { site_id: siteId, subdomain } });
     } catch (err) {
-        console.error('acceptInvite error:', err);
+        console.error('acceptInvite error:', err.message);
         res.status(500).json({ success: false, message: 'Internal server error' });
     }
 };
@@ -86,10 +86,17 @@ exports.sendInviteEmailHandler = async (req, res) => {
         const { email, code, subdomain } = req.body;
         if (!email || !code) return res.status(400).json({ success: false, message: 'email and code required' });
 
-        await sendInviteEmail({ to: email, code, inviterName: req.user?.name || 'Someone', subdomain });
+        // 이메일 형식 검증 + CRLF 인젝션 방지 (CWE-20, CWE-93)
+        const sanitizedEmail = email.replace(/[\r\n]/g, '').trim();
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailRegex.test(sanitizedEmail)) {
+            return res.status(400).json({ success: false, message: 'Invalid email format' });
+        }
+
+        await sendInviteEmail({ to: sanitizedEmail, code, inviterName: req.user?.name || 'Someone', subdomain });
         res.json({ success: true });
     } catch (err) {
-        console.error('sendInviteEmailHandler error:', err);
+        console.error('sendInviteEmailHandler error:', err.message);
         res.status(500).json({ success: false, message: 'Failed to send email' });
     }
 };

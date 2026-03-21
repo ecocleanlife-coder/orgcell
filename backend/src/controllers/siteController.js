@@ -11,6 +11,18 @@ exports.createSite = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Subdomain required (min 3 chars)' });
         }
 
+        // 서브도메인 형식 검증 (CWE-20)
+        const subdomainRegex = /^[a-z0-9][a-z0-9-]{1,29}[a-z0-9]$/;
+        if (!subdomainRegex.test(subdomain.toLowerCase())) {
+            return res.status(400).json({ success: false, message: 'Invalid subdomain format' });
+        }
+
+        // 예약어 차단
+        const reserved = ['admin', 'api', 'www', 'demo', 'test', 'orgcell', 'mail', 'ftp', 'smtp', 'pop', 'imap'];
+        if (reserved.includes(subdomain.toLowerCase())) {
+            return res.status(400).json({ success: false, message: 'This subdomain is reserved' });
+        }
+
         // Check subdomain availability
         const existing = await db.query(
             `SELECT id FROM family_sites WHERE subdomain = $1`, [subdomain.toLowerCase()]
@@ -34,7 +46,7 @@ exports.createSite = async (req, res) => {
             },
         });
     } catch (error) {
-        console.error('createSite Error:', error);
+        console.error('createSite Error:', error.message);
         res.status(500).json({ success: false, message: 'Failed to create site' });
     }
 };
@@ -81,7 +93,7 @@ exports.getMySite = async (req, res) => {
             },
         });
     } catch (error) {
-        console.error('getMySite Error:', error);
+        console.error('getMySite Error:', error.message);
         res.status(500).json({ success: false, message: 'Failed to get site' });
     }
 };
@@ -112,7 +124,7 @@ exports.createFolder = async (req, res) => {
 
         res.status(201).json({ success: true, data: rows[0] });
     } catch (error) {
-        console.error('createFolder Error:', error);
+        console.error('createFolder Error:', error.message);
         res.status(500).json({ success: false, message: 'Failed to create folder' });
     }
 };
@@ -162,7 +174,7 @@ exports.getFolderMedia = async (req, res) => {
 
         res.json({ success: true, folder: folderData, data: rows });
     } catch (error) {
-        console.error('getFolderMedia Error:', error);
+        console.error('getFolderMedia Error:', error.message);
         res.status(500).json({ success: false, message: 'Failed to get folder media' });
     }
 };
@@ -210,7 +222,7 @@ exports.addMedia = async (req, res) => {
 
         res.status(201).json({ success: true, data: rows[0] });
     } catch (error) {
-        console.error('addMedia Error:', error);
+        console.error('addMedia Error:', error.message);
         res.status(500).json({ success: false, message: 'Failed to add media' });
     }
 };
@@ -222,12 +234,12 @@ exports.listMembers = async (req, res) => {
         const { siteId } = req.params;
         const userId = req.user.id;
 
-        // 오너 확인
+        // 오너 확인 — 404로 통일하여 사이트 존재 여부 노출 방지 (CWE-200)
         const site = await db.query(
             `SELECT id FROM family_sites WHERE id = $1 AND user_id = $2`, [siteId, userId]
         );
         if (!site.rows.length) {
-            return res.status(403).json({ success: false, message: 'Only owner can view members' });
+            return res.status(404).json({ success: false, message: 'Not found' });
         }
 
         const { rows } = await db.query(
@@ -241,7 +253,7 @@ exports.listMembers = async (req, res) => {
 
         res.json({ success: true, data: rows });
     } catch (err) {
-        console.error('listMembers error:', err);
+        console.error('listMembers error:', err.message);
         res.status(500).json({ success: false, message: 'Failed to list members' });
     }
 };
@@ -262,7 +274,15 @@ exports.updateMemberRole = async (req, res) => {
             `SELECT id FROM family_sites WHERE id = $1 AND user_id = $2`, [siteId, userId]
         );
         if (!site.rows.length) {
-            return res.status(403).json({ success: false, message: 'Only owner can update roles' });
+            return res.status(404).json({ success: false, message: 'Not found' });
+        }
+
+        // memberId가 실제 이 siteId에 속하는지 사전 검증 (CWE-862)
+        const member = await db.query(
+            `SELECT id FROM site_members WHERE id = $1 AND site_id = $2`, [memberId, siteId]
+        );
+        if (!member.rows.length) {
+            return res.status(404).json({ success: false, message: 'Member not found' });
         }
 
         const { rows } = await db.query(
@@ -275,7 +295,7 @@ exports.updateMemberRole = async (req, res) => {
 
         res.json({ success: true, data: rows[0] });
     } catch (err) {
-        console.error('updateMemberRole error:', err);
+        console.error('updateMemberRole error:', err.message);
         res.status(500).json({ success: false, message: 'Failed to update role' });
     }
 };
@@ -291,7 +311,7 @@ exports.removeMember = async (req, res) => {
             `SELECT id FROM family_sites WHERE id = $1 AND user_id = $2`, [siteId, userId]
         );
         if (!site.rows.length) {
-            return res.status(403).json({ success: false, message: 'Only owner can remove members' });
+            return res.status(404).json({ success: false, message: 'Not found' });
         }
 
         const { rowCount } = await db.query(
@@ -304,7 +324,7 @@ exports.removeMember = async (req, res) => {
 
         res.json({ success: true, message: 'Member removed' });
     } catch (err) {
-        console.error('removeMember error:', err);
+        console.error('removeMember error:', err.message);
         res.status(500).json({ success: false, message: 'Failed to remove member' });
     }
 };
@@ -363,7 +383,7 @@ exports.getPublicSite = async (req, res) => {
             },
         });
     } catch (error) {
-        console.error('getPublicSite Error:', error);
+        console.error('getPublicSite Error:', error.message);
         res.status(500).json({ success: false, message: 'Failed to get site' });
     }
 };
