@@ -3,7 +3,7 @@ import {
     TreePine, GalleryThumbnails, ClipboardList, Settings,
     Plus, Image as ImageIcon, Globe, Lock, X, ChevronRight,
     Copy, Check, LogOut, MessageSquare, Calendar, Star, Bell,
-    UserPlus, Link, Mail, Share2, BookOpen, CalendarDays,
+    UserPlus, Link, Mail, Share2, BookOpen, CalendarDays, Users,
 } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -148,6 +148,10 @@ export default function FamilyDomainDashboard() {
     const [inviteSending, setInviteSending] = useState(false);
     const [inviteSent, setInviteSent] = useState(false);
 
+    // ── Members ──
+    const [members, setMembers] = useState([]);
+    const [membersLoading, setMembersLoading] = useState(false);
+
     // ── Fetch site ──
     useEffect(() => {
         axios.get('/api/sites/mine').then((r) => {
@@ -255,6 +259,37 @@ export default function FamilyDomainDashboard() {
             setTimeout(() => setInviteSent(false), 3000);
         } catch { /* silent */ }
         finally { setInviteSending(false); }
+    };
+
+    // ── Fetch members ──
+    const fetchMembers = useCallback(async () => {
+        if (!site) return;
+        setMembersLoading(true);
+        try {
+            const res = await axios.get(`/api/sites/${site.id}/members`);
+            if (res.data?.success) setMembers(res.data.data);
+        } catch { /* silent */ }
+        finally { setMembersLoading(false); }
+    }, [site]);
+
+    useEffect(() => {
+        if (activeTab === 'settings' && site) fetchMembers();
+    }, [activeTab, site, fetchMembers]);
+
+    const handleUpdateRole = async (memberId, newRole) => {
+        if (!site) return;
+        try {
+            await axios.put(`/api/sites/${site.id}/members/${memberId}`, { role: newRole });
+            fetchMembers();
+        } catch { /* silent */ }
+    };
+
+    const handleRemoveMember = async (memberId, memberName) => {
+        if (!site || !window.confirm(`${memberName}${t.memberRemoveConfirm || '을(를) 멤버에서 제거하시겠습니까?'}`)) return;
+        try {
+            await axios.delete(`/api/sites/${site.id}/members/${memberId}`);
+            fetchMembers();
+        } catch { /* silent */ }
     };
 
     // ── Copy share link ──
@@ -600,6 +635,63 @@ export default function FamilyDomainDashboard() {
                                 </div>
                                 <p className="text-xs mt-2" style={{ color: '#b0b0a0' }}>{t.inviteExpiry}</p>
                             </div>
+                        </div>
+
+                        {/* ── 멤버 관리 ── */}
+                        <div
+                            className="bg-white rounded-2xl p-5 shadow-sm space-y-3"
+                            style={{ border: '1px solid #e8e0d0' }}
+                        >
+                            <div className="flex items-center gap-2">
+                                <Users size={16} style={{ color: '#5a8a4a' }} />
+                                <p className="text-sm font-bold" style={{ color: '#3a3a2a' }}>{t.memberTitle || 'Family Members'}</p>
+                            </div>
+
+                            {membersLoading ? (
+                                <div className="py-4 text-center text-xs" style={{ color: '#9a9a8a' }}>
+                                    {t.loading || 'Loading...'}
+                                </div>
+                            ) : members.length === 0 ? (
+                                <p className="text-xs py-3" style={{ color: '#9a9a8a' }}>
+                                    {t.memberEmpty || 'No members yet. Share your invite link!'}
+                                </p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {members.map((m) => (
+                                        <div
+                                            key={m.id}
+                                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                                            style={{ background: '#f8f6f0' }}
+                                        >
+                                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                                                style={{ background: '#e8e0d0', color: '#5a5040' }}>
+                                                {(m.name || '?')[0].toUpperCase()}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-semibold truncate" style={{ color: '#3a3a2a' }}>{m.name}</p>
+                                                <p className="text-xs truncate" style={{ color: '#9a9a8a' }}>{m.email}</p>
+                                            </div>
+                                            <select
+                                                value={m.role}
+                                                onChange={(e) => handleUpdateRole(m.id, e.target.value)}
+                                                className="text-xs px-2 py-1 rounded-lg outline-none cursor-pointer"
+                                                style={{ border: '1px solid #e8e0d0', color: '#5a5040', background: '#fff' }}
+                                            >
+                                                <option value="member">{t.roleMember || 'Member'}</option>
+                                                <option value="admin">{t.roleAdmin || 'Admin'}</option>
+                                            </select>
+                                            <button
+                                                onClick={() => handleRemoveMember(m.id, m.name)}
+                                                className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all hover:bg-red-50"
+                                                style={{ color: '#c0392b' }}
+                                                title={t.memberRemove || 'Remove'}
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* Logout */}

@@ -215,6 +215,100 @@ exports.addMedia = async (req, res) => {
     }
 };
 
+// @desc    List site members
+// @route   GET /api/sites/:siteId/members
+exports.listMembers = async (req, res) => {
+    try {
+        const { siteId } = req.params;
+        const userId = req.user.id;
+
+        // 오너 확인
+        const site = await db.query(
+            `SELECT id FROM family_sites WHERE id = $1 AND user_id = $2`, [siteId, userId]
+        );
+        if (!site.rows.length) {
+            return res.status(403).json({ success: false, message: 'Only owner can view members' });
+        }
+
+        const { rows } = await db.query(
+            `SELECT sm.id, sm.user_id, sm.role, sm.joined_at, u.name, u.email
+             FROM site_members sm
+             JOIN users u ON u.id = sm.user_id
+             WHERE sm.site_id = $1
+             ORDER BY sm.joined_at ASC`,
+            [siteId]
+        );
+
+        res.json({ success: true, data: rows });
+    } catch (err) {
+        console.error('listMembers error:', err);
+        res.status(500).json({ success: false, message: 'Failed to list members' });
+    }
+};
+
+// @desc    Update member role
+// @route   PUT /api/sites/:siteId/members/:memberId
+exports.updateMemberRole = async (req, res) => {
+    try {
+        const { siteId, memberId } = req.params;
+        const { role } = req.body;
+        const userId = req.user.id;
+
+        if (!['member', 'admin'].includes(role)) {
+            return res.status(400).json({ success: false, message: 'Invalid role' });
+        }
+
+        const site = await db.query(
+            `SELECT id FROM family_sites WHERE id = $1 AND user_id = $2`, [siteId, userId]
+        );
+        if (!site.rows.length) {
+            return res.status(403).json({ success: false, message: 'Only owner can update roles' });
+        }
+
+        const { rows } = await db.query(
+            `UPDATE site_members SET role = $1 WHERE id = $2 AND site_id = $3 RETURNING *`,
+            [role, memberId, siteId]
+        );
+        if (!rows.length) {
+            return res.status(404).json({ success: false, message: 'Member not found' });
+        }
+
+        res.json({ success: true, data: rows[0] });
+    } catch (err) {
+        console.error('updateMemberRole error:', err);
+        res.status(500).json({ success: false, message: 'Failed to update role' });
+    }
+};
+
+// @desc    Remove member
+// @route   DELETE /api/sites/:siteId/members/:memberId
+exports.removeMember = async (req, res) => {
+    try {
+        const { siteId, memberId } = req.params;
+        const userId = req.user.id;
+
+        const site = await db.query(
+            `SELECT id FROM family_sites WHERE id = $1 AND user_id = $2`, [siteId, userId]
+        );
+        if (!site.rows.length) {
+            return res.status(403).json({ success: false, message: 'Only owner can remove members' });
+        }
+
+        const { rowCount } = await db.query(
+            `DELETE FROM site_members WHERE id = $1 AND site_id = $2`,
+            [memberId, siteId]
+        );
+        if (rowCount === 0) {
+            return res.status(404).json({ success: false, message: 'Member not found' });
+        }
+
+        res.json({ success: true, message: 'Member removed' });
+    } catch (err) {
+        console.error('removeMember error:', err);
+        res.status(500).json({ success: false, message: 'Failed to remove member' });
+    }
+};
+
 // @desc    Get pricing info
 // @route   GET /api/sites/pricing
 exports.getPricing = async (req, res) => {
