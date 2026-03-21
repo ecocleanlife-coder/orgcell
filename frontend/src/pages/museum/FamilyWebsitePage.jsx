@@ -13,6 +13,15 @@ const FamilyWebsitePage = () => {
     const navigate = useNavigate();
     const token = useAuthStore((s) => s.token);
     const [startLoading, setStartLoading] = useState(false);
+    const [mySite, setMySite] = useState(null);
+
+    // 로그인 상태면 내 사이트 조회
+    useEffect(() => {
+        if (!token) return;
+        axios.get('/api/sites/mine', { headers: { Authorization: `Bearer ${token}` } })
+            .then(({ data }) => { if (data.data?.subdomain) setMySite(data.data); })
+            .catch(() => {});
+    }, [token]);
 
     const handleStartFree = async () => {
         if (!token) {
@@ -113,15 +122,26 @@ const FamilyWebsitePage = () => {
 
                     {/* CTA Buttons */}
                     <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                        {mySite ? (
+                            <button
+                                onClick={() => navigate(`/${mySite.subdomain}`)}
+                                className="px-8 py-3 rounded-full font-bold text-[14px] transition-all hover:brightness-110 active:scale-95 text-white"
+                                style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
+                            >
+                                {t('familyWebsite.goToMuseum')}
+                            </button>
+                        ) : (
+                            <button
+                                onClick={handleStartFree}
+                                disabled={startLoading}
+                                className="px-8 py-3 rounded-full font-bold text-[14px] transition-all hover:brightness-110 active:scale-95 text-white disabled:opacity-60"
+                                style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
+                            >
+                                {startLoading ? '...' : t('familyWebsite.ctaStart')}
+                            </button>
+                        )}
                         <button
-                            onClick={handleStartFree}
-                            className="px-8 py-3 rounded-full font-bold text-[14px] transition-all hover:brightness-110 active:scale-95 text-white"
-                            style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
-                        >
-                            {t('familyWebsite.ctaStart')}
-                        </button>
-                        <button
-                            onClick={() => navigate('/family-website')}
+                            onClick={() => navigate('/demo')}
                             className="px-8 py-3 rounded-full font-bold text-[14px] transition-all"
                             style={{ background: 'transparent', border: '2px solid #5A9460', color: '#5A9460' }}
                         >
