@@ -18,8 +18,51 @@ env:
   ECR_FRONTEND: orgcell/frontend
 
 jobs:
+  # ── 사전 안전 검증 (포트 충돌, nginx 중지 방지) ──────────────
+  safety-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Block dangerous port bindings (80/443)
+        run: |
+          echo "=== 포트 바인딩 안전 검사 ==="
+          FAILED=0
+
+          # docker-compose.yml에서 80:80, 443:443, 0.0.0.0:80 등 검사
+          if grep -rn '"80:80"\|"443:443"\|"80:"\|":443"\|0\.0\.0\.0:80\|0\.0\.0\.0:443' docker-compose.yml 2>/dev/null; then
+            echo "❌ BLOCKED: docker-compose.yml에 80/443 포트 바인딩 발견"
+            FAILED=1
+          fi
+
+          # deploy.yml 내 동적 생성 docker-compose에서도 검사 (8081:80은 허용)
+          if grep -n '"80:80"\|"443:443"' .github/workflows/deploy.yml 2>/dev/null; then
+            echo "❌ BLOCKED: deploy.yml에 80/443 직접 바인딩 발견"
+            FAILED=1
+          fi
+
+          # systemctl stop nginx 검사
+          if grep -n 'systemctl stop nginx\|systemctl disable nginx\|fuser.*80/tcp\|fuser.*443/tcp' .github/workflows/deploy.yml 2>/dev/null; then
+            echo "❌ BLOCKED: deploy.yml에서 호스트 nginx 중지 시도 발견"
+            FAILED=1
+          fi
+
+          if [ "$FAILED" = "1" ]; then
+            echo ""
+            echo "============================================"
+            echo "🚫 배포 차단: 포트 충돌 또는 nginx 중지 위험"
+            echo "   Docker는 8081:80만 허용됩니다."
+            echo "   호스트 nginx를 절대 중지하면 안 됩니다."
+            echo "============================================"
+            exit 1
+          fi
+
+          echo "✅ 안전 검사 통과 — 80/443 충돌 없음"
+
   build-and-deploy:
     runs-on: ubuntu-latest
+    needs: safety-check
 
     steps:
       - name: Checkout Repository
@@ -233,9 +276,66 @@ jobs:
               -c "CREATE TABLE IF NOT EXISTS family_invites (id SERIAL PRIMARY KEY, site_id INTEGER NOT NULL REFERENCES family_sites(id) ON DELETE CASCADE, code VARCHAR(20) UNIQUE NOT NULL, email VARCHAR(255), inviter_id INTEGER REFERENCES users(id), status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending','accepted')), created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, expires_at TIMESTAMPTZ DEFAULT (CURRENT_TIMESTAMP + INTERVAL '7 days'));" \
               -c "CREATE INDEX IF NOT EXISTS idx_family_invites_code ON family_invites(code);" \
               -c "CREATE INDEX IF NOT EXISTS idx_family_invites_site_id ON family_invites(site_id);"
+            # ── 012: persons (family tree) ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "CREATE TABLE IF NOT EXISTS persons (id SERIAL PRIMARY KEY, site_id INTEGER NOT NULL REFERENCES family_sites(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, birth_year INTEGER, death_year INTEGER, gender VARCHAR(10), privacy_level VARCHAR(20) DEFAULT 'family', parent1_id INTEGER REFERENCES persons(id) ON DELETE SET NULL, parent2_id INTEGER REFERENCES persons(id) ON DELETE SET NULL, spouse_id INTEGER REFERENCES persons(id) ON DELETE SET NULL, generation INTEGER DEFAULT 0, photo_url TEXT, created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_persons_site_id ON persons(site_id);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_persons_parent1 ON persons(parent1_id);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_persons_parent2 ON persons(parent2_id);"
             echo "Migrations done"
             # ─────────────────────────────────────────────────────────────
 
-            # Verify
-            sleep 15
+            # ── 배포 후 검증 ───────────────────────────────────
+            echo "=== 배포 후 검증 시작 (30초 대기) ==="
+            sleep 30
+
+            # 1. 컨테이너 상태 확인
+            echo "--- Docker 컨테이너 상태 ---"
             docker-compose ps
+            FRONTEND_UP=$(docker inspect -f '{{.State.Running}}' orgcell-frontend 2>/dev/null || echo "false")
+            BACKEND_UP=$(docker inspect -f '{{.State.Running}}' orgcell-backend 2>/dev/null || echo "false")
+            if [ "$FRONTEND_UP" != "true" ] || [ "$BACKEND_UP" != "true" ]; then
+              echo "❌ 컨테이너 비정상: frontend=$FRONTEND_UP backend=$BACKEND_UP"
+              docker-compose logs --tail=30
+              exit 1
+            fi
+            echo "✅ 컨테이너 정상"
+
+            # 2. 호스트 nginx 상태 확인 + 자동 복구
+            echo "--- 호스트 nginx 상태 ---"
+            if ! sudo systemctl is-active nginx >/dev/null 2>&1; then
+              echo "⚠️ nginx 다운 감지 — 자동 복구 시도"
+              # Docker가 80/443 점유했는지 확인
+              DOCKER_ON_80=$(sudo ss -tlnp | grep ':80 ' | grep docker || true)
+              if [ -n "$DOCKER_ON_80" ]; then
+                echo "❌ CRITICAL: Docker가 80/443 점유 중 — 즉시 중지"
+                docker-compose down
+                exit 1
+              fi
+              sudo systemctl start nginx
+              sleep 2
+              if sudo systemctl is-active nginx >/dev/null 2>&1; then
+                echo "✅ nginx 복구 완료"
+              else
+                echo "❌ nginx 복구 실패"
+                exit 1
+              fi
+            else
+              echo "✅ 호스트 nginx 정상 (active)"
+            fi
+
+            # 3. HTTP 헬스체크
+            echo "--- HTTP 헬스체크 ---"
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/ || echo "000")
+            API_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5001/api/health 2>/dev/null || echo "000")
+            echo "Frontend (8081): HTTP $HTTP_CODE"
+            echo "Backend API (/api/health): HTTP $API_CODE"
+            if [ "$HTTP_CODE" != "200" ]; then
+              echo "⚠️ 프론트엔드 응답 비정상 (HTTP $HTTP_CODE)"
+              docker logs orgcell-frontend --tail=20
+            fi
+
+            # 4. 포트 점유 최종 확인
+            echo "--- 포트 점유 확인 ---"
+            sudo ss -tlnp | grep -E ':80 |:443 |:8081 ' || true
+            echo "=== 배포 검증 완료 ==="

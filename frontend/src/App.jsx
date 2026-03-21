@@ -27,7 +27,7 @@ const FamilyTreeView = lazy(() => import('./components/museum/FamilyTreeView'));
 const PersonFolderView = lazy(() => import('./components/museum/PersonFolderView'));
 const ExhibitionDetailPage = lazy(() => import('./pages/museum/ExhibitionDetailPage'));
 const InvitePage = lazy(() => import('./pages/invite/InvitePage'));
-const DemoMuseumPage = lazy(() => import('./pages/demo/DemoMuseumPage'));
+// DemoMuseumPage 제거 — /demo는 /:subdomain (MuseumPage)에서 처리
 
 const PageLoader = () => (
   <div className="flex h-64 w-full items-center justify-center">
@@ -270,14 +270,7 @@ function App() {
             </ErrorBoundary>
           }
         />
-        <Route
-          path="/demo"
-          element={
-            <Suspense fallback={<PageLoader />}>
-              <DemoMuseumPage />
-            </Suspense>
-          }
-        />
+        {/* /demo → /:subdomain (MuseumPage)에서 subdomain="demo"로 처리 */}
       </Routes>
     </BrowserRouter>
     </HelmetProvider>
