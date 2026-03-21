@@ -4,11 +4,21 @@ import { Helmet } from 'react-helmet-async';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../../components/common/Navbar';
 import Footer from '../../components/common/Footer';
+import useAuthStore from '../../store/authStore';
 import { Globe, Lock, Users, FolderTree, Shield, Star, ArrowRight, Crown, Image } from 'lucide-react';
 
 const FamilyWebsitePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const token = useAuthStore((s) => s.token);
+
+    const handleStartFree = () => {
+        if (token) {
+            navigate('/family-setup');
+        } else {
+            navigate('/auth/login');
+        }
+    };
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -88,7 +98,7 @@ const FamilyWebsitePage = () => {
                     {/* CTA Buttons */}
                     <div className="flex flex-col sm:flex-row gap-4 mb-4">
                         <button
-                            onClick={() => navigate('/auth/login')}
+                            onClick={handleStartFree}
                             className="px-8 py-3 rounded-full font-bold text-[14px] transition-all hover:brightness-110 active:scale-95 text-white"
                             style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
                         >
@@ -119,7 +129,7 @@ const FamilyWebsitePage = () => {
                         src="/images/landing/card-museum.png"
                         alt="Family Website"
                         style={{ maxWidth: '320px', width: '100%', margin: '0 auto 32px', display: 'block', cursor: 'pointer' }}
-                        onClick={() => navigate('/auth/login')}
+                        onClick={handleStartFree}
                     />
 
                     {/* Stat Pills */}
@@ -298,7 +308,7 @@ const FamilyWebsitePage = () => {
 
                         {/* Primary CTA */}
                         <button
-                            onClick={() => navigate('/auth/login')}
+                            onClick={handleStartFree}
                             className="w-full py-4 rounded-full font-bold text-[15px] text-white transition-all hover:brightness-110 active:scale-95 cursor-pointer"
                             style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
                         >
@@ -456,7 +466,7 @@ const FamilyWebsitePage = () => {
                     </p>
 
                     <button
-                        onClick={() => navigate('/auth/login')}
+                        onClick={handleStartFree}
                         className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-bold text-[15px] transition-all hover:brightness-110 active:scale-95 text-white cursor-pointer"
                         style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
                     >
