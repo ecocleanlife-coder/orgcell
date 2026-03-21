@@ -41,7 +41,7 @@ router.post('/', async (req, res) => {
         recent.push(now);
         rateLimitMap.set(ip, recent);
 
-        const ownerEmail = process.env.SMTP_USER || 'ecocleanlife@gmail.com';
+        const ownerEmail = process.env.ADMIN_EMAIL || 'itsconllc@gmail.com';
 
         // Send notification to owner
         const transporter = getTransporter();

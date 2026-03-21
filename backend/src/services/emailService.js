@@ -73,7 +73,7 @@ exports.sendPaymentConfirmationEmail = async (to, { amountUsd, sessionId }) => {
                 </div>
 
                 <p style="color: #9ca3af; font-size: 12px; margin-top: 32px; line-height: 1.8;">
-                    문의사항이 있으시면 ecocleanlife@gmail.com 으로 연락해 주세요.<br/>
+                    문의사항이 있으시면 itsconllc@gmail.com 으로 연락해 주세요.<br/>
                     © Orgcell
                 </p>
             </div>
@@ -89,7 +89,7 @@ exports.sendAdminPaymentNotification = async ({ email, amountUsd, paidAt }) => {
     const amountDisplay = `$${(amountUsd / 100).toFixed(2)}`;
     const mailOptions = {
         from: '"Orgcell" <noreply@orgcell.com>',
-        to: 'ecocleanlife@gmail.com',
+        to: process.env.ADMIN_EMAIL || 'itsconllc@gmail.com',
         subject: '[Orgcell] 새 결제 발생',
         html: `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 20px;">
