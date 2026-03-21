@@ -57,13 +57,14 @@ function AuthHome() {
         // hasSite also covers invited members (joined via invite)
         if (siteData) {
           navigate(`/${siteData.subdomain}`, { replace: true });
-        } else if (!hasSubscription) {
-          navigate('/', { replace: true });
-        } else {
+        } else if (hasSubscription) {
           navigate('/family-setup', { replace: true });
+        } else {
+          // 구독 없는 유저 → 가족 박물관 소개 페이지 (무료 시작 유도)
+          navigate('/family-website', { replace: true });
         }
       } catch {
-        navigate('/', { replace: true });
+        navigate('/family-website', { replace: true });
       }
     })();
   }, [navigate]);

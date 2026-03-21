@@ -78,8 +78,12 @@ const useAuthStore = create((set) => ({
         set({ isLoading: true });
         try {
             axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-            // In development, you might point this to localhost:5001 if backend is separate
-            const res = await axios.get('/api/auth/me');
+            const res = await Promise.race([
+                axios.get('/api/auth/me'),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Auth check timeout')), 5000)
+                ),
+            ]);
             if (res.data?.data) {
                 set({ user: res.data.data });
                 // Also check drive status
@@ -89,8 +93,8 @@ const useAuthStore = create((set) => ({
             }
         } catch (err) {
             console.error('Auth check failed:', err);
-            // If unauthorized, clear token
-            if (err.response?.status === 401) {
+            // If unauthorized or timeout, clear token and force re-login
+            if (err.response?.status === 401 || err.message === 'Auth check timeout') {
                 localStorage.removeItem('orgcell_token');
                 delete axios.defaults.headers.common['Authorization'];
                 set({ user: null, token: null });
