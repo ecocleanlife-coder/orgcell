@@ -37,13 +37,14 @@ jobs:
           fi
 
           # deploy.yml 내 동적 생성 docker-compose에서도 검사 (8081:80은 허용)
-          if grep -n '"80:80"\|"443:443"' .github/workflows/deploy.yml 2>/dev/null; then
+          # safety-check 자체 라인 제외 (grep -v 'grep\|검사')
+          if grep -n '"80:80"\|"443:443"' .github/workflows/deploy.yml 2>/dev/null | grep -v 'grep\|검사' | grep -q .; then
             echo "❌ BLOCKED: deploy.yml에 80/443 직접 바인딩 발견"
             FAILED=1
           fi
 
-          # systemctl stop nginx 검사
-          if grep -n 'systemctl stop nginx\|systemctl disable nginx\|fuser.*80/tcp\|fuser.*443/tcp' .github/workflows/deploy.yml 2>/dev/null; then
+          # systemctl stop nginx 검사 (safety-check 자체 라인 제외)
+          if grep -n 'systemctl stop nginx\|systemctl disable nginx\|fuser.*80/tcp\|fuser.*443/tcp' .github/workflows/deploy.yml 2>/dev/null | grep -v 'grep\|검사' | grep -q .; then
             echo "❌ BLOCKED: deploy.yml에서 호스트 nginx 중지 시도 발견"
             FAILED=1
           fi
