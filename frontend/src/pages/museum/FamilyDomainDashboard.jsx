@@ -11,6 +11,7 @@ import LanguageSwitcher from '../../components/common/LanguageSwitcher';
 import FamilyTreeView from '../../components/museum/FamilyTreeView';
 import FamilyCalendar from '../../components/museum/FamilyCalendar';
 import AncestorHallTab from '../../components/museum/AncestorHallTab';
+import PostDetailModal from '../../components/museum/PostDetailModal';
 import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
 import { getT } from '../../i18n/translations';
@@ -121,12 +122,13 @@ function ExhibitionCard({ exh, t, onClick }) {
 }
 
 // ─── Board Post Row ───
-function PostRow({ post, t }) {
+function PostRow({ post, t, onClick }) {
     const meta = CATEGORY_META[post.category] || CATEGORY_META.daily;
     const Icon = meta.icon;
     const date = new Date(post.created_at).toLocaleDateString();
     return (
         <div
+            onClick={onClick}
             className="flex items-center gap-3 px-4 py-3 border-b last:border-b-0 hover:bg-gray-50 cursor-pointer transition-colors"
             style={{ borderColor: '#f0ece4' }}
         >
@@ -180,6 +182,7 @@ export default function FamilyDomainDashboard() {
     const [showCreatePost, setShowCreatePost] = useState(false);
     const [newPost, setNewPost] = useState({ title: '', content: '', category: 'daily' });
     const [postingPost, setPostingPost] = useState(false);
+    const [selectedPostId, setSelectedPostId] = useState(null);
 
     // ── Settings ──
     const [copied, setCopied] = useState(false);
@@ -529,7 +532,7 @@ export default function FamilyDomainDashboard() {
                                     <p className="text-sm">{t.boardEmpty}</p>
                                 </div>
                             ) : (
-                                posts.map((post) => <PostRow key={post.id} post={post} t={t} />)
+                                posts.map((post) => <PostRow key={post.id} post={post} t={t} onClick={() => setSelectedPostId(post.id)} />)
                             )}
                         </div>
                     </div>
@@ -829,6 +832,16 @@ export default function FamilyDomainDashboard() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* ════ Modal: 게시글 상세 ════ */}
+            {selectedPostId && (
+                <PostDetailModal
+                    postId={selectedPostId}
+                    onClose={() => { setSelectedPostId(null); fetchPosts(boardCategory); }}
+                    canComment={true}
+                    t={t}
+                />
             )}
 
             {/* ════ Modal: 글 쓰기 ════ */}

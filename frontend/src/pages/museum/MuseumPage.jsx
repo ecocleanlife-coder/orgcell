@@ -13,6 +13,7 @@ import FamilyTreeView from '../../components/museum/FamilyTreeView';
 import FamilyCalendar from '../../components/museum/FamilyCalendar';
 import AncestorHallTab from '../../components/museum/AncestorHallTab';
 import UpcomingEventsWidget from '../../components/museum/UpcomingEventsWidget';
+import PostDetailModal from '../../components/museum/PostDetailModal';
 import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
 import { getT } from '../../i18n/translations';
@@ -77,12 +78,13 @@ function ExhibitionCard({ exh, t, onClick }) {
 }
 
 // ─── Board Post Row ───
-function PostRow({ post, t }) {
+function PostRow({ post, t, onClick }) {
     const meta = CATEGORY_META[post.category] || CATEGORY_META.daily;
     const Icon = meta.icon;
     const date = new Date(post.created_at).toLocaleDateString();
     return (
         <div
+            onClick={onClick}
             className="flex items-center gap-3 px-4 py-3 border-b last:border-b-0 hover:bg-gray-50 cursor-pointer transition-colors"
             style={{ borderColor: '#f0ece4' }}
         >
@@ -138,6 +140,7 @@ export default function MuseumPage({ initialTab }) {
     const [posts, setPosts] = useState([]);
     const [boardLoading, setBoardLoading] = useState(false);
     const [boardCategory, setBoardCategory] = useState('all');
+    const [selectedPostId, setSelectedPostId] = useState(null);
 
     // ── PWA install prompt ──
     const [installPrompt, setInstallPrompt] = useState(null);
@@ -448,12 +451,22 @@ export default function MuseumPage({ initialTab }) {
                                     <p className="text-sm">{t.boardEmpty}</p>
                                 </div>
                             ) : (
-                                posts.map((post) => <PostRow key={post.id} post={post} t={t} />)
+                                posts.map((post) => <PostRow key={post.id} post={post} t={t} onClick={() => setSelectedPostId(post.id)} />)
                             )}
                         </div>
                     </div>
                 )}
             </main>
+
+            {/* ════ Modal: 게시글 상세 ════ */}
+            {selectedPostId && (
+                <PostDetailModal
+                    postId={selectedPostId}
+                    onClose={() => { setSelectedPostId(null); if (role !== 'public') fetchPosts(boardCategory); }}
+                    canComment={role !== 'public'}
+                    t={t}
+                />
+            )}
         </div>
     );
 }
