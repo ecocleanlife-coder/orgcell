@@ -50,7 +50,7 @@ exports.googleLogin = async (req, res) => {
         const token = jwt.sign(
             { user: { id: user.id, email: user.email, name: user.name, family_id: familyId, role } },
             process.env.JWT_SECRET,
-            { expiresIn: '7d' }
+            { expiresIn: '30d' }
         );
 
         res.json({
@@ -119,7 +119,7 @@ exports.devLogin = async (req, res) => {
         const token = jwt.sign(
             { user: { id: user.id, email: user.email, name: user.name } },
             process.env.JWT_SECRET,
-            { expiresIn: '7d' }
+            { expiresIn: '30d' }
         );
 
         res.json({ success: true, token, user });
@@ -234,7 +234,7 @@ exports.verifyMagicLink = async (req, res) => {
         const jwtToken = jwt.sign(
             { user: { id: user.id, email: user.email, name: user.name, family_id: familyId, role } },
             process.env.JWT_SECRET,
-            { expiresIn: '7d' }
+            { expiresIn: '30d' }
         );
 
         res.json({
