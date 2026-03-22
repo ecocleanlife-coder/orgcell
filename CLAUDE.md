@@ -64,3 +64,26 @@ C:\IOC\orgcell\
   sudo systemctl status nginx
   # Active: active (running) 확인 필수
   ```
+
+## 7. 반복 버그 주의사항 (재발 방지)
+
+Orgcell 작업 시 항상 확인할 것:
+
+1. **site_folders 테이블 마이그레이션 누락 주의**
+   - `/api/sites/mine` 500 에러 원인 1순위
+   - 새 배포 시 `site_folders`, `site_media` 테이블 존재 여부 반드시 확인
+   - `deploy.yml`에 마이그레이션 포함 여부 체크
+
+2. **handleStartFree() 로직**
+   - 반드시 `/api/sites/mine` 호출 후 사이트 있으면 `/{subdomain}`으로 이동
+   - 토큰만 확인하고 무조건 `/family-setup`으로 보내면 안 됨
+
+3. **FamilySetupPage 접근 차단**
+   - 마운트 시 `/api/sites/mine` 호출
+   - 사이트 있으면 바로 `/{subdomain}`으로 리다이렉트
+   - 없으면 Step 1 표시
+
+4. **ksarang referral 문구 완전 제거**
+   - 코드 전체에서 `ksarang.org` 언급 없어야 함
+   - `grep -r "ksarang" frontend/src` 로 확인
+   - i18n 파일 5개 언어 모두 확인

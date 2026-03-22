@@ -1,25 +1,27 @@
-# 구현 계획: 가족 달력 & 조상전시관
+# 패밀리트리 시작 UI 개선 계획
 
-> 확정일: 2026-03-19
+> 확정일: 2026-03-22
 
-## 파일 변경 목록
+## Phase 1: 빈 트리 기본 템플릿
+- root === null일 때 점선 플레이스홀더 3세대 구조 표시
+- 각 플레이스홀더 클릭 시 인물 추가 모달 오픈
 
-| 파일 | 작업 | 완료 |
-|------|------|------|
-| `database/migrations/002_add_family_calendar.sql` | 신규 | [ ] |
-| `database/migrations/003_add_ancestor_hall.sql` | 신규 | [ ] |
-| `backend/src/controllers/calendarController.js` | 신규 | [ ] |
-| `backend/src/routes/calendarRoutes.js` | 신규 | [ ] |
-| `backend/src/controllers/exhibitionController.js` | 수정 (ancestor 필드) | [ ] |
-| `backend/server.js` | 수정 (calendar 라우트 등록) | [ ] |
-| `frontend/src/components/museum/FamilyCalendar.jsx` | 신규 | [ ] |
-| `frontend/src/components/museum/AncestorHallTab.jsx` | 신규 | [ ] |
-| `frontend/src/pages/museum/MuseumPage.jsx` | 수정 (탭 추가) | [ ] |
-| `frontend/src/pages/museum/FamilyDomainDashboard.jsx` | 수정 (탭 추가) | [ ] |
-| `frontend/src/locales/*/translation.json` (5개) | 수정 (신규 키) | [ ] |
+## Phase 2: 인물 추가/수정/삭제 모달 (API 연동)
+- handleMemberSubmit → POST /api/persons/:siteId
+- 수정 모달: PUT /api/persons/:siteId/:personId
+- 삭제: DELETE /api/persons/:siteId/:personId
 
-## 핵심 결정
+## Phase 3: 인물 카드 개선
+- 이니셜 표시, 생년월일, privacy_level 뱃지, hover 편집 버튼
 
-- `persons` 테이블 없음 → `person_name VARCHAR` 직접 저장
-- exhibitions에 `hall_type` 컬럼 추가로 조상전시관 구현 (별도 테이블 불필요)
-- 달력: 외부 라이브러리 없이 CSS Grid 직접 구현
+## Phase 4: 권한 구분
+- owner: 전체, member: 본인만, viewer: 읽기만
+
+## 수정 파일
+1. frontend/src/components/museum/FamilyTreeView.jsx
+2. frontend/src/i18n/translations.js
+3. backend/src/controllers/personController.js
+
+## 이전 계획
+
+### 가족 달력 & 조상전시관 (2026-03-19) — 완료
