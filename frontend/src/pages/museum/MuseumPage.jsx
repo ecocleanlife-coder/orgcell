@@ -5,7 +5,7 @@ import {
     Globe, Lock, Image as ImageIcon,
     GalleryThumbnails, ClipboardList, TreePine, Settings,
     LogIn, Bell, Star, Calendar, MessageSquare, ChevronRight, Download,
-    BookOpen, CalendarDays,
+    BookOpen, CalendarDays, Plus, X, Pencil,
 } from 'lucide-react';
 import axios from 'axios';
 import LanguageSwitcher from '../../components/common/LanguageSwitcher';
@@ -143,6 +143,9 @@ export default function MuseumPage({ initialTab }) {
     const [boardCategory, setBoardCategory] = useState('all');
     const [selectedPostId, setSelectedPostId] = useState(null);
     const [showOnboarding, setShowOnboarding] = useState(false);
+    const [showCreatePost, setShowCreatePost] = useState(false);
+    const [newPost, setNewPost] = useState({ category: 'daily', title: '', content: '' });
+    const [postingPost, setPostingPost] = useState(false);
 
     // ── PWA install prompt ──
     const [installPrompt, setInstallPrompt] = useState(null);
@@ -229,6 +232,28 @@ export default function MuseumPage({ initialTab }) {
     useEffect(() => {
         if (activeTab === 'board' && site) fetchPosts(boardCategory);
     }, [activeTab, boardCategory, site, fetchPosts]);
+
+    const handleCreatePost = async () => {
+        if (!newPost.title.trim() || !newPost.content.trim() || !site) return;
+        setPostingPost(true);
+        try {
+            await axios.post('/api/board/posts', {
+                site_id: site.id,
+                category: newPost.category,
+                title: newPost.title,
+                content: newPost.content,
+            }, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
+            setShowCreatePost(false);
+            setNewPost({ category: 'daily', title: '', content: '' });
+            fetchPosts(boardCategory);
+        } catch (err) {
+            console.error('createPost error:', err);
+        } finally {
+            setPostingPost(false);
+        }
+    };
 
     const handleInstall = async () => {
         if (!installPrompt) return;
@@ -448,6 +473,16 @@ export default function MuseumPage({ initialTab }) {
                                     </button>
                                 ))}
                             </div>
+                            {role !== 'public' && token && (
+                                <button
+                                    onClick={() => setShowCreatePost(true)}
+                                    className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold"
+                                    style={{ background: '#3a3a2a', color: '#fff' }}
+                                >
+                                    <Pencil size={12} />
+                                    {t.boardWriteBtn}
+                                </button>
+                            )}
                         </div>
 
                         <div
@@ -479,6 +514,92 @@ export default function MuseumPage({ initialTab }) {
                     canComment={role !== 'public'}
                     t={t}
                 />
+            )}
+
+            {/* ════ Board Write Modal ════ */}
+            {showCreatePost && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                    style={{ background: 'rgba(40,35,50,0.55)', backdropFilter: 'blur(4px)' }}
+                >
+                    <div
+                        className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative"
+                        style={{ border: '1.5px solid #e8e0d0' }}
+                    >
+                        <button
+                            onClick={() => setShowCreatePost(false)}
+                            className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full"
+                            style={{ background: '#f0ece4' }}
+                        >
+                            <X size={14} style={{ color: '#7a7a6a' }} />
+                        </button>
+                        <h3 className="text-lg font-bold mb-5" style={{ color: '#3a3a2a' }}>{t.boardModalTitle}</h3>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs font-bold block mb-1" style={{ color: '#7a7a6a' }}>{t.boardCategoryLabel}</label>
+                                <div className="flex gap-2 flex-wrap">
+                                    {BOARD_CATS.filter((c) => c.key !== 'all').map(({ key, label }) => {
+                                        const meta = CATEGORY_META[key];
+                                        return (
+                                            <button
+                                                key={key}
+                                                onClick={() => setNewPost({ ...newPost, category: key })}
+                                                className="px-3 py-1 rounded-full text-xs font-bold transition-all"
+                                                style={{
+                                                    background: newPost.category === key ? meta.color : '#f0ece4',
+                                                    color: newPost.category === key ? '#fff' : '#5a5a4a',
+                                                }}
+                                            >
+                                                {label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold block mb-1" style={{ color: '#7a7a6a' }}>{t.boardTitleLabel}</label>
+                                <input
+                                    type="text"
+                                    value={newPost.title}
+                                    onChange={(e) => setNewPost({ ...newPost, title: e.target.value })}
+                                    placeholder={t.boardTitlePlaceholder}
+                                    className="w-full px-3 py-2.5 rounded-xl outline-none text-sm"
+                                    style={{ border: '1.5px solid #d8d0c0', color: '#3a3a2a' }}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold block mb-1" style={{ color: '#7a7a6a' }}>{t.boardContentLabel}</label>
+                                <textarea
+                                    value={newPost.content}
+                                    onChange={(e) => setNewPost({ ...newPost, content: e.target.value })}
+                                    placeholder={t.boardContentPlaceholder}
+                                    rows={5}
+                                    className="w-full px-3 py-2.5 rounded-xl outline-none text-sm resize-none"
+                                    style={{ border: '1.5px solid #d8d0c0', color: '#3a3a2a' }}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={() => setShowCreatePost(false)}
+                                className="flex-1 py-2.5 rounded-xl text-sm font-bold"
+                                style={{ background: '#f0ece4', color: '#5a5a4a' }}
+                            >
+                                {t.boardCancelBtn}
+                            </button>
+                            <button
+                                onClick={handleCreatePost}
+                                disabled={!newPost.title.trim() || !newPost.content.trim() || postingPost}
+                                className="flex-1 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50"
+                                style={{ background: '#3a3a2a', color: '#fff' }}
+                            >
+                                {postingPost ? t.boardPosting : t.boardSubmitBtn}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* ════ Onboarding Guide ════ */}
