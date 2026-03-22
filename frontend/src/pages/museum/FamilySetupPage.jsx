@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Globe, ArrowRight, ArrowLeft, Check, HardDrive, UserPlus, Copy, Share2 } from 'lucide-react';
 import LanguageSwitcher from '../../components/common/LanguageSwitcher';
 import useUiStore from '../../store/uiStore';
@@ -11,7 +11,20 @@ export default function FamilySetupPage() {
     const lang = useUiStore((s) => s.lang);
     const t = getT('familySetup', lang);
     const user = useAuthStore((s) => s.user);
+    const token = useAuthStore((s) => s.token);
     const navigate = useNavigate();
+
+    // ── 이미 박물관 있으면 바로 이동 ──
+    useEffect(() => {
+        if (!token) return;
+        axios.get('/api/sites/mine', { headers: { Authorization: `Bearer ${token}` } })
+            .then(({ data }) => {
+                if (data.data?.subdomain) {
+                    navigate(`/${data.data.subdomain}`, { replace: true });
+                }
+            })
+            .catch(() => {});
+    }, [token, navigate]);
 
     // ── Step state ──
     const [step, setStep] = useState(1); // 1=domain, 2=drive, 3=done

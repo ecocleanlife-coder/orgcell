@@ -277,6 +277,12 @@ jobs:
               -c "CREATE TABLE IF NOT EXISTS family_invites (id SERIAL PRIMARY KEY, site_id INTEGER NOT NULL REFERENCES family_sites(id) ON DELETE CASCADE, code VARCHAR(20) UNIQUE NOT NULL, email VARCHAR(255), inviter_id INTEGER REFERENCES users(id), status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending','accepted')), created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, expires_at TIMESTAMPTZ DEFAULT (CURRENT_TIMESTAMP + INTERVAL '7 days'));" \
               -c "CREATE INDEX IF NOT EXISTS idx_family_invites_code ON family_invites(code);" \
               -c "CREATE INDEX IF NOT EXISTS idx_family_invites_site_id ON family_invites(site_id);"
+            # ── 011b: site_folders, site_media ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "CREATE TABLE IF NOT EXISTS site_folders (id SERIAL PRIMARY KEY, site_id INTEGER NOT NULL REFERENCES family_sites(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, label VARCHAR(100), parent_id INTEGER REFERENCES site_folders(id), is_shared BOOLEAN DEFAULT false, password_hash VARCHAR(255), cover_photo_url TEXT, sort_order INTEGER DEFAULT 0, created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_site_folders_site ON site_folders(site_id);" \
+              -c "CREATE TABLE IF NOT EXISTS site_media (id SERIAL PRIMARY KEY, folder_id INTEGER NOT NULL REFERENCES site_folders(id) ON DELETE CASCADE, filename VARCHAR(255) NOT NULL, media_type VARCHAR(20) DEFAULT 'photo', file_size BIGINT, drive_file_id VARCHAR(255), thumbnail_url TEXT, title VARCHAR(255), sort_order INTEGER DEFAULT 0, created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_site_media_folder ON site_media(folder_id);"
             # ── 012: persons (family tree) ──
             docker exec orgcell-db psql -U orgcell_user -d orgcell \
               -c "CREATE TABLE IF NOT EXISTS persons (id SERIAL PRIMARY KEY, site_id INTEGER NOT NULL REFERENCES family_sites(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, birth_year INTEGER, death_year INTEGER, gender VARCHAR(10), privacy_level VARCHAR(20) DEFAULT 'family', parent1_id INTEGER REFERENCES persons(id) ON DELETE SET NULL, parent2_id INTEGER REFERENCES persons(id) ON DELETE SET NULL, spouse_id INTEGER REFERENCES persons(id) ON DELETE SET NULL, generation INTEGER DEFAULT 0, photo_url TEXT, created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP);" \

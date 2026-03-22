@@ -79,17 +79,23 @@ exports.getMySite = async (req, res) => {
 
         const site = rows[0];
 
-        // Get folder structure
-        const folders = await db.query(
-            `SELECT * FROM site_folders WHERE site_id = $1 ORDER BY sort_order`, [site.id]
-        );
+        // Get folder structure (graceful if table not yet created)
+        let folders = [];
+        try {
+            const fResult = await db.query(
+                `SELECT * FROM site_folders WHERE site_id = $1 ORDER BY sort_order`, [site.id]
+            );
+            folders = fResult.rows;
+        } catch {
+            // site_folders table may not exist yet
+        }
 
         res.json({
             success: true,
             data: {
                 ...site,
                 url: `https://${site.subdomain}.orgcell.com`,
-                folders: folders.rows,
+                folders,
             },
         });
     } catch (error) {
