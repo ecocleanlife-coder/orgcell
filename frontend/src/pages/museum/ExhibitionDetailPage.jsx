@@ -4,6 +4,7 @@ import {
     ArrowLeft, Upload, Share2, Globe, Lock, User,
     X, Download, ChevronLeft, ChevronRight,
     Link2, Check, Image as ImageIcon, BookOpen,
+    Play, Pause, Grid, Maximize2,
 } from 'lucide-react';
 import axios from 'axios';
 import useUiStore from '../../store/uiStore';
@@ -64,7 +65,6 @@ function PhotoViewer({ photos, startIndex, onClose, t }) {
             style={{ background: 'rgba(10,10,10,0.93)' }}
             onClick={onClose}
         >
-            {/* Close */}
             <button
                 className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full z-10"
                 style={{ background: 'rgba(255,255,255,0.12)' }}
@@ -73,7 +73,6 @@ function PhotoViewer({ photos, startIndex, onClose, t }) {
                 <X size={20} style={{ color: '#fff' }} />
             </button>
 
-            {/* Download */}
             <button
                 className="absolute top-4 right-16 flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-bold z-10"
                 style={{ background: 'rgba(255,255,255,0.12)', color: '#fff' }}
@@ -82,7 +81,6 @@ function PhotoViewer({ photos, startIndex, onClose, t }) {
                 <Download size={16} /> {t.viewerDownload}
             </button>
 
-            {/* Prev */}
             {idx > 0 && (
                 <button
                     className="absolute left-4 w-11 h-11 flex items-center justify-center rounded-full z-10"
@@ -93,7 +91,6 @@ function PhotoViewer({ photos, startIndex, onClose, t }) {
                 </button>
             )}
 
-            {/* Next */}
             {idx < photos.length - 1 && (
                 <button
                     className="absolute right-4 w-11 h-11 flex items-center justify-center rounded-full z-10"
@@ -104,7 +101,6 @@ function PhotoViewer({ photos, startIndex, onClose, t }) {
                 </button>
             )}
 
-            {/* Image */}
             <img
                 src={photo.url}
                 alt={photo.original_name || ''}
@@ -114,13 +110,123 @@ function PhotoViewer({ photos, startIndex, onClose, t }) {
                 draggable={false}
             />
 
-            {/* Counter */}
             <span
                 className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs font-bold px-3 py-1 rounded-full"
                 style={{ background: 'rgba(255,255,255,0.15)', color: '#fff' }}
             >
                 {idx + 1} / {photos.length}
             </span>
+        </div>
+    );
+}
+
+// ─── Slideshow Panel ───
+function SlideshowPanel({ photos, t, onFullscreen }) {
+    const [idx, setIdx] = useState(0);
+    const [playing, setPlaying] = useState(true);
+    const intervalRef = useRef(null);
+
+    useEffect(() => {
+        if (!playing || photos.length <= 1) {
+            clearInterval(intervalRef.current);
+            return;
+        }
+        intervalRef.current = setInterval(() => {
+            setIdx((i) => (i + 1) % photos.length);
+        }, 4000);
+        return () => clearInterval(intervalRef.current);
+    }, [playing, photos.length]);
+
+    if (photos.length === 0) {
+        return (
+            <div className="rounded-2xl flex flex-col items-center justify-center py-24"
+                style={{ background: '#fff', border: '1px solid #e8e0d0', color: '#9a9a8a' }}>
+                <ImageIcon size={48} className="mb-3 opacity-25" />
+                <p className="text-sm">{t.emptyPhotos}</p>
+            </div>
+        );
+    }
+
+    const photo = photos[idx];
+
+    return (
+        <div className="relative rounded-2xl overflow-hidden" style={{ background: '#1a1a1a' }}>
+            {/* 슬라이드 이미지 */}
+            <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                <img
+                    key={photo.id}
+                    src={photo.url}
+                    alt={photo.original_name || ''}
+                    className="absolute inset-0 w-full h-full object-contain animate-fade-in"
+                    draggable={false}
+                />
+            </div>
+
+            {/* 컨트롤 바 */}
+            <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-4 py-3"
+                style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.7))' }}>
+                <div className="flex items-center gap-2">
+                    {/* Prev */}
+                    <button
+                        onClick={() => setIdx((i) => (i - 1 + photos.length) % photos.length)}
+                        className="w-8 h-8 flex items-center justify-center rounded-full"
+                        style={{ background: 'rgba(255,255,255,0.15)' }}
+                    >
+                        <ChevronLeft size={16} style={{ color: '#fff' }} />
+                    </button>
+
+                    {/* Play/Pause */}
+                    <button
+                        onClick={() => setPlaying((v) => !v)}
+                        className="w-8 h-8 flex items-center justify-center rounded-full"
+                        style={{ background: 'rgba(255,255,255,0.15)' }}
+                    >
+                        {playing
+                            ? <Pause size={14} style={{ color: '#fff' }} />
+                            : <Play size={14} style={{ color: '#fff' }} />}
+                    </button>
+
+                    {/* Next */}
+                    <button
+                        onClick={() => setIdx((i) => (i + 1) % photos.length)}
+                        className="w-8 h-8 flex items-center justify-center rounded-full"
+                        style={{ background: 'rgba(255,255,255,0.15)' }}
+                    >
+                        <ChevronRight size={16} style={{ color: '#fff' }} />
+                    </button>
+                </div>
+
+                {/* Counter + Fullscreen */}
+                <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                        {idx + 1} / {photos.length}
+                    </span>
+                    <button
+                        onClick={() => onFullscreen(idx)}
+                        className="w-8 h-8 flex items-center justify-center rounded-full"
+                        style={{ background: 'rgba(255,255,255,0.15)' }}
+                    >
+                        <Maximize2 size={14} style={{ color: '#fff' }} />
+                    </button>
+                </div>
+            </div>
+
+            {/* 프로그레스 도트 (10개 이하일 때만) */}
+            {photos.length <= 10 && (
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                    {photos.map((_, i) => (
+                        <button
+                            key={i}
+                            onClick={() => setIdx(i)}
+                            className="w-2 h-2 rounded-full transition-all"
+                            style={{
+                                background: i === idx ? '#fff' : 'rgba(255,255,255,0.35)',
+                                transform: i === idx ? 'scale(1.3)' : 'scale(1)',
+                            }}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
@@ -262,7 +368,6 @@ function UploadModal({ exhibitionId, t, onClose, onDone }) {
 
                 {/* Options */}
                 <div className="space-y-3 mb-4">
-                    {/* Visibility */}
                     <div>
                         <label className="text-xs font-bold block mb-1.5" style={{ color: '#7a7a6a' }}>{t.uploadVisLabel}</label>
                         <div className="flex gap-2">
@@ -286,7 +391,6 @@ function UploadModal({ exhibitionId, t, onClose, onDone }) {
                         </div>
                     </div>
 
-                    {/* Cover toggle */}
                     <label className="flex items-center gap-2 cursor-pointer select-none">
                         <div
                             onClick={() => setSetCover((v) => !v)}
@@ -363,7 +467,6 @@ function ShareDropdown({ url, t, lang, onClose }) {
     };
 
     const encoded = encodeURIComponent(url);
-    const textEncoded = encodeURIComponent(url);
 
     const handleSNS = () => {
         if (lang === 'ko') {
@@ -383,7 +486,7 @@ function ShareDropdown({ url, t, lang, onClose }) {
         } else if (lang === 'ja') {
             window.open(`https://social-plugins.line.me/lineit/share?url=${encoded}`, '_blank');
         } else if (lang === 'es') {
-            window.open(`https://wa.me/?text=${textEncoded}`, '_blank');
+            window.open(`https://wa.me/?text=${encoded}`, '_blank');
         } else {
             window.open(`https://www.facebook.com/sharer/sharer.php?u=${encoded}`, '_blank');
         }
@@ -418,6 +521,10 @@ function ShareDropdown({ url, t, lang, onClose }) {
     );
 }
 
+// ─── Tab constants ───
+const TABS = ['slideshow', 'gallery', 'guestbook'];
+const TAB_ICONS = { slideshow: Play, gallery: Grid, guestbook: BookOpen };
+
 // ═══════════════════════════════════════════════
 // MAIN PAGE
 // ═══════════════════════════════════════════════
@@ -435,13 +542,13 @@ export default function ExhibitionDetailPage() {
     const [viewerIndex, setViewerIndex] = useState(null);
     const [showUpload, setShowUpload] = useState(false);
     const [showShare, setShowShare] = useState(false);
+    const [activeTab, setActiveTab] = useState('slideshow');
 
     // Guestbook form
     const [gbName, setGbName] = useState('');
     const [gbMsg, setGbMsg] = useState('');
     const [gbSubmitting, setGbSubmitting] = useState(false);
 
-    // Fetch exhibition details + photos + guestbook
     const fetchAll = useCallback(async () => {
         try {
             const [exhRes, photoRes, gbRes] = await Promise.all([
@@ -486,6 +593,11 @@ export default function ExhibitionDetailPage() {
 
     const pageUrl = window.location.href;
     const visLabel = { public: t.visPublic, family: t.visFamily, private: t.visPrivate };
+    const tabLabels = {
+        slideshow: t.tabSlideshow || 'Slideshow',
+        gallery: t.tabGallery || 'Gallery',
+        guestbook: t.tabGuestbook || t.guestbookTitle || 'Guestbook',
+    };
 
     if (loadingExh) {
         return (
@@ -512,7 +624,6 @@ export default function ExhibitionDetailPage() {
                 style={{ background: 'rgba(248,244,236,0.96)', borderColor: '#e0d8c8', backdropFilter: 'blur(8px)' }}
             >
                 <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
-                    {/* Back */}
                     <button
                         onClick={() => navigate(-1)}
                         className="flex items-center gap-1.5 text-sm font-semibold hover:opacity-70 transition-opacity"
@@ -522,14 +633,11 @@ export default function ExhibitionDetailPage() {
                         {t.backBtn}
                     </button>
 
-                    {/* Title */}
                     <h1 className="flex-1 text-base font-bold truncate text-center" style={{ color: '#3a3a2a' }}>
                         {exhibition.title}
                     </h1>
 
-                    {/* Right actions */}
                     <div className="flex items-center gap-2 shrink-0">
-                        {/* Share */}
                         <div className="relative" onClick={(e) => e.stopPropagation()}>
                             <button
                                 onClick={() => setShowShare((v) => !v)}
@@ -549,7 +657,6 @@ export default function ExhibitionDetailPage() {
                             )}
                         </div>
 
-                        {/* Upload (auth only) */}
                         {token && (
                             <button
                                 onClick={() => setShowUpload(true)}
@@ -569,7 +676,7 @@ export default function ExhibitionDetailPage() {
             <main className="max-w-5xl mx-auto px-4 py-6">
 
                 {/* ── Exhibition info ── */}
-                <div className="mb-6">
+                <div className="mb-4">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <VisBadge vis={exhibition.visibility} label={visLabel[exhibition.visibility] || exhibition.visibility} />
                         <span className="text-sm" style={{ color: '#9a9a8a' }}>
@@ -581,122 +688,169 @@ export default function ExhibitionDetailPage() {
                     )}
                 </div>
 
-                {/* ── Photo Grid ── */}
-                {photos.length === 0 ? (
-                    <div
-                        className="rounded-2xl flex flex-col items-center justify-center py-24 mb-10"
-                        style={{ background: '#fff', border: '1px solid #e8e0d0', color: '#9a9a8a' }}
-                    >
-                        <ImageIcon size={48} className="mb-3 opacity-25" />
-                        <p className="text-sm">{t.emptyPhotos}</p>
-                        {token && (
+                {/* ── 3-Panel Tabs ── */}
+                <div className="flex gap-1 mb-6 bg-white rounded-xl p-1" style={{ border: '1px solid #e8e0d0' }}>
+                    {TABS.map((tab) => {
+                        const Icon = TAB_ICONS[tab];
+                        const isActive = activeTab === tab;
+                        return (
                             <button
-                                onClick={() => setShowUpload(true)}
-                                className="mt-4 px-5 py-2 rounded-xl text-sm font-bold"
-                                style={{ background: '#5a8a4a', color: '#fff' }}
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-bold transition-all"
+                                style={{
+                                    background: isActive ? '#3a3a2a' : 'transparent',
+                                    color: isActive ? '#fff' : '#7a7a6a',
+                                }}
                             >
-                                <Upload size={14} className="inline mr-1.5" />
-                                {t.uploadBtn}
+                                <Icon size={14} />
+                                {tabLabels[tab]}
+                                {tab === 'guestbook' && guestbook.length > 0 && (
+                                    <span className="text-xs px-1.5 py-0.5 rounded-full ml-0.5"
+                                        style={{
+                                            background: isActive ? 'rgba(255,255,255,0.2)' : '#f0ece4',
+                                            color: isActive ? '#fff' : '#7a7a6a',
+                                            fontSize: '10px',
+                                        }}>
+                                        {guestbook.length}
+                                    </span>
+                                )}
                             </button>
-                        )}
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 gap-1.5 mb-10">
-                        {photos.map((photo, i) => (
-                            <div
-                                key={photo.id}
-                                className="aspect-square rounded-lg overflow-hidden cursor-pointer hover:brightness-90 transition-all"
-                                style={{ background: '#e8e0d0' }}
-                                onClick={() => setViewerIndex(i)}
-                            >
-                                <img
-                                    src={photo.url}
-                                    alt={photo.original_name || ''}
-                                    className="w-full h-full object-cover"
-                                    loading="lazy"
-                                />
-                            </div>
-                        ))}
-                    </div>
+                        );
+                    })}
+                </div>
+
+                {/* ── Panel: Slideshow ── */}
+                {activeTab === 'slideshow' && (
+                    <SlideshowPanel
+                        photos={photos}
+                        t={t}
+                        onFullscreen={(idx) => setViewerIndex(idx)}
+                    />
                 )}
 
-                {/* ── Guestbook ── */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm mb-8" style={{ border: '1px solid #e8e0d0' }}>
-                    <h2 className="font-bold text-base mb-4 flex items-center gap-2" style={{ color: '#3a3a2a' }}>
-                        <BookOpen size={18} style={{ color: '#5a8a4a' }} />
-                        {t.guestbookTitle}
-                        {guestbook.length > 0 && (
-                            <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#f0ece4', color: '#7a7a6a' }}>
-                                {guestbook.length}
-                            </span>
-                        )}
-                    </h2>
-
-                    {/* Write form */}
-                    <div className="space-y-2 mb-6 pb-6 border-b" style={{ borderColor: '#f0ece4' }}>
-                        <div className="grid grid-cols-3 gap-2">
-                            <input
-                                type="text"
-                                value={gbName}
-                                onChange={(e) => setGbName(e.target.value)}
-                                placeholder={t.guestbookNamePlaceholder}
-                                className="col-span-1 px-3 py-2 rounded-xl text-sm outline-none"
-                                style={{ border: '1.5px solid #e8e0d0', color: '#3a3a2a' }}
-                            />
-                            <input
-                                type="text"
-                                value={gbMsg}
-                                onChange={(e) => setGbMsg(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleGbSubmit()}
-                                placeholder={t.guestbookMsgPlaceholder}
-                                className="col-span-2 px-3 py-2 rounded-xl text-sm outline-none"
-                                style={{ border: '1.5px solid #e8e0d0', color: '#3a3a2a' }}
-                            />
-                        </div>
-                        <button
-                            onClick={handleGbSubmit}
-                            disabled={!gbName.trim() || !gbMsg.trim() || gbSubmitting}
-                            className="w-full py-2.5 rounded-xl text-sm font-bold disabled:opacity-50 transition-all"
-                            style={{ background: '#3a3a2a', color: '#fff' }}
-                        >
-                            {gbSubmitting ? t.guestbookSubmitting : t.guestbookSubmit}
-                        </button>
-                    </div>
-
-                    {/* Messages */}
-                    {guestbook.length === 0 ? (
-                        <p className="text-sm text-center py-6" style={{ color: '#aaa' }}>{t.guestbookEmpty}</p>
-                    ) : (
-                        <div className="space-y-3">
-                            {guestbook.map((entry) => (
-                                <div key={entry.id} className="flex gap-3">
-                                    <div
-                                        className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm font-bold"
-                                        style={{ background: '#e8e0d0', color: '#5a5a4a' }}
+                {/* ── Panel: Gallery ── */}
+                {activeTab === 'gallery' && (
+                    <>
+                        {photos.length === 0 ? (
+                            <div
+                                className="rounded-2xl flex flex-col items-center justify-center py-24"
+                                style={{ background: '#fff', border: '1px solid #e8e0d0', color: '#9a9a8a' }}
+                            >
+                                <ImageIcon size={48} className="mb-3 opacity-25" />
+                                <p className="text-sm">{t.emptyPhotos}</p>
+                                {token && (
+                                    <button
+                                        onClick={() => setShowUpload(true)}
+                                        className="mt-4 px-5 py-2 rounded-xl text-sm font-bold"
+                                        style={{ background: '#5a8a4a', color: '#fff' }}
                                     >
-                                        {entry.name.charAt(0).toUpperCase()}
+                                        <Upload size={14} className="inline mr-1.5" />
+                                        {t.uploadBtn}
+                                    </button>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 gap-1.5">
+                                {photos.map((photo, i) => (
+                                    <div
+                                        key={photo.id}
+                                        className="aspect-square rounded-lg overflow-hidden cursor-pointer hover:brightness-90 transition-all"
+                                        style={{ background: '#e8e0d0' }}
+                                        onClick={() => setViewerIndex(i)}
+                                    >
+                                        <img
+                                            src={photo.url}
+                                            alt={photo.original_name || ''}
+                                            className="w-full h-full object-cover"
+                                            loading="lazy"
+                                        />
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-baseline gap-2">
-                                            <span className="text-sm font-bold" style={{ color: '#3a3a2a' }}>{entry.name}</span>
-                                            <span className="text-xs" style={{ color: '#aaa' }}>
-                                                {new Date(entry.created_at).toLocaleDateString()}
-                                            </span>
-                                        </div>
-                                        <p className="text-sm mt-0.5 break-words" style={{ color: '#5a5a4a' }}>{entry.message}</p>
-                                    </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {/* ── Panel: Guestbook ── */}
+                {activeTab === 'guestbook' && (
+                    <div className="bg-white rounded-2xl p-6 shadow-sm" style={{ border: '1px solid #e8e0d0' }}>
+                        <h2 className="font-bold text-base mb-4 flex items-center gap-2" style={{ color: '#3a3a2a' }}>
+                            <BookOpen size={18} style={{ color: '#5a8a4a' }} />
+                            {t.guestbookTitle}
+                            {guestbook.length > 0 && (
+                                <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#f0ece4', color: '#7a7a6a' }}>
+                                    {guestbook.length}
+                                </span>
+                            )}
+                        </h2>
+
+                        {/* Write form */}
+                        <div className="space-y-2 mb-6 pb-6 border-b" style={{ borderColor: '#f0ece4' }}>
+                            <div className="grid grid-cols-3 gap-2">
+                                <input
+                                    type="text"
+                                    value={gbName}
+                                    onChange={(e) => setGbName(e.target.value)}
+                                    placeholder={t.guestbookNamePlaceholder}
+                                    className="col-span-1 px-3 py-2 rounded-xl text-sm outline-none"
+                                    style={{ border: '1.5px solid #e8e0d0', color: '#3a3a2a' }}
+                                />
+                                <input
+                                    type="text"
+                                    value={gbMsg}
+                                    onChange={(e) => setGbMsg(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleGbSubmit()}
+                                    placeholder={t.guestbookMsgPlaceholder}
+                                    className="col-span-2 px-3 py-2 rounded-xl text-sm outline-none"
+                                    style={{ border: '1.5px solid #e8e0d0', color: '#3a3a2a' }}
+                                />
+                            </div>
+                            <button
+                                onClick={handleGbSubmit}
+                                disabled={!gbName.trim() || !gbMsg.trim() || gbSubmitting}
+                                className="w-full py-2.5 rounded-xl text-sm font-bold disabled:opacity-50 transition-all"
+                                style={{ background: '#3a3a2a', color: '#fff' }}
+                            >
+                                {gbSubmitting ? t.guestbookSubmitting : t.guestbookSubmit}
+                            </button>
                         </div>
-                    )}
-                </div>
+
+                        {/* Messages */}
+                        {guestbook.length === 0 ? (
+                            <p className="text-sm text-center py-6" style={{ color: '#aaa' }}>{t.guestbookEmpty}</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {guestbook.map((entry) => (
+                                    <div key={entry.id} className="flex gap-3">
+                                        <div
+                                            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm font-bold"
+                                            style={{ background: '#e8e0d0', color: '#5a5a4a' }}
+                                        >
+                                            {entry.name.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-baseline gap-2">
+                                                <span className="text-sm font-bold" style={{ color: '#3a3a2a' }}>{entry.name}</span>
+                                                <span className="text-xs" style={{ color: '#aaa' }}>
+                                                    {new Date(entry.created_at).toLocaleDateString()}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm mt-0.5 break-words" style={{ color: '#5a5a4a' }}>{entry.message}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* ── Footer CTA ── */}
                 <a
                     href="https://orgcell.com"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl text-sm font-bold transition-all hover:brightness-95"
+                    className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl text-sm font-bold transition-all hover:brightness-95 mt-8"
                     style={{
                         background: 'linear-gradient(135deg, #3a8a3a 0%, #2a7a2a 100%)',
                         color: '#fff',

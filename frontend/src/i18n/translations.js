@@ -1762,6 +1762,10 @@ const translations = {
             shareFacebook: 'Facebook',
             // Empty
             emptyPhotos: 'No photos yet. Upload the first one!',
+            // Tabs
+            tabSlideshow: 'Slideshow',
+            tabGallery: 'Gallery',
+            tabGuestbook: 'Guestbook',
         },
         ko: {
             visPublic: '일반공개',
@@ -1804,6 +1808,9 @@ const translations = {
             shareWhatsApp: 'WhatsApp',
             shareFacebook: 'Facebook',
             emptyPhotos: '아직 사진이 없습니다. 첫 사진을 업로드해보세요!',
+            tabSlideshow: '슬라이드쇼',
+            tabGallery: '갤러리',
+            tabGuestbook: '방명록',
         },
         ja: {
             visPublic: '一般公開',
@@ -1846,6 +1853,9 @@ const translations = {
             shareWhatsApp: 'WhatsApp',
             shareFacebook: 'Facebook',
             emptyPhotos: 'まだ写真はありません。最初の写真をアップロードしましょう！',
+            tabSlideshow: 'スライドショー',
+            tabGallery: 'ギャラリー',
+            tabGuestbook: '訪問録',
         },
         'zh-CN': {
             visPublic: '公开',
@@ -1888,6 +1898,9 @@ const translations = {
             shareWhatsApp: 'WhatsApp',
             shareFacebook: 'Facebook',
             emptyPhotos: '还没有照片，上传第一张吧！',
+            tabSlideshow: '幻灯片',
+            tabGallery: '相册',
+            tabGuestbook: '留言簿',
         },
         es: {
             visPublic: 'Público',
@@ -1930,6 +1943,9 @@ const translations = {
             shareWhatsApp: 'WhatsApp',
             shareFacebook: 'Facebook',
             emptyPhotos: 'Sin fotos aún. ¡Sube la primera!',
+            tabSlideshow: 'Presentación',
+            tabGallery: 'Galería',
+            tabGuestbook: 'Libro de visitas',
         },
     },
     // ─── Family Setup (Onboarding) ───
