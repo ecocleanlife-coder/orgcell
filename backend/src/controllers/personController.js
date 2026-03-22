@@ -1,5 +1,16 @@
 const db = require('../config/db');
 
+// 사이트 접근 권한 확인 (owner 또는 member)
+async function checkSiteAccess(userId, siteId) {
+    const { rows } = await db.query(
+        `SELECT id FROM family_sites WHERE id = $1 AND user_id = $2
+         UNION
+         SELECT site_id AS id FROM site_members WHERE site_id = $1 AND user_id = $2`,
+        [siteId, userId]
+    );
+    return rows.length > 0;
+}
+
 // GET /api/persons/:siteId
 exports.listPersons = async (req, res) => {
     try {
@@ -23,6 +34,11 @@ exports.listPersons = async (req, res) => {
 exports.createPerson = async (req, res) => {
     try {
         const { siteId } = req.params;
+        const userId = req.user?.id;
+        if (!await checkSiteAccess(userId, siteId)) {
+            return res.status(403).json({ success: false, message: 'Forbidden' });
+        }
+
         const { name, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date } = req.body;
 
         if (!name) {
@@ -47,6 +63,11 @@ exports.createPerson = async (req, res) => {
 exports.updatePerson = async (req, res) => {
     try {
         const { siteId, personId } = req.params;
+        const userId = req.user?.id;
+        if (!await checkSiteAccess(userId, siteId)) {
+            return res.status(403).json({ success: false, message: 'Forbidden' });
+        }
+
         const { name, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date } = req.body;
 
         const { rows } = await db.query(
@@ -83,6 +104,10 @@ exports.updatePerson = async (req, res) => {
 exports.deletePerson = async (req, res) => {
     try {
         const { siteId, personId } = req.params;
+        const userId = req.user?.id;
+        if (!await checkSiteAccess(userId, siteId)) {
+            return res.status(403).json({ success: false, message: 'Forbidden' });
+        }
 
         // spouse_id 참조 해제
         await db.query(

@@ -1,5 +1,6 @@
 node_modules/
 .env
+.tg-env
 *.pem
 dist/
 gcp_token.json

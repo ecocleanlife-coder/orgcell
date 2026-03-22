@@ -4,11 +4,12 @@
 Usage: python scripts/tg-notify.py "message text"
 """
 import sys
+import os
 import json
 import urllib.request
 
-TOKEN = "8750867181:AAGwTwPsGLaBR3kw0trkU1sjPDeCtBqbLZ0"
-CHAT_ID = "8714841237"
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
 
 def send(message: str) -> bool:
