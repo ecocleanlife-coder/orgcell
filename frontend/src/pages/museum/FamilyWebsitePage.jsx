@@ -128,14 +128,15 @@ const FamilyWebsitePage = () => {
                             className="px-8 py-3 rounded-full font-bold text-[14px] transition-all hover:brightness-110 active:scale-95 text-white disabled:opacity-60"
                             style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
                         >
-                            {startLoading ? '...' : (mySite ? t('familyWebsite.goToMuseum') : t('familyWebsite.ctaStart'))}
+                            {startLoading ? '...' : (t('familyWebsite.ctaStart') || '무료로 시작하기')}
                         </button>
                         <button
-                            onClick={() => navigate('/demo')}
-                            className="px-8 py-3 rounded-full font-bold text-[14px] transition-all"
-                            style={{ background: 'transparent', border: '2px solid #5A9460', color: '#5A9460' }}
+                            onClick={handleStartFree}
+                            disabled={startLoading}
+                            className="px-8 py-3 rounded-full font-bold text-[14px] transition-all hover:brightness-[0.97] active:scale-95 disabled:opacity-60"
+                            style={{ background: '#FFFFFF', border: '2px solid #5A9460', color: '#5A9460' }}
                         >
-                            {t('familyWebsite.ctaPreview')}
+                            {startLoading ? '...' : (t('familyWebsite.goToMuseum') || '내 박물관 들어가기')}
                         </button>
                     </div>
 
