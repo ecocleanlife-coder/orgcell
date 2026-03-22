@@ -1,7 +1,23 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Plus, X, BookOpen, ChevronRight } from 'lucide-react';
+import { Plus, X, BookOpen, ChevronRight, Image as ImageIcon, Flame } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
+// 관계 아이콘 매핑
+const RELATION_ICONS = {
+    '할아버지': '👴', '할머니': '👵', '아버지': '👨', '어머니': '👩',
+    '증조부': '🏛️', '증조모': '🏛️', '고조부': '🏛️', '고조모': '🏛️',
+    grandpa: '👴', grandma: '👵', father: '👨', mother: '👩',
+};
+
+function getRelationIcon(relation) {
+    if (!relation) return '🕯️';
+    const lower = relation.toLowerCase();
+    for (const [key, icon] of Object.entries(RELATION_ICONS)) {
+        if (lower.includes(key.toLowerCase())) return icon;
+    }
+    return '🕯️';
+}
 
 export default function AncestorHallTab({ siteId, subdomain, role, t }) {
     const navigate = useNavigate();
@@ -66,10 +82,13 @@ export default function AncestorHallTab({ siteId, subdomain, role, t }) {
     return (
         <div className="p-4">
             {/* Header */}
-            <div className="flex items-center justify-between mb-5">
-                <h2 className="text-[18px] font-bold text-[#3D2008]" style={{ fontFamily: 'Georgia, serif' }}>
-                    {t.ancestorTitle}
-                </h2>
+            <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                    <Flame size={20} style={{ color: '#c4813a' }} />
+                    <h2 className="text-[18px] font-bold" style={{ color: '#3D2008', fontFamily: 'Georgia, serif' }}>
+                        {t.ancestorTitle}
+                    </h2>
+                </div>
                 {canEdit && (
                     <button
                         onClick={openModal}
@@ -87,13 +106,19 @@ export default function AncestorHallTab({ siteId, subdomain, role, t }) {
                     <div className="w-6 h-6 border-2 border-[#7a5a3a] border-t-transparent rounded-full animate-spin" />
                 </div>
             ) : ancestors.length === 0 ? (
-                <div className="flex flex-col items-center py-16 text-center">
-                    <BookOpen size={40} className="text-slate-200 mb-3" />
-                    <p className="text-slate-400 text-[14px]">{t.ancestorEmpty}</p>
+                <div className="flex flex-col items-center py-16 text-center rounded-2xl"
+                    style={{ background: 'linear-gradient(180deg, #faf6f0 0%, #f5ede0 100%)', border: '1px dashed #d8c8a8' }}>
+                    <div className="text-[48px] mb-3">🕯️</div>
+                    <p className="text-[15px] font-semibold mb-1" style={{ color: '#7a5a3a' }}>
+                        {t.ancestorEmpty}
+                    </p>
+                    <p className="text-[12px] mb-5" style={{ color: '#a09080' }}>
+                        {t.ancestorEmptySub || '소중한 분들의 이야기를 기록해보세요'}
+                    </p>
                     {canEdit && (
                         <button
                             onClick={openModal}
-                            className="mt-4 px-5 py-2 rounded-full text-[13px] font-semibold text-white cursor-pointer hover:brightness-110"
+                            className="px-5 py-2 rounded-full text-[13px] font-semibold text-white cursor-pointer hover:brightness-110"
                             style={{ background: '#7a5a3a' }}
                         >
                             {t.ancestorAddBtn}
@@ -101,51 +126,86 @@ export default function AncestorHallTab({ siteId, subdomain, role, t }) {
                     )}
                 </div>
             ) : (
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {ancestors.map(anc => (
+                <div className="space-y-4">
+                    {ancestors.map((anc, idx) => (
                         <button
                             key={anc.id}
                             onClick={() => navigate(`/${subdomain}/gallery/${anc.id}`)}
-                            className="text-left rounded-2xl border border-[#e8dfd0] bg-white hover:shadow-md transition-shadow cursor-pointer overflow-hidden group"
+                            className="w-full text-left rounded-2xl bg-white hover:shadow-lg transition-all cursor-pointer overflow-hidden group"
+                            style={{ border: '1px solid #e8dfd0' }}
                         >
-                            {/* Photo area */}
-                            <div className="h-[120px] bg-gradient-to-br from-[#f5ede0] to-[#ede0cc] flex items-center justify-center relative overflow-hidden">
-                                {anc.cover_photo_url ? (
-                                    <img src={anc.cover_photo_url} alt={anc.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                                ) : (
-                                    <span className="text-[48px]">👴</span>
-                                )}
-                                {/* Year badge */}
-                                {(anc.birth_year || anc.death_year) && (
-                                    <div className="absolute bottom-2 right-2 bg-black/40 text-white text-[10px] px-2 py-0.5 rounded-full backdrop-blur-sm">
-                                        {anc.birth_year || '?'} – {anc.death_year || ''}
-                                    </div>
-                                )}
-                            </div>
-                            {/* Info */}
-                            <div className="p-3">
-                                <div className="flex items-start justify-between gap-2">
-                                    <div className="min-w-0">
-                                        <h3 className="font-bold text-[14px] text-[#3D2008] truncate">{anc.title}</h3>
-                                        {anc.relation && (
-                                            <span className="inline-block mt-0.5 text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                                                style={{ background: '#f5ede0', color: '#7a5a3a' }}>
-                                                {anc.relation}
+                            <div className="flex">
+                                {/* 좌측: 사진 영역 */}
+                                <div className="w-[140px] sm:w-[180px] shrink-0 relative overflow-hidden"
+                                    style={{ background: 'linear-gradient(135deg, #f5ede0, #ede0cc)' }}>
+                                    {anc.cover_photo_url ? (
+                                        <img
+                                            src={anc.cover_photo_url}
+                                            alt={anc.title}
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                            style={{ minHeight: 160 }}
+                                        />
+                                    ) : (
+                                        <div className="flex items-center justify-center h-full" style={{ minHeight: 160 }}>
+                                            <span className="text-[56px] opacity-60">
+                                                {getRelationIcon(anc.relation)}
                                             </span>
+                                        </div>
+                                    )}
+                                    {/* 사진 수 뱃지 */}
+                                    {anc.photo_count > 0 && (
+                                        <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/50 text-white text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-sm">
+                                            <ImageIcon size={10} /> {anc.photo_count}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* 우측: 정보 영역 */}
+                                <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
+                                    <div>
+                                        {/* 이름 + 관계 */}
+                                        <div className="flex items-start justify-between gap-2 mb-1">
+                                            <h3 className="font-bold text-[16px] truncate" style={{ color: '#3D2008' }}>
+                                                {anc.title}
+                                            </h3>
+                                            <ChevronRight size={16} className="text-slate-300 flex-shrink-0 mt-0.5 group-hover:text-[#7a5a3a] transition-colors" />
+                                        </div>
+
+                                        {/* 관계 + 연도 뱃지 */}
+                                        <div className="flex items-center gap-2 flex-wrap mb-2">
+                                            {anc.relation && (
+                                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                                                    style={{ background: '#f5ede0', color: '#7a5a3a' }}>
+                                                    {anc.relation}
+                                                </span>
+                                            )}
+                                            {(anc.birth_year || anc.death_year) && (
+                                                <span className="text-[11px] font-medium" style={{ color: '#a09080' }}>
+                                                    {anc.birth_year || '?'} – {anc.death_year || ''}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {/* 회고록 미리보기 */}
+                                        {anc.memoir && (
+                                            <p className="text-[12px] leading-relaxed line-clamp-3" style={{ color: '#6a5a4a' }}>
+                                                {anc.memoir}
+                                            </p>
                                         )}
                                     </div>
-                                    <ChevronRight size={14} className="text-slate-300 flex-shrink-0 mt-0.5" />
-                                </div>
-                                {anc.memoir && (
-                                    <p className="text-[11px] text-slate-500 mt-2 line-clamp-2 leading-relaxed">{anc.memoir}</p>
-                                )}
-                                <div className="flex items-center gap-2 mt-2">
-                                    <span className="text-[11px] text-slate-400">
-                                        {anc.guestbook_count > 0 && `${anc.guestbook_count} ${t.exhGuestbook || 'messages'}`}
-                                    </span>
-                                    <span className="text-[11px] text-slate-300">
-                                        {anc.visibility === 'public' ? '🌐' : '🔒'}
-                                    </span>
+
+                                    {/* 하단: 방명록 + 공개범위 */}
+                                    <div className="flex items-center gap-3 mt-3 pt-2 border-t" style={{ borderColor: '#f0ece4' }}>
+                                        {anc.guestbook_count > 0 && (
+                                            <span className="flex items-center gap-1 text-[11px]" style={{ color: '#7a5a3a' }}>
+                                                <BookOpen size={12} />
+                                                {anc.guestbook_count} {t.exhGuestbook || 'messages'}
+                                            </span>
+                                        )}
+                                        <span className="text-[11px]" style={{ color: '#aaa' }}>
+                                            {anc.visibility === 'public' ? '🌐 ' + (t.exhVisPublic || 'Public') : '🔒 ' + (t.exhVisFamily || 'Family')}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </button>
@@ -155,40 +215,53 @@ export default function AncestorHallTab({ siteId, subdomain, role, t }) {
 
             {/* Add Ancestor Modal */}
             {showModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setShowModal(false)}>
-                    <div className="bg-white rounded-2xl w-full max-w-[480px] p-6 shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-[16px] font-bold text-[#3D2008]">{t.ancestorModalTitle}</h3>
-                            <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X size={18} /></button>
+                <div className="fixed inset-0 z-50 flex items-center justify-center px-4"
+                    style={{ background: 'rgba(30,25,20,0.5)', backdropFilter: 'blur(4px)' }}
+                    onClick={() => setShowModal(false)}>
+                    <div className="bg-white rounded-2xl w-full max-w-[480px] p-6 shadow-xl max-h-[90vh] overflow-y-auto"
+                        style={{ border: '1.5px solid #e8dfd0' }}
+                        onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-5">
+                            <div className="flex items-center gap-2">
+                                <span className="text-lg">🕯️</span>
+                                <h3 className="text-[16px] font-bold" style={{ color: '#3D2008' }}>{t.ancestorModalTitle}</h3>
+                            </div>
+                            <button onClick={() => setShowModal(false)} className="w-7 h-7 flex items-center justify-center rounded-full cursor-pointer"
+                                style={{ background: '#f0ece4' }}>
+                                <X size={14} style={{ color: '#7a7a6a' }} />
+                            </button>
                         </div>
                         <form onSubmit={handleSubmit} className="space-y-3">
                             <div>
-                                <label className="block text-[12px] font-semibold text-slate-600 mb-1">{t.ancestorNameLabel} *</label>
+                                <label className="block text-[12px] font-semibold mb-1" style={{ color: '#7a5a3a' }}>{t.ancestorNameLabel} *</label>
                                 <input
                                     type="text" required
                                     value={form.title}
                                     onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                                     placeholder={t.ancestorNamePlaceholder}
-                                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-[13px] outline-none focus:border-[#7a5a3a]"
+                                    className="w-full rounded-xl px-3 py-2.5 text-[13px] outline-none transition-colors"
+                                    style={{ border: '1.5px solid #e8dfd0', color: '#3D2008' }}
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-[12px] font-semibold text-slate-600 mb-1">{t.ancestorRelationLabel}</label>
+                                    <label className="block text-[12px] font-semibold mb-1" style={{ color: '#7a5a3a' }}>{t.ancestorRelationLabel}</label>
                                     <input
                                         type="text"
                                         value={form.relation}
                                         onChange={e => setForm(f => ({ ...f, relation: e.target.value }))}
                                         placeholder={t.ancestorRelationPlaceholder}
-                                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-[13px] outline-none focus:border-[#7a5a3a]"
+                                        className="w-full rounded-xl px-3 py-2.5 text-[13px] outline-none"
+                                        style={{ border: '1.5px solid #e8dfd0', color: '#3D2008' }}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[12px] font-semibold text-slate-600 mb-1">{t.ancestorVisLabel}</label>
+                                    <label className="block text-[12px] font-semibold mb-1" style={{ color: '#7a5a3a' }}>{t.ancestorVisLabel}</label>
                                     <select
                                         value={form.visibility}
                                         onChange={e => setForm(f => ({ ...f, visibility: e.target.value }))}
-                                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-[13px] outline-none focus:border-[#7a5a3a]"
+                                        className="w-full rounded-xl px-3 py-2.5 text-[13px] outline-none"
+                                        style={{ border: '1.5px solid #e8dfd0', color: '#3D2008' }}
                                     >
                                         <option value="family">{t.exhVisFamily || 'Family only'}</option>
                                         <option value="public">{t.exhVisPublic || 'Public'}</option>
@@ -197,43 +270,47 @@ export default function AncestorHallTab({ siteId, subdomain, role, t }) {
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-[12px] font-semibold text-slate-600 mb-1">{t.ancestorBirthLabel}</label>
+                                    <label className="block text-[12px] font-semibold mb-1" style={{ color: '#7a5a3a' }}>{t.ancestorBirthLabel}</label>
                                     <input
                                         type="number" min="1000" max="2100"
                                         value={form.birth_year}
                                         onChange={e => setForm(f => ({ ...f, birth_year: e.target.value }))}
                                         placeholder="1920"
-                                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-[13px] outline-none focus:border-[#7a5a3a]"
+                                        className="w-full rounded-xl px-3 py-2.5 text-[13px] outline-none"
+                                        style={{ border: '1.5px solid #e8dfd0', color: '#3D2008' }}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[12px] font-semibold text-slate-600 mb-1">{t.ancestorDeathLabel}</label>
+                                    <label className="block text-[12px] font-semibold mb-1" style={{ color: '#7a5a3a' }}>{t.ancestorDeathLabel}</label>
                                     <input
                                         type="number" min="1000" max="2100"
                                         value={form.death_year}
                                         onChange={e => setForm(f => ({ ...f, death_year: e.target.value }))}
                                         placeholder="1995"
-                                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-[13px] outline-none focus:border-[#7a5a3a]"
+                                        className="w-full rounded-xl px-3 py-2.5 text-[13px] outline-none"
+                                        style={{ border: '1.5px solid #e8dfd0', color: '#3D2008' }}
                                     />
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-[12px] font-semibold text-slate-600 mb-1">{t.ancestorMemoirLabel}</label>
+                                <label className="block text-[12px] font-semibold mb-1" style={{ color: '#7a5a3a' }}>{t.ancestorMemoirLabel}</label>
                                 <textarea
                                     rows={4}
                                     value={form.memoir}
                                     onChange={e => setForm(f => ({ ...f, memoir: e.target.value }))}
                                     placeholder={t.ancestorMemoirPlaceholder}
-                                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-[13px] outline-none focus:border-[#7a5a3a] resize-none"
+                                    className="w-full rounded-xl px-3 py-2.5 text-[13px] outline-none resize-none"
+                                    style={{ border: '1.5px solid #e8dfd0', color: '#3D2008' }}
                                 />
                             </div>
-                            <div className="flex gap-2 pt-1">
+                            <div className="flex gap-2 pt-2">
                                 <button type="button" onClick={() => setShowModal(false)}
-                                    className="flex-1 py-2.5 rounded-full border border-slate-200 text-[13px] font-semibold text-slate-600 cursor-pointer hover:bg-slate-50">
+                                    className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold cursor-pointer"
+                                    style={{ background: '#f0ece4', color: '#5a5a4a' }}>
                                     {t.ancestorCancelBtn}
                                 </button>
                                 <button type="submit" disabled={submitting}
-                                    className="flex-1 py-2.5 rounded-full text-[13px] font-semibold text-white cursor-pointer hover:brightness-110 disabled:opacity-60"
+                                    className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-white cursor-pointer hover:brightness-110 disabled:opacity-60"
                                     style={{ background: '#7a5a3a' }}>
                                     {submitting ? t.ancestorCreating : t.ancestorSubmitBtn}
                                 </button>
