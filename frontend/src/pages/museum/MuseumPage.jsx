@@ -386,7 +386,7 @@ export default function MuseumPage({ initialTab }) {
                         className="bg-white rounded-2xl shadow-sm overflow-hidden"
                         style={{ border: '1px solid #e8e0d0' }}
                     >
-                        <FamilyTreeView siteId={site?.id} readOnly={role === 'public'} />
+                        <FamilyTreeView siteId={site?.id} readOnly={role === 'public'} role={role} />
                     </div>
                 )}
 
