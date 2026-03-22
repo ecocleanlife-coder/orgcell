@@ -16,6 +16,14 @@ app.use(express.json({ limit: '10mb' }));
 // CSRF protection (CWE-352)
 app.use('/api', require('./src/middlewares/csrfProtection'));
 
+// Rate limiting (CWE-770)
+const { generalLimiter, authLimiter, uploadLimiter } = require('./src/middlewares/rateLimiter');
+app.use('/api/auth', authLimiter);
+app.use('/api/photos', uploadLimiter);
+app.use('/api/drive/upload', uploadLimiter);
+app.use('/api/sharing/upload', uploadLimiter);
+app.use('/api', generalLimiter);
+
 // Health check
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', service: 'orgcell-api', timestamp: new Date().toISOString() });
