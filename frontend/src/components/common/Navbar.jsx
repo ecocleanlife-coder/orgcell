@@ -15,6 +15,7 @@ export default function Navbar({ onCtaClick }) {
     const [scrolled, setScrolled] = useState(false);
 
     const NAV_LINKS = [
+        ...(token ? [{ label: t('navbar.home', '홈'), path: '/home', emoji: '🏠' }] : []),
         { label: t('navbar.smartSort'), path: '/smart-sort', emoji: '🖼️' },
         { label: t('navbar.familyWebsite'), path: '/family-website', emoji: '🏛️' },
         { label: t('navbar.liveSharing'), path: '/live-sharing', emoji: '💬' },

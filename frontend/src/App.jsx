@@ -27,6 +27,7 @@ const FamilyTreeView = lazy(() => import('./components/museum/FamilyTreeView'));
 const PersonFolderView = lazy(() => import('./components/museum/PersonFolderView'));
 const ExhibitionDetailPage = lazy(() => import('./pages/museum/ExhibitionDetailPage'));
 const InvitePage = lazy(() => import('./pages/invite/InvitePage'));
+const HomePage = lazy(() => import('./pages/home/HomePage'));
 // DemoMuseumPage 제거 — /demo는 /:subdomain (MuseumPage)에서 처리
 
 const PageLoader = () => (
@@ -35,40 +36,12 @@ const PageLoader = () => (
   </div>
 );
 
-// Authenticated home: 3-way redirect
-// 1. No subscription → / (landing page)
-// 2. Subscription + no museum → /family-setup (onboarding)
-// 3. Subscription + museum → /museum (museum main)
+// Authenticated home → /home 허브 페이지로 이동
 function AuthHome() {
   const navigate = useNavigate();
-
   useEffect(() => {
-    (async () => {
-      try {
-        // Check subscription and site in parallel
-        const [subRes, siteRes] = await Promise.all([
-          axios.get('/api/subscriptions/status'),
-          axios.get('/api/sites/mine'),
-        ]);
-
-        const hasSubscription = subRes.data?.hasSubscription;
-        const siteData = siteRes.data?.success && siteRes.data?.data;
-
-        // hasSite also covers invited members (joined via invite)
-        if (siteData) {
-          navigate(`/${siteData.subdomain}`, { replace: true });
-        } else if (hasSubscription) {
-          navigate('/family-setup', { replace: true });
-        } else {
-          // 구독 없는 유저 → 가족 박물관 소개 페이지 (무료 시작 유도)
-          navigate('/family-website', { replace: true });
-        }
-      } catch {
-        navigate('/family-website', { replace: true });
-      }
-    })();
+    navigate('/home', { replace: true });
   }, [navigate]);
-
   return <PageLoader />;
 }
 
@@ -179,6 +152,16 @@ function App() {
         <Route
           path="/family-dashboard"
           element={<Navigate to="/museum" replace />}
+        />
+        <Route
+          path="/home"
+          element={
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <HomePage />
+              </Suspense>
+            </ErrorBoundary>
+          }
         />
         <Route
           path="/:subdomain/gallery/:id"
