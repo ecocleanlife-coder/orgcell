@@ -122,41 +122,20 @@ const FamilyWebsitePage = () => {
 
                     {/* CTA Buttons */}
                     <div className="flex flex-col sm:flex-row gap-4 mb-4">
-                        {mySite ? (
-                            <button
-                                onClick={() => navigate(`/${mySite.subdomain}`)}
-                                className="px-8 py-3 rounded-full font-bold text-[14px] transition-all hover:brightness-110 active:scale-95 text-white"
-                                style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
-                            >
-                                {t('familyWebsite.goToMuseum')}
-                            </button>
-                        ) : (
-                            <button
-                                onClick={handleStartFree}
-                                disabled={startLoading}
-                                className="px-8 py-3 rounded-full font-bold text-[14px] transition-all hover:brightness-110 active:scale-95 text-white disabled:opacity-60"
-                                style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
-                            >
-                                {startLoading ? '...' : t('familyWebsite.ctaStart')}
-                            </button>
-                        )}
+                        <button
+                            onClick={handleStartFree}
+                            disabled={startLoading}
+                            className="px-8 py-3 rounded-full font-bold text-[14px] transition-all hover:brightness-110 active:scale-95 text-white disabled:opacity-60"
+                            style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
+                        >
+                            {startLoading ? '...' : (mySite ? t('familyWebsite.goToMuseum') : t('familyWebsite.ctaStart'))}
+                        </button>
                         <button
                             onClick={() => navigate('/demo')}
                             className="px-8 py-3 rounded-full font-bold text-[14px] transition-all"
                             style={{ background: 'transparent', border: '2px solid #5A9460', color: '#5A9460' }}
                         >
                             {t('familyWebsite.ctaPreview')}
-                        </button>
-                    </div>
-
-                    {/* Referral hint */}
-                    <div className="mb-8">
-                        <button
-                            onClick={() => navigate('/redeem')}
-                            className="text-[13px] font-semibold transition-all cursor-pointer hover:underline"
-                            style={{ color: '#4A7F4A' }}
-                        >
-                            {t('familyWebsite.referral')}
                         </button>
                     </div>
 
@@ -352,14 +331,6 @@ const FamilyWebsitePage = () => {
                         </button>
                     </div>
 
-                    {/* Referral message */}
-                    <button
-                        onClick={() => navigate('/redeem')}
-                        className="text-[13.5px] font-semibold transition-all cursor-pointer hover:underline"
-                        style={{ color: '#4A7F4A' }}
-                    >
-                        {t('familyWebsite.referral')}
-                    </button>
                 </div>
             </section>
 
@@ -510,15 +481,6 @@ const FamilyWebsitePage = () => {
                         <ArrowRight size={18} />
                     </button>
 
-                    <div className="mt-4">
-                        <button
-                            onClick={() => navigate('/redeem')}
-                            className="text-[13px] font-semibold transition-all cursor-pointer hover:underline"
-                            style={{ color: '#8DC88D' }}
-                        >
-                            {t('familyWebsite.referral')}
-                        </button>
-                    </div>
                 </div>
             </section>
 
