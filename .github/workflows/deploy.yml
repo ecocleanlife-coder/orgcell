@@ -289,6 +289,9 @@ jobs:
               -c "CREATE INDEX IF NOT EXISTS idx_persons_site_id ON persons(site_id);" \
               -c "CREATE INDEX IF NOT EXISTS idx_persons_parent1 ON persons(parent1_id);" \
               -c "CREATE INDEX IF NOT EXISTS idx_persons_parent2 ON persons(parent2_id);"
+            # ── 014: calendar end_date for multi-day events ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "ALTER TABLE family_calendar ADD COLUMN IF NOT EXISTS end_date DATE DEFAULT NULL;"
             # ── 013: persons birth_date, death_date ──
             docker exec orgcell-db psql -U orgcell_user -d orgcell \
               -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS birth_date DATE;" \

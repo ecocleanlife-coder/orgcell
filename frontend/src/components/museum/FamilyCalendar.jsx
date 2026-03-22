@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { ChevronLeft, ChevronRight, Plus, X, Trash2 } from 'lucide-react';
+import { Solar } from 'lunar-javascript';
 
 const TYPE_COLORS = {
     birthday:    { bg: '#fce7f3', border: '#ec4899', dot: '#ec4899', label: '' },
     anniversary: { bg: '#fef9c3', border: '#eab308', dot: '#eab308', label: '' },
     event:       { bg: '#dbeafe', border: '#3b82f6', dot: '#3b82f6', label: '' },
     memorial:    { bg: '#f3f4f6', border: '#6b7280', dot: '#6b7280', label: '' },
+    trip:        { bg: '#e0f2fe', border: '#0ea5e9', dot: '#0ea5e9', label: '' },
 };
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -20,6 +22,27 @@ function buildCalendarGrid(year, month) {
     return cells;
 }
 
+// 음력 공휴일 (month, day)
+const LUNAR_HOLIDAYS = [
+    { m: 1, d: 1, emoji: '🎊', key: 'seollal' },      // 설날
+    { m: 1, d: 15, emoji: '🏮', key: 'daeboreum' },    // 정월대보름
+    { m: 5, d: 5, emoji: '🎏', key: 'dano' },           // 단오
+    { m: 8, d: 15, emoji: '🌕', key: 'chuseok' },      // 추석
+];
+
+function getLunarInfo(year, month, day) {
+    try {
+        const solar = Solar.fromYmd(year, month, day);
+        const lunar = solar.getLunar();
+        const lm = lunar.getMonth();
+        const ld = lunar.getDay();
+        const holiday = LUNAR_HOLIDAYS.find(h => h.m === lm && h.d === ld);
+        return { month: lm, day: ld, holiday };
+    } catch {
+        return null;
+    }
+}
+
 export default function FamilyCalendar({ siteId, role, t }) {
     const now = new Date();
     const [year, setYear] = useState(now.getFullYear());
@@ -29,10 +52,32 @@ export default function FamilyCalendar({ siteId, role, t }) {
     const [showModal, setShowModal] = useState(false);
     const [selectedDay, setSelectedDay] = useState(null);
     const [form, setForm] = useState({
-        title: '', event_date: '', event_type: 'event',
+        title: '', event_date: '', end_date: '', event_type: 'event',
         description: '', is_recurring: false, person_name: '',
     });
     const [submitting, setSubmitting] = useState(false);
+    const [showLunar, setShowLunar] = useState(() => {
+        try { return localStorage.getItem('orgcell_lunar') !== 'false'; } catch { return true; }
+    });
+
+    const toggleLunar = () => {
+        setShowLunar(prev => {
+            const next = !prev;
+            try { localStorage.setItem('orgcell_lunar', String(next)); } catch {}
+            return next;
+        });
+    };
+
+    // 월별 음력 정보 메모이제이션
+    const lunarData = useMemo(() => {
+        if (!showLunar) return {};
+        const data = {};
+        const daysInMonth = new Date(year, month, 0).getDate();
+        for (let d = 1; d <= daysInMonth; d++) {
+            data[d] = getLunarInfo(year, month, d);
+        }
+        return data;
+    }, [year, month, showLunar]);
 
     const fetchEvents = useCallback(async () => {
         if (!siteId) return;
@@ -61,7 +106,7 @@ export default function FamilyCalendar({ siteId, role, t }) {
     const openModal = (day) => {
         const pad = String(day).padStart(2, '0');
         const mPad = String(month).padStart(2, '0');
-        setForm({ title: '', event_date: `${year}-${mPad}-${pad}`, event_type: 'event', description: '', is_recurring: false, person_name: '' });
+        setForm({ title: '', event_date: `${year}-${mPad}-${pad}`, end_date: '', event_type: 'event', description: '', is_recurring: false, person_name: '' });
         setSelectedDay(day);
         setShowModal(true);
     };
@@ -69,9 +114,12 @@ export default function FamilyCalendar({ siteId, role, t }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!form.title || !form.event_date) return;
+        if (form.end_date && form.end_date < form.event_date) return;
         setSubmitting(true);
         try {
-            await axios.post('/api/calendar', { ...form, site_id: siteId });
+            const payload = { ...form, site_id: siteId };
+            if (!payload.end_date) delete payload.end_date;
+            await axios.post('/api/calendar', payload);
             setShowModal(false);
             fetchEvents();
         } catch (err) {
@@ -91,17 +139,36 @@ export default function FamilyCalendar({ siteId, role, t }) {
         }
     };
 
-    // Map day → events
+    // Map day → events (기간 이벤트는 여러 날에 걸쳐 표시)
     const eventsByDay = {};
+    const rangeEventDays = {}; // day → true (기간 이벤트 배경 표시용)
     events.forEach(ev => {
         const d = new Date(ev.event_date);
-        // recurring: match by month/day regardless of stored year
-        const key = ev.is_recurring
-            ? d.getUTCDate()
-            : (d.getUTCFullYear() === year && d.getUTCMonth() + 1 === month ? d.getUTCDate() : null);
-        if (key) {
-            if (!eventsByDay[key]) eventsByDay[key] = [];
-            eventsByDay[key].push(ev);
+        if (ev.end_date && !ev.is_recurring) {
+            // 기간 이벤트: start_date~end_date 사이 모든 날에 표시
+            const start = new Date(ev.event_date);
+            const end = new Date(ev.end_date);
+            const daysInMonth = new Date(year, month, 0).getDate();
+            for (let day = 1; day <= daysInMonth; day++) {
+                const current = new Date(year, month - 1, day);
+                if (current >= start && current <= end) {
+                    if (!eventsByDay[day]) eventsByDay[day] = [];
+                    // 시작일에만 이벤트 라벨 표시, 나머지는 배경만
+                    if (current.getTime() === start.getTime() ||
+                        (day === 1 && current > start)) {
+                        eventsByDay[day].push(ev);
+                    }
+                    rangeEventDays[day] = TYPE_COLORS[ev.event_type] || TYPE_COLORS.event;
+                }
+            }
+        } else {
+            const key = ev.is_recurring
+                ? d.getUTCDate()
+                : (d.getUTCFullYear() === year && d.getUTCMonth() + 1 === month ? d.getUTCDate() : null);
+            if (key) {
+                if (!eventsByDay[key]) eventsByDay[key] = [];
+                eventsByDay[key].push(ev);
+            }
         }
     });
 
@@ -118,15 +185,23 @@ export default function FamilyCalendar({ siteId, role, t }) {
                 <h2 className="text-[18px] font-bold text-[#3D2008]" style={{ fontFamily: 'Georgia, serif' }}>
                     {t.calendarTitle}
                 </h2>
-                {canEdit && (
+                <div className="flex items-center gap-2">
                     <button
-                        onClick={() => openModal(today || 1)}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[13px] font-semibold text-white cursor-pointer hover:brightness-110"
-                        style={{ background: '#5a8a4a' }}
+                        onClick={toggleLunar}
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold cursor-pointer transition-colors ${showLunar ? 'bg-[#5a8a4a] text-white' : 'bg-slate-100 text-slate-500'}`}
                     >
-                        <Plus size={14} /> {t.calendarAddBtn}
+                        🌙 {t.calendarLunarToggle}
                     </button>
-                )}
+                    {canEdit && (
+                        <button
+                            onClick={() => openModal(today || 1)}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[13px] font-semibold text-white cursor-pointer hover:brightness-110"
+                            style={{ background: '#5a8a4a' }}
+                        >
+                            <Plus size={14} /> {t.calendarAddBtn}
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Month navigation */}
@@ -157,17 +232,29 @@ export default function FamilyCalendar({ siteId, role, t }) {
                     {cells.map((day, i) => {
                         const dayEvents = day ? (eventsByDay[day] || []) : [];
                         const isToday = day === today;
+                        const rangeColor = day ? rangeEventDays[day] : null;
                         return (
                             <div
                                 key={i}
                                 onClick={() => day && canEdit && openModal(day)}
                                 className={`min-h-[64px] rounded-lg p-1 text-[12px] ${day ? 'hover:bg-[#f0ebe0] transition-colors' : ''} ${canEdit && day ? 'cursor-pointer' : ''}`}
+                                style={rangeColor ? { background: rangeColor.bg } : undefined}
                             >
                                 {day && (
                                     <>
-                                        <span className={`inline-flex items-center justify-center w-[22px] h-[22px] rounded-full text-[12px] font-semibold mb-0.5 ${isToday ? 'bg-[#5a8a4a] text-white' : 'text-slate-700'}`}>
-                                            {day}
-                                        </span>
+                                        <div className="flex items-center gap-0.5">
+                                            <span className={`inline-flex items-center justify-center w-[22px] h-[22px] rounded-full text-[12px] font-semibold ${isToday ? 'bg-[#5a8a4a] text-white' : 'text-slate-700'}`}>
+                                                {day}
+                                            </span>
+                                            {showLunar && lunarData[day]?.holiday && (
+                                                <span className="text-[10px]">{lunarData[day].holiday.emoji}</span>
+                                            )}
+                                        </div>
+                                        {showLunar && lunarData[day] && (
+                                            <span className={`text-[9px] leading-tight ${lunarData[day].day === 1 ? 'text-red-400 font-semibold' : 'text-slate-400'}`}>
+                                                {lunarData[day].day === 1 ? `${lunarData[day].month}월` : lunarData[day].day}
+                                            </span>
+                                        )}
                                         <div className="flex flex-col gap-0.5">
                                             {dayEvents.slice(0, 2).map(ev => {
                                                 const c = TYPE_COLORS[ev.event_type] || TYPE_COLORS.event;
@@ -224,6 +311,10 @@ export default function FamilyCalendar({ siteId, role, t }) {
                                         </div>
                                         <div className="text-[11px] text-slate-500 mt-0.5">
                                             {String(d.getUTCMonth() + 1).padStart(2, '0')}/{String(d.getUTCDate()).padStart(2, '0')}
+                                            {ev.end_date && (() => {
+                                                const ed = new Date(ev.end_date);
+                                                return ` ~ ${String(ed.getUTCMonth() + 1).padStart(2, '0')}/${String(ed.getUTCDate()).padStart(2, '0')}`;
+                                            })()}
                                             {ev.person_name && <span className="ml-1">· {ev.person_name}</span>}
                                         </div>
                                         {ev.description && <p className="text-[11px] text-slate-500 mt-0.5 truncate">{ev.description}</p>}
@@ -284,9 +375,25 @@ export default function FamilyCalendar({ siteId, role, t }) {
                                         <option value="anniversary">{t.calendarTypeAnniversary}</option>
                                         <option value="event">{t.calendarTypeEvent}</option>
                                         <option value="memorial">{t.calendarTypeMemorial}</option>
+                                        <option value="trip">{t.calendarTypeTrip}</option>
                                     </select>
                                 </div>
                             </div>
+                            {(form.event_type === 'trip' || form.event_type === 'event') && (
+                                <div>
+                                    <label className="block text-[12px] font-semibold text-slate-600 mb-1">{t.calendarEndDateLabel}</label>
+                                    <input
+                                        type="date"
+                                        value={form.end_date}
+                                        min={form.event_date}
+                                        onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
+                                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-[13px] outline-none focus:border-[#5a8a4a]"
+                                    />
+                                    {form.end_date && form.end_date < form.event_date && (
+                                        <p className="text-[11px] text-red-500 mt-1">{t.calendarEndDateError}</p>
+                                    )}
+                                </div>
+                            )}
                             <div>
                                 <label className="block text-[12px] font-semibold text-slate-600 mb-1">{t.calendarPersonLabel}</label>
                                 <input
