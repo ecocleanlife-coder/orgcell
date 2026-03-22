@@ -152,6 +152,12 @@ exports.requestMagicLink = async (req, res) => {
         recent.push(now);
         rateLimitMap.set(key, recent);
 
+        // 기존 계정 존재 여부 확인
+        const { rows: existingUsers } = await db.query(
+            `SELECT id, email FROM users WHERE email = $1`, [key]
+        );
+        const exists = existingUsers.length > 0;
+
         // Generate secure token
         const token = crypto.randomBytes(32).toString('hex');
         const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 min
@@ -169,7 +175,11 @@ exports.requestMagicLink = async (req, res) => {
         // Send email
         await sendMagicLinkEmail(key, magicLink);
 
-        res.json({ success: true, message: 'Magic link sent to your email' });
+        // 이메일 마스킹 (han***@gmail.com)
+        const [localPart, domain] = key.split('@');
+        const masked = localPart.slice(0, 3) + '***@' + domain;
+
+        res.json({ success: true, message: 'Magic link sent to your email', exists, maskedEmail: masked });
     } catch (error) {
         console.error('requestMagicLink Error:', error);
         res.status(500).json({ success: false, message: 'Failed to send magic link' });
