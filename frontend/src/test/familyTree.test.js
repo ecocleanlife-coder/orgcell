@@ -65,6 +65,16 @@ describe('buildTreeFromPersons', () => {
         const root = buildTreeFromPersons(persons);
         expect(root.name).toBe('할아버지');
     });
+
+    it('should handle multiple children', () => {
+        const persons = [
+            { id: 1, name: '아버지', generation: 0, parent1_id: null, parent2_id: null },
+            { id: 2, name: '형', generation: 1, parent1_id: 1, parent2_id: null },
+            { id: 3, name: '나', generation: 1, parent1_id: 1, parent2_id: null },
+        ];
+        const root = buildTreeFromPersons(persons);
+        expect(root.children).toHaveLength(2);
+    });
 });
 
 describe('getInitials', () => {

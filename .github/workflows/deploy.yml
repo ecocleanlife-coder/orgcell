@@ -304,6 +304,54 @@ jobs:
             # ── 015: OneDrive token ──
             docker exec orgcell-db psql -U orgcell_user -d orgcell \
               -c "ALTER TABLE users ADD COLUMN IF NOT EXISTS onedrive_token JSONB DEFAULT NULL;"
+            # ── 016: person_relations (복잡한 가족 관계) ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "CREATE TABLE IF NOT EXISTS person_relations (
+                id SERIAL PRIMARY KEY,
+                site_id INTEGER NOT NULL REFERENCES family_sites(id) ON DELETE CASCADE,
+                person1_id INTEGER NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
+                person2_id INTEGER NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
+                relation_type VARCHAR(30) NOT NULL,
+                label VARCHAR(100),
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT uq_person_relation UNIQUE (site_id, person1_id, person2_id, relation_type)
+              );" \
+              -c "CREATE INDEX IF NOT EXISTS idx_person_relations_site ON person_relations(site_id);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_person_relations_p1 ON person_relations(person1_id);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_person_relations_p2 ON person_relations(person2_id);"
+            # ── 017: federation (웜홀 라우팅) ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "CREATE TABLE IF NOT EXISTS domain_public_keys (
+                id SERIAL PRIMARY KEY,
+                domain VARCHAR(255) UNIQUE NOT NULL,
+                site_id INTEGER NOT NULL REFERENCES family_sites(id) ON DELETE CASCADE,
+                public_key TEXT NOT NULL,
+                private_key_encrypted TEXT NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+              );" \
+              -c "CREATE INDEX IF NOT EXISTS idx_domain_public_keys_domain ON domain_public_keys(domain);" \
+              -c "CREATE TABLE IF NOT EXISTS federation_requests (
+                id SERIAL PRIMARY KEY,
+                source_site_id INTEGER NOT NULL REFERENCES family_sites(id) ON DELETE CASCADE,
+                target_site_id INTEGER NOT NULL REFERENCES family_sites(id) ON DELETE CASCADE,
+                source_domain VARCHAR(255) NOT NULL,
+                target_domain VARCHAR(255) NOT NULL,
+                source_node_id INTEGER REFERENCES persons(id) ON DELETE SET NULL,
+                target_node_id INTEGER REFERENCES persons(id) ON DELETE SET NULL,
+                relation_type VARCHAR(50) NOT NULL CHECK (relation_type IN ('direct','collateral','spouse')),
+                source_public_key TEXT NOT NULL,
+                target_public_key TEXT,
+                status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending','accepted','rejected')),
+                agreed_scope JSONB DEFAULT '[]',
+                nonce_cache JSONB DEFAULT '[]',
+                requester_id INTEGER NOT NULL REFERENCES users(id),
+                responder_id INTEGER REFERENCES users(id),
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+              );" \
+              -c "CREATE INDEX IF NOT EXISTS idx_federation_source ON federation_requests(source_site_id);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_federation_target ON federation_requests(target_site_id);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_federation_status ON federation_requests(status);"
             echo "Migrations done"
             # ─────────────────────────────────────────────────────────────
 

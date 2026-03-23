@@ -1,17 +1,20 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Network, Plus, User, UserPlus, ExternalLink,
-    X, Edit3, Trash2, Globe, Lock, Eye,
+    Network, Plus, UserPlus, ExternalLink,
+    Edit3, Trash2, Globe, Lock, Eye,
+    ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
+    Link2,
 } from 'lucide-react';
 import axios from 'axios';
 import FamilyBanner from '../common/FamilyBanner';
+import WormholePortal from './WormholePortal';
 import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
 import { getT } from '../../i18n/translations';
 
 // ── Flat DB rows → nested tree conversion ──
-function buildTreeFromPersons(persons) {
+function buildTreeFromPersons(persons, relations = []) {
     if (!persons || persons.length === 0) return null;
 
     const byId = {};
@@ -28,10 +31,14 @@ function buildTreeFromPersons(persons) {
             parentPairs: [],
             children: [],
             spouse: null,
+            siblings: [],
+            exSpouses: [],
             _raw: p,
+            _relationTypes: {},
         };
     }
 
+    // parent1_id → children
     for (const p of persons) {
         if (p.parent1_id && byId[p.parent1_id]) {
             const parent = byId[p.parent1_id];
@@ -41,22 +48,25 @@ function buildTreeFromPersons(persons) {
         }
     }
 
+    // spouse_id → spouse
     for (const p of persons) {
         if (p.spouse_id && byId[p.spouse_id]) {
             byId[p.id].spouse = byId[p.spouse_id];
         }
     }
 
+    // parentPairs (birth parents from DB columns)
     for (const p of persons) {
         if (p.parent1_id && p.parent2_id && byId[p.parent1_id] && byId[p.parent2_id]) {
             const node = byId[p.id];
-            const existingPair = node.parentPairs.find(pp =>
+            const exists = node.parentPairs.find(pp =>
                 pp.parent1?.id === String(p.parent1_id) && pp.parent2?.id === String(p.parent2_id)
             );
-            if (!existingPair) {
+            if (!exists) {
                 node.parentPairs.push({
                     id: `pp_${p.parent1_id}_${p.parent2_id}`,
                     label: 'Birth Parents',
+                    type: 'birth',
                     parent1: byId[p.parent1_id],
                     parent2: byId[p.parent2_id],
                 });
@@ -64,6 +74,47 @@ function buildTreeFromPersons(persons) {
         }
     }
 
+    // person_relations → enrich tree
+    for (const rel of relations) {
+        const p1 = byId[rel.person1_id];
+        const p2 = byId[rel.person2_id];
+        if (!p1 || !p2) continue;
+
+        switch (rel.relation_type) {
+            case 'sibling':
+            case 'half_sibling':
+                if (!p1.siblings.find(s => s.id === p2.id)) p1.siblings.push(p2);
+                if (!p2.siblings.find(s => s.id === p1.id)) p2.siblings.push(p1);
+                p1._relationTypes[p2.id] = rel.relation_type;
+                p2._relationTypes[p1.id] = rel.relation_type;
+                break;
+            case 'ex_spouse':
+                if (!p1.exSpouses.find(s => s.id === p2.id)) p1.exSpouses.push(p2);
+                if (!p2.exSpouses.find(s => s.id === p1.id)) p2.exSpouses.push(p1);
+                break;
+            case 'adopted':
+            case 'step_parent': {
+                const childNode = p2;
+                const parentNode = p1;
+                const pairLabel = rel.relation_type === 'adopted' ? 'Adoptive Parents' : 'Step-Parents';
+                const exists = childNode.parentPairs.find(pp =>
+                    pp.type === rel.relation_type && (pp.parent1?.id === parentNode.id || pp.parent2?.id === parentNode.id)
+                );
+                if (!exists) {
+                    childNode.parentPairs.push({
+                        id: `rel_${rel.id}`,
+                        label: rel.label || pairLabel,
+                        type: rel.relation_type,
+                        parent1: parentNode,
+                        parent2: null,
+                    });
+                }
+                break;
+            }
+        }
+    }
+
+    // Find root: gen 1 first, else no-parent
     const gen1 = persons.filter(p => p.generation === 1);
     if (gen1.length > 0) return byId[gen1[0].id];
 
@@ -95,8 +146,8 @@ function getInitials(name) {
     return name.slice(0, 2).toUpperCase();
 }
 
-// ── Person Card (folder style) ──
-function FolderNode({ person, onClick, onEdit, size = 'md', canEdit = false }) {
+// ── Person Card (folder style) with 4-direction buttons ──
+function FolderNode({ person, onEdit, size = 'md', canEdit = false, onAddParent, onAddSpouse, onAddChild, onAddSibling, onWormhole }) {
     const [hovered, setHovered] = useState(false);
     const sizes = {
         sm: { w: 'w-24', h: 'h-28', img: 'w-12 h-12', text: 'text-[9px]', sub: 'text-[8px]', tab: 'w-10 h-3', top: 'top-2' },
@@ -109,19 +160,56 @@ function FolderNode({ person, onClick, onEdit, size = 'md', canEdit = false }) {
         ? new Date(person.birth_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short' })
         : person.birth_year ? String(person.birth_year) : null;
 
+    const dirBtnCls = 'absolute w-6 h-6 rounded-full bg-white dark:bg-gray-700 border-2 border-blue-300 dark:border-blue-600 flex items-center justify-center shadow-md hover:bg-blue-50 dark:hover:bg-blue-900 hover:border-blue-500 transition-all z-10 opacity-0 group-hover:opacity-100';
+
     return (
         <div
-            className={`relative group ${s.w} ${s.h} cursor-pointer transition-all hover:-translate-y-1 flex-shrink-0`}
-            onClick={() => onClick?.(person.id)}
+            className={`relative group ${s.w} ${s.h} cursor-pointer transition-all hover:-translate-y-0.5 flex-shrink-0`}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
         >
+            {/* 4-direction + buttons (hover only, canEdit only) */}
+            {canEdit && (
+                <>
+                    {onAddParent && (
+                        <button onClick={(e) => { e.stopPropagation(); onAddParent(); }}
+                            className={`${dirBtnCls}`}
+                            style={{ top: -6, left: '50%', transform: 'translateX(-50%)' }}
+                            title="부모 추가">
+                            <ChevronUp size={12} className="text-blue-500" />
+                        </button>
+                    )}
+                    {onAddChild && (
+                        <button onClick={(e) => { e.stopPropagation(); onAddChild(); }}
+                            className={`${dirBtnCls}`}
+                            style={{ bottom: -6, left: '50%', transform: 'translateX(-50%)' }}
+                            title="자녀 추가">
+                            <ChevronDown size={12} className="text-blue-500" />
+                        </button>
+                    )}
+                    {onAddSpouse && (
+                        <button onClick={(e) => { e.stopPropagation(); onAddSpouse(); }}
+                            className={`${dirBtnCls}`}
+                            style={{ right: -8, top: '50%', transform: 'translateY(-50%)' }}
+                            title="배우자 추가">
+                            <ChevronRight size={12} className="text-blue-500" />
+                        </button>
+                    )}
+                    {onAddSibling && (
+                        <button onClick={(e) => { e.stopPropagation(); onAddSibling(); }}
+                            className={`${dirBtnCls}`}
+                            style={{ left: -8, top: '50%', transform: 'translateY(-50%)' }}
+                            title="형제 추가">
+                            <ChevronLeft size={12} className="text-blue-500" />
+                        </button>
+                    )}
+                </>
+            )}
+
             <div className={`absolute top-0 left-2 ${s.tab} bg-amber-300 dark:bg-amber-700 rounded-t-lg border-t border-x border-amber-400 dark:border-amber-600 group-hover:bg-amber-400 transition-colors`} />
             <div className={`absolute ${s.top} inset-x-0 bottom-0 bg-amber-100 dark:bg-amber-900/60 border-2 border-amber-300 dark:border-amber-700 rounded-xl shadow-lg group-hover:border-amber-400 group-hover:shadow-xl transition-all flex flex-col items-center justify-center p-2 gap-0.5 relative`}>
-                {/* Privacy badge */}
                 <PrivBadge level={person.privacy_level || 'family'} />
 
-                {/* Photo or Initials */}
                 <div className={`${s.img} rounded-full border-2 border-white dark:border-amber-800 shadow overflow-hidden flex-shrink-0 flex items-center justify-center`}
                     style={{ background: person.coverUrl ? '#e8e0d0' : '#d4a574' }}>
                     {person.coverUrl ? (
@@ -133,19 +221,16 @@ function FolderNode({ person, onClick, onEdit, size = 'md', canEdit = false }) {
                     )}
                 </div>
 
-                {/* Name */}
                 <span className={`${s.text} font-bold text-amber-900 dark:text-amber-100 text-center leading-tight truncate w-full`}>
                     {person.name}
                 </span>
 
-                {/* Birth info */}
                 {birthLabel && (
                     <span className={`${s.sub} text-amber-600 dark:text-amber-400`}>
                         {birthLabel}
                     </span>
                 )}
 
-                {/* Hover edit button */}
                 {canEdit && hovered && (
                     <button
                         onClick={(e) => { e.stopPropagation(); onEdit?.(person); }}
@@ -153,6 +238,16 @@ function FolderNode({ person, onClick, onEdit, size = 'md', canEdit = false }) {
                         style={{ background: 'rgba(0,0,0,0.5)' }}
                     >
                         <Edit3 size={10} style={{ color: '#fff' }} />
+                    </button>
+                )}
+                {onWormhole && hovered && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onWormhole(); }}
+                        className="absolute bottom-1 left-1 w-5 h-5 rounded-full flex items-center justify-center transition-all"
+                        style={{ background: 'rgba(142,68,173,0.7)' }}
+                        title="연결된 박물관 보기"
+                    >
+                        <Link2 size={10} style={{ color: '#fff' }} />
                     </button>
                 )}
             </div>
@@ -183,40 +278,36 @@ function PlaceholderNode({ label, onClick, size = 'md' }) {
     );
 }
 
-function PlusConnector() {
+function PlusConnector({ dashed = false }) {
+    const border = dashed ? 'border-dashed border-gray-400 dark:border-gray-500' : 'border-rose-300 dark:border-rose-700';
+    const bg = dashed ? 'bg-gray-100 dark:bg-gray-800' : 'bg-rose-100 dark:bg-rose-900/40';
     return (
-        <div className="flex items-center justify-center w-7 h-7 rounded-full bg-rose-100 dark:bg-rose-900/40 border-2 border-rose-300 dark:border-rose-700 self-center mx-0.5 flex-shrink-0">
-            <span className="text-rose-500 font-black text-sm leading-none select-none">+</span>
+        <div className={`flex items-center justify-center w-7 h-7 rounded-full ${bg} border-2 ${border} self-center mx-0.5 flex-shrink-0`}>
+            <span className={`${dashed ? 'text-gray-400' : 'text-rose-500'} font-black text-sm leading-none select-none`}>+</span>
         </div>
     );
 }
 
-function VLine({ h = 8 }) {
+function VLine({ h = 8, dashed = false }) {
+    if (dashed) return <div style={{ height: h, borderLeft: '2px dashed #9ca3af' }} className="mx-auto flex-shrink-0" />;
     return <div style={{ height: h }} className="w-0.5 bg-amber-300 dark:bg-amber-700 mx-auto flex-shrink-0" />;
 }
 
-function VLineDashed({ h = 8 }) {
-    return <div style={{ height: h, borderLeft: '2px dashed #d1d5db' }} className="mx-auto flex-shrink-0" />;
-}
-
-function HLine() {
+function HLine({ dashed = false }) {
+    if (dashed) return <div className="h-0 flex-1 min-w-[16px] border-t-2 border-dashed border-gray-400 dark:border-gray-500" />;
     return <div className="h-0.5 bg-amber-300 dark:bg-amber-700 flex-1 min-w-[16px]" />;
 }
 
-function AddBtn({ onClick, title = 'Add', direction = 'down', label }) {
-    const cls = direction === 'right' ? 'ml-1 self-center' : direction === 'up' ? 'mb-1' : 'mt-1';
+function PairLabel({ label, type }) {
+    const colors = {
+        birth: 'text-indigo-500 bg-indigo-50 border-indigo-200 dark:text-indigo-400 dark:bg-indigo-900/30 dark:border-indigo-800',
+        adopted: 'text-emerald-600 bg-emerald-50 border-emerald-200 dark:text-emerald-400 dark:bg-emerald-900/30 dark:border-emerald-800',
+        step_parent: 'text-orange-600 bg-orange-50 border-orange-200 dark:text-orange-400 dark:bg-orange-900/30 dark:border-orange-800',
+        foster: 'text-purple-600 bg-purple-50 border-purple-200 dark:text-purple-400 dark:bg-purple-900/30 dark:border-purple-800',
+    };
+    const cls = colors[type] || colors.birth;
     return (
-        <button onClick={onClick} title={title}
-            className={`${cls} flex items-center gap-1 px-1.5 h-6 rounded-md border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors flex-shrink-0`}>
-            <Plus size={12} />
-            {label && <span className="text-[9px] font-bold whitespace-nowrap">{label}</span>}
-        </button>
-    );
-}
-
-function PairLabel({ label }) {
-    return (
-        <div className="text-[9px] font-bold text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 px-2 py-0.5 rounded-full text-center mb-1 whitespace-nowrap">
+        <div className={`text-[9px] font-bold ${cls} border px-2 py-0.5 rounded-full text-center mb-1 whitespace-nowrap`}>
             {label}
         </div>
     );
@@ -252,23 +343,39 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     const token = useAuthStore((s) => s.token);
 
     const [persons, setPersons] = useState([]);
+    const [relations, setRelations] = useState([]);
     const [root, setRoot] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [federations, setFederations] = useState([]);
+    const [portalFed, setPortalFed] = useState(null);
 
     const canEdit = !readOnly && (role === 'owner' || role === 'member');
 
-    // ── Fetch persons from API ──
+    // 인물에 연결된 페더레이션 찾기
+    const getFederationForPerson = (personId) => {
+        return federations.find(f =>
+            String(f.source_node_id) === String(personId) || String(f.target_node_id) === String(personId)
+        );
+    };
+
+    // ── Fetch persons + relations from API ──
     const fetchPersons = useCallback(async () => {
         if (!siteId) { setIsLoading(false); return; }
         try {
             setIsLoading(true);
             const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-            const res = await axios.get(`/api/persons/${siteId}`, config);
-            if (res.data?.success) {
-                setPersons(res.data.data || []);
-                const tree = buildTreeFromPersons(res.data.data);
-                setRoot(tree);
-            }
+            const [personsRes, relationsRes, fedRes] = await Promise.all([
+                axios.get(`/api/persons/${siteId}`, config),
+                axios.get(`/api/persons/${siteId}/relations`, config).catch(() => ({ data: { data: [] } })),
+                token ? axios.get('/api/federation/list', config).catch(() => ({ data: { data: [] } })) : Promise.resolve({ data: { data: [] } }),
+            ]);
+            const personsData = personsRes.data?.data || [];
+            const relationsData = relationsRes.data?.data || [];
+            setPersons(personsData);
+            setRelations(relationsData);
+            setFederations((fedRes.data?.data || []).filter(f => f.status === 'accepted'));
+            const tree = buildTreeFromPersons(personsData, relationsData);
+            setRoot(tree);
         } catch (err) {
             console.error('Failed to load persons:', err);
         } finally {
@@ -280,7 +387,6 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
     // ── Modal state ──
     const [modal, setModal] = useState(null);
-    // modal types: 'member' (add child/spouse), 'parents' (add parent pair), 'edit' (edit person), 'addFirst' (empty tree placeholder)
     const [newName, setNewName] = useState('');
     const [newRelation, setNewRelation] = useState('');
     const [newBirthDate, setNewBirthDate] = useState('');
@@ -292,7 +398,6 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     const [parent2Name, setParent2Name] = useState('');
     const [singleParent, setSingleParent] = useState(false);
 
-    // Edit modal
     const [editPerson, setEditPerson] = useState(null);
     const [editName, setEditName] = useState('');
     const [editBirthDate, setEditBirthDate] = useState('');
@@ -301,7 +406,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     const [submitting, setSubmitting] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
 
-    // ── API: Create person ──
+    // ── API helpers ──
     const apiCreatePerson = async (data) => {
         if (!siteId || !token) return null;
         try {
@@ -315,7 +420,6 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         }
     };
 
-    // ── API: Update person ──
     const apiUpdatePerson = async (personId, data) => {
         if (!siteId || !token) return null;
         try {
@@ -329,7 +433,6 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         }
     };
 
-    // ── API: Delete person ──
     const apiDeletePerson = async (personId) => {
         if (!siteId || !token) return false;
         try {
@@ -343,7 +446,20 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         }
     };
 
-    // ── Open add member modal ──
+    const apiCreateRelation = async (data) => {
+        if (!siteId || !token) return null;
+        try {
+            const res = await axios.post(`/api/persons/${siteId}/relations`, data, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            return res.data?.data || null;
+        } catch (err) {
+            console.error('createRelation error:', err);
+            return null;
+        }
+    };
+
+    // ── Modal openers ──
     const openMemberModal = (parentId, relation) => {
         setModal({ mode: 'member', parentId, relation });
         setNewName('');
@@ -353,7 +469,6 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         setNewPrivacy('family');
     };
 
-    // ── Open add from placeholder (empty tree) ──
     const openAddFirst = (placeholderRole) => {
         setModal({ mode: 'addFirst', placeholderRole });
         setNewName('');
@@ -362,7 +477,6 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         setNewPrivacy('family');
     };
 
-    // ── Open edit modal ──
     const openEditModal = (person) => {
         const raw = person._raw || person;
         setEditPerson(raw);
@@ -374,7 +488,15 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         setModal({ mode: 'edit' });
     };
 
-    // ── Submit: Add member ──
+    const openParentsModal = (childId) => {
+        setModal({ mode: 'parents', childId });
+        setParentType('birth');
+        setParent1Name('');
+        setParent2Name('');
+        setSingleParent(false);
+    };
+
+    // ── Submits ──
     const handleMemberSubmit = async () => {
         if (!newName.trim()) return;
         setSubmitting(true);
@@ -394,10 +516,16 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         const created = await apiCreatePerson(data);
 
         if (created && modal.relation === 'spouse' && modal.parentId) {
-            // 배우자 관계 설정: 기존 인물의 spouse_id를 업데이트
             await apiUpdatePerson(modal.parentId, { spouse_id: created.id });
-            // 새 인물의 spouse_id도 설정
             await apiUpdatePerson(created.id, { spouse_id: parseInt(modal.parentId) });
+        }
+
+        if (created && modal.relation === 'sibling' && modal.parentId) {
+            await apiCreateRelation({
+                person1_id: parseInt(modal.parentId),
+                person2_id: created.id,
+                relation_type: 'sibling',
+            });
         }
 
         setSubmitting(false);
@@ -405,7 +533,6 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         fetchPersons();
     };
 
-    // ── Submit: Add first person (empty tree placeholder) ──
     const handleAddFirstSubmit = async () => {
         if (!newName.trim()) return;
         setSubmitting(true);
@@ -425,7 +552,6 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         fetchPersons();
     };
 
-    // ── Submit: Edit person ──
     const handleEditSubmit = async () => {
         if (!editPerson || !editName.trim()) return;
         setSubmitting(true);
@@ -441,7 +567,6 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         fetchPersons();
     };
 
-    // ── Delete person ──
     const handleDelete = async () => {
         if (!editPerson) return;
         setSubmitting(true);
@@ -452,16 +577,6 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         fetchPersons();
     };
 
-    // ── Open parents modal ──
-    const openParentsModal = (childId) => {
-        setModal({ mode: 'parents', childId });
-        setParentType('birth');
-        setParent1Name('');
-        setParent2Name('');
-        setSingleParent(false);
-    };
-
-    // ── Submit: Add parents ──
     const handleParentsSubmit = async () => {
         if (!parent1Name.trim()) return;
         setSubmitting(true);
@@ -481,13 +596,11 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             });
         }
 
-        // 배우자 관계 설정
         if (p1 && p2) {
             await apiUpdatePerson(p1.id, { spouse_id: p2.id });
             await apiUpdatePerson(p2.id, { spouse_id: p1.id });
         }
 
-        // 자녀의 parent1_id, parent2_id 설정
         if (modal.childId && p1) {
             await apiUpdatePerson(modal.childId, {
                 parent1_id: p1.id,
@@ -535,9 +648,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                         </p>
                     </div>
 
-                    {/* 3-generation placeholder */}
                     <div className="flex flex-col items-center min-w-max px-4 pb-8">
-                        {/* 조부모 */}
                         <div className="flex items-end justify-center gap-10">
                             <div className="flex items-center gap-1">
                                 {ph('grandpa', lang === 'ko' ? '할아버지' : 'Grandfather')}
@@ -546,23 +657,20 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                             </div>
                         </div>
 
-                        <VLineDashed h={24} />
+                        <VLine h={24} dashed />
 
-                        {/* 부모 */}
                         <div className="flex items-center gap-1">
                             {ph('father', lang === 'ko' ? '아버지' : 'Father')}
                             <PlusConnector />
                             {ph('mother', lang === 'ko' ? '어머니' : 'Mother')}
                         </div>
 
-                        <VLineDashed h={24} />
+                        <VLine h={24} dashed />
 
-                        {/* 나 */}
                         {ph('me', lang === 'ko' ? '나' : 'Me')}
                     </div>
                 </div>
 
-                {/* Add first modal */}
                 {modal?.mode === 'addFirst' && renderPersonFormModal(
                     lang === 'ko' ? '가족 추가' : 'Add Family Member',
                     handleAddFirstSubmit,
@@ -589,24 +697,19 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
     // ── Render a single parent pair (recursive upward) ──
     const renderParentPair = (pair, depth = 0) => {
+        const isDashed = pair.type === 'adopted' || pair.type === 'step_parent';
         return (
             <div className="flex flex-col items-center">
-                <PairLabel label={pair.label} />
+                <PairLabel label={pair.label} type={pair.type} />
                 <div className="flex items-end justify-center gap-6 mb-0">
                     {pair.parent1 && (
                         <div className="flex flex-col items-center">
                             {(pair.parent1.parentPairs || []).map((gp) => (
                                 <div key={gp.id} className="flex flex-col items-center mb-1">
                                     {renderParentPair(gp, depth + 1)}
-                                    <VLine h={6} />
+                                    <VLine h={6} dashed={gp.type === 'adopted' || gp.type === 'step_parent'} />
                                 </div>
                             ))}
-                            {canEdit && (
-                                <>
-                                    <AddBtn onClick={() => openParentsModal(pair.parent1.id)} title={t.addParentsAbove} direction="up" />
-                                    <VLine h={4} />
-                                </>
-                            )}
                         </div>
                     )}
                     {pair.parent2 && (
@@ -614,22 +717,34 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                             {(pair.parent2.parentPairs || []).map((gp) => (
                                 <div key={gp.id} className="flex flex-col items-center mb-1">
                                     {renderParentPair(gp, depth + 1)}
-                                    <VLine h={6} />
+                                    <VLine h={6} dashed={gp.type === 'adopted' || gp.type === 'step_parent'} />
                                 </div>
                             ))}
-                            {canEdit && (
-                                <>
-                                    <AddBtn onClick={() => openParentsModal(pair.parent2.id)} title={t.addParentsAbove} direction="up" />
-                                    <VLine h={4} />
-                                </>
-                            )}
                         </div>
                     )}
                 </div>
                 <div className="flex items-center gap-1">
-                    {pair.parent1 && <FolderNode person={pair.parent1} onClick={() => {}} onEdit={openEditModal} size="md" canEdit={canEdit} />}
-                    {pair.parent1 && pair.parent2 && <PlusConnector />}
-                    {pair.parent2 && <FolderNode person={pair.parent2} onClick={() => {}} onEdit={openEditModal} size="md" canEdit={canEdit} />}
+                    {pair.parent1 && (
+                        <FolderNode
+                            person={pair.parent1}
+                            onEdit={openEditModal}
+                            size="md"
+                            canEdit={canEdit}
+                            onAddParent={() => openParentsModal(pair.parent1.id)}
+                            onAddChild={() => openMemberModal(pair.parent1.id, 'child')}
+                            onAddSpouse={!pair.parent1.spouse ? () => openMemberModal(pair.parent1.id, 'spouse') : undefined}
+                        />
+                    )}
+                    {pair.parent1 && pair.parent2 && <PlusConnector dashed={isDashed} />}
+                    {pair.parent2 && (
+                        <FolderNode
+                            person={pair.parent2}
+                            onEdit={openEditModal}
+                            size="md"
+                            canEdit={canEdit}
+                            onAddParent={() => openParentsModal(pair.parent2.id)}
+                        />
+                    )}
                 </div>
             </div>
         );
@@ -640,20 +755,23 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         const myPairs = treeRoot.parentPairs || [];
         const spousePairs = treeRoot.spouse?.parentPairs || [];
 
+        if (myPairs.length === 0 && spousePairs.length === 0 && !canEdit) return null;
+
         return (
             <div className="flex items-end justify-center gap-10 md:gap-16">
                 <div className="flex flex-col items-center">
-                    <div className="text-[10px] font-bold text-gray-500 mb-2">{treeRoot.name}{t.parentsOf}</div>
+                    {myPairs.length > 0 && (
+                        <div className="text-[10px] font-bold text-gray-500 mb-2">{treeRoot.name}{t.parentsOf}</div>
+                    )}
                     <div className="flex items-end gap-6">
                         {myPairs.map((pair) => (
                             <div key={pair.id} className="flex flex-col items-center">
                                 {renderParentPair(pair)}
                             </div>
                         ))}
-                        {canEdit && <AddBtn onClick={() => openParentsModal(treeRoot.id)} title={t.addParentsAbove} direction="up" />}
                     </div>
                 </div>
-                {treeRoot.spouse && (
+                {treeRoot.spouse && spousePairs.length > 0 && (
                     <div className="flex flex-col items-center">
                         <div className="text-[10px] font-bold text-gray-500 mb-2">{treeRoot.spouse.name}{t.parentsOf}</div>
                         <div className="flex items-end gap-6">
@@ -662,7 +780,6 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                     {renderParentPair(pair)}
                                 </div>
                             ))}
-                            {canEdit && <AddBtn onClick={() => openParentsModal(treeRoot.spouse.id)} title={t.addParentsAbove} direction="up" />}
                         </div>
                     </div>
                 )}
@@ -670,25 +787,85 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         );
     };
 
+    // ── Render siblings row ──
+    const renderSiblings = (person) => {
+        const sibs = person.siblings || [];
+        if (sibs.length === 0 && !canEdit) return null;
+        if (sibs.length === 0) return null;
+
+        return (
+            <div className="flex items-center gap-2 mt-1">
+                {sibs.map((sib) => {
+                    const relType = person._relationTypes?.[sib.id];
+                    const isDashed = relType === 'half_sibling';
+                    return (
+                        <div key={sib.id} className="flex items-center gap-1">
+                            {isDashed ? <HLine dashed /> : <HLine />}
+                            <FolderNode
+                                person={sib}
+                                onEdit={openEditModal}
+                                size="sm"
+                                canEdit={canEdit}
+                                onAddSpouse={!sib.spouse ? () => openMemberModal(sib.id, 'spouse') : undefined}
+                                onAddChild={() => openMemberModal(sib.id, 'child')}
+                            />
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
+
     // ── Recursive child renderer ──
     const renderChild = (child) => {
         const hasSpouse = !!child.spouse;
+        const hasExSpouses = (child.exSpouses || []).length > 0;
         const kids = child.children || [];
 
         return (
             <div key={child.id} className="flex flex-col items-center">
                 <VLine h={20} />
                 <div className="flex items-center gap-1">
-                    <FolderNode person={child} onClick={() => {}} onEdit={openEditModal} size="md" canEdit={canEdit} />
-                    {hasSpouse ? (
+                    {/* Ex-spouses (left side, dashed) */}
+                    {hasExSpouses && child.exSpouses.map((ex) => (
+                        <React.Fragment key={ex.id}>
+                            <FolderNode
+                                person={ex}
+                                onEdit={openEditModal}
+                                size="sm"
+                                canEdit={canEdit}
+                            />
+                            <PlusConnector dashed />
+                        </React.Fragment>
+                    ))}
+
+                    <FolderNode
+                        person={child}
+                        onEdit={openEditModal}
+                        size="md"
+                        canEdit={canEdit}
+                        onAddParent={!child._raw?.parent1_id ? () => openParentsModal(child.id) : undefined}
+                        onAddSpouse={!hasSpouse ? () => openMemberModal(child.id, 'spouse') : undefined}
+                        onAddChild={() => openMemberModal(child.id, 'child')}
+                        onAddSibling={() => openMemberModal(child.id, 'sibling')}
+                        onWormhole={getFederationForPerson(child.id) ? () => setPortalFed(getFederationForPerson(child.id)) : undefined}
+                    />
+                    {hasSpouse && (
                         <>
                             <PlusConnector />
-                            <FolderNode person={child.spouse} onClick={() => {}} onEdit={openEditModal} size="md" canEdit={canEdit} />
+                            <FolderNode
+                                person={child.spouse}
+                                onEdit={openEditModal}
+                                size="md"
+                                canEdit={canEdit}
+                                onAddParent={!child.spouse._raw?.parent1_id ? () => openParentsModal(child.spouse.id) : undefined}
+                            />
                         </>
-                    ) : canEdit ? (
-                        <AddBtn onClick={() => openMemberModal(child.id, 'spouse')} title={t.addSpouse} direction="right" />
-                    ) : null}
+                    )}
                 </div>
+
+                {/* Siblings row */}
+                {renderSiblings(child)}
 
                 {kids.length > 0 && (
                     <>
@@ -703,15 +880,11 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                         </div>
                     </>
                 )}
-
-                {canEdit && (
-                    <AddBtn onClick={() => openMemberModal(child.id, 'child')} title={t.addChild} direction="down" />
-                )}
             </div>
         );
     };
 
-    // ── Person form modal (shared for addFirst & member) ──
+    // ── Person form modal (shared for addFirst, member, sibling) ──
     function renderPersonFormModal(title, onSubmit) {
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm">
@@ -806,26 +979,60 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 <div className="flex flex-col items-center min-w-max px-4 pb-16">
                     {renderRootParents()}
 
-                    <VLine h={24} />
-                    <div className="flex items-center justify-center w-full max-w-2xl">
-                        <HLine />
-                        <div className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
-                        <HLine />
-                    </div>
-                    <VLine h={16} />
+                    {(treeRoot.parentPairs?.length > 0 || treeRoot.spouse?.parentPairs?.length > 0) && (
+                        <>
+                            <VLine h={24} />
+                            <div className="flex items-center justify-center w-full max-w-2xl">
+                                <HLine />
+                                <div className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
+                                <HLine />
+                            </div>
+                            <VLine h={16} />
+                        </>
+                    )}
 
-                    {/* Center couple */}
+                    {/* Center couple + ex-spouses */}
                     <div className="flex items-center gap-1">
-                        <FolderNode person={treeRoot} onClick={() => {}} onEdit={openEditModal} size="lg" canEdit={canEdit} />
+                        {/* Ex-spouses on left */}
+                        {(treeRoot.exSpouses || []).map((ex) => (
+                            <React.Fragment key={ex.id}>
+                                <FolderNode
+                                    person={ex}
+                                    onEdit={openEditModal}
+                                    size="sm"
+                                    canEdit={canEdit}
+                                />
+                                <PlusConnector dashed />
+                            </React.Fragment>
+                        ))}
+
+                        <FolderNode
+                            person={treeRoot}
+                            onEdit={openEditModal}
+                            size="lg"
+                            canEdit={canEdit}
+                            onAddParent={!treeRoot._raw?.parent1_id ? () => openParentsModal(treeRoot.id) : undefined}
+                            onAddSpouse={!treeRoot.spouse ? () => openMemberModal(treeRoot.id, 'spouse') : undefined}
+                            onAddChild={() => openMemberModal(treeRoot.id, 'child')}
+                            onAddSibling={() => openMemberModal(treeRoot.id, 'sibling')}
+                            onWormhole={getFederationForPerson(treeRoot.id) ? () => setPortalFed(getFederationForPerson(treeRoot.id)) : undefined}
+                        />
                         {treeRoot.spouse ? (
                             <>
                                 <PlusConnector />
-                                <FolderNode person={treeRoot.spouse} onClick={() => {}} onEdit={openEditModal} size="lg" canEdit={canEdit} />
+                                <FolderNode
+                                    person={treeRoot.spouse}
+                                    onEdit={openEditModal}
+                                    size="lg"
+                                    canEdit={canEdit}
+                                    onAddParent={!treeRoot.spouse._raw?.parent1_id ? () => openParentsModal(treeRoot.spouse.id) : undefined}
+                                />
                             </>
-                        ) : canEdit ? (
-                            <AddBtn onClick={() => openMemberModal(treeRoot.id, 'spouse')} title={t.addSpouse} direction="right" />
                         ) : null}
                     </div>
+
+                    {/* Siblings row */}
+                    {renderSiblings(treeRoot)}
 
                     <VLine h={24} />
 
@@ -839,15 +1046,15 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                             </div>
                         </>
                     )}
-
-                    {canEdit && (
-                        <AddBtn onClick={() => openMemberModal(treeRoot.id, 'child')} title={t.addChild} direction="down" />
-                    )}
                 </div>
 
-                {/* ── Member Modal (child/spouse) ── */}
+                {/* ── Member Modal (child/spouse/sibling) ── */}
                 {modal?.mode === 'member' && renderPersonFormModal(
-                    modal.relation === 'spouse' ? (t.addSpouse || 'Add Spouse') : (t.addChild || 'Add Child'),
+                    modal.relation === 'spouse'
+                        ? (t.addSpouse || 'Add Spouse')
+                        : modal.relation === 'sibling'
+                            ? (lang === 'ko' ? '형제/자매 추가' : 'Add Sibling')
+                            : (t.addChild || 'Add Child'),
                     handleMemberSubmit,
                 )}
 
@@ -962,7 +1169,6 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                 </div>
                             </div>
 
-                            {/* Delete section */}
                             <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                                 {!confirmDelete ? (
                                     <button onClick={() => setConfirmDelete(true)}
@@ -995,6 +1201,11 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                     </div>
                 )}
             </div>
+
+            {/* WormholePortal */}
+            {portalFed && (
+                <WormholePortal federation={portalFed} onClose={() => setPortalFed(null)} />
+            )}
         </div>
     );
 }

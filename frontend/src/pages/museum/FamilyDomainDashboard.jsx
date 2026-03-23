@@ -4,6 +4,7 @@ import {
     Plus, Image as ImageIcon, Globe, Lock, X, ChevronRight,
     Copy, Check, LogOut, MessageSquare, Calendar, Star, Bell,
     UserPlus, Link, Mail, Share2, BookOpen, CalendarDays, Users, HardDrive, Cloud, Unlink,
+    Link2, Shield, CheckCircle, XCircle, Clock,
 } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -12,6 +13,7 @@ import FamilyTreeView from '../../components/museum/FamilyTreeView';
 import FamilyCalendar from '../../components/museum/FamilyCalendar';
 import AncestorHallTab from '../../components/museum/AncestorHallTab';
 import PostDetailModal from '../../components/museum/PostDetailModal';
+import WormholePortal from '../../components/museum/WormholePortal';
 import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
 import { getT } from '../../i18n/translations';
@@ -23,6 +25,206 @@ const CATEGORY_META = {
     event:  { icon: Calendar,      color: '#3498db' },
     memory: { icon: MessageSquare, color: '#9b59b6' },
 };
+
+// ─── Federation (웜홀 라우팅) card ───
+function FederationCard({ site, token }) {
+    const [federations, setFederations] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [showForm, setShowForm] = useState(false);
+    const [targetDomain, setTargetDomain] = useState('');
+    const [relationType, setRelationType] = useState('direct');
+    const [submitting, setSubmitting] = useState(false);
+    const [portalFed, setPortalFed] = useState(null);
+
+    useEffect(() => {
+        fetchFederations();
+    }, []);
+
+    const fetchFederations = async () => {
+        try {
+            const res = await axios.get('/api/federation/list', {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            setFederations(res.data?.data || []);
+        } catch { /* ignore */ }
+        setLoading(false);
+    };
+
+    const handleRequest = async () => {
+        if (!targetDomain.trim() || !site) return;
+        setSubmitting(true);
+        try {
+            await axios.post('/api/federation/request', {
+                targetDomain: targetDomain.trim(),
+                sourceSiteId: site.id,
+                relationType,
+            }, { headers: { Authorization: `Bearer ${token}` } });
+            setTargetDomain('');
+            setShowForm(false);
+            fetchFederations();
+        } catch (err) {
+            alert(err.response?.data?.message || '연합 요청 실패');
+        }
+        setSubmitting(false);
+    };
+
+    const handleAccept = async (requestId) => {
+        try {
+            await axios.post('/api/federation/accept', { requestId }, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            fetchFederations();
+        } catch (err) {
+            alert(err.response?.data?.message || '승인 실패');
+        }
+    };
+
+    const handleReject = async (requestId) => {
+        try {
+            await axios.post('/api/federation/reject', { requestId }, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            fetchFederations();
+        } catch (err) {
+            alert(err.response?.data?.message || '거절 실패');
+        }
+    };
+
+    const statusIcon = (s) => {
+        if (s === 'accepted') return <CheckCircle size={14} style={{ color: '#2ecc71' }} />;
+        if (s === 'rejected') return <XCircle size={14} style={{ color: '#e74c3c' }} />;
+        return <Clock size={14} style={{ color: '#f39c12' }} />;
+    };
+
+    const statusLabel = (s) => {
+        if (s === 'accepted') return '승인됨';
+        if (s === 'rejected') return '거절됨';
+        return '대기중';
+    };
+
+    const relLabel = (r) => {
+        if (r === 'direct') return '직계';
+        if (r === 'spouse') return '배우자';
+        return '방계';
+    };
+
+    // 내 사이트로 들어온 pending 요청
+    const incoming = federations.filter(f => f.target_site_id === site?.id && f.status === 'pending');
+    const others = federations.filter(f => !(f.target_site_id === site?.id && f.status === 'pending'));
+
+    return (
+        <>
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-3" style={{ border: '1px solid #e8e0d0' }}>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Link2 size={16} style={{ color: '#8e44ad' }} />
+                        <p className="text-sm font-bold" style={{ color: '#3a3a2a' }}>연결된 가족 박물관</p>
+                    </div>
+                    <button onClick={() => setShowForm(!showForm)}
+                        className="px-3 py-1 rounded-lg text-xs font-bold transition-all"
+                        style={{ background: '#f0e8f8', color: '#8e44ad' }}>
+                        <Plus size={12} className="inline mr-1" />연결하기
+                    </button>
+                </div>
+
+                {/* 연합 요청 폼 */}
+                {showForm && (
+                    <div className="space-y-2 p-3 rounded-xl" style={{ background: '#f8f4fc' }}>
+                        <input
+                            type="text"
+                            value={targetDomain}
+                            onChange={(e) => setTargetDomain(e.target.value)}
+                            placeholder="상대 박물관 서브도메인 (예: lee-family)"
+                            className="w-full px-3 py-2 rounded-lg outline-none text-sm"
+                            style={{ border: '1.5px solid #d8c8e8' }}
+                        />
+                        <div className="flex gap-2">
+                            {['direct', 'collateral', 'spouse'].map((rt) => (
+                                <button key={rt} onClick={() => setRelationType(rt)}
+                                    className="flex-1 py-1.5 rounded-lg text-xs font-bold transition-all"
+                                    style={{
+                                        background: relationType === rt ? '#8e44ad' : '#f0e8f8',
+                                        color: relationType === rt ? '#fff' : '#8e44ad',
+                                    }}>
+                                    {relLabel(rt)}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={() => setShowForm(false)}
+                                className="flex-1 py-2 rounded-lg text-xs font-bold"
+                                style={{ background: '#f0ece4', color: '#5a5040' }}>취소</button>
+                            <button onClick={handleRequest} disabled={submitting || !targetDomain.trim()}
+                                className="flex-1 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-50"
+                                style={{ background: '#8e44ad' }}>
+                                {submitting ? '...' : '연합 요청'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* 받은 요청 (pending) */}
+                {incoming.length > 0 && (
+                    <div className="space-y-2">
+                        <p className="text-xs font-bold" style={{ color: '#e67e22' }}>📩 받은 요청</p>
+                        {incoming.map((f) => (
+                            <div key={f.id} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: '#fef9e7' }}>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-bold truncate" style={{ color: '#3a3a2a' }}>{f.source_domain}</p>
+                                    <p className="text-[10px]" style={{ color: '#9a9a8a' }}>{relLabel(f.relation_type)} 관계 요청</p>
+                                </div>
+                                <button onClick={() => handleAccept(f.id)}
+                                    className="px-2 py-1 rounded-lg text-[10px] font-bold text-white"
+                                    style={{ background: '#27ae60' }}>승인</button>
+                                <button onClick={() => handleReject(f.id)}
+                                    className="px-2 py-1 rounded-lg text-[10px] font-bold"
+                                    style={{ background: '#f0ece4', color: '#c0392b' }}>거절</button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* 연합 목록 */}
+                {loading ? (
+                    <p className="text-xs text-center py-2" style={{ color: '#9a9a8a' }}>로딩...</p>
+                ) : others.length === 0 && incoming.length === 0 ? (
+                    <p className="text-xs py-2" style={{ color: '#9a9a8a' }}>
+                        연결된 가족 박물관이 없습니다. 다른 가족과 연결해보세요!
+                    </p>
+                ) : (
+                    <div className="space-y-2">
+                        {others.map((f) => {
+                            const isSource = f.source_site_id === site?.id;
+                            const otherDomain = isSource ? f.target_domain : f.source_domain;
+                            return (
+                                <div key={f.id}
+                                    className="flex items-center gap-2 p-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                                    style={{ background: '#f8f6f0' }}
+                                    onClick={() => f.status === 'accepted' ? setPortalFed(f) : null}>
+                                    {statusIcon(f.status)}
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-bold truncate" style={{ color: '#3a3a2a' }}>{otherDomain}</p>
+                                        <p className="text-[10px]" style={{ color: '#9a9a8a' }}>
+                                            {relLabel(f.relation_type)} · {statusLabel(f.status)}
+                                        </p>
+                                    </div>
+                                    {f.status === 'accepted' && (
+                                        <Shield size={14} style={{ color: '#8e44ad' }} />
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* WormholePortal popup */}
+            {portalFed && (
+                <WormholePortal federation={portalFed} onClose={() => setPortalFed(null)} />
+            )}
+        </>
+    );
+}
 
 // ─── Storage status card (Google Drive + OneDrive) ───
 function StorageCard({ t }) {
@@ -796,6 +998,9 @@ export default function FamilyDomainDashboard() {
                                 </div>
                             )}
                         </div>
+
+                        {/* Federation (웜홀 라우팅) */}
+                        <FederationCard site={site} token={token} />
 
                         {/* Logout */}
                         <button
