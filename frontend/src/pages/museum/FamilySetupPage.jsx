@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Globe, ArrowRight, ArrowLeft, Check, HardDrive, UserPlus, Copy, Share2 } from 'lucide-react';
+import { Globe, ArrowRight, ArrowLeft, Check, HardDrive, Cloud, UserPlus, Copy, Share2 } from 'lucide-react';
 import LanguageSwitcher from '../../components/common/LanguageSwitcher';
 import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
@@ -37,9 +37,12 @@ export default function FamilySetupPage() {
     const [error, setError] = useState('');
     const [createdSiteId, setCreatedSiteId] = useState(null);
 
-    // ── Step 2: Drive ──
+    // ── Step 2: Storage ──
+    const [storageChoice, setStorageChoice] = useState(null); // null | 'google' | 'onedrive'
     const [driveStatus, setDriveStatus] = useState(null); // null | 'connected' | 'not_connected'
     const [driveConnecting, setDriveConnecting] = useState(false);
+    const [onedriveStatus, setOnedriveStatus] = useState(null);
+    const [onedriveConnecting, setOnedriveConnecting] = useState(false);
 
     // ── Step 3: Invite ──
     const [inviteUrl, setInviteUrl] = useState('');
@@ -78,12 +81,17 @@ export default function FamilySetupPage() {
             if (res.data?.success) {
                 setCreatedSiteId(res.data.data.id);
                 setStep(2);
-                // Drive 상태 체크
+                // Drive + OneDrive 상태 체크
                 try {
-                    const driveRes = await axios.get('/api/drive/status');
+                    const [driveRes, odRes] = await Promise.all([
+                        axios.get('/api/drive/status').catch(() => ({ data: { connected: false } })),
+                        axios.get('/api/onedrive/status').catch(() => ({ data: { connected: false } })),
+                    ]);
                     setDriveStatus(driveRes.data?.connected ? 'connected' : 'not_connected');
+                    setOnedriveStatus(odRes.data?.connected ? 'connected' : 'not_connected');
                 } catch {
                     setDriveStatus('not_connected');
+                    setOnedriveStatus('not_connected');
                 }
             } else {
                 setError(res.data?.message || 'Failed to create site');
@@ -107,6 +115,20 @@ export default function FamilySetupPage() {
             setError(t.driveError || 'Failed to connect Drive');
         } finally {
             setDriveConnecting(false);
+        }
+    };
+
+    const handleConnectOneDrive = async () => {
+        setOnedriveConnecting(true);
+        try {
+            const res = await axios.get('/api/onedrive/auth');
+            if (res.data?.url) {
+                window.location.href = res.data.url;
+            }
+        } catch {
+            setError('OneDrive 연결에 실패했습니다');
+        } finally {
+            setOnedriveConnecting(false);
         }
     };
 
@@ -217,52 +239,79 @@ export default function FamilySetupPage() {
                             </>
                         )}
 
-                        {/* ═══ Step 2: Google Drive ═══ */}
+                        {/* ═══ Step 2: Storage Selection ═══ */}
                         {step === 2 && (
                             <>
                                 <div className="text-center mb-6">
                                     <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: '#e0f0ff' }}>
                                         <HardDrive className="w-8 h-8" style={{ color: '#3b82f6' }} />
                                     </div>
-                                    <h1 className="text-2xl font-bold" style={{ color: '#1E2A0E' }}>{t.driveTitle || 'Connect Google Drive'}</h1>
-                                    <p className="mt-2" style={{ color: '#7a6e5e' }}>{t.driveSubtitle || 'Photos are stored safely in your own Google Drive.'}</p>
+                                    <h1 className="text-2xl font-bold" style={{ color: '#1E2A0E' }}>저장소 연결</h1>
+                                    <p className="mt-2" style={{ color: '#7a6e5e' }}>사진은 본인의 클라우드에 안전하게 저장됩니다.</p>
                                 </div>
 
-                                <div className="space-y-4">
-                                    {driveStatus === 'connected' ? (
-                                        <div className="flex items-center gap-2 p-4 rounded-xl" style={{ background: '#e8f5e0' }}>
-                                            <Check size={20} style={{ color: '#5A9460' }} />
-                                            <span className="text-sm font-semibold" style={{ color: '#3a7a2a' }}>{t.driveConnected || 'Google Drive connected!'}</span>
+                                <div className="space-y-3">
+                                    {/* Google Drive */}
+                                    <button
+                                        onClick={() => driveStatus === 'connected' ? null : handleConnectDrive()}
+                                        disabled={driveConnecting}
+                                        className="w-full flex items-center gap-3 p-4 rounded-xl border-2 transition cursor-pointer disabled:opacity-50"
+                                        style={{
+                                            borderColor: driveStatus === 'connected' ? '#5A9460' : '#e8e0d0',
+                                            background: driveStatus === 'connected' ? '#f0faf0' : '#fff',
+                                        }}
+                                    >
+                                        <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#4285F418' }}>
+                                            <HardDrive size={20} style={{ color: '#4285F4' }} />
                                         </div>
-                                    ) : (
-                                        <button
-                                            onClick={handleConnectDrive}
-                                            disabled={driveConnecting}
-                                            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-white disabled:opacity-50 transition"
-                                            style={{ background: '#4285F4' }}
-                                        >
-                                            <HardDrive size={18} />
-                                            {driveConnecting ? (t.driveConnecting || 'Connecting...') : (t.driveConnect || 'Connect Google Drive')}
-                                        </button>
-                                    )}
+                                        <div className="flex-1 text-left">
+                                            <div className="text-sm font-bold text-[#3D2008]">Google Drive</div>
+                                            <div className="text-xs text-[#7A6E5E]">
+                                                {driveConnecting ? '연결 중...' : driveStatus === 'connected' ? '연결됨 ✓' : 'Google 계정으로 연결'}
+                                            </div>
+                                        </div>
+                                        {driveStatus === 'connected' && <Check size={18} style={{ color: '#5A9460' }} />}
+                                    </button>
+
+                                    {/* OneDrive */}
+                                    <button
+                                        onClick={() => onedriveStatus === 'connected' ? null : handleConnectOneDrive()}
+                                        disabled={onedriveConnecting}
+                                        className="w-full flex items-center gap-3 p-4 rounded-xl border-2 transition cursor-pointer disabled:opacity-50"
+                                        style={{
+                                            borderColor: onedriveStatus === 'connected' ? '#5A9460' : '#e8e0d0',
+                                            background: onedriveStatus === 'connected' ? '#f0faf0' : '#fff',
+                                        }}
+                                    >
+                                        <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#0078D418' }}>
+                                            <Cloud size={20} style={{ color: '#0078D4' }} />
+                                        </div>
+                                        <div className="flex-1 text-left">
+                                            <div className="text-sm font-bold text-[#3D2008]">OneDrive</div>
+                                            <div className="text-xs text-[#7A6E5E]">
+                                                {onedriveConnecting ? '연결 중...' : onedriveStatus === 'connected' ? '연결됨 ✓' : 'Microsoft 계정으로 연결'}
+                                            </div>
+                                        </div>
+                                        {onedriveStatus === 'connected' && <Check size={18} style={{ color: '#5A9460' }} />}
+                                    </button>
 
                                     {error && <p className="text-xs text-red-500">{error}</p>}
 
-                                    <div className="flex gap-3">
+                                    <div className="flex gap-3 mt-2">
                                         <button
                                             onClick={() => setStep(3)}
                                             className="flex-1 py-3 rounded-xl font-semibold text-sm transition"
                                             style={{ background: '#f0ece4', color: '#5a5040' }}
                                         >
-                                            {t.skipLater || 'Skip for now'}
+                                            {t.skipLater || '나중에'}
                                         </button>
-                                        {driveStatus === 'connected' && (
+                                        {(driveStatus === 'connected' || onedriveStatus === 'connected') && (
                                             <button
                                                 onClick={() => setStep(3)}
                                                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm text-white transition"
                                                 style={{ background: '#5A9460' }}
                                             >
-                                                {t.step2Next || 'Next'} <ArrowRight size={16} />
+                                                {t.step2Next || '다음'} <ArrowRight size={16} />
                                             </button>
                                         )}
                                     </div>

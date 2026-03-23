@@ -144,6 +144,11 @@ jobs:
             # Resend email API key
             [ -n "$RESEND_API_KEY" ]         && upsert_env RESEND_API_KEY "$RESEND_API_KEY"
 
+            # Microsoft OneDrive (Azure AD)
+            [ -n "$MICROSOFT_CLIENT_ID" ]     && upsert_env MICROSOFT_CLIENT_ID "$MICROSOFT_CLIENT_ID"
+            [ -n "$MICROSOFT_CLIENT_SECRET" ] && upsert_env MICROSOFT_CLIENT_SECRET "$MICROSOFT_CLIENT_SECRET"
+            [ -n "$MICROSOFT_TENANT_ID" ]     && upsert_env MICROSOFT_TENANT_ID "$MICROSOFT_TENANT_ID"
+
             echo "✅ /opt/orgcell/.env env keys:"
             grep -o "^[^=]*" "$ENV_FILE" | sort
             # ─────────────────────────────────────────────────────────────
@@ -296,6 +301,9 @@ jobs:
             docker exec orgcell-db psql -U orgcell_user -d orgcell \
               -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS birth_date DATE;" \
               -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS death_date DATE;"
+            # ── 015: OneDrive token ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "ALTER TABLE users ADD COLUMN IF NOT EXISTS onedrive_token JSONB DEFAULT NULL;"
             echo "Migrations done"
             # ─────────────────────────────────────────────────────────────
 
