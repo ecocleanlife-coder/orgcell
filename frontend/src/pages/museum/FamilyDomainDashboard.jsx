@@ -388,17 +388,20 @@ function HeritageCard({ site, token, t }) {
     );
 }
 
-// ─── Storage status card (Google Drive + OneDrive) ───
+// ─── Storage status card (Google Drive + OneDrive + Dropbox) ───
 function StorageCard({ t }) {
     const [gDrive, setGDrive] = useState(null);
     const [oneDrive, setOneDrive] = useState(null);
+    const [dropbox, setDropbox] = useState(null);
     const [gConnecting, setGConnecting] = useState(false);
     const [odConnecting, setOdConnecting] = useState(false);
+    const [dbConnecting, setDbConnecting] = useState(false);
     const [disconnecting, setDisconnecting] = useState(null);
 
     useEffect(() => {
         axios.get('/api/drive/status').then(r => setGDrive(!!r.data?.connected)).catch(() => setGDrive(false));
         axios.get('/api/onedrive/status').then(r => setOneDrive(!!r.data?.connected)).catch(() => setOneDrive(false));
+        axios.get('/api/dropbox/status').then(r => setDropbox(!!r.data?.connected)).catch(() => setDropbox(false));
     }, []);
 
     const connectGoogle = async () => {
@@ -417,12 +420,21 @@ function StorageCard({ t }) {
         } catch { setOdConnecting(false); }
     };
 
+    const connectDropbox = async () => {
+        setDbConnecting(true);
+        try {
+            const res = await axios.get('/api/dropbox/auth');
+            if (res.data?.url) window.location.href = res.data.url;
+        } catch { setDbConnecting(false); }
+    };
+
     const disconnect = async (provider) => {
         setDisconnecting(provider);
         try {
             await axios.post(`/api/${provider}/disconnect`);
             if (provider === 'drive') setGDrive(false);
-            else setOneDrive(false);
+            else if (provider === 'onedrive') setOneDrive(false);
+            else if (provider === 'dropbox') setDropbox(false);
         } catch { /* silent */ }
         finally { setDisconnecting(null); }
     };
@@ -476,6 +488,11 @@ function StorageCard({ t }) {
                     icon={Cloud} iconColor="#0078D4" label="OneDrive"
                     connected={oneDrive} connecting={odConnecting}
                     onConnect={connectOneDrive} onDisconnect={() => disconnect('onedrive')}
+                />
+                <Row
+                    icon={HardDrive} iconColor="#0061FF" label="Dropbox"
+                    connected={dropbox} connecting={dbConnecting}
+                    onConnect={connectDropbox} onDisconnect={() => disconnect('dropbox')}
                 />
             </div>
             <p className="text-[11px] mt-3" style={{ color: '#a09882' }}>

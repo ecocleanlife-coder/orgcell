@@ -28,6 +28,7 @@ const PersonFolderView = lazy(() => import('./components/museum/PersonFolderView
 const ExhibitionDetailPage = lazy(() => import('./pages/museum/ExhibitionDetailPage'));
 const InvitePage = lazy(() => import('./pages/invite/InvitePage'));
 const OneDriveCallback = lazy(() => import('./components/settings/OneDriveCallback'));
+const DropboxCallback = lazy(() => import('./pages/DropboxCallback'));
 const HomePage = lazy(() => import('./pages/home/HomePage'));
 // DemoMuseumPage 제거 — /demo는 /:subdomain (MuseumPage)에서 처리
 
@@ -91,6 +92,14 @@ function App() {
           element={
             <Suspense fallback={<PageLoader />}>
               <OneDriveCallback />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/dropbox-callback"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <DropboxCallback />
             </Suspense>
           }
         />

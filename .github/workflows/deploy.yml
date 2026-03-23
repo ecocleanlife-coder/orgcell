@@ -374,6 +374,9 @@ jobs:
                 updated_at TIMESTAMPTZ DEFAULT NOW()
               );" \
               -c "CREATE INDEX IF NOT EXISTS idx_digital_heritage_site ON digital_heritage(site_id);"
+            # ── 020: Dropbox token ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "ALTER TABLE users ADD COLUMN IF NOT EXISTS dropbox_token JSONB DEFAULT NULL;"
             echo "Migrations done"
             # ─────────────────────────────────────────────────────────────
 

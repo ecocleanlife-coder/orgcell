@@ -37,6 +37,7 @@ app.use('/api/face', require('./src/routes/faceRoutes'));
 app.use('/api/rooms', require('./src/routes/roomRoutes'));
 app.use('/api/drive', require('./src/routes/driveRoutes'));
 app.use('/api/onedrive', require('./src/routes/oneDriveRoutes'));
+app.use('/api/dropbox', require('./src/routes/dropboxRoutes'));
 app.use('/api/scan', require('./src/routes/scanRoutes'));
 app.use('/api/sites', require('./src/routes/siteRoutes'));
 app.use('/api/events', require('./src/routes/eventRoutes'));

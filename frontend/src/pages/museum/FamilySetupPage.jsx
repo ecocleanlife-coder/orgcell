@@ -38,11 +38,13 @@ export default function FamilySetupPage() {
     const [createdSiteId, setCreatedSiteId] = useState(null);
 
     // ── Step 2: Storage ──
-    const [storageChoice, setStorageChoice] = useState(null); // null | 'google' | 'onedrive'
+    const [storageChoice, setStorageChoice] = useState(null); // null | 'google' | 'onedrive' | 'dropbox'
     const [driveStatus, setDriveStatus] = useState(null); // null | 'connected' | 'not_connected'
     const [driveConnecting, setDriveConnecting] = useState(false);
     const [onedriveStatus, setOnedriveStatus] = useState(null);
     const [onedriveConnecting, setOnedriveConnecting] = useState(false);
+    const [dropboxStatus, setDropboxStatus] = useState(null);
+    const [dropboxConnecting, setDropboxConnecting] = useState(false);
 
     // ── Step 3: Invite ──
     const [inviteUrl, setInviteUrl] = useState('');
@@ -81,17 +83,20 @@ export default function FamilySetupPage() {
             if (res.data?.success) {
                 setCreatedSiteId(res.data.data.id);
                 setStep(2);
-                // Drive + OneDrive 상태 체크
+                // Drive + OneDrive + Dropbox 상태 체크
                 try {
-                    const [driveRes, odRes] = await Promise.all([
+                    const [driveRes, odRes, dbRes] = await Promise.all([
                         axios.get('/api/drive/status').catch(() => ({ data: { connected: false } })),
                         axios.get('/api/onedrive/status').catch(() => ({ data: { connected: false } })),
+                        axios.get('/api/dropbox/status').catch(() => ({ data: { connected: false } })),
                     ]);
                     setDriveStatus(driveRes.data?.connected ? 'connected' : 'not_connected');
                     setOnedriveStatus(odRes.data?.connected ? 'connected' : 'not_connected');
+                    setDropboxStatus(dbRes.data?.connected ? 'connected' : 'not_connected');
                 } catch {
                     setDriveStatus('not_connected');
                     setOnedriveStatus('not_connected');
+                    setDropboxStatus('not_connected');
                 }
             } else {
                 setError(res.data?.message || 'Failed to create site');
@@ -129,6 +134,20 @@ export default function FamilySetupPage() {
             setError('OneDrive 연결에 실패했습니다');
         } finally {
             setOnedriveConnecting(false);
+        }
+    };
+
+    const handleConnectDropbox = async () => {
+        setDropboxConnecting(true);
+        try {
+            const res = await axios.get('/api/dropbox/auth');
+            if (res.data?.url) {
+                window.location.href = res.data.url;
+            }
+        } catch {
+            setError('Dropbox 연결에 실패했습니다');
+        } finally {
+            setDropboxConnecting(false);
         }
     };
 
@@ -295,6 +314,28 @@ export default function FamilySetupPage() {
                                         {onedriveStatus === 'connected' && <Check size={18} style={{ color: '#5A9460' }} />}
                                     </button>
 
+                                    {/* Dropbox */}
+                                    <button
+                                        onClick={() => dropboxStatus === 'connected' ? null : handleConnectDropbox()}
+                                        disabled={dropboxConnecting}
+                                        className="w-full flex items-center gap-3 p-4 rounded-xl border-2 transition cursor-pointer disabled:opacity-50"
+                                        style={{
+                                            borderColor: dropboxStatus === 'connected' ? '#5A9460' : '#e8e0d0',
+                                            background: dropboxStatus === 'connected' ? '#f0faf0' : '#fff',
+                                        }}
+                                    >
+                                        <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#0061FF18' }}>
+                                            <Cloud size={20} style={{ color: '#0061FF' }} />
+                                        </div>
+                                        <div className="flex-1 text-left">
+                                            <div className="text-sm font-bold text-[#3D2008]">Dropbox</div>
+                                            <div className="text-xs text-[#7A6E5E]">
+                                                {dropboxConnecting ? '연결 중...' : dropboxStatus === 'connected' ? '연결됨 ✓' : 'Dropbox 계정으로 연결'}
+                                            </div>
+                                        </div>
+                                        {dropboxStatus === 'connected' && <Check size={18} style={{ color: '#5A9460' }} />}
+                                    </button>
+
                                     {error && <p className="text-xs text-red-500">{error}</p>}
 
                                     <div className="flex gap-3 mt-2">
@@ -305,7 +346,7 @@ export default function FamilySetupPage() {
                                         >
                                             {t.skipLater || '나중에'}
                                         </button>
-                                        {(driveStatus === 'connected' || onedriveStatus === 'connected') && (
+                                        {(driveStatus === 'connected' || onedriveStatus === 'connected' || dropboxStatus === 'connected') && (
                                             <button
                                                 onClick={() => setStep(3)}
                                                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm text-white transition"
