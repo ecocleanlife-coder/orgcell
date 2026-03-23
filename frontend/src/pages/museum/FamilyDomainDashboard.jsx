@@ -3,7 +3,7 @@ import {
     TreePine, GalleryThumbnails, ClipboardList, Settings,
     Plus, Image as ImageIcon, Globe, Lock, X, ChevronRight,
     Copy, Check, LogOut, MessageSquare, Calendar, Star, Bell,
-    UserPlus, Link, Mail, Share2, BookOpen, CalendarDays, Users, HardDrive,
+    UserPlus, Link, Mail, Share2, BookOpen, CalendarDays, Users, HardDrive, Cloud, Unlink,
 } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -24,46 +24,99 @@ const CATEGORY_META = {
     memory: { icon: MessageSquare, color: '#9b59b6' },
 };
 
-// ─── Drive status card ───
-function DriveStatusCard({ t }) {
-    const [status, setStatus] = useState(null); // null=loading, true=connected, false=not
-    const [connecting, setConnecting] = useState(false);
+// ─── Storage status card (Google Drive + OneDrive) ───
+function StorageCard({ t }) {
+    const [gDrive, setGDrive] = useState(null);
+    const [oneDrive, setOneDrive] = useState(null);
+    const [gConnecting, setGConnecting] = useState(false);
+    const [odConnecting, setOdConnecting] = useState(false);
+    const [disconnecting, setDisconnecting] = useState(null);
 
     useEffect(() => {
-        axios.get('/api/drive/status')
-            .then(r => setStatus(!!r.data?.connected))
-            .catch(() => setStatus(false));
+        axios.get('/api/drive/status').then(r => setGDrive(!!r.data?.connected)).catch(() => setGDrive(false));
+        axios.get('/api/onedrive/status').then(r => setOneDrive(!!r.data?.connected)).catch(() => setOneDrive(false));
     }, []);
 
-    const handleConnect = async () => {
-        setConnecting(true);
+    const connectGoogle = async () => {
+        setGConnecting(true);
         try {
             const res = await axios.get('/api/drive/auth');
             if (res.data?.url) window.location.href = res.data.url;
-        } catch { setConnecting(false); }
+        } catch { setGConnecting(false); }
     };
+
+    const connectOneDrive = async () => {
+        setOdConnecting(true);
+        try {
+            const res = await axios.get('/api/onedrive/auth');
+            if (res.data?.url) window.location.href = res.data.url;
+        } catch { setOdConnecting(false); }
+    };
+
+    const disconnect = async (provider) => {
+        setDisconnecting(provider);
+        try {
+            await axios.post(`/api/${provider}/disconnect`);
+            if (provider === 'drive') setGDrive(false);
+            else setOneDrive(false);
+        } catch { /* silent */ }
+        finally { setDisconnecting(null); }
+    };
+
+    const Row = ({ icon: Icon, iconColor, label, connected, onConnect, onDisconnect, connecting: conn }) => (
+        <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: connected ? '#f0faf0' : '#fafaf7', border: `1px solid ${connected ? '#c8e8c0' : '#e8e0d0'}` }}>
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: iconColor + '18' }}>
+                <Icon size={18} style={{ color: iconColor }} />
+            </div>
+            <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold text-[#3D2008]">{label}</div>
+                <div className="text-xs" style={{ color: connected ? '#3a7a2a' : '#9a9a8a' }}>
+                    {connected ? '✅ 연결됨' : '❌ 미연결'}
+                </div>
+            </div>
+            {connected ? (
+                <button
+                    onClick={onDisconnect}
+                    disabled={disconnecting === label}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition hover:bg-red-50 cursor-pointer"
+                    style={{ color: '#d44', border: '1px solid #ecc' }}
+                >
+                    <Unlink size={12} /> 해제
+                </button>
+            ) : (
+                <button
+                    onClick={onConnect}
+                    disabled={conn}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-white disabled:opacity-50 transition cursor-pointer"
+                    style={{ background: iconColor }}
+                >
+                    {conn ? '연결 중...' : '연결'}
+                </button>
+            )}
+        </div>
+    );
 
     return (
         <div className="bg-white rounded-2xl p-5 shadow-sm" style={{ border: '1px solid #e8e0d0' }}>
-            <div className="flex items-center gap-2 mb-2">
-                <HardDrive size={16} style={{ color: status ? '#5a8a4a' : '#9a9a8a' }} />
-                <p className="text-xs font-bold" style={{ color: '#9a9a8a' }}>Google Drive</p>
+            <div className="flex items-center gap-2 mb-3">
+                <HardDrive size={16} style={{ color: '#5a5040' }} />
+                <p className="text-sm font-bold" style={{ color: '#3D2008' }}>저장소 설정</p>
             </div>
-            {status === null ? (
-                <p className="text-xs" style={{ color: '#9a9a8a' }}>{t.loading || 'Loading...'}</p>
-            ) : status ? (
-                <p className="text-sm font-semibold" style={{ color: '#3a7a2a' }}>✓ {t.driveConnected || 'Connected'}</p>
-            ) : (
-                <button
-                    onClick={handleConnect}
-                    disabled={connecting}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition"
-                    style={{ background: '#4285F4' }}
-                >
-                    <HardDrive size={13} />
-                    {connecting ? (t.driveConnecting || 'Connecting...') : (t.driveConnect || 'Connect')}
-                </button>
-            )}
+            <div className="space-y-2.5">
+                <Row
+                    icon={HardDrive} iconColor="#4285F4" label="Google Drive"
+                    connected={gDrive} connecting={gConnecting}
+                    onConnect={connectGoogle} onDisconnect={() => disconnect('drive')}
+                />
+                <Row
+                    icon={Cloud} iconColor="#0078D4" label="OneDrive"
+                    connected={oneDrive} connecting={odConnecting}
+                    onConnect={connectOneDrive} onDisconnect={() => disconnect('onedrive')}
+                />
+            </div>
+            <p className="text-[11px] mt-3" style={{ color: '#a09882' }}>
+                사진은 본인의 클라우드에 안전하게 저장됩니다. 두 개 동시 연결도 가능합니다.
+            </p>
         </div>
     );
 }
@@ -553,7 +606,7 @@ export default function FamilyDomainDashboard() {
                         </div>
 
                         {/* Google Drive status */}
-                        <DriveStatusCard t={t} />
+                        <StorageCard t={t} />
 
                         {/* Share link */}
                         <div
