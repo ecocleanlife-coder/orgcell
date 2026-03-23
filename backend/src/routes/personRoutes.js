@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { optionalAuth, protect } = require('../middlewares/authMiddleware');
+const uploadPerson = require('../middlewares/uploadPerson');
 const ctrl = require('../controllers/personController');
 
 // 조회는 optionalAuth (비로그인도 public 데이터 볼 수 있음)
@@ -10,5 +11,8 @@ router.get('/:siteId', optionalAuth, ctrl.listPersons);
 router.post('/:siteId', protect, ctrl.createPerson);
 router.put('/:siteId/:personId', protect, ctrl.updatePerson);
 router.delete('/:siteId/:personId', protect, ctrl.deletePerson);
+
+// 사진 업로드
+router.post('/:siteId/:personId/photo', protect, uploadPerson.single('photo'), ctrl.uploadPhoto);
 
 module.exports = router;

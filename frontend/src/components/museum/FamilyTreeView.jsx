@@ -4,7 +4,7 @@ import {
     Network, Plus, UserPlus, ExternalLink,
     Edit3, Trash2, Globe, Lock, Eye,
     ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
-    Link2,
+    Link2, Camera,
 } from 'lucide-react';
 import axios from 'axios';
 import FamilyBanner from '../common/FamilyBanner';
@@ -327,6 +327,15 @@ function PlusConnector({ dashed = false }) {
     );
 }
 
+function CoupleBox({ children }) {
+    return (
+        <div className="flex items-center gap-1 rounded-2xl px-3 py-2 flex-shrink-0"
+            style={{ border: '2px solid #8B7355', background: 'rgba(139, 115, 85, 0.05)' }}>
+            {children}
+        </div>
+    );
+}
+
 function VLine({ h = 8, dashed = false }) {
     if (dashed) return <div style={{ height: h, borderLeft: '2px dashed #9ca3af' }} className="mx-auto flex-shrink-0" />;
     return <div style={{ height: h }} className="w-0.5 bg-amber-300 dark:bg-amber-700 mx-auto flex-shrink-0" />;
@@ -560,6 +569,13 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         if (!newName.trim()) return;
         setSubmitting(true);
 
+        // generation 계산: 부모 노드의 generation 기준
+        const parentNode = persons.find(p => String(p.id) === String(modal.parentId));
+        const parentGen = parentNode?.generation || 1;
+        let gen = parentGen;
+        if (modal.relation === 'child') gen = Math.max(parentGen - 1, 0);
+        if (modal.relation === 'spouse' || modal.relation === 'sibling') gen = parentGen;
+
         const data = {
             name: newName.trim(),
             birth_date: newBirthDate || null,
@@ -569,7 +585,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             death_lunar: newDeceased ? newDeathLunar : false,
             gender: newGender || null,
             privacy_level: newPrivacy,
-            generation: 0,
+            generation: gen,
         };
 
         if (modal.relation === 'child' && modal.parentId) {
@@ -794,8 +810,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                         </div>
                     )}
                 </div>
-                <div className="flex items-center gap-1">
-                    {pair.parent1 && (
+                {pair.parent1 && pair.parent2 ? (
+                    <CoupleBox>
                         <FolderNode
                             person={pair.parent1}
                             onEdit={openEditModal}
@@ -803,12 +819,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                             canEdit={canEdit}
                             onAddParent={() => openParentsModal(pair.parent1.id)}
                             onAddChild={() => openMemberModal(pair.parent1.id, 'child')}
-                            onAddSpouse={!pair.parent1.spouse ? () => openMemberModal(pair.parent1.id, 'spouse') : undefined}
                             onAddSibling={() => openMemberModal(pair.parent1.id, 'sibling')}
                         />
-                    )}
-                    {pair.parent1 && pair.parent2 && <PlusConnector dashed={isDashed} />}
-                    {pair.parent2 && (
+                        <span className={`text-base select-none mx-0.5 ${isDashed ? 'opacity-50' : ''}`}>💑</span>
                         <FolderNode
                             person={pair.parent2}
                             onEdit={openEditModal}
@@ -816,11 +829,25 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                             canEdit={canEdit}
                             onAddParent={() => openParentsModal(pair.parent2.id)}
                             onAddChild={() => openMemberModal(pair.parent2.id, 'child')}
-                            onAddSpouse={!pair.parent2.spouse ? () => openMemberModal(pair.parent2.id, 'spouse') : undefined}
                             onAddSibling={() => openMemberModal(pair.parent2.id, 'sibling')}
                         />
-                    )}
-                </div>
+                    </CoupleBox>
+                ) : (
+                    <div className="flex items-center gap-1">
+                        {pair.parent1 && (
+                            <FolderNode
+                                person={pair.parent1}
+                                onEdit={openEditModal}
+                                size="md"
+                                canEdit={canEdit}
+                                onAddParent={() => openParentsModal(pair.parent1.id)}
+                                onAddChild={() => openMemberModal(pair.parent1.id, 'child')}
+                                onAddSpouse={() => openMemberModal(pair.parent1.id, 'spouse')}
+                                onAddSibling={() => openMemberModal(pair.parent1.id, 'sibling')}
+                            />
+                        )}
+                    </div>
+                )}
             </div>
         );
     };
@@ -902,7 +929,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         return (
             <div key={child.id} className="flex flex-col items-center">
                 <VLine h={20} />
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-2">
                     {/* Ex-spouses (left side, dashed) */}
                     {hasExSpouses && child.exSpouses.map((ex) => (
                         <React.Fragment key={ex.id}>
@@ -916,20 +943,19 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                         </React.Fragment>
                     ))}
 
-                    <FolderNode
-                        person={child}
-                        onEdit={openEditModal}
-                        size="md"
-                        canEdit={canEdit}
-                        onAddParent={!child._raw?.parent1_id ? () => openParentsModal(child.id) : undefined}
-                        onAddSpouse={!hasSpouse ? () => openMemberModal(child.id, 'spouse') : undefined}
-                        onAddChild={() => openMemberModal(child.id, 'child')}
-                        onAddSibling={() => openMemberModal(child.id, 'sibling')}
-                        onWormhole={getFederationForPerson(child.id) ? () => setPortalFed(getFederationForPerson(child.id)) : undefined}
-                    />
-                    {hasSpouse && (
-                        <>
-                            <PlusConnector />
+                    {hasSpouse ? (
+                        <CoupleBox>
+                            <FolderNode
+                                person={child}
+                                onEdit={openEditModal}
+                                size="md"
+                                canEdit={canEdit}
+                                onAddParent={!child._raw?.parent1_id ? () => openParentsModal(child.id) : undefined}
+                                onAddChild={() => openMemberModal(child.id, 'child')}
+                                onAddSibling={() => openMemberModal(child.id, 'sibling')}
+                                onWormhole={getFederationForPerson(child.id) ? () => setPortalFed(getFederationForPerson(child.id)) : undefined}
+                            />
+                            <span className="text-base select-none mx-0.5">💑</span>
                             <FolderNode
                                 person={child.spouse}
                                 onEdit={openEditModal}
@@ -939,7 +965,19 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                 onAddChild={() => openMemberModal(child.spouse.id, 'child')}
                                 onAddSibling={() => openMemberModal(child.spouse.id, 'sibling')}
                             />
-                        </>
+                        </CoupleBox>
+                    ) : (
+                        <FolderNode
+                            person={child}
+                            onEdit={openEditModal}
+                            size="md"
+                            canEdit={canEdit}
+                            onAddParent={!child._raw?.parent1_id ? () => openParentsModal(child.id) : undefined}
+                            onAddSpouse={() => openMemberModal(child.id, 'spouse')}
+                            onAddChild={() => openMemberModal(child.id, 'child')}
+                            onAddSibling={() => openMemberModal(child.id, 'sibling')}
+                            onWormhole={getFederationForPerson(child.id) ? () => setPortalFed(getFederationForPerson(child.id)) : undefined}
+                        />
                     )}
                 </div>
 
@@ -1096,7 +1134,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                     )}
 
                     {/* Center couple + ex-spouses */}
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-2">
                         {/* Ex-spouses on left */}
                         {(treeRoot.exSpouses || []).map((ex) => (
                             <React.Fragment key={ex.id}>
@@ -1110,20 +1148,19 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                             </React.Fragment>
                         ))}
 
-                        <FolderNode
-                            person={treeRoot}
-                            onEdit={openEditModal}
-                            size="lg"
-                            canEdit={canEdit}
-                            onAddParent={!treeRoot._raw?.parent1_id ? () => openParentsModal(treeRoot.id) : undefined}
-                            onAddSpouse={!treeRoot.spouse ? () => openMemberModal(treeRoot.id, 'spouse') : undefined}
-                            onAddChild={() => openMemberModal(treeRoot.id, 'child')}
-                            onAddSibling={() => openMemberModal(treeRoot.id, 'sibling')}
-                            onWormhole={getFederationForPerson(treeRoot.id) ? () => setPortalFed(getFederationForPerson(treeRoot.id)) : undefined}
-                        />
                         {treeRoot.spouse ? (
-                            <>
-                                <PlusConnector />
+                            <CoupleBox>
+                                <FolderNode
+                                    person={treeRoot}
+                                    onEdit={openEditModal}
+                                    size="lg"
+                                    canEdit={canEdit}
+                                    onAddParent={!treeRoot._raw?.parent1_id ? () => openParentsModal(treeRoot.id) : undefined}
+                                    onAddChild={() => openMemberModal(treeRoot.id, 'child')}
+                                    onAddSibling={() => openMemberModal(treeRoot.id, 'sibling')}
+                                    onWormhole={getFederationForPerson(treeRoot.id) ? () => setPortalFed(getFederationForPerson(treeRoot.id)) : undefined}
+                                />
+                                <span className="text-lg select-none mx-1">💑</span>
                                 <FolderNode
                                     person={treeRoot.spouse}
                                     onEdit={openEditModal}
@@ -1133,8 +1170,20 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                     onAddChild={() => openMemberModal(treeRoot.spouse.id, 'child')}
                                     onAddSibling={() => openMemberModal(treeRoot.spouse.id, 'sibling')}
                                 />
-                            </>
-                        ) : null}
+                            </CoupleBox>
+                        ) : (
+                            <FolderNode
+                                person={treeRoot}
+                                onEdit={openEditModal}
+                                size="lg"
+                                canEdit={canEdit}
+                                onAddParent={!treeRoot._raw?.parent1_id ? () => openParentsModal(treeRoot.id) : undefined}
+                                onAddSpouse={() => openMemberModal(treeRoot.id, 'spouse')}
+                                onAddChild={() => openMemberModal(treeRoot.id, 'child')}
+                                onAddSibling={() => openMemberModal(treeRoot.id, 'sibling')}
+                                onWormhole={getFederationForPerson(treeRoot.id) ? () => setPortalFed(getFederationForPerson(treeRoot.id)) : undefined}
+                            />
+                        )}
                     </div>
 
                     {/* Siblings row */}
@@ -1227,6 +1276,43 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                 <Edit3 className="text-amber-500" /> {lang === 'ko' ? '인물 수정' : 'Edit Person'}
                             </h3>
                             <div className="space-y-3">
+                                {/* 사진 업로드 */}
+                                <div className="flex items-center gap-3">
+                                    <div className="w-16 h-16 rounded-full border-2 border-amber-300 overflow-hidden flex-shrink-0 flex items-center justify-center"
+                                        style={{ background: editPerson?.photo_url ? '#e8e0d0' : '#d4a574' }}>
+                                        {editPerson?.photo_url ? (
+                                            <img src={editPerson.photo_url} alt="" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <Camera size={24} className="text-white/70" />
+                                        )}
+                                    </div>
+                                    <label className="cursor-pointer">
+                                        <span className="px-3 py-1.5 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs font-bold rounded-lg hover:bg-amber-200 transition-colors">
+                                            {lang === 'ko' ? '사진 변경' : 'Change Photo'}
+                                        </span>
+                                        <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+                                            onChange={async (e) => {
+                                                const file = e.target.files?.[0];
+                                                if (!file || !editPerson || !siteId || !token) return;
+                                                const fd = new FormData();
+                                                fd.append('photo', file);
+                                                try {
+                                                    const res = await axios.post(
+                                                        `/api/persons/${siteId}/${editPerson.id}/photo`,
+                                                        fd,
+                                                        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } }
+                                                    );
+                                                    if (res.data?.data?.photo_url) {
+                                                        setEditPerson({ ...editPerson, photo_url: res.data.data.photo_url });
+                                                        fetchPersons();
+                                                    }
+                                                } catch (err) {
+                                                    console.error('Photo upload error:', err);
+                                                }
+                                            }}
+                                        />
+                                    </label>
+                                </div>
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.nameLabel} *</label>
                                     <input type="text" value={editName} onChange={e => setEditName(e.target.value)}

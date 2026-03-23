@@ -135,3 +135,34 @@ exports.deletePerson = async (req, res) => {
         res.status(500).json({ success: false, message: 'Failed to delete person' });
     }
 };
+
+// POST /api/persons/:siteId/:personId/photo
+exports.uploadPhoto = async (req, res) => {
+    try {
+        const { siteId, personId } = req.params;
+        const userId = req.user?.id;
+        if (!await checkSiteAccess(userId, siteId)) {
+            return res.status(403).json({ success: false, message: 'Forbidden' });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'No file uploaded' });
+        }
+
+        const photo_url = `/uploads/persons/${req.file.filename}`;
+
+        const { rows } = await db.query(
+            `UPDATE persons SET photo_url = $1 WHERE id = $2 AND site_id = $3 RETURNING *`,
+            [photo_url, personId, siteId]
+        );
+
+        if (!rows.length) {
+            return res.status(404).json({ success: false, message: 'Person not found' });
+        }
+
+        res.json({ success: true, data: rows[0] });
+    } catch (err) {
+        console.error('uploadPhoto error:', err);
+        res.status(500).json({ success: false, message: 'Failed to upload photo' });
+    }
+};
