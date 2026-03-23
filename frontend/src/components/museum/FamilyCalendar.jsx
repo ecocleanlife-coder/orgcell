@@ -4,17 +4,17 @@ import { ChevronLeft, ChevronRight, Plus, X, Trash2 } from 'lucide-react';
 import { Solar } from 'lunar-javascript';
 
 const TYPE_COLORS = {
-    birthday:    { bg: '#fce7f3', border: '#ec4899', dot: '#ec4899', label: '' },
-    anniversary: { bg: '#fef9c3', border: '#eab308', dot: '#eab308', label: '' },
-    event:       { bg: '#dbeafe', border: '#3b82f6', dot: '#3b82f6', label: '' },
-    memorial:    { bg: '#f3f4f6', border: '#6b7280', dot: '#6b7280', label: '' },
-    trip:        { bg: '#e0f2fe', border: '#0ea5e9', dot: '#0ea5e9', label: '' },
+    birthday:    { bg: '#dbeafe', border: '#3b82f6', dot: '#3b82f6', emoji: '🎂' },
+    anniversary: { bg: '#fce7f3', border: '#ec4899', dot: '#ec4899', emoji: '💑' },
+    event:       { bg: '#dcfce7', border: '#22c55e', dot: '#22c55e', emoji: '🎉' },
+    memorial:    { bg: '#f3f4f6', border: '#6b7280', dot: '#6b7280', emoji: '🕯️' },
+    trip:        { bg: '#ffedd5', border: '#f97316', dot: '#f97316', emoji: '✈️' },
 };
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function buildCalendarGrid(year, month) {
-    const firstDay = new Date(year, month - 1, 1).getDay(); // 0=Sun
+    const firstDay = new Date(year, month - 1, 1).getDay();
     const daysInMonth = new Date(year, month, 0).getDate();
     const cells = [];
     for (let i = 0; i < firstDay; i++) cells.push(null);
@@ -22,12 +22,11 @@ function buildCalendarGrid(year, month) {
     return cells;
 }
 
-// 음력 공휴일 (month, day)
 const LUNAR_HOLIDAYS = [
-    { m: 1, d: 1, emoji: '🎊', key: 'seollal' },      // 설날
-    { m: 1, d: 15, emoji: '🏮', key: 'daeboreum' },    // 정월대보름
-    { m: 5, d: 5, emoji: '🎏', key: 'dano' },           // 단오
-    { m: 8, d: 15, emoji: '🌕', key: 'chuseok' },      // 추석
+    { m: 1, d: 1, emoji: '🎊', key: 'seollal' },
+    { m: 1, d: 15, emoji: '🏮', key: 'daeboreum' },
+    { m: 5, d: 5, emoji: '🎏', key: 'dano' },
+    { m: 8, d: 15, emoji: '🌕', key: 'chuseok' },
 ];
 
 function getLunarInfo(year, month, day) {
@@ -43,6 +42,17 @@ function getLunarInfo(year, month, day) {
     }
 }
 
+// 모바일 감지
+function useIsMobile() {
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
+    useEffect(() => {
+        const handler = () => setIsMobile(window.innerWidth < 640);
+        window.addEventListener('resize', handler);
+        return () => window.removeEventListener('resize', handler);
+    }, []);
+    return isMobile;
+}
+
 export default function FamilyCalendar({ siteId, role, t }) {
     const now = new Date();
     const [year, setYear] = useState(now.getFullYear());
@@ -51,6 +61,8 @@ export default function FamilyCalendar({ siteId, role, t }) {
     const [loading, setLoading] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [selectedDay, setSelectedDay] = useState(null);
+    const [dayPopup, setDayPopup] = useState(null); // 모바일 날짜 클릭 팝업
+    const [eventDetail, setEventDetail] = useState(null); // 이벤트 클릭 상세
     const [form, setForm] = useState({
         title: '', event_date: '', end_date: '', event_type: 'event',
         description: '', is_recurring: false, person_name: '',
@@ -59,6 +71,7 @@ export default function FamilyCalendar({ siteId, role, t }) {
     const [showLunar, setShowLunar] = useState(() => {
         try { return localStorage.getItem('orgcell_lunar') !== 'false'; } catch { return true; }
     });
+    const isMobile = useIsMobile();
 
     const toggleLunar = () => {
         setShowLunar(prev => {
@@ -68,7 +81,6 @@ export default function FamilyCalendar({ siteId, role, t }) {
         });
     };
 
-    // 월별 음력 정보 메모이제이션
     const lunarData = useMemo(() => {
         if (!showLunar) return {};
         const data = {};
@@ -109,6 +121,7 @@ export default function FamilyCalendar({ siteId, role, t }) {
         setForm({ title: '', event_date: `${year}-${mPad}-${pad}`, end_date: '', event_type: 'event', description: '', is_recurring: false, person_name: '' });
         setSelectedDay(day);
         setShowModal(true);
+        setDayPopup(null);
     };
 
     const handleSubmit = async (e) => {
@@ -133,50 +146,71 @@ export default function FamilyCalendar({ siteId, role, t }) {
         if (!window.confirm(t.calendarDeleteConfirm)) return;
         try {
             await axios.delete(`/api/calendar/${id}`);
+            setEventDetail(null);
             fetchEvents();
         } catch (err) {
             console.error('deleteEvent error:', err);
         }
     };
 
-    // Map day → events (기간 이벤트는 여러 날에 걸쳐 표시)
-    const eventsByDay = {};
-    const rangeEventDays = {}; // day → true (기간 이벤트 배경 표시용)
-    events.forEach(ev => {
-        const d = new Date(ev.event_date);
-        if (ev.end_date && !ev.is_recurring) {
-            // 기간 이벤트: start_date~end_date 사이 모든 날에 표시
-            const start = new Date(ev.event_date);
-            const end = new Date(ev.end_date);
-            const daysInMonth = new Date(year, month, 0).getDate();
-            for (let day = 1; day <= daysInMonth; day++) {
-                const current = new Date(year, month - 1, day);
-                if (current >= start && current <= end) {
-                    if (!eventsByDay[day]) eventsByDay[day] = [];
-                    // 시작일에만 이벤트 라벨 표시, 나머지는 배경만
-                    if (current.getTime() === start.getTime() ||
-                        (day === 1 && current > start)) {
-                        eventsByDay[day].push(ev);
+    // 날짜별 이벤트 매핑
+    const eventsByDay = useMemo(() => {
+        const map = {};
+        const daysInMonth = new Date(year, month, 0).getDate();
+        events.forEach(ev => {
+            if (ev.end_date && !ev.is_recurring) {
+                const start = new Date(ev.event_date);
+                const end = new Date(ev.end_date);
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const current = new Date(year, month - 1, day);
+                    if (current >= start && current <= end) {
+                        if (!map[day]) map[day] = [];
+                        map[day].push({ ...ev, _isRangeStart: current.getTime() === start.getTime() || (day === 1 && current > start), _isRange: true });
                     }
-                    rangeEventDays[day] = TYPE_COLORS[ev.event_type] || TYPE_COLORS.event;
+                }
+            } else {
+                const d = new Date(ev.event_date);
+                const key = ev.is_recurring
+                    ? d.getUTCDate()
+                    : (d.getUTCFullYear() === year && d.getUTCMonth() + 1 === month ? d.getUTCDate() : null);
+                if (key) {
+                    if (!map[key]) map[key] = [];
+                    map[key].push({ ...ev, _isRange: false });
                 }
             }
-        } else {
-            const key = ev.is_recurring
-                ? d.getUTCDate()
-                : (d.getUTCFullYear() === year && d.getUTCMonth() + 1 === month ? d.getUTCDate() : null);
-            if (key) {
-                if (!eventsByDay[key]) eventsByDay[key] = [];
-                eventsByDay[key].push(ev);
-            }
-        }
-    });
+        });
+        return map;
+    }, [events, year, month]);
 
     const cells = buildCalendarGrid(year, month);
     const canEdit = role === 'owner' || role === 'member';
     const today = now.getFullYear() === year && now.getMonth() + 1 === month ? now.getDate() : null;
-
     const monthName = new Date(year, month - 1, 1).toLocaleString('default', { month: 'long' });
+
+    // 이번 달 전체 이벤트 (사이드바용)
+    const sortedEvents = useMemo(() => {
+        return [...events].sort((a, b) => {
+            const da = new Date(a.event_date).getUTCDate();
+            const db = new Date(b.event_date).getUTCDate();
+            return da - db;
+        });
+    }, [events]);
+
+    const handleDayClick = (day) => {
+        if (!day) return;
+        if (isMobile) {
+            setDayPopup(day);
+        } else if (canEdit) {
+            openModal(day);
+        }
+    };
+
+    const handleEventClick = (ev, e) => {
+        e.stopPropagation();
+        setEventDetail(ev);
+    };
+
+    const MAX_VISIBLE = 3;
 
     return (
         <div className="p-4">
@@ -216,9 +250,9 @@ export default function FamilyCalendar({ siteId, role, t }) {
             </div>
 
             {/* Day of week header */}
-            <div className="grid grid-cols-7 mb-1">
+            <div className="grid grid-cols-7 border-b border-slate-200 mb-0">
                 {DAYS_OF_WEEK.map(d => (
-                    <div key={d} className="text-center text-[11px] font-bold text-slate-400 py-1">{d}</div>
+                    <div key={d} className="text-center text-[11px] font-bold text-slate-400 py-1.5">{d}</div>
                 ))}
             </div>
 
@@ -228,59 +262,80 @@ export default function FamilyCalendar({ siteId, role, t }) {
                     <div className="w-6 h-6 border-2 border-[#5a8a4a] border-t-transparent rounded-full animate-spin" />
                 </div>
             ) : (
-                <div className="grid grid-cols-7 gap-0.5">
+                <div className="grid grid-cols-7">
                     {cells.map((day, i) => {
                         const dayEvents = day ? (eventsByDay[day] || []) : [];
                         const isToday = day === today;
-                        const rangeColor = day ? rangeEventDays[day] : null;
+                        const visibleEvents = dayEvents.slice(0, MAX_VISIBLE);
+                        const moreCount = dayEvents.length - MAX_VISIBLE;
+
                         return (
                             <div
                                 key={i}
-                                onClick={() => day && canEdit && openModal(day)}
-                                className={`min-h-[64px] rounded-lg p-1 text-[12px] ${day ? 'hover:bg-[#f0ebe0] transition-colors' : ''} ${canEdit && day ? 'cursor-pointer' : ''}`}
-                                style={rangeColor ? { background: rangeColor.bg } : undefined}
+                                onClick={() => handleDayClick(day)}
+                                className={`border-b border-r border-slate-100 p-1 text-[12px] transition-colors
+                                    ${day ? 'hover:bg-[#f0ebe0]' : 'bg-slate-50/50'}
+                                    ${(canEdit || isMobile) && day ? 'cursor-pointer' : ''}
+                                    ${i % 7 === 0 ? 'border-l border-slate-100' : ''}`}
+                                style={{ minHeight: isMobile ? 48 : 100 }}
                             >
                                 {day && (
                                     <>
-                                        <div className="flex items-center gap-0.5">
-                                            <span className={`inline-flex items-center justify-center w-[22px] h-[22px] rounded-full text-[12px] font-semibold ${isToday ? 'bg-[#5a8a4a] text-white' : 'text-slate-700'}`}>
+                                        {/* 날짜 숫자 + 음력 */}
+                                        <div className="flex items-center gap-0.5 mb-0.5">
+                                            <span className={`inline-flex items-center justify-center w-[22px] h-[22px] rounded-full text-[12px] font-semibold
+                                                ${isToday ? 'bg-[#5a8a4a] text-white' : 'text-slate-700'}`}>
                                                 {day}
                                             </span>
                                             {showLunar && lunarData[day]?.holiday && (
                                                 <span className="text-[10px]">{lunarData[day].holiday.emoji}</span>
                                             )}
                                         </div>
-                                        {showLunar && lunarData[day] && (
-                                            <span className={`text-[9px] leading-tight ${lunarData[day].day === 1 ? 'text-red-400 font-semibold' : 'text-slate-400'}`}>
+                                        {showLunar && lunarData[day] && !isMobile && (
+                                            <div className={`text-[9px] leading-tight mb-0.5 ${lunarData[day].day === 1 ? 'text-red-400 font-semibold' : 'text-slate-400'}`}>
                                                 {lunarData[day].day === 1 ? `${lunarData[day].month}월` : lunarData[day].day}
-                                            </span>
+                                            </div>
                                         )}
-                                        <div className="flex flex-col gap-0.5">
-                                            {dayEvents.slice(0, 2).map(ev => {
-                                                const c = TYPE_COLORS[ev.event_type] || TYPE_COLORS.event;
-                                                return (
-                                                    <div
-                                                        key={ev.id}
-                                                        className="flex items-center justify-between rounded px-1 py-0.5 text-[10px] font-medium group"
-                                                        style={{ background: c.bg, border: `1px solid ${c.border}`, color: '#333' }}
-                                                        onClick={e => e.stopPropagation()}
-                                                    >
-                                                        <span className="truncate">{ev.title}</span>
-                                                        {canEdit && !ev.auto_generated && (
-                                                            <button
-                                                                onClick={() => handleDelete(ev.id)}
-                                                                className="hidden group-hover:flex ml-0.5 text-slate-400 hover:text-red-500 cursor-pointer"
-                                                            >
-                                                                <X size={10} />
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                            {dayEvents.length > 2 && (
-                                                <span className="text-[10px] text-slate-400">+{dayEvents.length - 2}</span>
-                                            )}
-                                        </div>
+
+                                        {/* 이벤트 바 또는 점 */}
+                                        {isMobile ? (
+                                            // 모바일: 점으로 표시
+                                            dayEvents.length > 0 && (
+                                                <div className="flex gap-0.5 justify-center mt-0.5">
+                                                    {dayEvents.slice(0, 4).map((ev, idx) => {
+                                                        const c = TYPE_COLORS[ev.event_type] || TYPE_COLORS.event;
+                                                        return <div key={idx} className="w-[5px] h-[5px] rounded-full" style={{ background: c.dot }} />;
+                                                    })}
+                                                </div>
+                                            )
+                                        ) : (
+                                            // 데스크톱: 컬러 바로 표시
+                                            <div className="flex flex-col gap-[2px]">
+                                                {visibleEvents.map((ev, idx) => {
+                                                    const c = TYPE_COLORS[ev.event_type] || TYPE_COLORS.event;
+                                                    const isRangeMiddle = ev._isRange && !ev._isRangeStart;
+                                                    if (isRangeMiddle) return null;
+                                                    return (
+                                                        <div
+                                                            key={`${ev.id}-${idx}`}
+                                                            onClick={(e) => handleEventClick(ev, e)}
+                                                            className="rounded px-1 py-[1px] text-[10px] font-medium truncate cursor-pointer hover:brightness-95 transition-all"
+                                                            style={{
+                                                                background: c.bg,
+                                                                borderLeft: `3px solid ${c.border}`,
+                                                                color: '#333',
+                                                            }}
+                                                            title={ev.title}
+                                                        >
+                                                            {c.emoji} {ev.title}
+                                                        </div>
+                                                    );
+                                                })}
+                                                {moreCount > 0 && (
+                                                    <span className="text-[10px] text-slate-400 pl-1">+{moreCount}</span>
+                                                )}
+                                            </div>
+                                        )}
                                     </>
                                 )}
                             </div>
@@ -289,23 +344,26 @@ export default function FamilyCalendar({ siteId, role, t }) {
                 </div>
             )}
 
-            {/* Upcoming events list */}
-            {events.length > 0 && (
+            {/* 이번 달 행사 사이드바 (아래) */}
+            {sortedEvents.length > 0 && (
                 <div className="mt-6">
-                    <h3 className="text-[13px] font-bold text-slate-500 mb-2 uppercase tracking-wide">This Month</h3>
+                    <h3 className="text-[13px] font-bold text-slate-500 mb-2 uppercase tracking-wide">
+                        {t.calendarThisMonth || 'This Month'}
+                    </h3>
                     <div className="space-y-2">
-                        {[...events].sort((a, b) => {
-                            const da = new Date(a.event_date).getUTCDate();
-                            const db = new Date(b.event_date).getUTCDate();
-                            return da - db;
-                        }).map(ev => {
+                        {sortedEvents.map(ev => {
                             const c = TYPE_COLORS[ev.event_type] || TYPE_COLORS.event;
                             const d = new Date(ev.event_date);
                             return (
-                                <div key={ev.id} className="flex items-start gap-3 p-3 rounded-xl border" style={{ borderColor: c.border, background: c.bg }}>
+                                <div key={ev.id}
+                                    className="flex items-start gap-3 p-3 rounded-xl border cursor-pointer hover:shadow-sm transition-shadow"
+                                    style={{ borderColor: c.border, background: c.bg }}
+                                    onClick={() => setEventDetail(ev)}
+                                >
                                     <div className="w-[3px] self-stretch rounded-full flex-shrink-0" style={{ background: c.dot }} />
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2">
+                                            <span className="text-[13px]">{c.emoji}</span>
                                             <span className="text-[13px] font-semibold text-slate-800 truncate">{ev.title}</span>
                                             {ev.is_recurring && <span className="text-[10px] bg-white/70 rounded px-1 border border-current" style={{ color: c.dot }}>↻</span>}
                                         </div>
@@ -320,7 +378,7 @@ export default function FamilyCalendar({ siteId, role, t }) {
                                         {ev.description && <p className="text-[11px] text-slate-500 mt-0.5 truncate">{ev.description}</p>}
                                     </div>
                                     {canEdit && !ev.auto_generated && (
-                                        <button onClick={() => handleDelete(ev.id)} className="text-slate-300 hover:text-red-400 cursor-pointer flex-shrink-0">
+                                        <button onClick={(e) => { e.stopPropagation(); handleDelete(ev.id); }} className="text-slate-300 hover:text-red-400 cursor-pointer flex-shrink-0">
                                             <Trash2 size={14} />
                                         </button>
                                     )}
@@ -333,6 +391,103 @@ export default function FamilyCalendar({ siteId, role, t }) {
 
             {events.length === 0 && !loading && (
                 <p className="text-center text-slate-400 text-[13px] py-8">{t.calendarEmpty}</p>
+            )}
+
+            {/* 모바일 날짜 클릭 팝업 */}
+            {dayPopup && (
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30" onClick={() => setDayPopup(null)}>
+                    <div className="bg-white rounded-t-2xl w-full max-w-[480px] p-4 pb-8 shadow-xl max-h-[60vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-[15px] font-bold text-[#3D2008]">
+                                {month}/{dayPopup} ({DAYS_OF_WEEK[new Date(year, month - 1, dayPopup).getDay()]})
+                            </h3>
+                            <div className="flex items-center gap-2">
+                                {canEdit && (
+                                    <button onClick={() => openModal(dayPopup)} className="text-[12px] font-semibold text-[#5a8a4a] cursor-pointer">
+                                        + {t.calendarAddBtn}
+                                    </button>
+                                )}
+                                <button onClick={() => setDayPopup(null)} className="text-slate-400 cursor-pointer"><X size={18} /></button>
+                            </div>
+                        </div>
+                        {(eventsByDay[dayPopup] || []).length === 0 ? (
+                            <p className="text-slate-400 text-[13px] py-4 text-center">{t.calendarEmpty}</p>
+                        ) : (
+                            <div className="space-y-2">
+                                {(eventsByDay[dayPopup] || []).map(ev => {
+                                    const c = TYPE_COLORS[ev.event_type] || TYPE_COLORS.event;
+                                    return (
+                                        <div key={ev.id} className="flex items-center gap-2 p-2.5 rounded-lg" style={{ background: c.bg, border: `1px solid ${c.border}` }}>
+                                            <span className="text-[14px]">{c.emoji}</span>
+                                            <div className="flex-1 min-w-0">
+                                                <span className="text-[13px] font-semibold text-slate-800 truncate block">{ev.title}</span>
+                                                {ev.description && <span className="text-[11px] text-slate-500 truncate block">{ev.description}</span>}
+                                            </div>
+                                            {canEdit && !ev.auto_generated && (
+                                                <button onClick={() => handleDelete(ev.id)} className="text-slate-400 hover:text-red-500 cursor-pointer">
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* 이벤트 상세 팝업 */}
+            {eventDetail && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setEventDetail(null)}>
+                    <div className="bg-white rounded-2xl w-full max-w-[380px] p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+                        {(() => {
+                            const c = TYPE_COLORS[eventDetail.event_type] || TYPE_COLORS.event;
+                            const d = new Date(eventDetail.event_date);
+                            return (
+                                <>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[20px]">{c.emoji}</span>
+                                            <h3 className="text-[16px] font-bold text-[#3D2008]">{eventDetail.title}</h3>
+                                        </div>
+                                        <button onClick={() => setEventDetail(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X size={18} /></button>
+                                    </div>
+                                    <div className="space-y-2 text-[13px] text-slate-600">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-semibold w-12">{t.calendarDateLabel}</span>
+                                            <span>{String(d.getUTCMonth() + 1).padStart(2, '0')}/{String(d.getUTCDate()).padStart(2, '0')}/{d.getUTCFullYear()}</span>
+                                            {eventDetail.end_date && (() => {
+                                                const ed = new Date(eventDetail.end_date);
+                                                return <span>~ {String(ed.getUTCMonth() + 1).padStart(2, '0')}/{String(ed.getUTCDate()).padStart(2, '0')}</span>;
+                                            })()}
+                                        </div>
+                                        {eventDetail.person_name && (
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-semibold w-12">{t.calendarPersonLabel}</span>
+                                                <span>{eventDetail.person_name}</span>
+                                            </div>
+                                        )}
+                                        {eventDetail.description && (
+                                            <div className="mt-2 p-2 bg-slate-50 rounded-lg text-[12px]">{eventDetail.description}</div>
+                                        )}
+                                        {eventDetail.is_recurring && (
+                                            <span className="inline-block text-[11px] px-2 py-0.5 rounded-full" style={{ background: c.bg, color: c.dot, border: `1px solid ${c.border}` }}>↻ Recurring</span>
+                                        )}
+                                    </div>
+                                    {canEdit && !eventDetail.auto_generated && (
+                                        <button
+                                            onClick={() => handleDelete(eventDetail.id)}
+                                            className="mt-4 w-full py-2 rounded-full text-[13px] font-semibold text-red-500 border border-red-200 hover:bg-red-50 cursor-pointer flex items-center justify-center gap-1"
+                                        >
+                                            <Trash2 size={14} /> {t.calendarDeleteBtn || 'Delete'}
+                                        </button>
+                                    )}
+                                </>
+                            );
+                        })()}
+                    </div>
+                </div>
             )}
 
             {/* Add Event Modal */}

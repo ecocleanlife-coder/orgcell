@@ -81,6 +81,14 @@ function buildTreeFromPersons(persons, relations = []) {
     }
 
     // person_relations → enrich tree
+    const siblingIds = new Set();
+    for (const rel of relations) {
+        if (rel.relation_type === 'sibling' || rel.relation_type === 'half_sibling') {
+            siblingIds.add(String(rel.person1_id));
+            siblingIds.add(String(rel.person2_id));
+        }
+    }
+
     for (const rel of relations) {
         const p1 = byId[rel.person1_id];
         const p2 = byId[rel.person2_id];
@@ -116,6 +124,21 @@ function buildTreeFromPersons(persons, relations = []) {
                     });
                 }
                 break;
+            }
+        }
+    }
+
+    // root의 siblings는 부모의 children에서 제거 (중복 방지)
+    // siblings 배열에 있는 사람은 해당 person의 형제이므로
+    // 부모의 children에서 빼고 siblings로만 표시
+    for (const id of Object.keys(byId)) {
+        const node = byId[id];
+        if (node.siblings.length > 0) {
+            const sibIds = new Set(node.siblings.map(s => s.id));
+            // 이 노드의 부모에서 siblings를 children에서 제거
+            if (node._raw?.parent1_id && byId[node._raw.parent1_id]) {
+                const parent = byId[node._raw.parent1_id];
+                parent.children = parent.children.filter(c => !sibIds.has(c.id));
             }
         }
     }
@@ -600,6 +623,14 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         }
 
         if (created && modal.relation === 'sibling' && modal.parentId) {
+            // 형제의 부모를 공유 (같은 parent1_id, parent2_id)
+            const siblingRaw = parentNode;
+            if (siblingRaw?.parent1_id) {
+                await apiUpdatePerson(created.id, {
+                    parent1_id: siblingRaw.parent1_id,
+                    parent2_id: siblingRaw.parent2_id || null,
+                });
+            }
             await apiCreateRelation({
                 person1_id: parseInt(modal.parentId),
                 person2_id: created.id,
@@ -1290,7 +1321,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                         <span className="px-3 py-1.5 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs font-bold rounded-lg hover:bg-amber-200 transition-colors">
                                             {lang === 'ko' ? '사진 변경' : 'Change Photo'}
                                         </span>
-                                        <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+                                        <input type="file" accept="image/*,.heic,.heif,.HEIC,.HEIF" className="hidden"
                                             onChange={async (e) => {
                                                 const file = e.target.files?.[0];
                                                 if (!file || !editPerson || !siteId || !token) return;
