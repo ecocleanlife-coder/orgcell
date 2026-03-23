@@ -128,18 +128,25 @@ function buildTreeFromPersons(persons, relations = []) {
         }
     }
 
-    // root의 siblings는 부모의 children에서 제거 (중복 방지)
-    // siblings 배열에 있는 사람은 해당 person의 형제이므로
-    // 부모의 children에서 빼고 siblings로만 표시
+    // 형제 그룹별로 한 번만 처리: anchor(첫 형제)는 parent.children에 유지,
+    // 나머지 형제는 parent.children에서 제거 (anchor.siblings로만 표시)
+    const sibGroupProcessed = new Set();
     for (const id of Object.keys(byId)) {
         const node = byId[id];
-        if (node.siblings.length > 0) {
-            const sibIds = new Set(node.siblings.map(s => s.id));
-            // 이 노드의 부모에서 siblings를 children에서 제거
-            if (node._raw?.parent1_id && byId[node._raw.parent1_id]) {
-                const parent = byId[node._raw.parent1_id];
-                parent.children = parent.children.filter(c => !sibIds.has(c.id));
-            }
+        if (node.siblings.length === 0 || sibGroupProcessed.has(id)) continue;
+
+        // 이 노드가 anchor — parent.children에 남음
+        sibGroupProcessed.add(id);
+        const sibIds = new Set();
+        for (const sib of node.siblings) {
+            sibIds.add(sib.id);
+            sibGroupProcessed.add(sib.id);
+        }
+
+        // anchor의 형제들만 parent.children에서 제거 (anchor 자신은 유지)
+        if (node._raw?.parent1_id && byId[node._raw.parent1_id]) {
+            const parent = byId[node._raw.parent1_id];
+            parent.children = parent.children.filter(c => !sibIds.has(c.id));
         }
     }
 
@@ -920,35 +927,49 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         );
     };
 
-    // ── Render siblings row ──
-    const renderSiblings = (person) => {
+    // ── Render inline siblings (같은 행에 가로 배치) ──
+    const renderInlineSiblings = (person, nodeSize = 'sm') => {
         const sibs = person.siblings || [];
-        if (sibs.length === 0 && !canEdit) return null;
         if (sibs.length === 0) return null;
 
-        return (
-            <div className="flex items-center gap-2 mt-1">
-                {sibs.map((sib) => {
-                    const relType = person._relationTypes?.[sib.id];
-                    const isDashed = relType === 'half_sibling';
-                    return (
-                        <div key={sib.id} className="flex items-center gap-1">
-                            {isDashed ? <HLine dashed /> : <HLine />}
+        return sibs.map((sib) => {
+            const relType = person._relationTypes?.[sib.id];
+            const isDashed = relType === 'half_sibling';
+            return (
+                <React.Fragment key={sib.id}>
+                    {isDashed ? <HLine dashed /> : <HLine />}
+                    {sib.spouse ? (
+                        <CoupleBox>
                             <FolderNode
                                 person={sib}
                                 onEdit={openEditModal}
-                                size="sm"
+                                size={nodeSize}
                                 canEdit={canEdit}
-                                onAddParent={!sib._raw?.parent1_id ? () => openParentsModal(sib.id) : undefined}
-                                onAddSpouse={!sib.spouse ? () => openMemberModal(sib.id, 'spouse') : undefined}
                                 onAddChild={() => openMemberModal(sib.id, 'child')}
                                 onAddSibling={() => openMemberModal(sib.id, 'sibling')}
                             />
-                        </div>
-                    );
-                })}
-            </div>
-        );
+                            <span className="text-base select-none mx-0.5">💑</span>
+                            <FolderNode
+                                person={sib.spouse}
+                                onEdit={openEditModal}
+                                size={nodeSize}
+                                canEdit={canEdit}
+                            />
+                        </CoupleBox>
+                    ) : (
+                        <FolderNode
+                            person={sib}
+                            onEdit={openEditModal}
+                            size={nodeSize}
+                            canEdit={canEdit}
+                            onAddSpouse={() => openMemberModal(sib.id, 'spouse')}
+                            onAddChild={() => openMemberModal(sib.id, 'child')}
+                            onAddSibling={() => openMemberModal(sib.id, 'sibling')}
+                        />
+                    )}
+                </React.Fragment>
+            );
+        });
     };
 
     // ── Recursive child renderer ──
@@ -1010,10 +1031,10 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                             onWormhole={getFederationForPerson(child.id) ? () => setPortalFed(getFederationForPerson(child.id)) : undefined}
                         />
                     )}
-                </div>
 
-                {/* Siblings row */}
-                {renderSiblings(child)}
+                    {/* Siblings inline (같은 행) */}
+                    {renderInlineSiblings(child, 'md')}
+                </div>
 
                 {kids.length > 0 && (
                     <>
@@ -1215,10 +1236,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                 onWormhole={getFederationForPerson(treeRoot.id) ? () => setPortalFed(getFederationForPerson(treeRoot.id)) : undefined}
                             />
                         )}
+                        {/* Siblings inline (같은 행) */}
+                        {renderInlineSiblings(treeRoot, 'lg')}
                     </div>
-
-                    {/* Siblings row */}
-                    {renderSiblings(treeRoot)}
 
                     <VLine h={24} />
 

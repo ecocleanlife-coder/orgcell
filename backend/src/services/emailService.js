@@ -22,7 +22,8 @@ const transporter = nodemailer.createTransport({
 exports.sendPaymentConfirmationEmail = async (to, { amountUsd, sessionId }) => {
     const amountDisplay = `$${(amountUsd / 100).toFixed(2)}`;
     const mailOptions = {
-        from: '"Orgcell" <noreply@orgcell.com>',
+        // TODO: orgcell.com 도메인을 resend.com/domains에서 인증 후 noreply@orgcell.com 으로 변경
+        from: '"Orgcell" <onboarding@resend.dev>',
         to,
         subject: '[Orgcell] 결제가 완료되었습니다 🎉',
         html: `
@@ -88,7 +89,8 @@ exports.sendPaymentConfirmationEmail = async (to, { amountUsd, sessionId }) => {
 exports.sendAdminPaymentNotification = async ({ email, amountUsd, paidAt }) => {
     const amountDisplay = `$${(amountUsd / 100).toFixed(2)}`;
     const mailOptions = {
-        from: '"Orgcell" <noreply@orgcell.com>',
+        // TODO: orgcell.com 도메인을 resend.com/domains에서 인증 후 noreply@orgcell.com 으로 변경
+        from: '"Orgcell" <onboarding@resend.dev>',
         to: process.env.ADMIN_EMAIL || 'itsconllc@gmail.com',
         subject: '[Orgcell] 새 결제 발생',
         html: `
@@ -121,7 +123,8 @@ exports.sendInviteEmail = async ({ to, code, inviterName, subdomain }) => {
     const inviteUrl = `https://orgcell.com/invite?code=${code}`;
     const museumLabel = subdomain ? `${subdomain}.orgcell.com` : 'Orgcell';
     const mailOptions = {
-        from: '"Orgcell" <noreply@orgcell.com>',
+        // TODO: orgcell.com 도메인을 resend.com/domains에서 인증 후 noreply@orgcell.com 으로 변경
+        from: '"Orgcell" <onboarding@resend.dev>',
         to,
         subject: `[Orgcell] ${inviterName}님이 가족 박물관에 초대했습니다 🏛️`,
         html: `
@@ -161,7 +164,8 @@ exports.sendInviteEmail = async ({ to, code, inviterName, subdomain }) => {
 
 exports.sendMagicLinkEmail = async (to, magicLink) => {
     const mailOptions = {
-        from: '"Orgcell" <noreply@orgcell.com>',
+        // TODO: orgcell.com 도메인을 resend.com/domains에서 인증 후 noreply@orgcell.com 으로 변경
+        from: '"Orgcell" <onboarding@resend.dev>',
         to,
         subject: 'Orgcell Login Link',
         html: `
