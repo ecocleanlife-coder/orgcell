@@ -733,6 +733,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                             onAddParent={() => openParentsModal(pair.parent1.id)}
                             onAddChild={() => openMemberModal(pair.parent1.id, 'child')}
                             onAddSpouse={!pair.parent1.spouse ? () => openMemberModal(pair.parent1.id, 'spouse') : undefined}
+                            onAddSibling={() => openMemberModal(pair.parent1.id, 'sibling')}
                         />
                     )}
                     {pair.parent1 && pair.parent2 && <PlusConnector dashed={isDashed} />}
@@ -743,6 +744,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                             size="md"
                             canEdit={canEdit}
                             onAddParent={() => openParentsModal(pair.parent2.id)}
+                            onAddChild={() => openMemberModal(pair.parent2.id, 'child')}
+                            onAddSpouse={!pair.parent2.spouse ? () => openMemberModal(pair.parent2.id, 'spouse') : undefined}
+                            onAddSibling={() => openMemberModal(pair.parent2.id, 'sibling')}
                         />
                     )}
                 </div>
@@ -806,8 +810,10 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                 onEdit={openEditModal}
                                 size="sm"
                                 canEdit={canEdit}
+                                onAddParent={!sib._raw?.parent1_id ? () => openParentsModal(sib.id) : undefined}
                                 onAddSpouse={!sib.spouse ? () => openMemberModal(sib.id, 'spouse') : undefined}
                                 onAddChild={() => openMemberModal(sib.id, 'child')}
+                                onAddSibling={() => openMemberModal(sib.id, 'sibling')}
                             />
                         </div>
                     );
@@ -859,6 +865,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                 size="md"
                                 canEdit={canEdit}
                                 onAddParent={!child.spouse._raw?.parent1_id ? () => openParentsModal(child.spouse.id) : undefined}
+                                onAddChild={() => openMemberModal(child.spouse.id, 'child')}
+                                onAddSibling={() => openMemberModal(child.spouse.id, 'sibling')}
                             />
                         </>
                     )}
@@ -1026,6 +1034,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                     size="lg"
                                     canEdit={canEdit}
                                     onAddParent={!treeRoot.spouse._raw?.parent1_id ? () => openParentsModal(treeRoot.spouse.id) : undefined}
+                                    onAddChild={() => openMemberModal(treeRoot.spouse.id, 'child')}
+                                    onAddSibling={() => openMemberModal(treeRoot.spouse.id, 'sibling')}
                                 />
                             </>
                         ) : null}
