@@ -42,21 +42,25 @@ exports.createExhibition = async (req, res) => {
     try {
         const {
             site_id, title, description, visibility,
-            hall_type, birth_year, death_year, memoir, relation
+            hall_type, birth_year, death_year, memoir, relation,
+            person_id, featured_photos, biography
         } = req.body;
         if (!site_id || !title) return res.status(400).json({ success: false, message: 'site_id and title required' });
 
         const vis = ['public', 'family'].includes(visibility) ? visibility : 'family';
         const hType = ['general', 'ancestor'].includes(hall_type) ? hall_type : 'general';
+        const photos = Array.isArray(featured_photos) ? JSON.stringify(featured_photos.slice(0, 3)) : '[]';
 
         const { rows } = await db.query(
             `INSERT INTO exhibitions
                (site_id, title, description, visibility, created_by,
-                hall_type, birth_year, death_year, memoir, relation)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                hall_type, birth_year, death_year, memoir, relation,
+                person_id, featured_photos, biography)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
              RETURNING *`,
             [site_id, title, description || '', vis, req.user?.id || null,
-             hType, birth_year || null, death_year || null, memoir || null, relation || null]
+             hType, birth_year || null, death_year || null, memoir || null, relation || null,
+             person_id || null, photos, biography || null]
         );
         res.status(201).json({ success: true, data: rows[0] });
     } catch (err) {
@@ -82,6 +86,73 @@ exports.getExhibition = async (req, res) => {
         res.json({ success: true, data: rows[0] });
     } catch (err) {
         console.error('getExhibition error:', err);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
+
+// PUT /api/exhibitions/:id
+exports.updateExhibition = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const {
+            title, description, visibility,
+            birth_year, death_year, memoir, relation,
+            person_id, featured_photos, biography
+        } = req.body;
+
+        const photos = Array.isArray(featured_photos) ? JSON.stringify(featured_photos.slice(0, 3)) : undefined;
+
+        const sets = [];
+        const params = [];
+        let idx = 1;
+
+        const maybeSet = (col, val) => {
+            if (val !== undefined) {
+                sets.push(`${col} = $${idx++}`);
+                params.push(val);
+            }
+        };
+
+        maybeSet('title', title);
+        maybeSet('description', description);
+        maybeSet('visibility', visibility);
+        maybeSet('birth_year', birth_year ?? null);
+        maybeSet('death_year', death_year ?? null);
+        maybeSet('memoir', memoir);
+        maybeSet('relation', relation);
+        maybeSet('person_id', person_id);
+        maybeSet('featured_photos', photos);
+        maybeSet('biography', biography);
+
+        if (sets.length === 0) return res.status(400).json({ success: false, message: 'No fields to update' });
+
+        sets.push(`updated_at = NOW()`);
+        params.push(id);
+
+        const { rows } = await db.query(
+            `UPDATE exhibitions SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`,
+            params
+        );
+        if (!rows.length) return res.status(404).json({ success: false, message: 'Not found' });
+        res.json({ success: true, data: rows[0] });
+    } catch (err) {
+        console.error('updateExhibition error:', err);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
+
+// DELETE /api/exhibitions/:id
+exports.deleteExhibition = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { rows } = await db.query(
+            `DELETE FROM exhibitions WHERE id = $1 RETURNING id`,
+            [id]
+        );
+        if (!rows.length) return res.status(404).json({ success: false, message: 'Not found' });
+        res.json({ success: true, message: 'Deleted' });
+    } catch (err) {
+        console.error('deleteExhibition error:', err);
         res.status(500).json({ success: false, message: 'Internal server error' });
     }
 };

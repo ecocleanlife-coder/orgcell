@@ -8,6 +8,8 @@ const upload = require('../middlewares/upload');
 router.get('/', ctrl.listExhibitions);
 router.post('/', protect, ctrl.createExhibition);
 router.get('/:id', ctrl.getExhibition);
+router.put('/:id', protect, ctrl.updateExhibition);
+router.delete('/:id', protect, ctrl.deleteExhibition);
 router.get('/:id/guestbook', ctrl.listGuestbook);
 router.post('/:id/guestbook', ctrl.addGuestbook);
 

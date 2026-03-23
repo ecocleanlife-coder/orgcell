@@ -226,6 +226,168 @@ function FederationCard({ site, token }) {
     );
 }
 
+// ─── Heritage (디지털 유산 승계) card ───
+function HeritageCard({ site, token, t }) {
+    const [heirs, setHeirs] = useState([]);
+    const [showForm, setShowForm] = useState(false);
+    const [form, setForm] = useState({ beneficiary_name: '', beneficiary_email: '', beneficiary_relation: '', activation_condition: 'inactivity_1year' });
+    const [saving, setSaving] = useState(false);
+
+    const fetchHeirs = useCallback(async () => {
+        if (!site?.id) return;
+        try {
+            const { data } = await axios.get(`/api/heritage/${site.id}`, { headers: { Authorization: `Bearer ${token}` } });
+            if (data.success) setHeirs(data.data);
+        } catch (err) {
+            console.error('fetchHeirs error:', err);
+        }
+    }, [site?.id, token]);
+
+    useEffect(() => { fetchHeirs(); }, [fetchHeirs]);
+
+    const handleAdd = async (e) => {
+        e.preventDefault();
+        if (!form.beneficiary_name || !form.beneficiary_email) return;
+        setSaving(true);
+        try {
+            await axios.post(`/api/heritage/${site.id}`, form, { headers: { Authorization: `Bearer ${token}` } });
+            setShowForm(false);
+            setForm({ beneficiary_name: '', beneficiary_email: '', beneficiary_relation: '', activation_condition: 'inactivity_1year' });
+            fetchHeirs();
+        } catch (err) {
+            console.error('createHeir error:', err);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDelete = async (id) => {
+        try {
+            await axios.delete(`/api/heritage/${site.id}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+            fetchHeirs();
+        } catch (err) {
+            console.error('deleteHeir error:', err);
+        }
+    };
+
+    const COND_LABELS = {
+        inactivity_1year: t.heritageCondInactive1 || '1년 미활동 시',
+        inactivity_2year: t.heritageCondInactive2 || '2년 미활동 시',
+        manual: t.heritageCondManual || '수동 활성화',
+    };
+
+    return (
+        <div className="rounded-2xl p-4 space-y-3" style={{ background: '#faf8f5', border: '1.5px solid #e8dfd0' }}>
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <Shield size={16} style={{ color: '#7a5a3a' }} />
+                    <span className="text-[14px] font-bold" style={{ color: '#3D2008' }}>
+                        {t.heritageTitle || '디지털 유산 승계'}
+                    </span>
+                </div>
+                <button
+                    onClick={() => setShowForm((v) => !v)}
+                    className="text-[12px] font-semibold px-3 py-1 rounded-full cursor-pointer"
+                    style={{ background: '#7a5a3a', color: '#fff' }}
+                >
+                    <Plus size={12} className="inline mr-1" />
+                    {t.heritageAddBtn || '승계자 추가'}
+                </button>
+            </div>
+
+            <p className="text-[12px]" style={{ color: '#a09080' }}>
+                {t.heritageDesc || '계정 미활동 시 가족 박물관을 지정된 승계자에게 전달합니다.'}
+            </p>
+
+            {/* Heir list */}
+            {heirs.length > 0 && (
+                <div className="space-y-2">
+                    {heirs.map((h) => (
+                        <div key={h.id} className="flex items-center justify-between p-3 bg-white rounded-xl" style={{ border: '1px solid #ede5d8' }}>
+                            <div>
+                                <div className="text-[13px] font-bold" style={{ color: '#3D2008' }}>{h.beneficiary_name}</div>
+                                <div className="text-[11px]" style={{ color: '#a09080' }}>
+                                    {h.beneficiary_email} {h.beneficiary_relation && `· ${h.beneficiary_relation}`}
+                                </div>
+                                <div className="text-[10px] mt-0.5" style={{ color: '#b0a090' }}>
+                                    {COND_LABELS[h.activation_condition] || h.activation_condition}
+                                    {h.is_active && <span className="ml-2 text-emerald-600 font-bold">● 활성</span>}
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => handleDelete(h.id)}
+                                className="w-7 h-7 flex items-center justify-center rounded-full cursor-pointer hover:bg-red-50"
+                            >
+                                <X size={13} style={{ color: '#c44' }} />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {heirs.length === 0 && !showForm && (
+                <div className="text-center py-4 text-[12px]" style={{ color: '#b0a090' }}>
+                    {t.heritageEmpty || '등록된 승계자가 없습니다.'}
+                </div>
+            )}
+
+            {/* Add form */}
+            {showForm && (
+                <form onSubmit={handleAdd} className="p-3 bg-white rounded-xl space-y-2" style={{ border: '1px solid #ede5d8' }}>
+                    <input
+                        type="text" required
+                        value={form.beneficiary_name}
+                        onChange={(e) => setForm((f) => ({ ...f, beneficiary_name: e.target.value }))}
+                        placeholder={t.heritageNamePlaceholder || '승계자 이름'}
+                        className="w-full rounded-lg px-3 py-2 text-[12px] outline-none"
+                        style={{ border: '1px solid #e8dfd0' }}
+                    />
+                    <input
+                        type="email" required
+                        value={form.beneficiary_email}
+                        onChange={(e) => setForm((f) => ({ ...f, beneficiary_email: e.target.value }))}
+                        placeholder={t.heritageEmailPlaceholder || '이메일'}
+                        className="w-full rounded-lg px-3 py-2 text-[12px] outline-none"
+                        style={{ border: '1px solid #e8dfd0' }}
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                        <input
+                            type="text"
+                            value={form.beneficiary_relation}
+                            onChange={(e) => setForm((f) => ({ ...f, beneficiary_relation: e.target.value }))}
+                            placeholder={t.heritageRelationPlaceholder || '관계 (예: 장남)'}
+                            className="rounded-lg px-3 py-2 text-[12px] outline-none"
+                            style={{ border: '1px solid #e8dfd0' }}
+                        />
+                        <select
+                            value={form.activation_condition}
+                            onChange={(e) => setForm((f) => ({ ...f, activation_condition: e.target.value }))}
+                            className="rounded-lg px-3 py-2 text-[12px] outline-none"
+                            style={{ border: '1px solid #e8dfd0' }}
+                        >
+                            <option value="inactivity_1year">{COND_LABELS.inactivity_1year}</option>
+                            <option value="inactivity_2year">{COND_LABELS.inactivity_2year}</option>
+                            <option value="manual">{COND_LABELS.manual}</option>
+                        </select>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                        <button type="button" onClick={() => setShowForm(false)}
+                            className="flex-1 py-2 rounded-lg text-[12px] font-semibold cursor-pointer"
+                            style={{ background: '#f0ece4', color: '#5a5a4a' }}>
+                            {t.ancestorCancelBtn || '취소'}
+                        </button>
+                        <button type="submit" disabled={saving}
+                            className="flex-1 py-2 rounded-lg text-[12px] font-semibold text-white cursor-pointer disabled:opacity-60"
+                            style={{ background: '#7a5a3a' }}>
+                            {saving ? '...' : (t.heritageSubmitBtn || '추가')}
+                        </button>
+                    </div>
+                </form>
+            )}
+        </div>
+    );
+}
+
 // ─── Storage status card (Google Drive + OneDrive) ───
 function StorageCard({ t }) {
     const [gDrive, setGDrive] = useState(null);
@@ -1001,6 +1163,9 @@ export default function FamilyDomainDashboard() {
 
                         {/* Federation (웜홀 라우팅) */}
                         <FederationCard site={site} token={token} />
+
+                        {/* Heritage (디지털 유산 승계) */}
+                        <HeritageCard site={site} token={token} t={t} />
 
                         {/* Logout */}
                         <button

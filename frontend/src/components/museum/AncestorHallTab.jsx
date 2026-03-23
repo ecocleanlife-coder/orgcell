@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Plus, X, BookOpen, ChevronRight, Image as ImageIcon, Flame } from 'lucide-react';
+import { Plus, X, BookOpen, ChevronRight, Image as ImageIcon, Flame, Link, Edit2, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import useAuthStore from '../../store/authStore';
 
 // 관계 아이콘 매핑
 const RELATION_ICONS = {
@@ -19,25 +20,35 @@ function getRelationIcon(relation) {
     return '🕯️';
 }
 
+const EMPTY_FORM = {
+    title: '', description: '', visibility: 'family',
+    birth_year: '', death_year: '', memoir: '', relation: '',
+    person_id: '', biography: '',
+    featured_photo_1: '', featured_photo_2: '', featured_photo_3: '',
+};
+
 export default function AncestorHallTab({ siteId, subdomain, role, t }) {
     const navigate = useNavigate();
+    const token = useAuthStore((s) => s.token);
     const [ancestors, setAncestors] = useState([]);
+    const [persons, setPersons] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showModal, setShowModal] = useState(false);
-    const [form, setForm] = useState({
-        title: '', description: '', visibility: 'family',
-        birth_year: '', death_year: '', memoir: '', relation: '',
-    });
+    const [editTarget, setEditTarget] = useState(null);
+    const [form, setForm] = useState(EMPTY_FORM);
     const [submitting, setSubmitting] = useState(false);
+    const [deleteConfirm, setDeleteConfirm] = useState(null);
 
     const fetchAncestors = useCallback(async () => {
         if (!siteId) return;
         setLoading(true);
         try {
-            const { data } = await axios.get('/api/exhibitions', {
-                params: { site_id: siteId, hall_type: 'ancestor' },
-            });
-            if (data.success) setAncestors(data.data);
+            const [ancRes, perRes] = await Promise.all([
+                axios.get('/api/exhibitions', { params: { site_id: siteId, hall_type: 'ancestor' } }),
+                axios.get(`/api/persons/${siteId}`),
+            ]);
+            if (ancRes.data.success) setAncestors(ancRes.data.data);
+            if (perRes.data.success) setPersons(perRes.data.data);
         } catch (err) {
             console.error('fetchAncestors error:', err);
         } finally {
@@ -47,8 +58,29 @@ export default function AncestorHallTab({ siteId, subdomain, role, t }) {
 
     useEffect(() => { fetchAncestors(); }, [fetchAncestors]);
 
-    const openModal = () => {
-        setForm({ title: '', description: '', visibility: 'family', birth_year: '', death_year: '', memoir: '', relation: '' });
+    const openAddModal = () => {
+        setEditTarget(null);
+        setForm(EMPTY_FORM);
+        setShowModal(true);
+    };
+
+    const openEditModal = (anc) => {
+        const photos = Array.isArray(anc.featured_photos) ? anc.featured_photos : [];
+        setEditTarget(anc);
+        setForm({
+            title: anc.title || '',
+            description: anc.description || '',
+            visibility: anc.visibility || 'family',
+            birth_year: anc.birth_year || '',
+            death_year: anc.death_year || '',
+            memoir: anc.memoir || '',
+            relation: anc.relation || '',
+            person_id: anc.person_id || '',
+            biography: anc.biography || '',
+            featured_photo_1: photos[0] || '',
+            featured_photo_2: photos[1] || '',
+            featured_photo_3: photos[2] || '',
+        });
         setShowModal(true);
     };
 
@@ -56,28 +88,56 @@ export default function AncestorHallTab({ siteId, subdomain, role, t }) {
         e.preventDefault();
         if (!form.title) return;
         setSubmitting(true);
+
+        const featured_photos = [form.featured_photo_1, form.featured_photo_2, form.featured_photo_3].filter(Boolean);
+        const payload = {
+            site_id: siteId,
+            title: form.title,
+            description: form.description,
+            visibility: form.visibility,
+            hall_type: 'ancestor',
+            birth_year: form.birth_year ? parseInt(form.birth_year) : null,
+            death_year: form.death_year ? parseInt(form.death_year) : null,
+            memoir: form.memoir || null,
+            relation: form.relation || null,
+            person_id: form.person_id ? parseInt(form.person_id) : null,
+            biography: form.biography || null,
+            featured_photos,
+        };
+
         try {
-            await axios.post('/api/exhibitions', {
-                site_id: siteId,
-                title: form.title,
-                description: form.description,
-                visibility: form.visibility,
-                hall_type: 'ancestor',
-                birth_year: form.birth_year ? parseInt(form.birth_year) : null,
-                death_year: form.death_year ? parseInt(form.death_year) : null,
-                memoir: form.memoir || null,
-                relation: form.relation || null,
-            });
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            if (editTarget) {
+                await axios.put(`/api/exhibitions/${editTarget.id}`, payload, { headers });
+            } else {
+                await axios.post('/api/exhibitions', payload, { headers });
+            }
             setShowModal(false);
             fetchAncestors();
         } catch (err) {
-            console.error('createAncestor error:', err);
+            console.error('saveAncestor error:', err);
         } finally {
             setSubmitting(false);
         }
     };
 
+    const handleDelete = async (id) => {
+        try {
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            await axios.delete(`/api/exhibitions/${id}`, { headers });
+            setDeleteConfirm(null);
+            fetchAncestors();
+        } catch (err) {
+            console.error('deleteAncestor error:', err);
+        }
+    };
+
     const canEdit = role === 'owner' || role === 'member';
+
+    const getLinkedPerson = (personId) => {
+        if (!personId) return null;
+        return persons.find((p) => p.id === personId);
+    };
 
     return (
         <div className="p-4">
@@ -91,7 +151,7 @@ export default function AncestorHallTab({ siteId, subdomain, role, t }) {
                 </div>
                 {canEdit && (
                     <button
-                        onClick={openModal}
+                        onClick={openAddModal}
                         className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[13px] font-semibold text-white cursor-pointer hover:brightness-110"
                         style={{ background: '#7a5a3a' }}
                     >
@@ -117,7 +177,7 @@ export default function AncestorHallTab({ siteId, subdomain, role, t }) {
                     </p>
                     {canEdit && (
                         <button
-                            onClick={openModal}
+                            onClick={openAddModal}
                             className="px-5 py-2 rounded-full text-[13px] font-semibold text-white cursor-pointer hover:brightness-110"
                             style={{ background: '#7a5a3a' }}
                         >
@@ -126,105 +186,173 @@ export default function AncestorHallTab({ siteId, subdomain, role, t }) {
                     )}
                 </div>
             ) : (
-                <div className="space-y-4">
-                    {ancestors.map((anc, idx) => (
-                        <button
-                            key={anc.id}
-                            onClick={() => navigate(`/${subdomain}/gallery/${anc.id}`)}
-                            className="w-full text-left rounded-2xl bg-white hover:shadow-lg transition-all cursor-pointer overflow-hidden group"
-                            style={{ border: '1px solid #e8dfd0' }}
-                        >
-                            <div className="flex">
-                                {/* 좌측: 사진 영역 */}
-                                <div className="w-[140px] sm:w-[180px] shrink-0 relative overflow-hidden"
-                                    style={{ background: 'linear-gradient(135deg, #f5ede0, #ede0cc)' }}>
-                                    {anc.cover_photo_url ? (
-                                        <img
-                                            src={anc.cover_photo_url}
-                                            alt={anc.title}
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                            style={{ minHeight: 160 }}
-                                        />
-                                    ) : (
-                                        <div className="flex items-center justify-center h-full" style={{ minHeight: 160 }}>
-                                            <span className="text-[56px] opacity-60">
-                                                {getRelationIcon(anc.relation)}
+                <div className="space-y-6">
+                    {ancestors.map((anc) => {
+                        const photos = Array.isArray(anc.featured_photos) ? anc.featured_photos : [];
+                        const linkedPerson = getLinkedPerson(anc.person_id);
+
+                        return (
+                            <div key={anc.id} className="rounded-2xl bg-white overflow-hidden group relative"
+                                style={{ border: '1px solid #e8dfd0' }}>
+
+                                {/* Featured Photos — 3-photo layout */}
+                                {photos.length > 0 ? (
+                                    <div className="relative">
+                                        {photos.length === 1 ? (
+                                            <img src={photos[0]} alt="" className="w-full h-[220px] object-cover" />
+                                        ) : photos.length === 2 ? (
+                                            <div className="flex gap-0.5 h-[220px]">
+                                                <img src={photos[0]} alt="" className="w-1/2 h-full object-cover" />
+                                                <img src={photos[1]} alt="" className="w-1/2 h-full object-cover" />
+                                            </div>
+                                        ) : (
+                                            <div className="flex gap-0.5 h-[220px]">
+                                                <img src={photos[0]} alt="" className="w-1/2 h-full object-cover" />
+                                                <div className="w-1/2 flex flex-col gap-0.5">
+                                                    <img src={photos[1]} alt="" className="h-1/2 w-full object-cover" />
+                                                    <img src={photos[2]} alt="" className="h-1/2 w-full object-cover" />
+                                                </div>
+                                            </div>
+                                        )}
+                                        {/* Overlay gradient */}
+                                        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/40 to-transparent" />
+                                    </div>
+                                ) : (
+                                    /* No photos — icon fallback */
+                                    <div className="h-[120px] flex items-center justify-center"
+                                        style={{ background: 'linear-gradient(135deg, #f5ede0, #ede0cc)' }}>
+                                        <span className="text-[56px] opacity-60">{getRelationIcon(anc.relation)}</span>
+                                    </div>
+                                )}
+
+                                {/* Info section */}
+                                <div className="p-4">
+                                    <div className="flex items-start justify-between gap-2 mb-1">
+                                        <button
+                                            onClick={() => navigate(`/${subdomain}/gallery/${anc.id}`)}
+                                            className="font-bold text-[17px] truncate hover:underline cursor-pointer bg-transparent border-none p-0 text-left"
+                                            style={{ color: '#3D2008' }}
+                                        >
+                                            {anc.title}
+                                        </button>
+                                        <ChevronRight size={16} className="text-slate-300 flex-shrink-0 mt-0.5 group-hover:text-[#7a5a3a] transition-colors" />
+                                    </div>
+
+                                    {/* Badges: relation, years, person link */}
+                                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                                        {anc.relation && (
+                                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                                                style={{ background: '#f5ede0', color: '#7a5a3a' }}>
+                                                {anc.relation}
+                                            </span>
+                                        )}
+                                        {(anc.birth_year || anc.death_year) && (
+                                            <span className="text-[11px] font-medium" style={{ color: '#a09080' }}>
+                                                {anc.birth_year || '?'} – {anc.death_year || ''}
+                                            </span>
+                                        )}
+                                        {linkedPerson && (
+                                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1"
+                                                style={{ background: '#e8f4ff', color: '#2563eb' }}>
+                                                <Link size={10} /> {linkedPerson.name}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Biography preview */}
+                                    {anc.biography && (
+                                        <p className="text-[13px] leading-relaxed mb-2 line-clamp-3" style={{ color: '#5a4a3a' }}>
+                                            {anc.biography}
+                                        </p>
+                                    )}
+
+                                    {/* Memoir preview */}
+                                    {anc.memoir && !anc.biography && (
+                                        <p className="text-[12px] leading-relaxed line-clamp-3" style={{ color: '#6a5a4a' }}>
+                                            {anc.memoir}
+                                        </p>
+                                    )}
+
+                                    {/* Footer: guestbook, visibility, edit/delete */}
+                                    <div className="flex items-center justify-between mt-3 pt-2 border-t" style={{ borderColor: '#f0ece4' }}>
+                                        <div className="flex items-center gap-3">
+                                            {anc.guestbook_count > 0 && (
+                                                <span className="flex items-center gap-1 text-[11px]" style={{ color: '#7a5a3a' }}>
+                                                    <BookOpen size={12} />
+                                                    {anc.guestbook_count} {t.exhGuestbook || 'messages'}
+                                                </span>
+                                            )}
+                                            <span className="text-[11px]" style={{ color: '#aaa' }}>
+                                                {anc.visibility === 'public' ? '🌐 ' + (t.exhVisPublic || 'Public') : '🔒 ' + (t.exhVisFamily || 'Family')}
                                             </span>
                                         </div>
-                                    )}
-                                    {/* 사진 수 뱃지 */}
-                                    {anc.photo_count > 0 && (
-                                        <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/50 text-white text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-sm">
-                                            <ImageIcon size={10} /> {anc.photo_count}
-                                        </div>
-                                    )}
+                                        {canEdit && (
+                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); openEditModal(anc); }}
+                                                    className="w-7 h-7 flex items-center justify-center rounded-full cursor-pointer hover:bg-amber-50"
+                                                    title={t.ancestorEditBtn || '수정'}
+                                                >
+                                                    <Edit2 size={13} style={{ color: '#7a5a3a' }} />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setDeleteConfirm(anc.id); }}
+                                                    className="w-7 h-7 flex items-center justify-center rounded-full cursor-pointer hover:bg-red-50"
+                                                    title={t.ancestorDeleteBtn || '삭제'}
+                                                >
+                                                    <Trash2 size={13} style={{ color: '#c44' }} />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
-                                {/* 우측: 정보 영역 */}
-                                <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
-                                    <div>
-                                        {/* 이름 + 관계 */}
-                                        <div className="flex items-start justify-between gap-2 mb-1">
-                                            <h3 className="font-bold text-[16px] truncate" style={{ color: '#3D2008' }}>
-                                                {anc.title}
-                                            </h3>
-                                            <ChevronRight size={16} className="text-slate-300 flex-shrink-0 mt-0.5 group-hover:text-[#7a5a3a] transition-colors" />
-                                        </div>
-
-                                        {/* 관계 + 연도 뱃지 */}
-                                        <div className="flex items-center gap-2 flex-wrap mb-2">
-                                            {anc.relation && (
-                                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                                                    style={{ background: '#f5ede0', color: '#7a5a3a' }}>
-                                                    {anc.relation}
-                                                </span>
-                                            )}
-                                            {(anc.birth_year || anc.death_year) && (
-                                                <span className="text-[11px] font-medium" style={{ color: '#a09080' }}>
-                                                    {anc.birth_year || '?'} – {anc.death_year || ''}
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        {/* 회고록 미리보기 */}
-                                        {anc.memoir && (
-                                            <p className="text-[12px] leading-relaxed line-clamp-3" style={{ color: '#6a5a4a' }}>
-                                                {anc.memoir}
+                                {/* Delete confirmation */}
+                                {deleteConfirm === anc.id && (
+                                    <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex items-center justify-center z-10 rounded-2xl">
+                                        <div className="text-center p-4">
+                                            <p className="text-[14px] font-bold mb-3" style={{ color: '#3D2008' }}>
+                                                {t.ancestorDeleteConfirm || '정말 삭제하시겠습니까?'}
                                             </p>
-                                        )}
+                                            <div className="flex gap-2 justify-center">
+                                                <button
+                                                    onClick={() => setDeleteConfirm(null)}
+                                                    className="px-4 py-2 rounded-xl text-[13px] font-semibold cursor-pointer"
+                                                    style={{ background: '#f0ece4', color: '#5a5a4a' }}
+                                                >
+                                                    {t.ancestorCancelBtn}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(anc.id)}
+                                                    className="px-4 py-2 rounded-xl text-[13px] font-semibold text-white cursor-pointer"
+                                                    style={{ background: '#c44' }}
+                                                >
+                                                    {t.ancestorDeleteBtn || '삭제'}
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
-
-                                    {/* 하단: 방명록 + 공개범위 */}
-                                    <div className="flex items-center gap-3 mt-3 pt-2 border-t" style={{ borderColor: '#f0ece4' }}>
-                                        {anc.guestbook_count > 0 && (
-                                            <span className="flex items-center gap-1 text-[11px]" style={{ color: '#7a5a3a' }}>
-                                                <BookOpen size={12} />
-                                                {anc.guestbook_count} {t.exhGuestbook || 'messages'}
-                                            </span>
-                                        )}
-                                        <span className="text-[11px]" style={{ color: '#aaa' }}>
-                                            {anc.visibility === 'public' ? '🌐 ' + (t.exhVisPublic || 'Public') : '🔒 ' + (t.exhVisFamily || 'Family')}
-                                        </span>
-                                    </div>
-                                </div>
+                                )}
                             </div>
-                        </button>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 
-            {/* Add Ancestor Modal */}
+            {/* Add/Edit Ancestor Modal */}
             {showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center px-4"
                     style={{ background: 'rgba(30,25,20,0.5)', backdropFilter: 'blur(4px)' }}
                     onClick={() => setShowModal(false)}>
-                    <div className="bg-white rounded-2xl w-full max-w-[480px] p-6 shadow-xl max-h-[90vh] overflow-y-auto"
+                    <div className="bg-white rounded-2xl w-full max-w-[520px] p-6 shadow-xl max-h-[90vh] overflow-y-auto"
                         style={{ border: '1.5px solid #e8dfd0' }}
                         onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-5">
                             <div className="flex items-center gap-2">
                                 <span className="text-lg">🕯️</span>
-                                <h3 className="text-[16px] font-bold" style={{ color: '#3D2008' }}>{t.ancestorModalTitle}</h3>
+                                <h3 className="text-[16px] font-bold" style={{ color: '#3D2008' }}>
+                                    {editTarget ? (t.ancestorEditTitle || '조상 수정') : t.ancestorModalTitle}
+                                </h3>
                             </div>
                             <button onClick={() => setShowModal(false)} className="w-7 h-7 flex items-center justify-center rounded-full cursor-pointer"
                                 style={{ background: '#f0ece4' }}>
@@ -232,6 +360,7 @@ export default function AncestorHallTab({ siteId, subdomain, role, t }) {
                             </button>
                         </div>
                         <form onSubmit={handleSubmit} className="space-y-3">
+                            {/* Name */}
                             <div>
                                 <label className="block text-[12px] font-semibold mb-1" style={{ color: '#7a5a3a' }}>{t.ancestorNameLabel} *</label>
                                 <input
@@ -243,6 +372,8 @@ export default function AncestorHallTab({ siteId, subdomain, role, t }) {
                                     style={{ border: '1.5px solid #e8dfd0', color: '#3D2008' }}
                                 />
                             </div>
+
+                            {/* Relation + Visibility */}
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-[12px] font-semibold mb-1" style={{ color: '#7a5a3a' }}>{t.ancestorRelationLabel}</label>
@@ -268,6 +399,8 @@ export default function AncestorHallTab({ siteId, subdomain, role, t }) {
                                     </select>
                                 </div>
                             </div>
+
+                            {/* Birth / Death year */}
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-[12px] font-semibold mb-1" style={{ color: '#7a5a3a' }}>{t.ancestorBirthLabel}</label>
@@ -292,10 +425,80 @@ export default function AncestorHallTab({ siteId, subdomain, role, t }) {
                                     />
                                 </div>
                             </div>
+
+                            {/* Person link (가족트리 연결) */}
+                            {persons.length > 0 && (
+                                <div>
+                                    <label className="block text-[12px] font-semibold mb-1" style={{ color: '#7a5a3a' }}>
+                                        <Link size={11} className="inline mr-1" />
+                                        {t.ancestorPersonLink || '가족트리 인물 연결'}
+                                    </label>
+                                    <select
+                                        value={form.person_id}
+                                        onChange={e => setForm(f => ({ ...f, person_id: e.target.value }))}
+                                        className="w-full rounded-xl px-3 py-2.5 text-[13px] outline-none"
+                                        style={{ border: '1.5px solid #e8dfd0', color: '#3D2008' }}
+                                    >
+                                        <option value="">{t.ancestorPersonNone || '연결 안함'}</option>
+                                        {persons.map((p) => (
+                                            <option key={p.id} value={p.id}>
+                                                {p.name} {p.birth_year ? `(${p.birth_year})` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            {/* Featured Photos (URLs) */}
+                            <div>
+                                <label className="block text-[12px] font-semibold mb-1" style={{ color: '#7a5a3a' }}>
+                                    <ImageIcon size={11} className="inline mr-1" />
+                                    {t.ancestorFeaturedPhotos || '대표 사진 (최대 3장, URL)'}
+                                </label>
+                                <div className="space-y-2">
+                                    {[1, 2, 3].map((n) => (
+                                        <input
+                                            key={n}
+                                            type="url"
+                                            value={form[`featured_photo_${n}`]}
+                                            onChange={e => setForm(f => ({ ...f, [`featured_photo_${n}`]: e.target.value }))}
+                                            placeholder={`${t.ancestorPhotoPlaceholder || '사진 URL'} ${n}`}
+                                            className="w-full rounded-xl px-3 py-2 text-[12px] outline-none"
+                                            style={{ border: '1.5px solid #e8dfd0', color: '#3D2008' }}
+                                        />
+                                    ))}
+                                </div>
+                                {/* Photo preview */}
+                                {(form.featured_photo_1 || form.featured_photo_2 || form.featured_photo_3) && (
+                                    <div className="flex gap-1 mt-2">
+                                        {[form.featured_photo_1, form.featured_photo_2, form.featured_photo_3].filter(Boolean).map((url, i) => (
+                                            <img key={i} src={url} alt="" className="w-16 h-16 rounded-lg object-cover"
+                                                onError={(e) => { e.target.style.display = 'none'; }} />
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Biography */}
+                            <div>
+                                <label className="block text-[12px] font-semibold mb-1" style={{ color: '#7a5a3a' }}>
+                                    {t.ancestorBiographyLabel || '이력 / 약력'}
+                                </label>
+                                <textarea
+                                    rows={3}
+                                    value={form.biography}
+                                    onChange={e => setForm(f => ({ ...f, biography: e.target.value }))}
+                                    placeholder={t.ancestorBiographyPlaceholder || '학력, 경력, 주요 이력 등'}
+                                    className="w-full rounded-xl px-3 py-2.5 text-[13px] outline-none resize-none"
+                                    style={{ border: '1.5px solid #e8dfd0', color: '#3D2008' }}
+                                />
+                            </div>
+
+                            {/* Memoir */}
                             <div>
                                 <label className="block text-[12px] font-semibold mb-1" style={{ color: '#7a5a3a' }}>{t.ancestorMemoirLabel}</label>
                                 <textarea
-                                    rows={4}
+                                    rows={3}
                                     value={form.memoir}
                                     onChange={e => setForm(f => ({ ...f, memoir: e.target.value }))}
                                     placeholder={t.ancestorMemoirPlaceholder}
@@ -303,6 +506,8 @@ export default function AncestorHallTab({ siteId, subdomain, role, t }) {
                                     style={{ border: '1.5px solid #e8dfd0', color: '#3D2008' }}
                                 />
                             </div>
+
+                            {/* Buttons */}
                             <div className="flex gap-2 pt-2">
                                 <button type="button" onClick={() => setShowModal(false)}
                                     className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold cursor-pointer"
@@ -312,7 +517,7 @@ export default function AncestorHallTab({ siteId, subdomain, role, t }) {
                                 <button type="submit" disabled={submitting}
                                     className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-white cursor-pointer hover:brightness-110 disabled:opacity-60"
                                     style={{ background: '#7a5a3a' }}>
-                                    {submitting ? t.ancestorCreating : t.ancestorSubmitBtn}
+                                    {submitting ? t.ancestorCreating : (editTarget ? (t.ancestorUpdateBtn || '수정') : t.ancestorSubmitBtn)}
                                 </button>
                             </div>
                         </form>
