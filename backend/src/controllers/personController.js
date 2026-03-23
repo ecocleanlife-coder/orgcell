@@ -19,7 +19,8 @@ exports.listPersons = async (req, res) => {
             `SELECT id, site_id, name, birth_year, death_year, gender,
                     privacy_level, parent1_id, parent2_id, spouse_id,
                     generation, photo_url, birth_date, death_date,
-                    is_deceased, birth_lunar, death_lunar, created_at
+                    is_deceased, birth_lunar, death_lunar,
+                    fs_person_id, created_at
              FROM persons WHERE site_id = $1
              ORDER BY generation ASC, id ASC`,
             [siteId]

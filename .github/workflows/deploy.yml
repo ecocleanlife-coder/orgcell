@@ -382,6 +382,29 @@ jobs:
               -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS is_deceased BOOLEAN DEFAULT false;" \
               -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS birth_lunar BOOLEAN DEFAULT false;" \
               -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS death_lunar BOOLEAN DEFAULT false;"
+            # ── 022: FamilySearch 연동 대비 ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS fs_person_id VARCHAR(20) DEFAULT NULL;" \
+              -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS fs_synced_at TIMESTAMPTZ DEFAULT NULL;" \
+              -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS fs_data JSONB DEFAULT NULL;" \
+              -c "ALTER TABLE person_relations ADD COLUMN IF NOT EXISTS fs_relationship_id VARCHAR(20) DEFAULT NULL;" \
+              -c "ALTER TABLE users ADD COLUMN IF NOT EXISTS fs_access_token TEXT DEFAULT NULL;" \
+              -c "ALTER TABLE users ADD COLUMN IF NOT EXISTS fs_token_expires_at TIMESTAMPTZ DEFAULT NULL;"
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "CREATE TABLE IF NOT EXISTS fs_memories (
+                id SERIAL PRIMARY KEY,
+                site_id INTEGER REFERENCES family_sites(id),
+                person_id INTEGER REFERENCES persons(id) ON DELETE CASCADE,
+                fs_memory_id VARCHAR(50) UNIQUE NOT NULL,
+                memory_type VARCHAR(20) NOT NULL,
+                title VARCHAR(255),
+                description TEXT,
+                fs_url TEXT,
+                local_copy_url TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+              );" \
+              -c "CREATE INDEX IF NOT EXISTS idx_fs_memories_person ON fs_memories(person_id);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_fs_memories_site ON fs_memories(site_id);"
             echo "Migrations done"
             # ─────────────────────────────────────────────────────────────
 

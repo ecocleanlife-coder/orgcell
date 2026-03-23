@@ -30,6 +30,7 @@ function buildTreeFromPersons(persons, relations = []) {
             is_deceased: p.is_deceased || false,
             birth_lunar: p.birth_lunar || false,
             death_lunar: p.death_lunar || false,
+            fs_person_id: p.fs_person_id || null,
             privacy_level: p.privacy_level || 'family',
             gender: p.gender || null,
             generation: p.generation || 0,
@@ -233,6 +234,19 @@ function FolderNode({ person, onEdit, size = 'md', canEdit = false, onAddParent,
             <div className={`absolute top-0 left-2 ${s.tab} bg-amber-300 dark:bg-amber-700 rounded-t-lg border-t border-x border-amber-400 dark:border-amber-600 group-hover:bg-amber-400 transition-colors`} />
             <div className={`absolute ${s.top} inset-x-0 bottom-0 bg-amber-100 dark:bg-amber-900/60 border-2 border-amber-300 dark:border-amber-700 rounded-xl shadow-lg group-hover:border-amber-400 group-hover:shadow-xl transition-all flex flex-col items-center justify-center p-2 gap-0.5 relative`}>
                 <PrivBadge level={person.privacy_level || 'family'} />
+                {person.fs_person_id && (
+                    <a
+                        href={`https://www.familysearch.org/tree/person/${person.fs_person_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute top-1 left-1 w-4 h-4 rounded-full flex items-center justify-center z-10"
+                        style={{ background: 'rgba(255,255,255,0.9)', border: '1px solid #4a8c3f' }}
+                        title="FamilySearch"
+                    >
+                        <span style={{ fontSize: 8, fontWeight: 900, color: '#4a8c3f', lineHeight: 1 }}>FS</span>
+                    </a>
+                )}
 
                 <div className={`${s.img} rounded-full border-2 border-white dark:border-amber-800 shadow overflow-hidden flex-shrink-0 flex items-center justify-center`}
                     style={{ background: person.coverUrl ? '#e8e0d0' : '#d4a574' }}>
