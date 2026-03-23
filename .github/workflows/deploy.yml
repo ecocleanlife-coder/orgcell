@@ -377,6 +377,11 @@ jobs:
             # ── 020: Dropbox token ──
             docker exec orgcell-db psql -U orgcell_user -d orgcell \
               -c "ALTER TABLE users ADD COLUMN IF NOT EXISTS dropbox_token JSONB DEFAULT NULL;"
+            # ── 021: persons 음력/고인 필드 ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS is_deceased BOOLEAN DEFAULT false;" \
+              -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS birth_lunar BOOLEAN DEFAULT false;" \
+              -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS death_lunar BOOLEAN DEFAULT false;"
             echo "Migrations done"
             # ─────────────────────────────────────────────────────────────
 

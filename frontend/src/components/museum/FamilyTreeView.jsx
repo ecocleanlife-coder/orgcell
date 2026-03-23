@@ -25,6 +25,11 @@ function buildTreeFromPersons(persons, relations = []) {
             coverUrl: p.photo_url || null,
             birth_date: p.birth_date || null,
             birth_year: p.birth_year || null,
+            death_date: p.death_date || null,
+            death_year: p.death_year || null,
+            is_deceased: p.is_deceased || false,
+            birth_lunar: p.birth_lunar || false,
+            death_lunar: p.death_lunar || false,
             privacy_level: p.privacy_level || 'family',
             gender: p.gender || null,
             generation: p.generation || 0,
@@ -156,9 +161,28 @@ function FolderNode({ person, onEdit, size = 'md', canEdit = false, onAddParent,
     };
     const s = sizes[size];
     const initials = getInitials(person.name);
-    const birthLabel = person.birth_date
-        ? new Date(person.birth_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short' })
-        : person.birth_year ? String(person.birth_year) : null;
+
+    // 생년 표시
+    const birthYear = person.birth_date
+        ? new Date(person.birth_date).getUTCFullYear()
+        : person.birth_year || null;
+    const birthPrefix = person.birth_lunar ? '음 ' : '';
+
+    // 사망년 표시
+    const deathYear = person.death_date
+        ? new Date(person.death_date).getUTCFullYear()
+        : person.death_year || null;
+
+    // 날짜 라벨: 고인이면 "1945 ~ 2020", 아니면 생년만
+    const isDeceased = person.is_deceased || !!person.death_date;
+    let dateLabel = null;
+    if (birthYear && deathYear) {
+        dateLabel = `${birthPrefix}${birthYear} ~ ${deathYear}`;
+    } else if (birthYear) {
+        dateLabel = `${birthPrefix}${birthYear}`;
+    } else if (person.birth_date) {
+        dateLabel = `${birthPrefix}${new Date(person.birth_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short' })}`;
+    }
 
     const dirBtnCls = 'absolute w-6 h-6 rounded-full bg-white dark:bg-gray-700 border-2 border-blue-300 dark:border-blue-600 flex items-center justify-center shadow-md hover:bg-blue-50 dark:hover:bg-blue-900 hover:border-blue-500 transition-all z-10 opacity-0 group-hover:opacity-100';
 
@@ -221,13 +245,14 @@ function FolderNode({ person, onEdit, size = 'md', canEdit = false, onAddParent,
                     )}
                 </div>
 
-                <span className={`${s.text} font-bold text-amber-900 dark:text-amber-100 text-center leading-tight truncate w-full`}>
+                <span className={`${s.text} font-bold text-amber-900 dark:text-amber-100 text-center leading-tight truncate w-full flex items-center justify-center gap-0.5`}>
+                    {isDeceased && <span className="flex-shrink-0">🕯️</span>}
                     {person.name}
                 </span>
 
-                {birthLabel && (
-                    <span className={`${s.sub} text-amber-600 dark:text-amber-400`}>
-                        {birthLabel}
+                {dateLabel && (
+                    <span className={`${s.sub} ${isDeceased ? 'text-gray-500 dark:text-gray-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                        {dateLabel}
                     </span>
                 )}
 
@@ -390,6 +415,10 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     const [newName, setNewName] = useState('');
     const [newRelation, setNewRelation] = useState('');
     const [newBirthDate, setNewBirthDate] = useState('');
+    const [newBirthLunar, setNewBirthLunar] = useState(false);
+    const [newDeceased, setNewDeceased] = useState(false);
+    const [newDeathDate, setNewDeathDate] = useState('');
+    const [newDeathLunar, setNewDeathLunar] = useState(false);
     const [newGender, setNewGender] = useState('');
     const [newPrivacy, setNewPrivacy] = useState('family');
 
@@ -401,6 +430,10 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     const [editPerson, setEditPerson] = useState(null);
     const [editName, setEditName] = useState('');
     const [editBirthDate, setEditBirthDate] = useState('');
+    const [editBirthLunar, setEditBirthLunar] = useState(false);
+    const [editDeceased, setEditDeceased] = useState(false);
+    const [editDeathDate, setEditDeathDate] = useState('');
+    const [editDeathLunar, setEditDeathLunar] = useState(false);
     const [editGender, setEditGender] = useState('');
     const [editPrivacy, setEditPrivacy] = useState('family');
     const [submitting, setSubmitting] = useState(false);
@@ -465,6 +498,10 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         setNewName('');
         setNewRelation(relation);
         setNewBirthDate('');
+        setNewBirthLunar(false);
+        setNewDeceased(false);
+        setNewDeathDate('');
+        setNewDeathLunar(false);
         setNewGender('');
         setNewPrivacy('family');
     };
@@ -473,6 +510,10 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         setModal({ mode: 'addFirst', placeholderRole });
         setNewName('');
         setNewBirthDate('');
+        setNewBirthLunar(false);
+        setNewDeceased(false);
+        setNewDeathDate('');
+        setNewDeathLunar(false);
         setNewGender('');
         setNewPrivacy('family');
     };
@@ -482,6 +523,10 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         setEditPerson(raw);
         setEditName(raw.name || '');
         setEditBirthDate(raw.birth_date ? raw.birth_date.slice(0, 10) : '');
+        setEditBirthLunar(raw.birth_lunar || false);
+        setEditDeceased(raw.is_deceased || !!raw.death_date);
+        setEditDeathDate(raw.death_date ? raw.death_date.slice(0, 10) : '');
+        setEditDeathLunar(raw.death_lunar || false);
         setEditGender(raw.gender || '');
         setEditPrivacy(raw.privacy_level || 'family');
         setConfirmDelete(false);
@@ -504,6 +549,10 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         const data = {
             name: newName.trim(),
             birth_date: newBirthDate || null,
+            birth_lunar: newBirthLunar,
+            is_deceased: newDeceased,
+            death_date: newDeceased ? (newDeathDate || null) : null,
+            death_lunar: newDeceased ? newDeathLunar : false,
             gender: newGender || null,
             privacy_level: newPrivacy,
             generation: 0,
@@ -541,6 +590,10 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         const data = {
             name: newName.trim(),
             birth_date: newBirthDate || null,
+            birth_lunar: newBirthLunar,
+            is_deceased: newDeceased,
+            death_date: newDeceased ? (newDeathDate || null) : null,
+            death_lunar: newDeceased ? newDeathLunar : false,
             gender: newGender || null,
             privacy_level: newPrivacy,
             generation: genMap[modal.placeholderRole] || 1,
@@ -558,6 +611,10 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         await apiUpdatePerson(editPerson.id, {
             name: editName.trim(),
             birth_date: editBirthDate || null,
+            birth_lunar: editBirthLunar,
+            is_deceased: editDeceased,
+            death_date: editDeceased ? (editDeathDate || null) : null,
+            death_lunar: editDeceased ? editDeathLunar : false,
             gender: editGender || null,
             privacy_level: editPrivacy,
         });
@@ -913,6 +970,31 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                             </label>
                             <input type="date" value={newBirthDate} onChange={e => setNewBirthDate(e.target.value)}
                                 className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2.5 rounded-xl outline-none border focus:border-emerald-500 dark:text-white" />
+                            <label className="flex items-center gap-2 mt-1.5 cursor-pointer select-none">
+                                <input type="checkbox" checked={newBirthLunar} onChange={e => setNewBirthLunar(e.target.checked)}
+                                    className="w-4 h-4 rounded border-gray-300 text-emerald-500 focus:ring-emerald-500" />
+                                <span className="text-xs text-gray-500 dark:text-gray-400">{lang === 'ko' ? '음력' : 'Lunar'}</span>
+                            </label>
+                        </div>
+                        <div>
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <input type="checkbox" checked={newDeceased} onChange={e => setNewDeceased(e.target.checked)}
+                                    className="w-4 h-4 rounded border-gray-300 text-gray-600 focus:ring-gray-500" />
+                                <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    🕯️ {lang === 'ko' ? '고인' : 'Deceased'}
+                                </span>
+                            </label>
+                            {newDeceased && (
+                                <div className="mt-2">
+                                    <input type="date" value={newDeathDate} onChange={e => setNewDeathDate(e.target.value)}
+                                        className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2.5 rounded-xl outline-none border focus:border-gray-400 dark:text-white" />
+                                    <label className="flex items-center gap-2 mt-1.5 cursor-pointer select-none">
+                                        <input type="checkbox" checked={newDeathLunar} onChange={e => setNewDeathLunar(e.target.checked)}
+                                            className="w-4 h-4 rounded border-gray-300 text-gray-500 focus:ring-gray-400" />
+                                        <span className="text-xs text-gray-500 dark:text-gray-400">{lang === 'ko' ? '음력' : 'Lunar'}</span>
+                                    </label>
+                                </div>
+                            )}
                         </div>
                         <div>
                             <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
@@ -1142,6 +1224,31 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                     </label>
                                     <input type="date" value={editBirthDate} onChange={e => setEditBirthDate(e.target.value)}
                                         className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2.5 rounded-xl outline-none border focus:border-amber-500 dark:text-white" />
+                                    <label className="flex items-center gap-2 mt-1.5 cursor-pointer select-none">
+                                        <input type="checkbox" checked={editBirthLunar} onChange={e => setEditBirthLunar(e.target.checked)}
+                                            className="w-4 h-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500" />
+                                        <span className="text-xs text-gray-500 dark:text-gray-400">{lang === 'ko' ? '음력' : 'Lunar'}</span>
+                                    </label>
+                                </div>
+                                <div>
+                                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                                        <input type="checkbox" checked={editDeceased} onChange={e => setEditDeceased(e.target.checked)}
+                                            className="w-4 h-4 rounded border-gray-300 text-gray-600 focus:ring-gray-500" />
+                                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                                            🕯️ {lang === 'ko' ? '고인' : 'Deceased'}
+                                        </span>
+                                    </label>
+                                    {editDeceased && (
+                                        <div className="mt-2">
+                                            <input type="date" value={editDeathDate} onChange={e => setEditDeathDate(e.target.value)}
+                                                className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2.5 rounded-xl outline-none border focus:border-gray-400 dark:text-white" />
+                                            <label className="flex items-center gap-2 mt-1.5 cursor-pointer select-none">
+                                                <input type="checkbox" checked={editDeathLunar} onChange={e => setEditDeathLunar(e.target.checked)}
+                                                    className="w-4 h-4 rounded border-gray-300 text-gray-500 focus:ring-gray-400" />
+                                                <span className="text-xs text-gray-500 dark:text-gray-400">{lang === 'ko' ? '음력' : 'Lunar'}</span>
+                                            </label>
+                                        </div>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
