@@ -23,6 +23,7 @@ function buildTreeFromPersons(persons, relations = []) {
             id: String(p.id),
             name: p.name,
             coverUrl: p.photo_url || null,
+            photoPosition: p.photo_position || { x: 50, y: 50 },
             birth_date: p.birth_date || null,
             birth_year: p.birth_year || null,
             death_date: p.death_date || null,
@@ -281,7 +282,8 @@ function FolderNode({ person, onEdit, size = 'md', canEdit = false, onAddParent,
                 <div className={`${s.img} rounded-full border-2 border-white dark:border-amber-800 shadow overflow-hidden flex-shrink-0 flex items-center justify-center`}
                     style={{ background: person.coverUrl ? '#e8e0d0' : '#d4a574' }}>
                     {person.coverUrl ? (
-                        <img src={person.coverUrl} alt={person.name} className="w-full h-full object-cover" />
+                        <img src={person.coverUrl} alt={person.name} className="w-full h-full object-cover"
+                            style={{ objectPosition: `${person.photoPosition?.x ?? 50}% ${person.photoPosition?.y ?? 50}%` }} />
                     ) : (
                         <span className="text-white font-bold" style={{ fontSize: size === 'lg' ? 18 : size === 'md' ? 14 : 10 }}>
                             {initials}
@@ -359,8 +361,8 @@ function PlusConnector({ dashed = false }) {
 
 function CoupleBox({ children }) {
     return (
-        <div className="flex items-center gap-1 rounded-2xl px-3 py-2 flex-shrink-0"
-            style={{ border: '2px solid #8B7355', background: 'rgba(139, 115, 85, 0.05)' }}>
+        <div className="flex items-center justify-center gap-1 rounded-2xl px-3 py-2 flex-shrink-0"
+            style={{ border: '2px solid #8B7355', background: 'rgba(139, 115, 85, 0.05)', minWidth: 180 }}>
             {children}
         </div>
     );
@@ -685,6 +687,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             death_lunar: editDeceased ? editDeathLunar : false,
             gender: editGender || null,
             privacy_level: editPrivacy,
+            photo_position: editPerson.photo_position || { x: 50, y: 50 },
         });
         setSubmitting(false);
         setModal(null);
@@ -999,7 +1002,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         return (
             <div key={child.id} className="flex flex-col items-center">
                 <VLine h={20} />
-                <div className="flex items-center gap-2">
+                <div className="flex items-start justify-center gap-4">
                     {/* Ex-spouses (left side, dashed) */}
                     {hasExSpouses && child.exSpouses.map((ex) => (
                         <React.Fragment key={ex.id}>
@@ -1203,8 +1206,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                         </>
                     )}
 
-                    {/* Center couple + ex-spouses */}
-                    <div className="flex items-center gap-2">
+                    {/* Center couple + ex-spouses + siblings */}
+                    <div className="flex items-start justify-center gap-6">
                         {/* Ex-spouses on left */}
                         {(treeRoot.exSpouses || []).map((ex) => (
                             <React.Fragment key={ex.id}>
@@ -1345,20 +1348,71 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                 <Edit3 className="text-amber-500" /> {lang === 'ko' ? '인물 수정' : 'Edit Person'}
                             </h3>
                             <div className="space-y-3">
-                                {/* 사진 업로드 */}
+                                {/* 사진 업로드 + 위치 조정 */}
                                 <div className="flex items-center gap-3">
-                                    <div className="w-16 h-16 rounded-full border-2 border-amber-300 overflow-hidden flex-shrink-0 flex items-center justify-center"
-                                        style={{ background: editPerson?.photo_url ? '#e8e0d0' : '#d4a574' }}>
+                                    <div
+                                        className="w-16 h-16 rounded-full border-2 border-amber-300 overflow-hidden flex-shrink-0 flex items-center justify-center relative select-none"
+                                        style={{ background: editPerson?.photo_url ? '#e8e0d0' : '#d4a574', cursor: editPerson?.photo_url ? 'move' : 'default' }}
+                                        onMouseDown={(e) => {
+                                            if (!editPerson?.photo_url) return;
+                                            e.preventDefault();
+                                            const startX = e.clientX;
+                                            const startY = e.clientY;
+                                            const pos = editPerson.photo_position || { x: 50, y: 50 };
+                                            const startPosX = pos.x;
+                                            const startPosY = pos.y;
+                                            let moved = false;
+                                            const onMove = (me) => {
+                                                const dx = (me.clientX - startX) * -0.5;
+                                                const dy = (me.clientY - startY) * -0.5;
+                                                if (Math.abs(dx) > 2 || Math.abs(dy) > 2) moved = true;
+                                                const nx = Math.max(0, Math.min(100, startPosX + dx));
+                                                const ny = Math.max(0, Math.min(100, startPosY + dy));
+                                                setEditPerson(p => ({ ...p, photo_position: { x: Math.round(nx), y: Math.round(ny) } }));
+                                            };
+                                            const onUp = () => {
+                                                document.removeEventListener('mousemove', onMove);
+                                                document.removeEventListener('mouseup', onUp);
+                                            };
+                                            document.addEventListener('mousemove', onMove);
+                                            document.addEventListener('mouseup', onUp);
+                                        }}
+                                        onTouchStart={(e) => {
+                                            if (!editPerson?.photo_url) return;
+                                            const touch = e.touches[0];
+                                            const startX = touch.clientX;
+                                            const startY = touch.clientY;
+                                            const pos = editPerson.photo_position || { x: 50, y: 50 };
+                                            const startPosX = pos.x;
+                                            const startPosY = pos.y;
+                                            const onMove = (te) => {
+                                                const t2 = te.touches[0];
+                                                const dx = (t2.clientX - startX) * -0.5;
+                                                const dy = (t2.clientY - startY) * -0.5;
+                                                const nx = Math.max(0, Math.min(100, startPosX + dx));
+                                                const ny = Math.max(0, Math.min(100, startPosY + dy));
+                                                setEditPerson(p => ({ ...p, photo_position: { x: Math.round(nx), y: Math.round(ny) } }));
+                                            };
+                                            const onEnd = () => {
+                                                document.removeEventListener('touchmove', onMove);
+                                                document.removeEventListener('touchend', onEnd);
+                                            };
+                                            document.addEventListener('touchmove', onMove, { passive: true });
+                                            document.addEventListener('touchend', onEnd);
+                                        }}
+                                    >
                                         {editPerson?.photo_url ? (
-                                            <img src={editPerson.photo_url} alt="" className="w-full h-full object-cover" />
+                                            <img src={editPerson.photo_url} alt="" className="w-full h-full object-cover pointer-events-none"
+                                                style={{ objectPosition: `${editPerson.photo_position?.x ?? 50}% ${editPerson.photo_position?.y ?? 50}%` }} />
                                         ) : (
                                             <Camera size={24} className="text-white/70" />
                                         )}
                                     </div>
-                                    <label className="cursor-pointer">
-                                        <span className="px-3 py-1.5 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs font-bold rounded-lg hover:bg-amber-200 transition-colors">
-                                            {lang === 'ko' ? '사진 변경' : 'Change Photo'}
-                                        </span>
+                                    <div className="flex flex-col gap-1">
+                                        <label className="cursor-pointer">
+                                            <span className="px-3 py-1.5 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs font-bold rounded-lg hover:bg-amber-200 transition-colors">
+                                                {lang === 'ko' ? '사진 변경' : 'Change Photo'}
+                                            </span>
                                         <input type="file" accept="image/*,.heic,.heif,.HEIC,.HEIF" className="hidden"
                                             onChange={async (e) => {
                                                 const file = e.target.files?.[0];
@@ -1381,6 +1435,12 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                             }}
                                         />
                                     </label>
+                                        {editPerson?.photo_url && (
+                                            <span className="text-[9px] text-gray-400 dark:text-gray-500">
+                                                {lang === 'ko' ? '사진 드래그로 위치 조정' : 'Drag photo to adjust'}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.nameLabel} *</label>

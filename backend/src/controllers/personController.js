@@ -20,7 +20,7 @@ exports.listPersons = async (req, res) => {
                     privacy_level, parent1_id, parent2_id, spouse_id,
                     generation, photo_url, birth_date, death_date,
                     is_deceased, birth_lunar, death_lunar,
-                    fs_person_id, created_at
+                    fs_person_id, photo_position, created_at
              FROM persons WHERE site_id = $1
              ORDER BY generation ASC, id ASC`,
             [siteId]
@@ -41,17 +41,17 @@ exports.createPerson = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Forbidden' });
         }
 
-        const { name, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date, is_deceased, birth_lunar, death_lunar } = req.body;
+        const { name, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date, is_deceased, birth_lunar, death_lunar, photo_position } = req.body;
 
         if (!name) {
             return res.status(400).json({ success: false, message: 'name is required' });
         }
 
         const { rows } = await db.query(
-            `INSERT INTO persons (site_id, name, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date, is_deceased, birth_lunar, death_lunar)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+            `INSERT INTO persons (site_id, name, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date, is_deceased, birth_lunar, death_lunar, photo_position)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
              RETURNING *`,
-            [siteId, name, birth_year || null, death_year || null, gender || null, privacy_level || 'family', parent1_id || null, parent2_id || null, spouse_id || null, generation || 0, photo_url || null, birth_date || null, death_date || null, is_deceased ?? false, birth_lunar ?? false, death_lunar ?? false]
+            [siteId, name, birth_year || null, death_year || null, gender || null, privacy_level || 'family', parent1_id || null, parent2_id || null, spouse_id || null, generation || 0, photo_url || null, birth_date || null, death_date || null, is_deceased ?? false, birth_lunar ?? false, death_lunar ?? false, photo_position ? JSON.stringify(photo_position) : '{"x":50,"y":50}']
         );
 
         res.status(201).json({ success: true, data: rows[0] });
@@ -75,7 +75,7 @@ exports.updatePerson = async (req, res) => {
             'name', 'birth_year', 'death_year', 'gender', 'privacy_level',
             'parent1_id', 'parent2_id', 'spouse_id', 'generation',
             'photo_url', 'birth_date', 'death_date',
-            'is_deceased', 'birth_lunar', 'death_lunar',
+            'is_deceased', 'birth_lunar', 'death_lunar', 'photo_position',
         ];
 
         const setClauses = [];

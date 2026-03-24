@@ -408,6 +408,9 @@ jobs:
               );" \
               -c "CREATE INDEX IF NOT EXISTS idx_fs_memories_person ON fs_memories(person_id);" \
               -c "CREATE INDEX IF NOT EXISTS idx_fs_memories_site ON fs_memories(site_id);"
+            # ── 023: 사진 위치 조정 ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS photo_position JSONB DEFAULT '{\"x\":50,\"y\":50}';"
             echo "Migrations done"
             # ─────────────────────────────────────────────────────────────
 

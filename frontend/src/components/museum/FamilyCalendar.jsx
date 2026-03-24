@@ -4,11 +4,11 @@ import { ChevronLeft, ChevronRight, Plus, X, Trash2 } from 'lucide-react';
 import { Solar } from 'lunar-javascript';
 
 const TYPE_COLORS = {
-    birthday:    { bg: '#dbeafe', border: '#3b82f6', dot: '#3b82f6', emoji: '🎂' },
-    anniversary: { bg: '#fce7f3', border: '#ec4899', dot: '#ec4899', emoji: '💑' },
-    event:       { bg: '#dcfce7', border: '#22c55e', dot: '#22c55e', emoji: '🎉' },
-    memorial:    { bg: '#f3f4f6', border: '#6b7280', dot: '#6b7280', emoji: '🕯️' },
-    trip:        { bg: '#ffedd5', border: '#f97316', dot: '#f97316', emoji: '✈️' },
+    birthday:    { bg: '#d3e3fd', border: '#4285F4', dot: '#4285F4', emoji: '🎂' },
+    anniversary: { bg: '#fce8e6', border: '#E67C73', dot: '#E67C73', emoji: '💑' },
+    event:       { bg: '#d4edda', border: '#33B679', dot: '#33B679', emoji: '🎉' },
+    memorial:    { bg: '#f0f0f0', border: '#8E8E8E', dot: '#8E8E8E', emoji: '🕯️' },
+    trip:        { bg: '#fef3cd', border: '#F6BF26', dot: '#F6BF26', emoji: '✈️' },
 };
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -309,30 +309,33 @@ export default function FamilyCalendar({ siteId, role, t }) {
                                                 </div>
                                             )
                                         ) : (
-                                            // 데스크톱: 컬러 바로 표시
-                                            <div className="flex flex-col gap-[2px]">
+                                            // 데스크톱: 컬러 바로 표시 (18px, 12px font)
+                                            <div className="flex flex-col gap-[2px] mt-0.5">
                                                 {visibleEvents.map((ev, idx) => {
                                                     const c = TYPE_COLORS[ev.event_type] || TYPE_COLORS.event;
                                                     const isRangeMiddle = ev._isRange && !ev._isRangeStart;
-                                                    if (isRangeMiddle) return null;
                                                     return (
                                                         <div
                                                             key={`${ev.id}-${idx}`}
                                                             onClick={(e) => handleEventClick(ev, e)}
-                                                            className="rounded px-1 py-[1px] text-[10px] font-medium truncate cursor-pointer hover:brightness-95 transition-all"
+                                                            className="rounded-sm px-1 cursor-pointer hover:brightness-90 transition-all overflow-hidden whitespace-nowrap"
                                                             style={{
+                                                                height: 18,
+                                                                lineHeight: '18px',
+                                                                fontSize: 12,
                                                                 background: c.bg,
-                                                                borderLeft: `3px solid ${c.border}`,
+                                                                borderLeft: isRangeMiddle ? 'none' : `3px solid ${c.border}`,
+                                                                borderRadius: isRangeMiddle ? 0 : undefined,
                                                                 color: '#333',
                                                             }}
                                                             title={ev.title}
                                                         >
-                                                            {c.emoji} {ev.title}
+                                                            {isRangeMiddle ? '' : `${c.emoji} `}{isRangeMiddle ? '···' : ev.title}
                                                         </div>
                                                     );
                                                 })}
                                                 {moreCount > 0 && (
-                                                    <span className="text-[10px] text-slate-400 pl-1">+{moreCount}</span>
+                                                    <span className="text-[10px] text-slate-400 pl-1" style={{ lineHeight: '16px' }}>+{moreCount}개</span>
                                                 )}
                                             </div>
                                         )}
