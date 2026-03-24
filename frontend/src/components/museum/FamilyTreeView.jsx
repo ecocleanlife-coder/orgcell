@@ -1,12 +1,13 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Network, Plus, UserPlus, ExternalLink,
     Edit3, Trash2, Globe, Lock, Eye,
     ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
-    Link2, Camera,
+    Link2, Camera, ZoomIn, ZoomOut, Maximize,
 } from 'lucide-react';
 import axios from 'axios';
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import FamilyBanner from '../common/FamilyBanner';
 import WormholePortal from './WormholePortal';
 import useUiStore from '../../store/uiStore';
@@ -62,20 +63,20 @@ function buildTreeFromPersons(persons, relations = []) {
         }
     }
 
-    // parentPairs (birth parents from DB columns)
+    // parentPairs (birth parents from DB columns — single parent도 지원)
     for (const p of persons) {
-        if (p.parent1_id && p.parent2_id && byId[p.parent1_id] && byId[p.parent2_id]) {
+        if (p.parent1_id && byId[p.parent1_id]) {
             const node = byId[p.id];
             const exists = node.parentPairs.find(pp =>
-                pp.parent1?.id === String(p.parent1_id) && pp.parent2?.id === String(p.parent2_id)
+                pp.parent1?.id === String(p.parent1_id)
             );
             if (!exists) {
                 node.parentPairs.push({
-                    id: `pp_${p.parent1_id}_${p.parent2_id}`,
+                    id: `pp_${p.parent1_id}_${p.parent2_id || 'none'}`,
                     label: 'Birth Parents',
                     type: 'birth',
                     parent1: byId[p.parent1_id],
-                    parent2: byId[p.parent2_id],
+                    parent2: p.parent2_id && byId[p.parent2_id] ? byId[p.parent2_id] : null,
                 });
             }
         }
@@ -1170,7 +1171,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     }
 
     return (
-        <div className="w-full min-h-[70vh] bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-inner overflow-x-auto custom-scrollbar">
+        <div className="w-full min-h-[70vh] bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-inner overflow-hidden">
             <FamilyBanner />
 
             <div className="p-6 pb-0">
@@ -1189,92 +1190,123 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 </div>
             </div>
 
-            {/* === TREE === */}
-            <div className="px-6 pb-6">
-                <div className="flex flex-col items-center min-w-max px-4 pb-16">
-                    {renderRootParents()}
-
-                    {(treeRoot.parentPairs?.length > 0 || treeRoot.spouse?.parentPairs?.length > 0) && (
+            {/* === TREE with Pan & Zoom === */}
+            <div className="relative px-6 pb-6">
+                <TransformWrapper
+                    initialScale={1}
+                    minScale={0.3}
+                    maxScale={2}
+                    centerOnInit
+                    wheel={{ step: 0.08 }}
+                    doubleClick={{ mode: 'reset' }}
+                    panning={{ velocityDisabled: true }}
+                >
+                    {({ zoomIn, zoomOut, resetTransform }) => (
                         <>
-                            <VLine h={24} />
-                            <div className="flex items-center justify-center w-full max-w-2xl">
-                                <HLine />
-                                <div className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
-                                <HLine />
+                            {/* Zoom controls — 우측 하단 */}
+                            <div className="absolute bottom-4 right-4 z-20 flex flex-col gap-1.5">
+                                <button onClick={() => zoomIn()} className="w-9 h-9 rounded-xl bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 shadow-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors" title="확대">
+                                    <ZoomIn size={18} className="text-gray-600 dark:text-gray-300" />
+                                </button>
+                                <button onClick={() => zoomOut()} className="w-9 h-9 rounded-xl bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 shadow-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors" title="축소">
+                                    <ZoomOut size={18} className="text-gray-600 dark:text-gray-300" />
+                                </button>
+                                <button onClick={() => resetTransform()} className="w-9 h-9 rounded-xl bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 shadow-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors" title="초기화">
+                                    <Maximize size={18} className="text-gray-600 dark:text-gray-300" />
+                                </button>
                             </div>
-                            <VLine h={16} />
+
+                            <TransformComponent wrapperStyle={{ width: '100%', minHeight: '60vh', cursor: 'grab' }} contentStyle={{ display: 'flex', justifyContent: 'center' }}>
+                                <div className="flex flex-col items-center min-w-max px-4 pb-16">
+                                    {renderRootParents()}
+
+                                    {(treeRoot.parentPairs?.length > 0 || treeRoot.spouse?.parentPairs?.length > 0) && (
+                                        <>
+                                            <VLine h={24} />
+                                            <div className="flex items-center justify-center w-full max-w-2xl">
+                                                <HLine />
+                                                <div className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
+                                                <HLine />
+                                            </div>
+                                            <VLine h={16} />
+                                        </>
+                                    )}
+
+                                    {/* Center couple + ex-spouses + siblings */}
+                                    <div className="flex items-start justify-center gap-6">
+                                        {/* Ex-spouses on left */}
+                                        {(treeRoot.exSpouses || []).map((ex) => (
+                                            <React.Fragment key={ex.id}>
+                                                <FolderNode
+                                                    person={ex}
+                                                    onEdit={openEditModal}
+                                                    size="sm"
+                                                    canEdit={canEdit}
+                                                />
+                                                <PlusConnector dashed />
+                                            </React.Fragment>
+                                        ))}
+
+                                        {treeRoot.spouse ? (
+                                            <CoupleBox>
+                                                <FolderNode
+                                                    person={treeRoot}
+                                                    onEdit={openEditModal}
+                                                    size="lg"
+                                                    canEdit={canEdit}
+                                                    onAddParent={!treeRoot._raw?.parent1_id ? () => openParentsModal(treeRoot.id) : undefined}
+                                                    onAddChild={() => openMemberModal(treeRoot.id, 'child')}
+                                                    onAddSibling={() => openMemberModal(treeRoot.id, 'sibling')}
+                                                    onWormhole={getFederationForPerson(treeRoot.id) ? () => setPortalFed(getFederationForPerson(treeRoot.id)) : undefined}
+                                                />
+                                                <span className="text-lg select-none mx-1">💑</span>
+                                                <FolderNode
+                                                    person={treeRoot.spouse}
+                                                    onEdit={openEditModal}
+                                                    size="lg"
+                                                    canEdit={canEdit}
+                                                    onAddParent={!treeRoot.spouse._raw?.parent1_id ? () => openParentsModal(treeRoot.spouse.id) : undefined}
+                                                    onAddChild={() => openMemberModal(treeRoot.spouse.id, 'child')}
+                                                    onAddSibling={() => openMemberModal(treeRoot.spouse.id, 'sibling')}
+                                                />
+                                            </CoupleBox>
+                                        ) : (
+                                            <FolderNode
+                                                person={treeRoot}
+                                                onEdit={openEditModal}
+                                                size="lg"
+                                                canEdit={canEdit}
+                                                onAddParent={!treeRoot._raw?.parent1_id ? () => openParentsModal(treeRoot.id) : undefined}
+                                                onAddSpouse={() => openMemberModal(treeRoot.id, 'spouse')}
+                                                onAddChild={() => openMemberModal(treeRoot.id, 'child')}
+                                                onAddSibling={() => openMemberModal(treeRoot.id, 'sibling')}
+                                                onWormhole={getFederationForPerson(treeRoot.id) ? () => setPortalFed(getFederationForPerson(treeRoot.id)) : undefined}
+                                            />
+                                        )}
+                                        {/* Siblings inline (같은 행) */}
+                                        {renderInlineSiblings(treeRoot, 'lg')}
+                                    </div>
+
+                                    <VLine h={24} />
+
+                                    {(treeRoot.children || []).length > 0 && (
+                                        <>
+                                            <div className="flex items-center" style={{ width: `${Math.max(treeRoot.children.length * 160, 200)}px` }}>
+                                                <HLine />
+                                            </div>
+                                            <div className="flex items-start justify-center gap-4 md:gap-8">
+                                                {treeRoot.children.map((child) => renderChild(child))}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </TransformComponent>
                         </>
                     )}
+                </TransformWrapper>
+            </div>
 
-                    {/* Center couple + ex-spouses + siblings */}
-                    <div className="flex items-start justify-center gap-6">
-                        {/* Ex-spouses on left */}
-                        {(treeRoot.exSpouses || []).map((ex) => (
-                            <React.Fragment key={ex.id}>
-                                <FolderNode
-                                    person={ex}
-                                    onEdit={openEditModal}
-                                    size="sm"
-                                    canEdit={canEdit}
-                                />
-                                <PlusConnector dashed />
-                            </React.Fragment>
-                        ))}
-
-                        {treeRoot.spouse ? (
-                            <CoupleBox>
-                                <FolderNode
-                                    person={treeRoot}
-                                    onEdit={openEditModal}
-                                    size="lg"
-                                    canEdit={canEdit}
-                                    onAddParent={!treeRoot._raw?.parent1_id ? () => openParentsModal(treeRoot.id) : undefined}
-                                    onAddChild={() => openMemberModal(treeRoot.id, 'child')}
-                                    onAddSibling={() => openMemberModal(treeRoot.id, 'sibling')}
-                                    onWormhole={getFederationForPerson(treeRoot.id) ? () => setPortalFed(getFederationForPerson(treeRoot.id)) : undefined}
-                                />
-                                <span className="text-lg select-none mx-1">💑</span>
-                                <FolderNode
-                                    person={treeRoot.spouse}
-                                    onEdit={openEditModal}
-                                    size="lg"
-                                    canEdit={canEdit}
-                                    onAddParent={!treeRoot.spouse._raw?.parent1_id ? () => openParentsModal(treeRoot.spouse.id) : undefined}
-                                    onAddChild={() => openMemberModal(treeRoot.spouse.id, 'child')}
-                                    onAddSibling={() => openMemberModal(treeRoot.spouse.id, 'sibling')}
-                                />
-                            </CoupleBox>
-                        ) : (
-                            <FolderNode
-                                person={treeRoot}
-                                onEdit={openEditModal}
-                                size="lg"
-                                canEdit={canEdit}
-                                onAddParent={!treeRoot._raw?.parent1_id ? () => openParentsModal(treeRoot.id) : undefined}
-                                onAddSpouse={() => openMemberModal(treeRoot.id, 'spouse')}
-                                onAddChild={() => openMemberModal(treeRoot.id, 'child')}
-                                onAddSibling={() => openMemberModal(treeRoot.id, 'sibling')}
-                                onWormhole={getFederationForPerson(treeRoot.id) ? () => setPortalFed(getFederationForPerson(treeRoot.id)) : undefined}
-                            />
-                        )}
-                        {/* Siblings inline (같은 행) */}
-                        {renderInlineSiblings(treeRoot, 'lg')}
-                    </div>
-
-                    <VLine h={24} />
-
-                    {(treeRoot.children || []).length > 0 && (
-                        <>
-                            <div className="flex items-center" style={{ width: `${Math.max(treeRoot.children.length * 160, 200)}px` }}>
-                                <HLine />
-                            </div>
-                            <div className="flex items-start justify-center gap-4 md:gap-8">
-                                {treeRoot.children.map((child) => renderChild(child))}
-                            </div>
-                        </>
-                    )}
-                </div>
-
+            <div>
                 {/* ── Member Modal (child/spouse/sibling) ── */}
                 {modal?.mode === 'member' && renderPersonFormModal(
                     modal.relation === 'spouse'
