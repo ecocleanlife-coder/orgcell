@@ -192,7 +192,18 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             }
 
             chart.setTransitionTime(0);
-            chart.updateTree({ initial: true, tree_position: 'main_to_middle' });
+            chart.updateTree({ initial: true, tree_position: 'fit' });
+
+            // SVG 크기를 컨테이너에 맞게 강제 설정
+            const svgEl = chartContRef.current.querySelector('svg.main_svg');
+            if (svgEl) {
+                svgEl.style.width = '100%';
+                svgEl.style.height = '100%';
+                // fit 재계산
+                setTimeout(() => {
+                    chart.updateTree({ tree_position: 'fit' });
+                }, 50);
+            }
 
             chartRef.current = chart;
         } catch (err) {
@@ -680,13 +691,12 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             {/* family-chart 커스텀 스타일 */}
             <style>{`
                 .fc-card-inner:hover .fc-hover-btns { opacity: 1 !important; }
-                .f3 .links_view path.link { stroke: #C4956A; stroke-width: 2; stroke-opacity: 0.7; }
-                .f3 .card { overflow: visible !important; background: none !important; border: none !important; box-shadow: none !important; }
-                .f3 .card-body { overflow: visible !important; background: none !important; }
-                .f3 .card-inner { overflow: visible !important; }
-                .f3 svg { overflow: visible; }
-                .f3 { overflow: visible; }
-                .f3 .card.card-male, .f3 .card.card-female, .f3 .card.card-genderless { background: none !important; }
+                svg.main_svg { width: 100% !important; height: 100% !important; display: block; }
+                .links_view path.link { stroke: #C4956A !important; stroke-width: 2 !important; stroke-opacity: 0.7 !important; }
+                .card { overflow: visible !important; background: none !important; border: none !important; box-shadow: none !important; }
+                .card-body { overflow: visible !important; background: none !important; }
+                .card-inner { overflow: visible !important; }
+                .card.card-male, .card.card-female, .card.card-genderless { background: none !important; border: none !important; box-shadow: none !important; }
             `}</style>
 
             {/* family-chart 컨테이너 */}
