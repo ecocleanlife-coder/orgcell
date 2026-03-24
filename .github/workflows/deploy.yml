@@ -172,6 +172,8 @@ jobs:
                   - PORT=5001
                   - DATABASE_URL=postgresql://orgcell_user:\${DB_PASSWORD}@orgcell-db:5432/orgcell
                   - FRONTEND_URL=https://orgcell.com
+                volumes:
+                  - orgcell-uploads:/app/uploads
                 depends_on:
                   orgcell-db:
                     condition: service_healthy
@@ -213,6 +215,7 @@ jobs:
                   retries: 5
             volumes:
               orgcell-pgdata:
+              orgcell-uploads:
             networks:
               orgcell-network:
                 driver: bridge
