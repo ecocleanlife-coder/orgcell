@@ -89,6 +89,23 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
     useEffect(() => { fetchPersons(); }, [fetchPersons]);
 
+    // ── family-chart 카드 클릭 핸들러 (hover 버튼용) ──
+    const handleCardAction = useCallback((personId, action) => {
+        const raw = persons.find(p => String(p.id) === String(personId));
+        if (!raw) return;
+        if (action === 'edit') openEditModal(raw);
+        else if (action === 'parent') openParentsModal(raw.id);
+        else if (action === 'spouse') openMemberModal(raw.id, 'spouse');
+        else if (action === 'child') openMemberModal(raw.id, 'child');
+        else if (action === 'sibling') openMemberModal(raw.id, 'sibling');
+    }, [persons]);
+
+    // 글로벌 핸들러 등록 (family-chart HTML에서 호출)
+    useEffect(() => {
+        window.__fcAction = handleCardAction;
+        return () => { delete window.__fcAction; };
+    }, [handleCardAction]);
+
     // ── family-chart 초기화 및 업데이트 ──
     useEffect(() => {
         if (isLoading || persons.length === 0 || !chartContRef.current) return;
@@ -104,10 +121,14 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         try {
             const chart = f3.createChart(chartContRef.current, chartData);
 
+            // 카드 간격 설정
+            chart.setCardXSpacing(200);
+            chart.setCardYSpacing(220);
+
             const cardHtml = chart.setCardHtml()
                 .setCardDisplay([['display_name'], ['date_label']])
-                .setStyle('imageCircle')
-                .setCardImageField('avatar')
+                .setStyle('rect')
+                .setCardDim({ w: 140, h: 180, img_w: 70, img_h: 70, img_x: 35, img_y: 10 })
                 .setMiniTree(true)
                 .setOnCardClick((e, d) => {
                     if (canEdit) {
@@ -124,20 +145,31 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                     const initials = data.initials || '?';
                     const fsId = data.fs_person_id;
                     const pos = data.photo_position || { x: 50, y: 50 };
+                    const personId = d.data.id;
+
+                    const hoverBtns = canEdit ? `
+                        <div class="fc-hover-btns" style="position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity 0.2s;">
+                            <button onclick="event.stopPropagation();window.__fcAction('${personId}','parent')" style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);width:28px;height:28px;border-radius:50%;background:#6366f1;color:#fff;border:2px solid #fff;font-size:16px;cursor:pointer;pointer-events:auto;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,0.2);" title="부모 추가">↑</button>
+                            <button onclick="event.stopPropagation();window.__fcAction('${personId}','child')" style="position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);width:28px;height:28px;border-radius:50%;background:#10b981;color:#fff;border:2px solid #fff;font-size:16px;cursor:pointer;pointer-events:auto;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,0.2);" title="자녀 추가">↓</button>
+                            <button onclick="event.stopPropagation();window.__fcAction('${personId}','sibling')" style="position:absolute;left:-14px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;background:#f59e0b;color:#fff;border:2px solid #fff;font-size:16px;cursor:pointer;pointer-events:auto;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,0.2);" title="형제 추가">←</button>
+                            <button onclick="event.stopPropagation();window.__fcAction('${personId}','spouse')" style="position:absolute;right:-14px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;background:#ec4899;color:#fff;border:2px solid #fff;font-size:16px;cursor:pointer;pointer-events:auto;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,0.2);" title="배우자 추가">→</button>
+                        </div>
+                    ` : '';
 
                     return `
-                        <div style="display:flex;flex-direction:column;align-items:center;padding:8px 4px;min-width:100px;cursor:pointer;">
-                            ${fsId ? `<div style="position:absolute;top:4px;left:4px;width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,0.9);border:1px solid #4a8c3f;display:flex;align-items:center;justify-content:center;z-index:2;"><span style="font-size:7px;font-weight:900;color:#4a8c3f;">FS</span></div>` : ''}
-                            <div style="width:56px;height:56px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.2);overflow:hidden;background:${photoUrl ? '#e8e0d0' : '#d4a574'};display:flex;align-items:center;justify-content:center;">
+                        <div class="fc-card-inner" style="position:relative;width:140px;background:#FFF8E7;border:2px solid #D4A853;border-radius:12px;padding:10px 8px 8px;text-align:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+                            ${fsId ? `<div style="position:absolute;top:4px;right:4px;padding:1px 5px;border-radius:4px;background:#4a8c3f;z-index:2;"><span style="font-size:8px;font-weight:900;color:#fff;">FS</span></div>` : ''}
+                            <div style="width:70px;height:70px;border-radius:50%;border:3px solid #D4A853;overflow:hidden;background:${photoUrl ? '#e8e0d0' : '#d4a574'};display:flex;align-items:center;justify-content:center;margin:0 auto 8px;">
                                 ${photoUrl
                                     ? `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;object-position:${pos.x}% ${pos.y}%;" />`
-                                    : `<span style="color:#fff;font-weight:700;font-size:16px;">${initials}</span>`
+                                    : `<span style="color:#fff;font-weight:700;font-size:20px;">${initials}</span>`
                                 }
                             </div>
-                            <div style="margin-top:4px;font-size:12px;font-weight:700;color:#78350f;text-align:center;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                            <div style="font-size:14px;font-weight:700;color:#5C4033;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0 auto;">
                                 ${isDeceased ? '🕯️ ' : ''}${displayName}
                             </div>
-                            ${dateLabel ? `<div style="font-size:10px;color:#92400e;text-align:center;">${dateLabel}</div>` : ''}
+                            ${dateLabel ? `<div style="font-size:11px;color:#9E8A78;margin-top:2px;">${dateLabel}</div>` : ''}
+                            ${hoverBtns}
                         </div>
                     `;
                 });
@@ -633,11 +665,20 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 </div>
             </div>
 
+            {/* family-chart 커스텀 스타일 */}
+            <style>{`
+                .fc-card-inner:hover .fc-hover-btns { opacity: 1 !important; }
+                .f3 .links_view path.link { stroke: #C4956A; stroke-width: 2; }
+                .f3 .card { overflow: visible !important; background: none !important; border: none !important; }
+                .f3 .card-body { overflow: visible !important; }
+                .f3 svg { overflow: visible; }
+            `}</style>
+
             {/* family-chart 컨테이너 */}
             <div
                 ref={chartContRef}
                 className="w-full"
-                style={{ minHeight: '60vh' }}
+                style={{ height: 'calc(100vh - 220px)', minHeight: '500px' }}
             />
 
             {/* ── Modals ── */}
