@@ -138,7 +138,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 })
                 .setCardInnerHtmlCreator((d) => {
                     const data = d.data.data || d.data;
-                    const displayName = data.display_name || `${data['first name']} ${data['last name']}`.trim();
+                    const fn = data['first name'] || '';
+                    const ln = data['last name'] || '';
+                    const displayName = data.display_name || `${ln}${fn}`.trim() || '?';
                     const isDeceased = data.is_deceased;
                     const dateLabel = data.date_label || '';
                     const photoUrl = data.avatar;
@@ -189,7 +191,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 chart.updateMainId(mainId);
             }
 
-            chart.updateTree({ initial: true, tree_position: 'fit' });
+            chart.setTransitionTime(0);
+            chart.updateTree({ initial: true, tree_position: 'main_to_middle' });
 
             chartRef.current = chart;
         } catch (err) {
