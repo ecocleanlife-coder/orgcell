@@ -152,9 +152,14 @@ function buildTreeFromPersons(persons, relations = []) {
         }
     }
 
-    // Find root: gen 1 first, else no-parent
+    // Find root: gen 1 (나의 세대) 중 가장 먼저 등록된 인물 (id 낮은 순)
+    // gen 1이 없으면 부모 없는 첫 인물, 그래도 없으면 최초 등록 인물
     const gen1 = persons.filter(p => p.generation === 1);
-    if (gen1.length > 0) return byId[gen1[0].id];
+    if (gen1.length > 0) {
+        // gen 1 중 가장 낮은 id → 형제 추가해도 treeRoot 변경 없음
+        gen1.sort((a, b) => a.id - b.id);
+        return byId[gen1[0].id];
+    }
 
     const roots = persons.filter(p => !p.parent1_id);
     if (roots.length > 0) return byId[roots[0].id];
@@ -998,11 +1003,12 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         });
     };
 
-    // ── Recursive child renderer ──
+    // ── Recursive child renderer — 본인+자녀를 독립 컬럼, 형제도 독립 컬럼 ──
     const renderChild = (child) => {
         const hasSpouse = !!child.spouse;
         const hasExSpouses = (child.exSpouses || []).length > 0;
         const kids = child.children || [];
+        const hasSiblings = (child.siblings || []).length > 0;
 
         return (
             <div key={child.id} className="flex flex-col items-center">
@@ -1021,60 +1027,64 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                         </React.Fragment>
                     ))}
 
-                    {hasSpouse ? (
-                        <CoupleBox>
+                    {/* 본인 컬럼: 카드 + 자녀 */}
+                    <div className="flex flex-col items-center">
+                        {hasSpouse ? (
+                            <CoupleBox>
+                                <FolderNode
+                                    person={child}
+                                    onEdit={openEditModal}
+                                    size="md"
+                                    canEdit={canEdit}
+                                    onAddParent={!child._raw?.parent1_id ? () => openParentsModal(child.id) : undefined}
+                                    onAddChild={() => openMemberModal(child.id, 'child')}
+                                    onAddSibling={() => openMemberModal(child.id, 'sibling')}
+                                    onWormhole={getFederationForPerson(child.id) ? () => setPortalFed(getFederationForPerson(child.id)) : undefined}
+                                />
+                                <span className="text-base select-none mx-0.5">💑</span>
+                                <FolderNode
+                                    person={child.spouse}
+                                    onEdit={openEditModal}
+                                    size="md"
+                                    canEdit={canEdit}
+                                    onAddParent={!child.spouse._raw?.parent1_id ? () => openParentsModal(child.spouse.id) : undefined}
+                                    onAddChild={() => openMemberModal(child.spouse.id, 'child')}
+                                    onAddSibling={() => openMemberModal(child.spouse.id, 'sibling')}
+                                />
+                            </CoupleBox>
+                        ) : (
                             <FolderNode
                                 person={child}
                                 onEdit={openEditModal}
                                 size="md"
                                 canEdit={canEdit}
                                 onAddParent={!child._raw?.parent1_id ? () => openParentsModal(child.id) : undefined}
+                                onAddSpouse={() => openMemberModal(child.id, 'spouse')}
                                 onAddChild={() => openMemberModal(child.id, 'child')}
                                 onAddSibling={() => openMemberModal(child.id, 'sibling')}
                                 onWormhole={getFederationForPerson(child.id) ? () => setPortalFed(getFederationForPerson(child.id)) : undefined}
                             />
-                            <span className="text-base select-none mx-0.5">💑</span>
-                            <FolderNode
-                                person={child.spouse}
-                                onEdit={openEditModal}
-                                size="md"
-                                canEdit={canEdit}
-                                onAddParent={!child.spouse._raw?.parent1_id ? () => openParentsModal(child.spouse.id) : undefined}
-                                onAddChild={() => openMemberModal(child.spouse.id, 'child')}
-                                onAddSibling={() => openMemberModal(child.spouse.id, 'sibling')}
-                            />
-                        </CoupleBox>
-                    ) : (
-                        <FolderNode
-                            person={child}
-                            onEdit={openEditModal}
-                            size="md"
-                            canEdit={canEdit}
-                            onAddParent={!child._raw?.parent1_id ? () => openParentsModal(child.id) : undefined}
-                            onAddSpouse={() => openMemberModal(child.id, 'spouse')}
-                            onAddChild={() => openMemberModal(child.id, 'child')}
-                            onAddSibling={() => openMemberModal(child.id, 'sibling')}
-                            onWormhole={getFederationForPerson(child.id) ? () => setPortalFed(getFederationForPerson(child.id)) : undefined}
-                        />
-                    )}
+                        )}
 
-                    {/* Siblings inline (같은 행) */}
+                        {/* 본인의 자녀 — 본인 컬럼 안에서만 렌더링 */}
+                        {kids.length > 0 && (
+                            <>
+                                <VLine h={16} />
+                                {kids.length > 1 && (
+                                    <div className="flex items-center" style={{ width: `${kids.length * 120}px` }}>
+                                        <HLine />
+                                    </div>
+                                )}
+                                <div className="flex items-start justify-center gap-3">
+                                    {kids.map((gc) => renderChild(gc))}
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Siblings — 각자 독립 컬럼 (자녀도 각자 아래에) */}
                     {renderInlineSiblings(child, 'md')}
                 </div>
-
-                {kids.length > 0 && (
-                    <>
-                        <VLine h={16} />
-                        {kids.length > 1 && (
-                            <div className="flex items-center" style={{ width: `${kids.length * 120}px` }}>
-                                <HLine />
-                            </div>
-                        )}
-                        <div className="flex items-start justify-center gap-3">
-                            {kids.map((gc) => renderChild(gc))}
-                        </div>
-                    </>
-                )}
             </div>
         );
     };
@@ -1236,73 +1246,81 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                         </>
                                     )}
 
-                                    {/* Center couple + ex-spouses + siblings */}
+                                    {/* Center couple + ex-spouses + siblings — 각자 독립 컬럼 */}
                                     <div className="flex items-start justify-center gap-6">
                                         {/* Ex-spouses on left */}
                                         {(treeRoot.exSpouses || []).map((ex) => (
                                             <React.Fragment key={ex.id}>
-                                                <FolderNode
-                                                    person={ex}
-                                                    onEdit={openEditModal}
-                                                    size="sm"
-                                                    canEdit={canEdit}
-                                                />
+                                                <div className="flex flex-col items-center">
+                                                    <FolderNode
+                                                        person={ex}
+                                                        onEdit={openEditModal}
+                                                        size="sm"
+                                                        canEdit={canEdit}
+                                                    />
+                                                </div>
                                                 <PlusConnector dashed />
                                             </React.Fragment>
                                         ))}
 
-                                        {treeRoot.spouse ? (
-                                            <CoupleBox>
+                                        {/* treeRoot 컬럼: 본인+배우자 + 자녀까지 하나의 열 */}
+                                        <div className="flex flex-col items-center">
+                                            {treeRoot.spouse ? (
+                                                <CoupleBox>
+                                                    <FolderNode
+                                                        person={treeRoot}
+                                                        onEdit={openEditModal}
+                                                        size="lg"
+                                                        canEdit={canEdit}
+                                                        onAddParent={!treeRoot._raw?.parent1_id ? () => openParentsModal(treeRoot.id) : undefined}
+                                                        onAddChild={() => openMemberModal(treeRoot.id, 'child')}
+                                                        onAddSibling={() => openMemberModal(treeRoot.id, 'sibling')}
+                                                        onWormhole={getFederationForPerson(treeRoot.id) ? () => setPortalFed(getFederationForPerson(treeRoot.id)) : undefined}
+                                                    />
+                                                    <span className="text-lg select-none mx-1">💑</span>
+                                                    <FolderNode
+                                                        person={treeRoot.spouse}
+                                                        onEdit={openEditModal}
+                                                        size="lg"
+                                                        canEdit={canEdit}
+                                                        onAddParent={!treeRoot.spouse._raw?.parent1_id ? () => openParentsModal(treeRoot.spouse.id) : undefined}
+                                                        onAddChild={() => openMemberModal(treeRoot.spouse.id, 'child')}
+                                                        onAddSibling={() => openMemberModal(treeRoot.spouse.id, 'sibling')}
+                                                    />
+                                                </CoupleBox>
+                                            ) : (
                                                 <FolderNode
                                                     person={treeRoot}
                                                     onEdit={openEditModal}
                                                     size="lg"
                                                     canEdit={canEdit}
                                                     onAddParent={!treeRoot._raw?.parent1_id ? () => openParentsModal(treeRoot.id) : undefined}
+                                                    onAddSpouse={() => openMemberModal(treeRoot.id, 'spouse')}
                                                     onAddChild={() => openMemberModal(treeRoot.id, 'child')}
                                                     onAddSibling={() => openMemberModal(treeRoot.id, 'sibling')}
                                                     onWormhole={getFederationForPerson(treeRoot.id) ? () => setPortalFed(getFederationForPerson(treeRoot.id)) : undefined}
                                                 />
-                                                <span className="text-lg select-none mx-1">💑</span>
-                                                <FolderNode
-                                                    person={treeRoot.spouse}
-                                                    onEdit={openEditModal}
-                                                    size="lg"
-                                                    canEdit={canEdit}
-                                                    onAddParent={!treeRoot.spouse._raw?.parent1_id ? () => openParentsModal(treeRoot.spouse.id) : undefined}
-                                                    onAddChild={() => openMemberModal(treeRoot.spouse.id, 'child')}
-                                                    onAddSibling={() => openMemberModal(treeRoot.spouse.id, 'sibling')}
-                                                />
-                                            </CoupleBox>
-                                        ) : (
-                                            <FolderNode
-                                                person={treeRoot}
-                                                onEdit={openEditModal}
-                                                size="lg"
-                                                canEdit={canEdit}
-                                                onAddParent={!treeRoot._raw?.parent1_id ? () => openParentsModal(treeRoot.id) : undefined}
-                                                onAddSpouse={() => openMemberModal(treeRoot.id, 'spouse')}
-                                                onAddChild={() => openMemberModal(treeRoot.id, 'child')}
-                                                onAddSibling={() => openMemberModal(treeRoot.id, 'sibling')}
-                                                onWormhole={getFederationForPerson(treeRoot.id) ? () => setPortalFed(getFederationForPerson(treeRoot.id)) : undefined}
-                                            />
-                                        )}
-                                        {/* Siblings inline (같은 행) */}
+                                            )}
+
+                                            {/* treeRoot의 자녀 — treeRoot 컬럼 안에서만 렌더링 */}
+                                            {(treeRoot.children || []).length > 0 && (
+                                                <>
+                                                    <VLine h={24} />
+                                                    {treeRoot.children.length > 1 && (
+                                                        <div className="flex items-center" style={{ width: `${Math.max(treeRoot.children.length * 160, 200)}px` }}>
+                                                            <HLine />
+                                                        </div>
+                                                    )}
+                                                    <div className="flex items-start justify-center gap-4 md:gap-8">
+                                                        {treeRoot.children.map((child) => renderChild(child))}
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+
+                                        {/* Siblings — 각자 독립 컬럼 (자녀도 각자 아래에) */}
                                         {renderInlineSiblings(treeRoot, 'lg')}
                                     </div>
-
-                                    <VLine h={24} />
-
-                                    {(treeRoot.children || []).length > 0 && (
-                                        <>
-                                            <div className="flex items-center" style={{ width: `${Math.max(treeRoot.children.length * 160, 200)}px` }}>
-                                                <HLine />
-                                            </div>
-                                            <div className="flex items-start justify-center gap-4 md:gap-8">
-                                                {treeRoot.children.map((child) => renderChild(child))}
-                                            </div>
-                                        </>
-                                    )}
                                 </div>
                             </TransformComponent>
                         </>
