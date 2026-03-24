@@ -129,7 +129,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 .setCardDisplay([['display_name'], ['date_label']])
                 .setStyle('rect')
                 .setCardDim({ w: 130, h: 160 })
-                .setMiniTree(true)
+                .setMiniTree(false)
                 .setOnCardClick((e, d) => {
                     if (canEdit) {
                         const raw = persons.find(p => String(p.id) === String(d.data.id));
