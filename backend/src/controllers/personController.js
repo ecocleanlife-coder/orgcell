@@ -107,6 +107,25 @@ exports.updatePerson = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Person not found' });
         }
 
+        // 배우자 양방향 자동 연결: spouse_id 설정 시 상대방도 동기화
+        if ('spouse_id' in req.body) {
+            const newSpouseId = req.body.spouse_id;
+            if (newSpouseId) {
+                // 상대방의 spouse_id도 나를 가리키도록 설정
+                await db.query(
+                    `UPDATE persons SET spouse_id = $1 WHERE id = $2 AND site_id = $3 AND (spouse_id IS NULL OR spouse_id != $1)`,
+                    [personId, newSpouseId, siteId]
+                );
+            }
+            // spouse_id를 null로 설정한 경우 → 이전 배우자의 spouse_id도 해제
+            if (!newSpouseId) {
+                await db.query(
+                    `UPDATE persons SET spouse_id = NULL WHERE spouse_id = $1 AND site_id = $2`,
+                    [personId, siteId]
+                );
+            }
+        }
+
         res.json({ success: true, data: rows[0] });
     } catch (err) {
         console.error('updatePerson error:', err);

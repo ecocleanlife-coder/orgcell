@@ -648,9 +648,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             });
         }
 
+        await fetchPersons();
         setSubmitting(false);
         setModal(null);
-        fetchPersons();
     };
 
     const handleAddFirstSubmit = async () => {
@@ -671,9 +671,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         };
 
         await apiCreatePerson(data);
+        await fetchPersons();
         setSubmitting(false);
         setModal(null);
-        fetchPersons();
     };
 
     const handleEditSubmit = async () => {
@@ -690,29 +690,33 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             privacy_level: editPrivacy,
             photo_position: editPerson.photo_position || { x: 50, y: 50 },
         });
+        await fetchPersons();
         setSubmitting(false);
         setModal(null);
         setEditPerson(null);
-        fetchPersons();
     };
 
     const handleDelete = async () => {
         if (!editPerson) return;
         setSubmitting(true);
         await apiDeletePerson(editPerson.id);
+        await fetchPersons();
         setSubmitting(false);
         setModal(null);
         setEditPerson(null);
-        fetchPersons();
     };
 
     const handleParentsSubmit = async () => {
         if (!parent1Name.trim()) return;
         setSubmitting(true);
 
+        // 자녀의 generation보다 1 높게 부모 generation 설정
+        const childNode = persons.find(p => String(p.id) === String(modal.childId));
+        const parentGen = (childNode?.generation || 1) + 1;
+
         const p1 = await apiCreatePerson({
             name: parent1Name.trim(),
-            generation: 0,
+            generation: parentGen,
             privacy_level: 'family',
         });
 
@@ -720,7 +724,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         if (!singleParent && parent2Name.trim()) {
             p2 = await apiCreatePerson({
                 name: parent2Name.trim(),
-                generation: 0,
+                generation: parentGen,
                 privacy_level: 'family',
             });
         }
@@ -737,9 +741,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             });
         }
 
+        await fetchPersons();
         setSubmitting(false);
         setModal(null);
-        fetchPersons();
     };
 
     // ── Loading ──
