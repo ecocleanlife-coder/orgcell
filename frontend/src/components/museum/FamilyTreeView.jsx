@@ -927,7 +927,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         );
     };
 
-    // ── Render inline siblings (같은 행에 가로 배치) ──
+    // ── Render inline siblings (같은 행에 가로 배치, 자녀도 아래에 표시) ──
     const renderInlineSiblings = (person, nodeSize = 'sm') => {
         const sibs = person.siblings || [];
         if (sibs.length === 0) return null;
@@ -935,38 +935,56 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         return sibs.map((sib) => {
             const relType = person._relationTypes?.[sib.id];
             const isDashed = relType === 'half_sibling';
+            const sibKids = sib.children || [];
+
             return (
                 <React.Fragment key={sib.id}>
                     {isDashed ? <HLine dashed /> : <HLine />}
-                    {sib.spouse ? (
-                        <CoupleBox>
+                    <div className="flex flex-col items-center">
+                        {sib.spouse ? (
+                            <CoupleBox>
+                                <FolderNode
+                                    person={sib}
+                                    onEdit={openEditModal}
+                                    size={nodeSize}
+                                    canEdit={canEdit}
+                                    onAddChild={() => openMemberModal(sib.id, 'child')}
+                                    onAddSibling={() => openMemberModal(sib.id, 'sibling')}
+                                />
+                                <span className="text-base select-none mx-0.5">💑</span>
+                                <FolderNode
+                                    person={sib.spouse}
+                                    onEdit={openEditModal}
+                                    size={nodeSize}
+                                    canEdit={canEdit}
+                                    onAddChild={() => openMemberModal(sib.spouse.id, 'child')}
+                                />
+                            </CoupleBox>
+                        ) : (
                             <FolderNode
                                 person={sib}
                                 onEdit={openEditModal}
                                 size={nodeSize}
                                 canEdit={canEdit}
+                                onAddSpouse={() => openMemberModal(sib.id, 'spouse')}
                                 onAddChild={() => openMemberModal(sib.id, 'child')}
                                 onAddSibling={() => openMemberModal(sib.id, 'sibling')}
                             />
-                            <span className="text-base select-none mx-0.5">💑</span>
-                            <FolderNode
-                                person={sib.spouse}
-                                onEdit={openEditModal}
-                                size={nodeSize}
-                                canEdit={canEdit}
-                            />
-                        </CoupleBox>
-                    ) : (
-                        <FolderNode
-                            person={sib}
-                            onEdit={openEditModal}
-                            size={nodeSize}
-                            canEdit={canEdit}
-                            onAddSpouse={() => openMemberModal(sib.id, 'spouse')}
-                            onAddChild={() => openMemberModal(sib.id, 'child')}
-                            onAddSibling={() => openMemberModal(sib.id, 'sibling')}
-                        />
-                    )}
+                        )}
+                        {sibKids.length > 0 && (
+                            <>
+                                <VLine h={16} />
+                                {sibKids.length > 1 && (
+                                    <div className="flex items-center" style={{ width: `${sibKids.length * 120}px` }}>
+                                        <HLine />
+                                    </div>
+                                )}
+                                <div className="flex items-start justify-center gap-3">
+                                    {sibKids.map((gc) => renderChild(gc))}
+                                </div>
+                            </>
+                        )}
+                    </div>
                 </React.Fragment>
             );
         });

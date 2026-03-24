@@ -62,6 +62,7 @@ exports.createPerson = async (req, res) => {
 };
 
 // PUT /api/persons/:siteId/:personId
+// Dynamic SET: 요청에 포함된 필드만 업데이트 (미포함 필드는 기존 값 유지)
 exports.updatePerson = async (req, res) => {
     try {
         const { siteId, personId } = req.params;
@@ -70,28 +71,36 @@ exports.updatePerson = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Forbidden' });
         }
 
-        const { name, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date, is_deceased, birth_lunar, death_lunar } = req.body;
+        const ALLOWED = [
+            'name', 'birth_year', 'death_year', 'gender', 'privacy_level',
+            'parent1_id', 'parent2_id', 'spouse_id', 'generation',
+            'photo_url', 'birth_date', 'death_date',
+            'is_deceased', 'birth_lunar', 'death_lunar',
+        ];
+
+        const setClauses = [];
+        const values = [];
+        let idx = 1;
+
+        for (const key of ALLOWED) {
+            if (key in req.body) {
+                setClauses.push(`${key} = $${idx}`);
+                values.push(req.body[key] ?? null);
+                idx++;
+            }
+        }
+
+        if (setClauses.length === 0) {
+            return res.status(400).json({ success: false, message: 'No fields to update' });
+        }
+
+        values.push(personId, siteId);
 
         const { rows } = await db.query(
-            `UPDATE persons SET
-                name = COALESCE($1, name),
-                birth_year = $2,
-                death_year = $3,
-                gender = COALESCE($4, gender),
-                privacy_level = COALESCE($5, privacy_level),
-                parent1_id = $6,
-                parent2_id = $7,
-                spouse_id = $8,
-                generation = COALESCE($9, generation),
-                photo_url = $10,
-                birth_date = $11,
-                death_date = $12,
-                is_deceased = COALESCE($15, is_deceased),
-                birth_lunar = COALESCE($16, birth_lunar),
-                death_lunar = COALESCE($17, death_lunar)
-             WHERE id = $13 AND site_id = $14
+            `UPDATE persons SET ${setClauses.join(', ')}
+             WHERE id = $${idx} AND site_id = $${idx + 1}
              RETURNING *`,
-            [name, birth_year, death_year, gender, privacy_level, parent1_id || null, parent2_id || null, spouse_id || null, generation, photo_url, birth_date || null, death_date || null, personId, siteId, is_deceased, birth_lunar, death_lunar]
+            values
         );
 
         if (!rows.length) {

@@ -113,6 +113,31 @@ describe('Persons API', () => {
                 .send({ name: '없는사람' });
             expect(res.status).toBe(404);
         });
+
+        it('should only update provided fields (dynamic SET)', async () => {
+            mockQuery.mockResolvedValueOnce({ rows: [{ id: 1 }] }); // access OK
+            mockQuery.mockResolvedValueOnce({ rows: [{ id: 10, spouse_id: 20, parent1_id: 5 }] });
+
+            const res = await request(app)
+                .put('/api/persons/1/10')
+                .send({ spouse_id: 20 }); // 배우자만 변경, parent1_id는 보내지 않음
+
+            expect(res.status).toBe(200);
+            // SQL에 spouse_id만 포함되어야 함 (parent1_id 미포함)
+            const sql = mockQuery.mock.calls[1][0];
+            expect(sql).toContain('spouse_id');
+            expect(sql).not.toContain('parent1_id');
+        });
+
+        it('should reject update with no fields', async () => {
+            mockQuery.mockResolvedValueOnce({ rows: [{ id: 1 }] }); // access OK
+
+            const res = await request(app)
+                .put('/api/persons/1/10')
+                .send({}); // 빈 body
+            expect(res.status).toBe(400);
+            expect(res.body.message).toMatch(/no fields/i);
+        });
     });
 
     describe('POST /api/persons/:siteId (with new fields)', () => {
