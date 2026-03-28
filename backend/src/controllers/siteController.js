@@ -342,9 +342,9 @@ exports.getPricing = async (req, res) => {
         success: true,
         data: {
             plans: [
-                { name: 'Basic', photos: 2000, price_per_year: 10, currency: 'USD' },
-                { name: 'Extra 2000', photos: 2000, price: 10, type: 'addon', currency: 'USD' },
-                { name: '10-Year Bundle', photos: 10000, price: 100, years: 10, currency: 'USD' },
+                { name: 'Cloud Free', photos: 'unlimited', price_per_year: 0, currency: 'USD', storage: 'Google Drive / OneDrive', recommended: true },
+                { name: 'Server 1000', photos: 1000, price_per_year: 5, currency: 'USD', storage: 'Orgcell Server' },
+                { name: 'Server Unlimited', photos: 'unlimited', price_per_year: 10, currency: 'USD', storage: 'Orgcell Server' },
             ],
             features: [
                 'yourfamily.orgcell.com subdomain',
