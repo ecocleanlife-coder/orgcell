@@ -495,7 +495,7 @@ export default function FamilyTagPage() {
                         </div>
 
                         <button
-                            onClick={() => navigate('/family-setup')}
+                            onClick={() => navigate(`/onboarding/privacy?storage=${storage}`)}
                             className="w-full py-4 rounded-xl font-bold text-white bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] transition-all"
                         >
                             🏛️ 가족 박물관 시작하기
@@ -507,7 +507,7 @@ export default function FamilyTagPage() {
             {/* Skip footer */}
             {(phase === 'tagging' || phase === 'scanning') && (
                 <div className="text-center pb-6">
-                    <button onClick={() => navigate('/family-setup')} className="text-sm text-gray-400 py-2">
+                    <button onClick={() => navigate(`/onboarding/privacy?storage=${storage}`)} className="text-sm text-gray-400 py-2">
                         나중에 하기 →
                     </button>
                 </div>
