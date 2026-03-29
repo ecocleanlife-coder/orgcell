@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import OnboardingProgress from '../../components/onboarding/OnboardingProgress';
+import useOnboardingStore from '../../store/onboardingStore';
 
 const services = [
     {
@@ -28,6 +29,17 @@ const services = [
 
 export default function ServiceSelectPage() {
     const navigate = useNavigate();
+    const { startOnboarding, setCurrentStep, completeStep } = useOnboardingStore();
+
+    useEffect(() => {
+        startOnboarding();
+        setCurrentStep('service');
+    }, []);
+
+    const handleNext = () => {
+        completeStep('service');
+        navigate('/onboarding/storage');
+    };
 
     return (
         <div
@@ -50,7 +62,7 @@ export default function ServiceSelectPage() {
                 {services.map((svc) => (
                     <button
                         key={svc.title}
-                        onClick={() => navigate('/onboarding/storage')}
+                        onClick={handleNext}
                         className="text-left rounded-2xl p-5 bg-white border border-gray-200 shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
                     >
                         <div className="flex items-start gap-4">

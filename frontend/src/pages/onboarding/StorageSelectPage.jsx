@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import OnboardingProgress from '../../components/onboarding/OnboardingProgress';
+import useOnboardingStore from '../../store/onboardingStore';
 
 const storageOptions = [
     {
@@ -55,9 +56,14 @@ const storageOptions = [
 export default function StorageSelectPage() {
     const navigate = useNavigate();
     const [interestSent, setInterestSent] = useState(false);
+    const { setCurrentStep, completeStep, setStorage } = useOnboardingStore();
+
+    useEffect(() => { setCurrentStep('storage'); }, []);
 
     const handleSelect = (option) => {
         if (!option.enabled) return;
+        setStorage(option.id);
+        completeStep('storage');
         navigate(`/onboarding/photos?storage=${option.id}`);
     };
 

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import OnboardingProgress from '../../components/onboarding/OnboardingProgress';
+import useOnboardingStore from '../../store/onboardingStore';
 
 const AGE_STAGES = [
     { id: 'current', icon: '📸', label: '현재 모습', desc: '카메라 또는 최근 사진', required: true },
@@ -26,6 +27,9 @@ export default function FaceRegisterPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const storage = searchParams.get('storage') || 'google';
+
+    const { setCurrentStep: setOnboardingStep, completeStep: completeOnboardingStep } = useOnboardingStore();
+    useEffect(() => { setOnboardingStep('face'); }, []);
 
     const [step, setStep] = useState(0); // 0=current, 1=infant, 2=child, 3=teen, 4=young
     const [registered, setRegistered] = useState({}); // { current: descriptor[], infant: descriptor[], ... }
@@ -195,6 +199,7 @@ export default function FaceRegisterPage() {
     };
 
     const navigateNext = () => {
+        completeOnboardingStep('face');
         navigate(`/onboarding/family?storage=${storage}`);
     };
 

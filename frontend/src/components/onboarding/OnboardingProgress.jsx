@@ -1,4 +1,5 @@
 import React from 'react';
+import useOnboardingStore from '../../store/onboardingStore';
 
 const STEPS = [
     { id: 'service', label: '서비스' },
@@ -11,23 +12,29 @@ const STEPS = [
 ];
 
 export default function OnboardingProgress({ current }) {
+    const completedSteps = useOnboardingStore(s => s.completedSteps);
     const currentIdx = STEPS.findIndex(s => s.id === current);
 
     return (
         <div className="w-full px-5 pt-3 pb-1 max-w-md mx-auto">
             <div className="flex items-center justify-between gap-1">
                 {STEPS.map((step, i) => {
-                    const isDone = i < currentIdx;
+                    const isDone = completedSteps.includes(step.id) || i < currentIdx;
                     const isActive = i === currentIdx;
                     return (
                         <div key={step.id} className="flex-1 flex flex-col items-center">
-                            <div
-                                className={`w-full h-1.5 rounded-full transition-all ${
-                                    isDone ? 'bg-emerald-500'
-                                    : isActive ? 'bg-emerald-400'
-                                    : 'bg-gray-200'
-                                }`}
-                            />
+                            <div className="relative w-full">
+                                <div
+                                    className={`w-full h-1.5 rounded-full transition-all ${
+                                        isDone ? 'bg-emerald-500'
+                                        : isActive ? 'bg-emerald-400'
+                                        : 'bg-gray-200'
+                                    }`}
+                                />
+                                {isDone && !isActive && (
+                                    <span className="absolute -top-1 right-0 text-[8px] text-emerald-500">✓</span>
+                                )}
+                            </div>
                             <span className={`text-[9px] mt-1 transition-all ${
                                 isActive ? 'text-emerald-600 font-bold'
                                 : isDone ? 'text-emerald-400'

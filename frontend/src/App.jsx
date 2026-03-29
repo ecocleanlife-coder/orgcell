@@ -37,6 +37,7 @@ const FaceRegisterPage = lazy(() => import('./pages/onboarding/FaceRegisterPage'
 const FamilyTagPage = lazy(() => import('./pages/onboarding/FamilyTagPage'));
 const PrivacySetPage = lazy(() => import('./pages/onboarding/PrivacySetPage'));
 const InviteFamilyPage = lazy(() => import('./pages/onboarding/InviteFamilyPage'));
+const OnboardingGuard = lazy(() => import('./components/onboarding/OnboardingGuard'));
 // DemoMuseumPage 제거 — /demo는 /:subdomain (MuseumPage)에서 처리
 
 const PageLoader = () => (
@@ -177,7 +178,7 @@ function App() {
           path="/onboarding/photos"
           element={
             <Suspense fallback={<PageLoader />}>
-              <PhotoImportPage />
+              <OnboardingGuard><PhotoImportPage /></OnboardingGuard>
             </Suspense>
           }
         />
@@ -185,7 +186,7 @@ function App() {
           path="/onboarding/face"
           element={
             <Suspense fallback={<PageLoader />}>
-              <FaceRegisterPage />
+              <OnboardingGuard><FaceRegisterPage /></OnboardingGuard>
             </Suspense>
           }
         />
@@ -193,7 +194,7 @@ function App() {
           path="/onboarding/family"
           element={
             <Suspense fallback={<PageLoader />}>
-              <FamilyTagPage />
+              <OnboardingGuard><FamilyTagPage /></OnboardingGuard>
             </Suspense>
           }
         />
@@ -201,7 +202,7 @@ function App() {
           path="/onboarding/privacy"
           element={
             <Suspense fallback={<PageLoader />}>
-              <PrivacySetPage />
+              <OnboardingGuard><PrivacySetPage /></OnboardingGuard>
             </Suspense>
           }
         />
@@ -209,7 +210,7 @@ function App() {
           path="/onboarding/invite"
           element={
             <Suspense fallback={<PageLoader />}>
-              <InviteFamilyPage />
+              <OnboardingGuard><InviteFamilyPage /></OnboardingGuard>
             </Suspense>
           }
         />

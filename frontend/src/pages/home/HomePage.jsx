@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import useAuthStore from '../../store/authStore';
+import useOnboardingStore from '../../store/onboardingStore';
 import { Building2, Sparkles, Share2, LogOut, CalendarDays, MessageSquare, ChevronRight, Home } from 'lucide-react';
 
 /* ── i18n ── */
@@ -144,6 +145,34 @@ function ServiceCard({ icon: Icon, iconColor, title, desc, btnLabel, onClick }) 
     );
 }
 
+/* ── Onboarding Banner ── */
+function OnboardingBanner() {
+    const navigate = useNavigate();
+    const { started, finished, getResumeUrl, completedSteps } = useOnboardingStore();
+
+    if (!started || finished) return null;
+
+    const resumeUrl = getResumeUrl();
+    if (!resumeUrl) return null;
+
+    const progress = Math.round((completedSteps.length / 7) * 100);
+
+    return (
+        <div
+            onClick={() => navigate(resumeUrl)}
+            className="mb-6 p-4 rounded-2xl border border-emerald-200 bg-emerald-50 cursor-pointer hover:bg-emerald-100 transition-all active:scale-[0.99]"
+        >
+            <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-bold text-emerald-800">🚀 온보딩 이어서 하기</p>
+                <span className="text-xs text-emerald-600 font-medium">{completedSteps.length}/7 완료</span>
+            </div>
+            <div className="w-full bg-emerald-200 rounded-full h-2">
+                <div className="h-2 rounded-full bg-emerald-500 transition-all" style={{ width: `${progress}%` }} />
+            </div>
+        </div>
+    );
+}
+
 /* ── Main ── */
 export default function HomePage() {
     const navigate = useNavigate();
@@ -245,6 +274,9 @@ export default function HomePage() {
                 <h1 className="text-[24px] sm:text-[28px] font-bold text-[#3D2008] mb-8">
                     {t.welcome(user.name || user.email?.split('@')[0] || 'User')}
                 </h1>
+
+                {/* Onboarding Resume Banner */}
+                <OnboardingBanner />
 
                 {/* Service Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">

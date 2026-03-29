@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import OnboardingProgress from '../../components/onboarding/OnboardingProgress';
+import useOnboardingStore from '../../store/onboardingStore';
 
 const RELATIONS = [
     { id: 'me', label: '나', icon: '👤' },
@@ -18,6 +19,9 @@ export default function FamilyTagPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const storage = searchParams.get('storage') || 'google';
+
+    const { setCurrentStep, completeStep: completeOnboardingStep } = useOnboardingStore();
+    useEffect(() => { setCurrentStep('family'); }, []);
 
     // scanning → tagging → classified → manual → creating → done
     const [phase, setPhase] = useState('scanning');
@@ -497,7 +501,7 @@ export default function FamilyTagPage() {
                         </div>
 
                         <button
-                            onClick={() => navigate(`/onboarding/privacy?storage=${storage}`)}
+                            onClick={() => { completeOnboardingStep('family'); navigate(`/onboarding/privacy?storage=${storage}`); }}
                             className="w-full py-4 rounded-xl font-bold text-white bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] transition-all"
                         >
                             🏛️ 가족 박물관 시작하기
@@ -509,7 +513,7 @@ export default function FamilyTagPage() {
             {/* Skip footer */}
             {(phase === 'tagging' || phase === 'scanning') && (
                 <div className="text-center pb-6">
-                    <button onClick={() => navigate(`/onboarding/privacy?storage=${storage}`)} className="text-sm text-gray-400 py-2">
+                    <button onClick={() => { completeOnboardingStep('family'); navigate(`/onboarding/privacy?storage=${storage}`); }} className="text-sm text-gray-400 py-2">
                         나중에 하기 →
                     </button>
                 </div>

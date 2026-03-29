@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import OnboardingProgress from '../../components/onboarding/OnboardingProgress';
+import useOnboardingStore from '../../store/onboardingStore';
 
 export default function InviteFamilyPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const storage = searchParams.get('storage') || 'google';
     const privacy = searchParams.get('privacy') || 'public';
+
+    const { setCurrentStep, finishOnboarding } = useOnboardingStore();
+    useEffect(() => { setCurrentStep('invite'); }, []);
 
     const [subdomain, setSubdomain] = useState('');
     const [copied, setCopied] = useState(false);
@@ -121,6 +125,7 @@ export default function InviteFamilyPage() {
     };
 
     const handleFinish = () => {
+        finishOnboarding();
         if (subdomain) {
             navigate(`/${subdomain}`);
         } else {

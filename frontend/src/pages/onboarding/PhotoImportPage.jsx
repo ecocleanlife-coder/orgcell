@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import OnboardingProgress from '../../components/onboarding/OnboardingProgress';
+import useOnboardingStore from '../../store/onboardingStore';
 
 const STORAGE_LABELS = {
     google: { name: 'Google Drive', icon: '☁️' },
@@ -18,6 +19,9 @@ export default function PhotoImportPage() {
     const [progress, setProgress] = useState(0);
     const [photoCount, setPhotoCount] = useState(0);
     const [files, setFiles] = useState([]);
+    const { setCurrentStep, completeStep } = useOnboardingStore();
+
+    useEffect(() => { setCurrentStep('photos'); }, []);
 
     const handleFileSelect = (e) => {
         const selected = Array.from(e.target.files || []);
@@ -48,6 +52,7 @@ export default function PhotoImportPage() {
     };
 
     const handleNext = (doSort) => {
+        completeStep('photos');
         navigate(`/onboarding/face?storage=${storage}&sort=${doSort}`);
     };
 

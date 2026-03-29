@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import OnboardingProgress from '../../components/onboarding/OnboardingProgress';
+import useOnboardingStore from '../../store/onboardingStore';
 
 const PRIVACY_OPTIONS = [
     {
@@ -35,24 +36,27 @@ export default function PrivacySetPage() {
     const storage = searchParams.get('storage') || 'google';
 
     const [selected, setSelected] = useState('public');
+    const { setCurrentStep, completeStep } = useOnboardingStore();
+
+    useEffect(() => { setCurrentStep('privacy'); }, []);
 
     const handleApply = () => {
-        // 로컬에 공개 범위 저장
         const setup = JSON.parse(localStorage.getItem('orgcell_family_setup') || '{}');
         localStorage.setItem('orgcell_family_setup', JSON.stringify({
             ...setup,
             defaultPrivacy: selected,
         }));
+        completeStep('privacy');
         navigate(`/onboarding/invite?storage=${storage}&privacy=${selected}`);
     };
 
     const handleSkip = () => {
-        // 기본값(public)으로 저장
         const setup = JSON.parse(localStorage.getItem('orgcell_family_setup') || '{}');
         localStorage.setItem('orgcell_family_setup', JSON.stringify({
             ...setup,
             defaultPrivacy: 'public',
         }));
+        completeStep('privacy');
         navigate(`/onboarding/invite?storage=${storage}&privacy=public`);
     };
 
