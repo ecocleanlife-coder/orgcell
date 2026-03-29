@@ -42,7 +42,7 @@ const storageOptions = [
     },
     {
         id: 'icloud',
-        icon: '🍎',
+        icon: '🔒',
         title: 'iCloud',
         price: 'iOS 앱 출시 후 지원 예정',
         lines: [
@@ -55,16 +55,23 @@ const storageOptions = [
 
 export default function StorageSelectPage() {
     const navigate = useNavigate();
+    const [selected, setSelected] = useState(null);
     const [interestSent, setInterestSent] = useState(false);
+    const [showWhy, setShowWhy] = useState(false);
     const { setCurrentStep, completeStep, setStorage } = useOnboardingStore();
 
     useEffect(() => { setCurrentStep('storage'); }, []);
 
     const handleSelect = (option) => {
         if (!option.enabled) return;
-        setStorage(option.id);
+        setSelected(option.id);
+    };
+
+    const handleNext = () => {
+        const choice = selected || 'google';
+        setStorage(choice);
         completeStep('storage');
-        navigate(`/onboarding/photos?storage=${option.id}`);
+        navigate(`/onboarding/photos?storage=${choice}`);
     };
 
     const handleInterest = (e) => {
@@ -73,84 +80,119 @@ export default function StorageSelectPage() {
     };
 
     return (
-        <div
-            className="min-h-screen flex flex-col"
-            style={{
-                background: 'linear-gradient(135deg, #FAFAF7 0%, #F0EDE6 100%)',
-            }}
-        >
-            {/* Header */}
+        <div className="min-h-screen flex flex-col" style={{ background: '#FFFBF0' }}>
             <OnboardingProgress current="storage" />
-            <div className="relative text-center pt-6 pb-6 px-4">
+            <div className="relative text-center pt-6 pb-4 px-4">
                 <button
                     onClick={() => navigate('/onboarding/service')}
-                    className="absolute left-4 top-4 text-gray-400 text-2xl"
+                    className="absolute left-4 top-4 text-[#A09882] text-2xl"
                 >
                     &lsaquo;
                 </button>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                <h1 className="text-2xl font-bold text-[#3D2008] mb-2">
                     사진 저장소 선택
                 </h1>
-                <p className="text-sm text-gray-500">사진은 본인의 클라우드에 안전하게 저장됩니다</p>
+                <p className="text-sm text-[#7A6E5E]">사진은 본인의 클라우드에 안전하게 저장됩니다</p>
             </div>
 
             {/* Cards */}
-            <div className="flex-1 flex flex-col gap-4 px-5 pb-4 max-w-md mx-auto w-full">
-                {storageOptions.map((opt) => (
-                    <button
-                        key={opt.id}
-                        onClick={() => handleSelect(opt)}
-                        disabled={!opt.enabled}
-                        className={`relative text-left rounded-2xl p-5 border transition-all ${
-                            opt.enabled
-                                ? 'bg-white border-gray-200 shadow-sm hover:shadow-md active:scale-[0.98]'
-                                : 'bg-gray-50 border-gray-100 opacity-70'
-                        }`}
-                    >
-                        {opt.recommended && (
-                            <span className="absolute -top-2.5 right-4 bg-emerald-500 text-white text-xs font-bold px-3 py-0.5 rounded-full">
-                                추천
-                            </span>
-                        )}
-                        <div className="flex items-start gap-4">
-                            <span className="text-3xl">{opt.icon}</span>
-                            <div className="flex-1">
-                                <h3 className="text-base font-bold text-gray-900 mb-0.5">{opt.title}</h3>
-                                <p className={`text-sm font-semibold mb-2 ${opt.enabled ? 'text-emerald-600' : 'text-gray-400'}`}>
-                                    {opt.price}
-                                </p>
-                                {opt.lines.map((line) => (
-                                    <p key={line} className="text-xs text-gray-500 leading-relaxed">{line}</p>
-                                ))}
-                                {opt.id === 'icloud' && (
-                                    <button
-                                        onClick={handleInterest}
-                                        className={`mt-2 text-xs font-medium px-3 py-1 rounded-full transition-all ${
-                                            interestSent
-                                                ? 'bg-gray-200 text-gray-500'
-                                                : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
-                                        }`}
-                                    >
-                                        {interestSent ? '등록 완료!' : '관심 등록하기'}
-                                    </button>
+            <div className="flex-1 flex flex-col gap-3 px-5 pb-4 max-w-md mx-auto w-full overflow-y-auto">
+                {storageOptions.map((opt) => {
+                    const isSelected = selected === opt.id;
+                    return (
+                        <button
+                            key={opt.id}
+                            onClick={() => handleSelect(opt)}
+                            disabled={!opt.enabled}
+                            className={`relative text-left rounded-2xl p-5 transition-all active:scale-[0.98] ${
+                                opt.enabled
+                                    ? isSelected
+                                        ? 'bg-white shadow-md'
+                                        : 'bg-white shadow-sm hover:shadow-md'
+                                    : 'bg-[#F5F0E8] opacity-60'
+                            }`}
+                            style={{
+                                border: isSelected
+                                    ? '2px solid #5A9460'
+                                    : '0.5px solid #E8E3D8',
+                            }}
+                        >
+                            {opt.recommended && (
+                                <span className="absolute -top-2.5 right-4 bg-[#5A9460] text-white text-xs font-bold px-3 py-0.5 rounded-full">
+                                    추천
+                                </span>
+                            )}
+                            <div className="flex items-start gap-4">
+                                <span className="text-3xl">{opt.icon}</span>
+                                <div className="flex-1">
+                                    <h3 className="text-base font-bold text-[#3D2008] mb-0.5">{opt.title}</h3>
+                                    <p className={`text-sm font-semibold mb-2 ${opt.enabled ? 'text-[#5A9460]' : 'text-[#A09882]'}`}>
+                                        {opt.price}
+                                    </p>
+                                    {opt.lines.map((line) => (
+                                        <p key={line} className="text-xs text-[#7A6E5E] leading-relaxed">{line}</p>
+                                    ))}
+                                    {opt.id === 'icloud' && (
+                                        <button
+                                            onClick={handleInterest}
+                                            className={`mt-2 text-xs font-medium px-3 py-1 rounded-full transition-all ${
+                                                interestSent
+                                                    ? 'bg-[#E8E3D8] text-[#7A6E5E]'
+                                                    : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                                            }`}
+                                        >
+                                            {interestSent ? '등록 완료!' : '관심 등록하기'}
+                                        </button>
+                                    )}
+                                </div>
+                                {opt.enabled && (
+                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-1 transition-all ${
+                                        isSelected ? 'border-[#5A9460] bg-[#5A9460]' : 'border-[#D4CFBF]'
+                                    }`}>
+                                        {isSelected && (
+                                            <span className="text-white text-[10px] font-bold">✓</span>
+                                        )}
+                                    </div>
                                 )}
                             </div>
-                            {opt.enabled && <span className="text-gray-400 text-xl mt-1">&rsaquo;</span>}
-                        </div>
-                    </button>
-                ))}
+                        </button>
+                    );
+                })}
+
+                {/* 왜 추천하나요? 토글 */}
+                <button
+                    onClick={() => setShowWhy(!showWhy)}
+                    className="text-sm text-[#7A6E5E] font-medium py-2 flex items-center justify-center gap-1"
+                >
+                    왜 Google Drive를 추천하나요?
+                    <span className={`transition-transform ${showWhy ? 'rotate-180' : ''}`}>▾</span>
+                </button>
+                {showWhy && (
+                    <div className="bg-white rounded-2xl p-4 border border-[#E8E3D8] text-left -mt-1">
+                        <ul className="space-y-2 text-xs text-[#7A6E5E]">
+                            <li className="flex gap-2"><span className="text-[#5A9460]">✓</span> 사진이 본인 계정에 저장 (우리 서버 미저장)</li>
+                            <li className="flex gap-2"><span className="text-[#5A9460]">✓</span> 무제한 용량, 추가 비용 없음</li>
+                            <li className="flex gap-2"><span className="text-[#5A9460]">✓</span> 기기 변경 시에도 사진 유지</li>
+                            <li className="flex gap-2"><span className="text-[#5A9460]">✓</span> Google 보안 인프라 적용</li>
+                        </ul>
+                    </div>
+                )}
             </div>
 
-            {/* Bottom info */}
-            <div className="text-center pb-8 px-6">
-                <div className="bg-emerald-50 rounded-xl p-4 max-w-md mx-auto">
-                    <p className="text-xs text-emerald-700 font-medium mb-1">
+            {/* 하단 고정 */}
+            <div className="px-5 pb-8 max-w-md mx-auto w-full">
+                <div className="bg-[#F0EDE6] rounded-xl p-3 mb-4 text-center">
+                    <p className="text-xs text-[#5A9460] font-medium">
                         🔒 우리 서버에는 사진이 저장되지 않습니다 (특허 기술)
                     </p>
-                    <p className="text-xs text-emerald-600">
-                        위성폰 포함 모든 기기 지원
-                    </p>
                 </div>
+                <button
+                    onClick={handleNext}
+                    className="w-full rounded-2xl font-bold text-white active:scale-[0.98] transition-all"
+                    style={{ height: 56, background: 'linear-gradient(135deg, #5A9460, #4A8450)' }}
+                >
+                    다음
+                </button>
             </div>
         </div>
     );

@@ -15,6 +15,104 @@ const RELATIONS = [
     { id: 'sibling', label: '형제/자매', icon: '👫' },
 ];
 
+/* 스캔 로딩 애니메이션 */
+function ScanAnimation({ progress }) {
+    return (
+        <div className="flex-1 flex flex-col items-center justify-center">
+            {/* 원형 스캔 애니메이션 */}
+            <div className="relative w-32 h-32 mb-8">
+                {/* 외곽 회전 링 */}
+                <div
+                    className="absolute inset-0 rounded-full"
+                    style={{
+                        border: '3px solid transparent',
+                        borderTopColor: '#5A9460',
+                        borderRightColor: '#5A9460',
+                        animation: 'spin 1.2s linear infinite',
+                    }}
+                />
+                {/* 내부 스캔 아이콘 */}
+                <div className="absolute inset-3 rounded-full bg-[#F0EDE6] flex items-center justify-center">
+                    <div className="text-center">
+                        <span className="text-4xl block">🔍</span>
+                        <span className="text-xs font-bold text-[#5A9460] mt-1 block">{progress}%</span>
+                    </div>
+                </div>
+                {/* 작은 얼굴 아이콘들 (주변 회전) */}
+                {['👤', '👩', '👨'].map((face, i) => {
+                    const angle = (i * 120 + progress * 3.6) * (Math.PI / 180);
+                    const x = Math.cos(angle) * 56 + 56;
+                    const y = Math.sin(angle) * 56 + 56;
+                    return (
+                        <span
+                            key={i}
+                            className="absolute text-lg transition-all duration-300"
+                            style={{ left: x, top: y, transform: 'translate(-50%, -50%)' }}
+                        >
+                            {face}
+                        </span>
+                    );
+                })}
+            </div>
+            <p className="text-lg font-bold text-[#3D2008] mb-2">사진에서 얼굴을 찾는 중...</p>
+            <div className="w-48 bg-[#E8E3D8] rounded-full h-2 mb-2">
+                <div
+                    className="h-2 rounded-full bg-[#5A9460] transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                />
+            </div>
+            <p className="text-xs text-[#A09882]">AI가 가족 얼굴을 분석하고 있습니다</p>
+        </div>
+    );
+}
+
+/* 바텀시트 */
+function RelationBottomSheet({ open, clusterId, clusters, onSelect, onClose }) {
+    if (!open) return null;
+    return (
+        <>
+            {/* 배경 오버레이 */}
+            <div className="fixed inset-0 bg-black/30 z-40" onClick={onClose} />
+            {/* 바텀시트 */}
+            <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl px-5 pb-8 pt-4 max-w-md mx-auto"
+                 style={{ animation: 'slideUp 0.3s ease-out' }}>
+                <div className="w-10 h-1 bg-[#E8E3D8] rounded-full mx-auto mb-4" />
+                <p className="text-sm font-bold text-[#3D2008] mb-4 text-center">
+                    이 인물의 관계를 선택하세요
+                </p>
+                <div className="grid grid-cols-4 gap-3">
+                    {RELATIONS.map((rel) => {
+                        const isUsed = clusters.some(c => c.assignedRelation === rel.id && c.id !== clusterId);
+                        const isSelected = clusters.find(c => c.id === clusterId)?.assignedRelation === rel.id;
+                        return (
+                            <button
+                                key={rel.id}
+                                onClick={() => onSelect(rel)}
+                                disabled={isUsed}
+                                className={`p-3 rounded-2xl text-center transition-all active:scale-95 ${
+                                    isSelected ? 'bg-[#D4F5D8]'
+                                    : isUsed ? 'bg-[#F5F0E8] opacity-40 cursor-not-allowed'
+                                    : 'bg-white hover:bg-[#F5F0E8]'
+                                }`}
+                                style={{ border: isSelected ? '2px solid #5A9460' : '0.5px solid #E8E3D8' }}
+                            >
+                                <span className="text-2xl block mb-1">{rel.icon}</span>
+                                <span className="text-[11px] text-[#3D2008] font-medium">{rel.label}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+                <button
+                    onClick={onClose}
+                    className="w-full mt-4 py-3 rounded-xl text-sm text-[#7A6E5E]"
+                >
+                    닫기
+                </button>
+            </div>
+        </>
+    );
+}
+
 export default function FamilyTagPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -23,21 +121,18 @@ export default function FamilyTagPage() {
     const { setCurrentStep, completeStep: completeOnboardingStep } = useOnboardingStore();
     useEffect(() => { setCurrentStep('family'); }, []);
 
-    // scanning → tagging → classified → manual → creating → done
     const [phase, setPhase] = useState('scanning');
     const [clusters, setClusters] = useState([]);
     const [selectedCluster, setSelectedCluster] = useState(null);
     const [scanProgress, setScanProgress] = useState(0);
 
-    // 분류 결과 (classified phase)
     const [classifiedFolders, setClassifiedFolders] = useState([]);
     const [unclassifiedPhotos, setUnclassifiedPhotos] = useState([]);
 
-    // 수동 분류 (manual phase)
     const [selectedPhotos, setSelectedPhotos] = useState(new Set());
-    const [manualTarget, setManualTarget] = useState(null); // 이동할 폴더
+    const [manualTarget, setManualTarget] = useState(null);
 
-    // === 스캔 시뮬레이션 ===
+    // 스캔 시뮬레이션
     useEffect(() => {
         const stored = JSON.parse(localStorage.getItem('orgcell_face_descriptors') || '{}');
         const hasMyFace = stored.current && stored.current.length > 0;
@@ -62,7 +157,6 @@ export default function FamilyTagPage() {
         return () => clearInterval(interval);
     }, []);
 
-    // === 관계 지정 ===
     const assignRelation = (relation) => {
         if (selectedCluster === null) return;
         setClusters(prev =>
@@ -84,7 +178,6 @@ export default function FamilyTagPage() {
 
     const assignedCount = clusters.filter(c => c.assignedRelation).length;
 
-    // === 태그 완료 → 분류 결과 생성 ===
     const handleTagComplete = () => {
         const folders = clusters
             .filter(c => c.assignedRelation)
@@ -100,7 +193,6 @@ export default function FamilyTagPage() {
                 };
             });
 
-        // 미분류 사진 (시뮬레이션)
         const totalTagged = folders.reduce((sum, f) => sum + f.photoCount, 0);
         const unclassifiedCount = Math.max(0, 234 - totalTagged + 100);
         const unclassified = Array.from({ length: unclassifiedCount }, (_, i) => ({
@@ -114,32 +206,22 @@ export default function FamilyTagPage() {
         setPhase('classified');
     };
 
-    // === 수동 분류 ===
     const togglePhotoSelect = (photoId) => {
         setSelectedPhotos(prev => {
             const next = new Set(prev);
-            if (next.has(photoId)) {
-                next.delete(photoId);
-            } else {
-                next.add(photoId);
-            }
+            if (next.has(photoId)) next.delete(photoId);
+            else next.add(photoId);
             return next;
         });
     };
 
-    const selectAll = () => {
-        setSelectedPhotos(new Set(unclassifiedPhotos.map(p => p.id)));
-    };
-
-    const deselectAll = () => {
-        setSelectedPhotos(new Set());
-    };
+    const selectAll = () => setSelectedPhotos(new Set(unclassifiedPhotos.map(p => p.id)));
+    const deselectAll = () => setSelectedPhotos(new Set());
 
     const moveToFolder = (folderId) => {
         if (selectedPhotos.size === 0) return;
         const movedIds = selectedPhotos;
 
-        // 해당 폴더 카운트 증가
         setClassifiedFolders(prev =>
             prev.map(f =>
                 f.id === folderId
@@ -147,15 +229,12 @@ export default function FamilyTagPage() {
                     : f
             )
         );
-
-        // 미분류에서 제거
         setUnclassifiedPhotos(prev => prev.filter(p => !movedIds.has(p.id)));
         setSelectedPhotos(new Set());
         setManualTarget(null);
         setPhase('classified');
     };
 
-    // === 최종 완료 ===
     const handleComplete = async () => {
         setPhase('creating');
 
@@ -171,7 +250,6 @@ export default function FamilyTagPage() {
             createdAt: Date.now(),
         }));
 
-        // 서버에 가족 구성원 등록 (실패해도 진행)
         try {
             const token = localStorage.getItem('orgcell_token');
             if (token) {
@@ -191,144 +269,131 @@ export default function FamilyTagPage() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(135deg, #FAFAF7 0%, #F0EDE6 100%)' }}>
-            {/* Header */}
+        <div className="min-h-screen flex flex-col" style={{ background: '#FFFBF0' }}>
+            {/* CSS 애니메이션 */}
+            <style>{`
+                @keyframes spin { to { transform: rotate(360deg); } }
+                @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+            `}</style>
+
             <OnboardingProgress current="family" />
-            <div className="relative text-center pt-4 pb-4 px-4">
-                <button onClick={() => navigate(-1)} className="absolute left-4 top-4 text-gray-400 text-2xl">
+            <div className="relative text-center pt-4 pb-3 px-4">
+                <button onClick={() => navigate(-1)} className="absolute left-4 top-4 text-[#A09882] text-2xl">
                     &lsaquo;
                 </button>
-                <h1 className="text-xl font-bold text-gray-900 mb-1">
+                <h1 className="text-xl font-bold text-[#3D2008] mb-1">
                     {phase === 'manual' ? '수동 분류' : '가족 태그'}
                 </h1>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-[#7A6E5E]">
                     {phase === 'manual'
                         ? '사진을 선택하고 폴더를 지정하세요'
-                        : 'AI가 감지한 얼굴에 관계를 지정하세요'
-                    }
+                        : 'AI가 감지한 얼굴에 관계를 지정하세요'}
                 </p>
             </div>
 
             <div className="flex-1 flex flex-col px-5 max-w-md mx-auto w-full overflow-y-auto">
                 {/* ====== SCANNING ====== */}
                 {phase === 'scanning' && (
-                    <div className="flex-1 flex flex-col items-center justify-center">
-                        <span className="text-6xl block mb-4 animate-pulse">🔍</span>
-                        <p className="text-lg font-bold text-gray-900 mb-2">사진에서 얼굴을 찾는 중...</p>
-                        <div className="w-full bg-gray-200 rounded-full h-3 mb-3">
-                            <div className="h-3 rounded-full bg-emerald-500 transition-all duration-300" style={{ width: `${scanProgress}%` }} />
-                        </div>
-                        <p className="text-sm text-emerald-600 font-semibold">{scanProgress}%</p>
-                    </div>
+                    <ScanAnimation progress={scanProgress} />
                 )}
 
-                {/* ====== TAGGING ====== */}
+                {/* ====== TAGGING — 원형 클러스터 카드 ====== */}
                 {phase === 'tagging' && (
                     <div className="w-full">
-                        <div className="flex flex-wrap justify-center gap-4 mb-6">
+                        <div className="flex flex-wrap justify-center gap-5 mb-6">
                             {clusters.map((cluster) => (
                                 <button
                                     key={cluster.id}
                                     onClick={() => setSelectedCluster(selectedCluster === cluster.id ? null : cluster.id)}
-                                    className={`flex flex-col items-center transition-all ${selectedCluster === cluster.id ? 'scale-110' : ''}`}
+                                    className="flex flex-col items-center transition-all"
                                 >
-                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl border-3 transition-all ${
-                                        selectedCluster === cluster.id
-                                            ? 'border-emerald-500 bg-emerald-50 shadow-lg'
-                                            : cluster.assignedRelation
-                                                ? 'border-emerald-300 bg-emerald-50'
-                                                : 'border-gray-300 bg-gray-100'
-                                    }`}>
+                                    <div
+                                        className={`w-[72px] h-[72px] rounded-full flex items-center justify-center text-2xl transition-all ${
+                                            selectedCluster === cluster.id ? 'scale-110' : ''
+                                        }`}
+                                        style={{
+                                            border: selectedCluster === cluster.id
+                                                ? '3px solid #5A9460'
+                                                : cluster.assignedRelation
+                                                ? '2px solid #5A9460'
+                                                : '2px solid #E8E3D8',
+                                            background: cluster.assignedRelation ? '#D4F5D8' : '#F5F0E8',
+                                            boxShadow: selectedCluster === cluster.id
+                                                ? '0 4px 16px rgba(90,148,96,0.3)' : 'none',
+                                        }}
+                                    >
                                         {cluster.assignedRelation
                                             ? RELATIONS.find(r => r.id === cluster.assignedRelation)?.icon || '👤'
                                             : '❓'}
                                     </div>
-                                    <span className="text-xs text-gray-600 mt-1">
+                                    <span className="text-xs text-[#3D2008] mt-1.5 font-medium">
                                         {cluster.assignedRelation ? getRelationLabel(cluster.assignedRelation) : `인물 ${cluster.id}`}
                                     </span>
-                                    <span className="text-[10px] text-gray-400">{cluster.faceCount}장</span>
+                                    <span className="text-[10px] text-[#A09882]">{cluster.faceCount}장</span>
                                 </button>
                             ))}
                         </div>
 
-                        {selectedCluster !== null && (
-                            <div className="bg-white rounded-2xl p-4 border border-gray-200 mb-4">
-                                <p className="text-sm font-medium text-gray-700 mb-3 text-center">
-                                    인물 {selectedCluster}의 관계를 선택하세요
-                                </p>
-                                <div className="grid grid-cols-4 gap-2">
-                                    {RELATIONS.map((rel) => {
-                                        const isUsed = clusters.some(c => c.assignedRelation === rel.id && c.id !== selectedCluster);
-                                        const isSelected = clusters.find(c => c.id === selectedCluster)?.assignedRelation === rel.id;
-                                        return (
-                                            <button
-                                                key={rel.id}
-                                                onClick={() => assignRelation(rel)}
-                                                disabled={isUsed}
-                                                className={`p-2 rounded-xl text-center transition-all ${
-                                                    isSelected ? 'bg-emerald-100 border-2 border-emerald-500'
-                                                    : isUsed ? 'bg-gray-100 opacity-40 cursor-not-allowed'
-                                                    : 'bg-gray-50 border border-gray-200 hover:border-emerald-300 active:scale-95'
-                                                }`}
-                                            >
-                                                <span className="text-xl block">{rel.icon}</span>
-                                                <span className="text-[10px] text-gray-600">{rel.label}</span>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
                         <button
                             onClick={handleTagComplete}
                             disabled={assignedCount === 0}
-                            className={`w-full py-4 rounded-xl font-bold text-white transition-all active:scale-[0.98] ${
-                                assignedCount > 0 ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-gray-300 cursor-not-allowed'
+                            className={`w-full rounded-2xl font-bold text-white transition-all active:scale-[0.98] ${
+                                assignedCount === 0 ? 'opacity-40 cursor-not-allowed' : ''
                             }`}
+                            style={{
+                                height: 56,
+                                background: assignedCount > 0
+                                    ? 'linear-gradient(135deg, #5A9460, #4A8450)'
+                                    : '#ccc',
+                            }}
                         >
                             분류 결과 보기 ({assignedCount}명)
                         </button>
                     </div>
                 )}
 
+                {/* 바텀시트 */}
+                <RelationBottomSheet
+                    open={selectedCluster !== null && phase === 'tagging'}
+                    clusterId={selectedCluster}
+                    clusters={clusters}
+                    onSelect={assignRelation}
+                    onClose={() => setSelectedCluster(null)}
+                />
+
                 {/* ====== CLASSIFIED RESULTS ====== */}
                 {phase === 'classified' && (
                     <div className="w-full">
-                        {/* AI 경고 메시지 */}
-                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+                        <div className="bg-amber-50 rounded-2xl p-4 mb-4" style={{ border: '0.5px solid #E8D5A0' }}>
                             <p className="text-sm font-bold text-amber-800 mb-1">
                                 ⚠️ AI는 실수할 수 있어요
                             </p>
                             <p className="text-xs text-amber-700 leading-relaxed">
                                 자동 분류 결과를 확인하고 잘못된 사진은 직접 수정해주세요.
-                                특히 오래된 사진이나 흐린 사진은 확인이 필요할 수 있어요.
                             </p>
                         </div>
 
-                        {/* 분류된 폴더 목록 */}
                         <div className="space-y-3 mb-4">
                             {classifiedFolders.map((folder) => (
-                                <div key={folder.id} className="bg-white rounded-xl p-4 border border-gray-200">
+                                <div key={folder.id} className="bg-white rounded-2xl p-4" style={{ border: '0.5px solid #E8E3D8' }}>
                                     <div className="flex items-center justify-between mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xl">{folder.icon}</span>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-[#D4F5D8] flex items-center justify-center text-xl">
+                                                {folder.icon}
+                                            </div>
                                             <div>
-                                                <span className="text-sm font-bold text-gray-900">{folder.name}</span>
-                                                <span className="text-xs text-gray-500 ml-2">사진 {folder.photoCount}장</span>
+                                                <span className="text-sm font-bold text-[#3D2008]">{folder.name}</span>
+                                                <span className="text-xs text-[#A09882] ml-2">{folder.photoCount}장</span>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <button className="text-xs text-emerald-600 font-medium bg-emerald-50 px-3 py-1.5 rounded-lg hover:bg-emerald-100">
+                                    <div className="flex gap-2 ml-13">
+                                        <button className="text-xs text-[#5A9460] font-medium bg-[#F0EDE6] px-3 py-1.5 rounded-lg">
                                             사진 보기
                                         </button>
                                         <button
-                                            onClick={() => {
-                                                setManualTarget(folder.id);
-                                                setPhase('manual');
-                                            }}
-                                            className="text-xs text-blue-600 font-medium bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100"
+                                            onClick={() => { setManualTarget(folder.id); setPhase('manual'); }}
+                                            className="text-xs text-[#4A7FB5] font-medium bg-blue-50 px-3 py-1.5 rounded-lg"
                                         >
                                             수동 추가
                                         </button>
@@ -336,24 +401,22 @@ export default function FamilyTagPage() {
                                 </div>
                             ))}
 
-                            {/* 미분류 폴더 */}
                             {unclassifiedPhotos.length > 0 && (
-                                <div className="bg-white rounded-xl p-4 border border-amber-200">
+                                <div className="bg-white rounded-2xl p-4" style={{ border: '0.5px solid #E8D5A0' }}>
                                     <div className="flex items-center justify-between mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xl">📁</span>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-xl">
+                                                📁
+                                            </div>
                                             <div>
-                                                <span className="text-sm font-bold text-gray-900">미분류</span>
-                                                <span className="text-xs text-amber-600 ml-2">사진 {unclassifiedPhotos.length}장</span>
+                                                <span className="text-sm font-bold text-[#3D2008]">미분류</span>
+                                                <span className="text-xs text-amber-600 ml-2">{unclassifiedPhotos.length}장</span>
                                             </div>
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => {
-                                            setManualTarget(null);
-                                            setPhase('manual');
-                                        }}
-                                        className="text-xs text-amber-700 font-medium bg-amber-50 px-3 py-1.5 rounded-lg hover:bg-amber-100"
+                                        onClick={() => { setManualTarget(null); setPhase('manual'); }}
+                                        className="text-xs text-amber-700 font-medium bg-amber-50 px-3 py-1.5 rounded-lg ml-13"
                                     >
                                         직접 분류하기
                                     </button>
@@ -361,16 +424,16 @@ export default function FamilyTagPage() {
                             )}
                         </div>
 
-                        {/* 완료 버튼 */}
-                        <div className="space-y-3 mt-6">
+                        <div className="mt-4">
                             <button
                                 onClick={handleComplete}
-                                className="w-full py-4 rounded-xl font-bold text-white bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] transition-all"
+                                className="w-full rounded-2xl font-bold text-white active:scale-[0.98] transition-all"
+                                style={{ height: 56, background: 'linear-gradient(135deg, #5A9460, #4A8450)' }}
                             >
-                                🌳 분류 완료 → 박물관으로 이동
+                                분류 완료 → 다음 단계
                             </button>
                             {unclassifiedPhotos.length > 0 && (
-                                <p className="text-center text-xs text-gray-400">
+                                <p className="text-center text-xs text-[#A09882] mt-2">
                                     미분류 {unclassifiedPhotos.length}장은 나중에 분류할 수 있습니다
                                 </p>
                             )}
@@ -381,25 +444,22 @@ export default function FamilyTagPage() {
                 {/* ====== MANUAL CLASSIFICATION ====== */}
                 {phase === 'manual' && (
                     <div className="w-full">
-                        {/* 선택 도구 */}
                         <div className="flex items-center justify-between mb-3">
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-[#7A6E5E]">
                                 {selectedPhotos.size > 0
                                     ? `${selectedPhotos.size}장 선택됨`
-                                    : `미분류 ${unclassifiedPhotos.length}장`
-                                }
+                                    : `미분류 ${unclassifiedPhotos.length}장`}
                             </p>
                             <div className="flex gap-2">
-                                <button onClick={selectAll} className="text-xs text-blue-600 font-medium px-2 py-1 rounded hover:bg-blue-50">
+                                <button onClick={selectAll} className="text-xs text-[#4A7FB5] font-medium px-2 py-1 rounded hover:bg-blue-50">
                                     전체 선택
                                 </button>
-                                <button onClick={deselectAll} className="text-xs text-gray-500 font-medium px-2 py-1 rounded hover:bg-gray-100">
+                                <button onClick={deselectAll} className="text-xs text-[#7A6E5E] font-medium px-2 py-1 rounded hover:bg-[#F5F0E8]">
                                     선택 해제
                                 </button>
                             </div>
                         </div>
 
-                        {/* 사진 그리드 */}
                         <div className="grid grid-cols-4 gap-1.5 mb-4 max-h-[40vh] overflow-y-auto rounded-xl">
                             {unclassifiedPhotos.slice(0, 48).map((photo) => (
                                 <button
@@ -407,15 +467,15 @@ export default function FamilyTagPage() {
                                     onClick={() => togglePhotoSelect(photo.id)}
                                     className={`relative aspect-square rounded-lg overflow-hidden transition-all ${
                                         selectedPhotos.has(photo.id)
-                                            ? 'ring-2 ring-emerald-500 scale-95'
+                                            ? 'ring-2 ring-[#5A9460] scale-95'
                                             : 'hover:opacity-80'
                                     }`}
                                 >
-                                    <div className="w-full h-full bg-gray-200 flex items-center justify-center text-xs text-gray-400">
+                                    <div className="w-full h-full bg-[#F0EDE6] flex items-center justify-center text-xs text-[#A09882]">
                                         {photo.idx}
                                     </div>
                                     {selectedPhotos.has(photo.id) && (
-                                        <div className="absolute top-1 right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
+                                        <div className="absolute top-1 right-1 w-5 h-5 bg-[#5A9460] rounded-full flex items-center justify-center">
                                             <span className="text-white text-[10px] font-bold">✓</span>
                                         </div>
                                     )}
@@ -423,21 +483,20 @@ export default function FamilyTagPage() {
                             ))}
                         </div>
                         {unclassifiedPhotos.length > 48 && (
-                            <p className="text-xs text-center text-gray-400 mb-3">
+                            <p className="text-xs text-center text-[#A09882] mb-3">
                                 + {unclassifiedPhotos.length - 48}장 더 있음
                             </p>
                         )}
 
-                        {/* 폴더 선택 버튼 */}
                         {selectedPhotos.size > 0 && (
-                            <div className="bg-white rounded-xl p-3 border border-gray-200 mb-4">
-                                <p className="text-xs text-gray-600 mb-2 text-center">이동할 폴더를 선택하세요</p>
+                            <div className="bg-white rounded-2xl p-3 mb-4" style={{ border: '0.5px solid #E8E3D8' }}>
+                                <p className="text-xs text-[#7A6E5E] mb-2 text-center">이동할 폴더를 선택하세요</p>
                                 <div className="flex flex-wrap justify-center gap-2">
                                     {classifiedFolders.map((folder) => (
                                         <button
                                             key={folder.id}
                                             onClick={() => moveToFolder(folder.id)}
-                                            className="flex items-center gap-1 text-xs font-medium bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg hover:bg-emerald-100 active:scale-95 transition-all"
+                                            className="flex items-center gap-1 text-xs font-medium bg-[#D4F5D8] text-[#5A9460] px-3 py-2 rounded-lg active:scale-95 transition-all"
                                         >
                                             <span>{folder.icon}</span>
                                             <span>{folder.name}</span>
@@ -447,13 +506,10 @@ export default function FamilyTagPage() {
                             </div>
                         )}
 
-                        {/* 돌아가기 */}
                         <button
-                            onClick={() => {
-                                setPhase('classified');
-                                setSelectedPhotos(new Set());
-                            }}
-                            className="w-full py-3 rounded-xl text-sm text-gray-500 border border-gray-200"
+                            onClick={() => { setPhase('classified'); setSelectedPhotos(new Set()); }}
+                            className="w-full py-3 rounded-2xl text-sm text-[#7A6E5E]"
+                            style={{ border: '0.5px solid #E8E3D8' }}
                         >
                             ← 분류 결과로 돌아가기
                         </button>
@@ -463,9 +519,15 @@ export default function FamilyTagPage() {
                 {/* ====== CREATING ====== */}
                 {phase === 'creating' && (
                     <div className="flex-1 flex flex-col items-center justify-center">
-                        <span className="text-6xl block mb-4 animate-bounce">🌳</span>
-                        <p className="text-lg font-bold text-gray-900 mb-2">패밀리트리 생성 중...</p>
-                        <p className="text-sm text-gray-500">구성원 폴더를 자동으로 만들고 있습니다</p>
+                        <div className="relative w-24 h-24 mb-6">
+                            <div className="absolute inset-0 rounded-full"
+                                 style={{ border: '3px solid transparent', borderTopColor: '#5A9460', animation: 'spin 1s linear infinite' }} />
+                            <div className="absolute inset-2 rounded-full bg-[#F0EDE6] flex items-center justify-center">
+                                <span className="text-4xl">🌳</span>
+                            </div>
+                        </div>
+                        <p className="text-lg font-bold text-[#3D2008] mb-2">패밀리트리 생성 중...</p>
+                        <p className="text-sm text-[#7A6E5E]">구성원 폴더를 자동으로 만들고 있습니다</p>
                     </div>
                 )}
 
@@ -473,38 +535,41 @@ export default function FamilyTagPage() {
                 {phase === 'done' && (
                     <div className="flex-1 flex flex-col items-center justify-center">
                         <span className="text-6xl block mb-4">🎉</span>
-                        <p className="text-xl font-bold text-gray-900 mb-2">온보딩 완료!</p>
-                        <p className="text-sm text-gray-500 mb-8">
+                        <p className="text-xl font-bold text-[#3D2008] mb-2">분류 완료!</p>
+                        <p className="text-sm text-[#7A6E5E] mb-8">
                             {classifiedFolders.length}명의 가족이 등록되었습니다
                         </p>
 
-                        <div className="w-full bg-white rounded-2xl p-5 border border-gray-200 mb-6 text-left">
-                            <p className="text-sm font-medium text-gray-700 mb-3">생성된 항목:</p>
+                        <div className="w-full bg-white rounded-2xl p-5 mb-6 text-left" style={{ border: '0.5px solid #E8E3D8' }}>
+                            <p className="text-sm font-medium text-[#7A6E5E] mb-3">생성된 항목:</p>
                             <ul className="space-y-2">
                                 {classifiedFolders.map(f => (
-                                    <li key={f.id} className="flex items-center gap-2 text-sm text-gray-600">
-                                        <span className="text-base">{f.icon}</span>
-                                        <span>{f.name}</span>
-                                        <span className="text-xs text-gray-400 ml-auto">{f.photoCount}장 자동 분류</span>
+                                    <li key={f.id} className="flex items-center gap-3 text-sm text-[#3D2008]">
+                                        <div className="w-8 h-8 rounded-full bg-[#D4F5D8] flex items-center justify-center text-base">
+                                            {f.icon}
+                                        </div>
+                                        <span className="font-medium">{f.name}</span>
+                                        <span className="text-xs text-[#A09882] ml-auto">{f.photoCount}장</span>
                                     </li>
                                 ))}
                             </ul>
                         </div>
 
-                        <div className="w-full bg-emerald-50 rounded-xl p-4 mb-6">
-                            <p className="text-xs text-emerald-700 font-medium mb-1">
+                        <div className="w-full bg-[#F0EDE6] rounded-xl p-4 mb-6">
+                            <p className="text-xs text-[#5A9460] font-medium mb-1">
                                 🔒 사진은 {storage === 'google' ? 'Google Drive' : storage === 'onedrive' ? 'OneDrive' : 'Orgcell 서버'}에만 저장됩니다
                             </p>
-                            <p className="text-xs text-emerald-600">
+                            <p className="text-xs text-[#7A6E5E]">
                                 서버에는 경로(URL)만 저장됩니다 (특허 기술)
                             </p>
                         </div>
 
                         <button
                             onClick={() => { completeOnboardingStep('family'); navigate(`/onboarding/privacy?storage=${storage}`); }}
-                            className="w-full py-4 rounded-xl font-bold text-white bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] transition-all"
+                            className="w-full rounded-2xl font-bold text-white active:scale-[0.98] transition-all"
+                            style={{ height: 56, background: 'linear-gradient(135deg, #5A9460, #4A8450)' }}
                         >
-                            🏛️ 가족 박물관 시작하기
+                            다음 단계 →
                         </button>
                     </div>
                 )}
@@ -513,7 +578,8 @@ export default function FamilyTagPage() {
             {/* Skip footer */}
             {(phase === 'tagging' || phase === 'scanning') && (
                 <div className="text-center pb-6">
-                    <button onClick={() => { completeOnboardingStep('family'); navigate(`/onboarding/privacy?storage=${storage}`); }} className="text-sm text-gray-400 py-2">
+                    <button onClick={() => { completeOnboardingStep('family'); navigate(`/onboarding/privacy?storage=${storage}`); }}
+                            className="text-sm text-[#A09882] py-2">
                         나중에 하기 →
                     </button>
                 </div>

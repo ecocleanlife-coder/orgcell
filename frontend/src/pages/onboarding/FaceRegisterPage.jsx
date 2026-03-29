@@ -4,11 +4,11 @@ import OnboardingProgress from '../../components/onboarding/OnboardingProgress';
 import useOnboardingStore from '../../store/onboardingStore';
 
 const AGE_STAGES = [
-    { id: 'current', icon: '📸', label: '현재 모습', desc: '카메라 또는 최근 사진', required: true },
-    { id: 'infant', icon: '👶', label: '유아기 (0~6세)', desc: '참고용, 정확도 낮음', required: false },
-    { id: 'child', icon: '🧒', label: '유년기 (7~12세)', desc: '초등학교 시절', required: false },
-    { id: 'teen', icon: '🧑', label: '청소년기 (13~19세)', desc: '중·고등학교 시절', required: false },
-    { id: 'young', icon: '👨', label: '청년기 (20~30대)', desc: '대학·직장 초기', required: false },
+    { id: 'current', icon: '📸', label: '현재', fullLabel: '현재 모습', desc: '카메라 또는 최근 사진', required: true },
+    { id: 'infant', icon: '👶', label: '유아기', fullLabel: '유아기 (0~6세)', desc: '참고용, 정확도 낮음', required: false },
+    { id: 'child', icon: '🧒', label: '유년기', fullLabel: '유년기 (7~12세)', desc: '초등학교 시절', required: false },
+    { id: 'teen', icon: '🧑', label: '청소년', fullLabel: '청소년기 (13~19세)', desc: '중·고등학교 시절', required: false },
+    { id: 'young', icon: '👨', label: '청년기', fullLabel: '청년기 (20~30대)', desc: '대학·직장 초기', required: false },
 ];
 
 const ACCURACY_MAP = {
@@ -23,6 +23,43 @@ function getAccuracy(registered) {
     return ACCURACY_MAP[Math.min(count, 4)] || ACCURACY_MAP[1];
 }
 
+/* 연령대 타임라인 컴포넌트 */
+function AgeTimeline({ step, registered }) {
+    return (
+        <div className="flex items-center justify-center gap-0 mb-5 px-4">
+            {AGE_STAGES.map((s, i) => {
+                const isActive = i === step;
+                const isDone = registered[s.id];
+                return (
+                    <React.Fragment key={s.id}>
+                        <div className="flex flex-col items-center">
+                            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-base transition-all ${
+                                isActive
+                                    ? 'bg-[#5A9460] text-white shadow-md scale-110'
+                                    : isDone
+                                    ? 'bg-[#D4F5D8] text-[#5A9460]'
+                                    : 'bg-[#F0EDE6] text-[#A09882]'
+                            }`}>
+                                {isDone && !isActive ? '✓' : s.icon}
+                            </div>
+                            <span className={`text-[10px] mt-1 ${
+                                isActive ? 'text-[#3D2008] font-bold' : 'text-[#A09882]'
+                            }`}>
+                                {s.label}
+                            </span>
+                        </div>
+                        {i < AGE_STAGES.length - 1 && (
+                            <div className={`flex-1 h-0.5 mx-0.5 mt-[-14px] ${
+                                isDone ? 'bg-[#5A9460]' : 'bg-[#E8E3D8]'
+                            }`} />
+                        )}
+                    </React.Fragment>
+                );
+            })}
+        </div>
+    );
+}
+
 export default function FaceRegisterPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -31,14 +68,14 @@ export default function FaceRegisterPage() {
     const { setCurrentStep: setOnboardingStep, completeStep: completeOnboardingStep } = useOnboardingStore();
     useEffect(() => { setOnboardingStep('face'); }, []);
 
-    const [step, setStep] = useState(0); // 0=current, 1=infant, 2=child, 3=teen, 4=young
-    const [registered, setRegistered] = useState({}); // { current: descriptor[], infant: descriptor[], ... }
+    const [step, setStep] = useState(0);
+    const [registered, setRegistered] = useState({});
     const [mode, setMode] = useState(null); // null | 'camera' | 'photo'
     const [processing, setProcessing] = useState(false);
     const [detectedFaces, setDetectedFaces] = useState([]);
     const [selectedFaceIdx, setSelectedFaceIdx] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(null);
-    const [error, setError] = useState(null); // null | 'no_face' | 'error'
+    const [error, setError] = useState(null);
 
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
@@ -117,7 +154,6 @@ export default function FaceRegisterPage() {
         canvas.getContext('2d').drawImage(video, 0, 0);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
 
-        // 카메라 정지
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(t => t.stop());
             streamRef.current = null;
@@ -171,18 +207,14 @@ export default function FaceRegisterPage() {
 
         setRegistered(prev => ({ ...prev, [stageId]: true }));
 
-        // 다음 단계
         if (step === 0) {
-            // 현재 얼굴 등록 후 → 과거 연령대 시작
             setStep(1);
         } else if (step < AGE_STAGES.length - 1) {
             setStep(step + 1);
         } else {
-            // 전체 완료
             navigateNext();
         }
 
-        // 초기화
         setMode(null);
         setDetectedFaces([]);
         setSelectedFaceIdx(null);
@@ -224,14 +256,14 @@ export default function FaceRegisterPage() {
 
                 ctx.beginPath();
                 ctx.arc(cx, cy, r, 0, Math.PI * 2);
-                ctx.strokeStyle = idx === selectedFaceIdx ? '#10b981' : '#ffffff';
+                ctx.strokeStyle = idx === selectedFaceIdx ? '#5A9460' : '#ffffff';
                 ctx.lineWidth = idx === selectedFaceIdx ? 4 : 2;
                 ctx.stroke();
 
                 if (idx === selectedFaceIdx) {
                     ctx.beginPath();
                     ctx.arc(cx, cy, r, 0, Math.PI * 2);
-                    ctx.fillStyle = 'rgba(16, 185, 129, 0.15)';
+                    ctx.fillStyle = 'rgba(90, 148, 96, 0.15)';
                     ctx.fill();
                 }
             });
@@ -261,75 +293,68 @@ export default function FaceRegisterPage() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(135deg, #FAFAF7 0%, #F0EDE6 100%)' }}>
-            {/* Header */}
+        <div className="min-h-screen flex flex-col" style={{ background: '#FFFBF0' }}>
             <OnboardingProgress current="face" />
-            <div className="relative text-center pt-4 pb-4 px-4">
-                <button onClick={() => step === 0 ? navigate(-1) : setStep(step - 1)} className="absolute left-4 top-4 text-gray-400 text-2xl">
+
+            {/* Header */}
+            <div className="relative text-center pt-4 pb-3 px-4">
+                <button onClick={() => step === 0 ? navigate(-1) : setStep(step - 1)} className="absolute left-4 top-4 text-[#A09882] text-2xl">
                     &lsaquo;
                 </button>
-                <h1 className="text-xl font-bold text-gray-900 mb-1">
+                <h1 className="text-xl font-bold text-[#3D2008] mb-1">
                     {isCurrentStep ? '본인 얼굴 등록' : '과거 사진 등록'}
                 </h1>
-                <p className="text-sm text-gray-500">{stage.icon} {stage.label}</p>
+                <p className="text-sm text-[#7A6E5E]">{stage.icon} {stage.fullLabel}</p>
                 {!isCurrentStep && stage.id === 'infant' && (
                     <p className="text-xs text-amber-600 mt-1">
-                        유아기 사진은 얼굴이 많이 달라서 정확하지 않을 수 있어요. 참고용입니다.
+                        유아기 사진은 얼굴이 많이 달라서 정확하지 않을 수 있어요
                     </p>
                 )}
             </div>
 
-            {/* Progress dots */}
-            <div className="flex justify-center gap-2 mb-4">
-                {AGE_STAGES.map((s, i) => (
-                    <div
-                        key={s.id}
-                        className={`w-2.5 h-2.5 rounded-full transition-all ${
-                            i === step ? 'bg-emerald-500 scale-125'
-                            : registered[s.id] ? 'bg-emerald-300'
-                            : 'bg-gray-300'
-                        }`}
-                    />
-                ))}
-            </div>
+            {/* 연령대 타임라인 */}
+            <AgeTimeline step={step} registered={registered} />
 
-            {/* Accuracy */}
-            <div className="text-center mb-4">
+            {/* 정확도 */}
+            <div className="text-center mb-3">
                 <span className={`text-lg ${accuracy.color}`}>{accuracy.stars}</span>
-                <p className="text-xs text-gray-500 mt-0.5">인식 정확도: {accuracy.label}</p>
+                <p className="text-xs text-[#A09882] mt-0.5">인식 정확도: {accuracy.label}</p>
             </div>
 
             {/* Main content */}
             <div className="flex-1 flex flex-col items-center px-5 max-w-md mx-auto w-full">
                 {/* Mode selection */}
-                {!mode && !processing && detectedFaces.length === 0 && (
+                {!mode && !processing && detectedFaces.length === 0 && !error && (
                     <div className="w-full space-y-3">
                         {isCurrentStep && (
                             <button
                                 onClick={startCamera}
-                                className="w-full bg-white rounded-2xl p-6 border border-gray-200 text-center hover:border-emerald-400 transition-colors active:scale-[0.98]"
+                                className="w-full bg-white rounded-2xl p-6 text-center active:scale-[0.98] transition-all"
+                                style={{ border: '0.5px solid #E8E3D8' }}
                             >
                                 <span className="text-4xl block mb-2">📷</span>
-                                <p className="text-base font-bold text-gray-900">카메라로 촬영</p>
-                                <p className="text-xs text-gray-500">정면 얼굴을 촬영하세요</p>
+                                <p className="text-base font-bold text-[#3D2008]">카메라로 촬영</p>
+                                <p className="text-xs text-[#7A6E5E]">정면 얼굴을 촬영하세요</p>
                             </button>
                         )}
                         <label className="block w-full cursor-pointer">
-                            <div className="bg-white rounded-2xl p-6 border border-gray-200 text-center hover:border-emerald-400 transition-colors active:scale-[0.98]">
+                            <div
+                                className="bg-white rounded-2xl p-6 text-center active:scale-[0.98] transition-all"
+                                style={{ border: '0.5px solid #E8E3D8' }}
+                            >
                                 <span className="text-4xl block mb-2">🖼️</span>
-                                <p className="text-base font-bold text-gray-900">사진에서 선택</p>
-                                <p className="text-xs text-gray-500">{stage.desc}</p>
+                                <p className="text-base font-bold text-[#3D2008]">사진에서 선택</p>
+                                <p className="text-xs text-[#7A6E5E]">{stage.desc}</p>
                             </div>
                             <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
                         </label>
 
-                        {/* 등록된 연령대 목록 */}
                         {!isCurrentStep && Object.keys(registered).length > 0 && (
-                            <div className="bg-emerald-50 rounded-xl p-3 mt-4">
-                                <p className="text-xs text-emerald-700 font-medium mb-2">등록된 연령대:</p>
+                            <div className="bg-[#F0EDE6] rounded-xl p-3 mt-4">
+                                <p className="text-xs text-[#5A9460] font-medium mb-2">등록된 연령대:</p>
                                 <div className="flex flex-wrap gap-2">
                                     {AGE_STAGES.filter(s => registered[s.id]).map(s => (
-                                        <span key={s.id} className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
+                                        <span key={s.id} className="text-xs bg-[#D4F5D8] text-[#5A9460] px-2 py-1 rounded-full">
                                             {s.icon} {s.label}
                                         </span>
                                     ))}
@@ -339,24 +364,29 @@ export default function FaceRegisterPage() {
                     </div>
                 )}
 
-                {/* Camera view */}
+                {/* Camera view — 원형 뷰파인더 */}
                 {mode === 'camera' && !previewUrl && (
-                    <div className="w-full">
-                        <div className="relative rounded-2xl overflow-hidden bg-black mb-4">
+                    <div className="w-full flex flex-col items-center">
+                        <div className="relative w-64 h-64 rounded-full overflow-hidden bg-black mb-6"
+                             style={{ boxShadow: '0 0 0 4px #5A9460, 0 0 0 8px rgba(90,148,96,0.2)' }}>
                             <video
                                 ref={videoRef}
                                 autoPlay
                                 playsInline
                                 muted
-                                className="w-full"
+                                className="w-full h-full object-cover"
                                 style={{ transform: 'scaleX(-1)' }}
                             />
+                            {/* 가이드 원 */}
+                            <div className="absolute inset-0 border-2 border-dashed border-white/40 rounded-full pointer-events-none" />
                         </div>
+                        <p className="text-xs text-[#7A6E5E] mb-4">얼굴을 원 안에 맞추세요</p>
                         <button
                             onClick={capturePhoto}
-                            className="w-full py-4 rounded-xl font-bold text-white bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] transition-all"
+                            className="w-16 h-16 rounded-full bg-white border-4 border-[#5A9460] active:scale-90 transition-all"
+                            style={{ boxShadow: '0 2px 12px rgba(90,148,96,0.3)' }}
                         >
-                            📸 촬영
+                            <div className="w-full h-full rounded-full bg-[#5A9460] m-auto" style={{ width: '80%', height: '80%', borderRadius: '50%' }} />
                         </button>
                     </div>
                 )}
@@ -364,24 +394,28 @@ export default function FaceRegisterPage() {
                 {/* Processing */}
                 {processing && (
                     <div className="w-full text-center py-12">
-                        <span className="text-5xl block mb-4 animate-pulse">🔍</span>
-                        <p className="text-base font-bold text-gray-900">얼굴을 감지하는 중...</p>
-                        <p className="text-xs text-gray-500 mt-1">AI가 사진을 분석하고 있습니다</p>
+                        <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-[#F0EDE6] flex items-center justify-center">
+                            <span className="text-4xl animate-pulse">🔍</span>
+                        </div>
+                        <p className="text-base font-bold text-[#3D2008]">얼굴을 감지하는 중...</p>
+                        <p className="text-xs text-[#A09882] mt-1">AI가 사진을 분석하고 있습니다</p>
                     </div>
                 )}
 
-                {/* Error: face detection failed */}
+                {/* Error */}
                 {!processing && error && detectedFaces.length === 0 && (
                     <div className="w-full text-center py-8">
-                        <span className="text-5xl block mb-4">
-                            {error === 'no_face' ? '😕' : error === 'camera' ? '📷' : '⚠️'}
-                        </span>
-                        <p className="text-base font-bold text-gray-900 mb-2">
+                        <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-[#FFF5F5] flex items-center justify-center">
+                            <span className="text-4xl">
+                                {error === 'no_face' ? '😕' : error === 'camera' ? '📷' : '⚠️'}
+                            </span>
+                        </div>
+                        <p className="text-base font-bold text-[#3D2008] mb-2">
                             {error === 'no_face' ? '얼굴을 감지하지 못했어요'
                              : error === 'camera' ? '카메라에 접근할 수 없어요'
                              : '오류가 발생했어요'}
                         </p>
-                        <p className="text-sm text-gray-500 mb-6">
+                        <p className="text-sm text-[#7A6E5E] mb-6">
                             {error === 'no_face'
                                 ? '정면 얼굴이 잘 보이는 사진으로 다시 시도해주세요'
                                 : error === 'camera'
@@ -390,19 +424,13 @@ export default function FaceRegisterPage() {
                         </p>
                         <div className="space-y-3">
                             <button
-                                onClick={() => {
-                                    setError(null);
-                                    setMode(null);
-                                    setPreviewUrl(null);
-                                }}
-                                className="w-full py-3 rounded-xl font-bold text-white bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] transition-all"
+                                onClick={() => { setError(null); setMode(null); setPreviewUrl(null); }}
+                                className="w-full rounded-2xl font-bold text-white active:scale-[0.98] transition-all"
+                                style={{ height: 48, background: 'linear-gradient(135deg, #5A9460, #4A8450)' }}
                             >
                                 다른 사진으로 다시 시도
                             </button>
-                            <button
-                                onClick={skipStage}
-                                className="w-full text-sm text-gray-400 py-2"
-                            >
+                            <button onClick={skipStage} className="w-full text-sm text-[#A09882] py-2">
                                 이 단계 건너뛰기 →
                             </button>
                         </div>
@@ -410,7 +438,7 @@ export default function FaceRegisterPage() {
                 )}
 
                 {/* Face selection */}
-                {!processing && detectedFaces.length > 0 && (
+                {!processing && !error && detectedFaces.length > 0 && (
                     <div className="w-full">
                         <canvas
                             ref={canvasRef}
@@ -426,11 +454,17 @@ export default function FaceRegisterPage() {
                             <button
                                 onClick={confirmFace}
                                 disabled={selectedFaceIdx === null}
-                                className={`flex-1 py-3 rounded-xl font-bold text-white transition-all active:scale-[0.98] ${
+                                className={`flex-1 rounded-2xl font-bold text-white transition-all active:scale-[0.98] ${
                                     selectedFaceIdx !== null
-                                        ? 'bg-emerald-500 hover:bg-emerald-600'
-                                        : 'bg-gray-300 cursor-not-allowed'
+                                        ? ''
+                                        : 'opacity-40 cursor-not-allowed'
                                 }`}
+                                style={{
+                                    height: 48,
+                                    background: selectedFaceIdx !== null
+                                        ? 'linear-gradient(135deg, #5A9460, #4A8450)'
+                                        : '#ccc'
+                                }}
                             >
                                 선택하기
                             </button>
@@ -441,7 +475,8 @@ export default function FaceRegisterPage() {
                                     setSelectedFaceIdx(null);
                                     setPreviewUrl(null);
                                 }}
-                                className="px-4 py-3 rounded-xl text-sm text-gray-500 border border-gray-200"
+                                className="px-4 rounded-2xl text-sm text-[#7A6E5E]"
+                                style={{ height: 48, border: '0.5px solid #E8E3D8' }}
                             >
                                 다시
                             </button>
@@ -450,19 +485,19 @@ export default function FaceRegisterPage() {
                 )}
             </div>
 
-            {/* Skip button */}
-            <div className="text-center pb-6 px-4">
+            {/* 하단 고정 */}
+            <div className="text-center pb-6 px-5 max-w-md mx-auto w-full">
                 {isCurrentStep ? (
-                    <button onClick={() => navigateNext()} className="text-sm text-gray-400 py-2">
+                    <button onClick={() => navigateNext()} className="text-sm text-[#A09882] py-2">
                         나중에 등록하기 →
                     </button>
                 ) : (
                     <div className="flex justify-center gap-4">
-                        <button onClick={skipStage} className="text-sm text-gray-400 py-2">
+                        <button onClick={skipStage} className="text-sm text-[#A09882] py-2">
                             건너뛰기 →
                         </button>
                         {Object.keys(registered).length >= 1 && (
-                            <button onClick={navigateNext} className="text-sm text-emerald-600 font-medium py-2">
+                            <button onClick={navigateNext} className="text-sm text-[#5A9460] font-medium py-2">
                                 등록 완료 →
                             </button>
                         )}

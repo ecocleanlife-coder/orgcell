@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import OnboardingProgress from '../../components/onboarding/OnboardingProgress';
 import useOnboardingStore from '../../store/onboardingStore';
@@ -9,27 +9,32 @@ const services = [
         title: '가족 박물관',
         desc: '가계도 · 사진 앨범 · 가족 채팅',
         sub: 'yourfamily.orgcell.com 도메인 무료',
-        gradient: 'from-emerald-500 to-teal-600',
+        color: '#5A9460',
     },
     {
         icon: '🤖',
         title: 'AI 스마트 정리',
         desc: '얼굴 인식 · 자동 분류 · 중복 제거',
         sub: '수만 장의 사진을 자동으로 정리',
-        gradient: 'from-blue-500 to-indigo-600',
+        color: '#4A7FB5',
     },
     {
         icon: '📤',
         title: '실시간 공유',
         desc: 'Friend Call · 라이브 앨범 · 가족 방송',
         sub: '어디서나 실시간으로 사진 공유',
-        gradient: 'from-purple-500 to-pink-600',
+        color: '#9B59B6',
     },
 ];
 
 export default function ServiceSelectPage() {
     const navigate = useNavigate();
     const { startOnboarding, setCurrentStep, completeStep } = useOnboardingStore();
+    const [current, setCurrent] = useState(0);
+    const containerRef = useRef(null);
+    const touchStartX = useRef(0);
+    const touchDeltaX = useRef(0);
+    const isDragging = useRef(false);
 
     useEffect(() => {
         startOnboarding();
@@ -41,46 +46,127 @@ export default function ServiceSelectPage() {
         navigate('/onboarding/storage');
     };
 
+    // 스와이프
+    const onTouchStart = useCallback((e) => {
+        touchStartX.current = e.touches[0].clientX;
+        touchDeltaX.current = 0;
+        isDragging.current = true;
+    }, []);
+
+    const onTouchMove = useCallback((e) => {
+        if (!isDragging.current) return;
+        touchDeltaX.current = e.touches[0].clientX - touchStartX.current;
+        if (containerRef.current) {
+            const offset = -current * 100 + (touchDeltaX.current / window.innerWidth) * 100;
+            containerRef.current.style.transition = 'none';
+            containerRef.current.style.transform = `translateX(${offset}%)`;
+        }
+    }, [current]);
+
+    const onTouchEnd = useCallback(() => {
+        isDragging.current = false;
+        const threshold = 50;
+        if (touchDeltaX.current < -threshold && current < services.length - 1) {
+            setCurrent(current + 1);
+        } else if (touchDeltaX.current > threshold && current > 0) {
+            setCurrent(current - 1);
+        }
+        if (containerRef.current) {
+            containerRef.current.style.transition = 'transform 0.3s ease-out';
+            containerRef.current.style.transform = `translateX(-${current + (touchDeltaX.current < -threshold && current < services.length - 1 ? 1 : touchDeltaX.current > threshold && current > 0 ? -1 : 0)}00%)`;
+        }
+    }, [current]);
+
+    // current 변경 시 위치 보정
+    useEffect(() => {
+        if (containerRef.current) {
+            containerRef.current.style.transition = 'transform 0.3s ease-out';
+            containerRef.current.style.transform = `translateX(-${current * 100}%)`;
+        }
+    }, [current]);
+
+    const svc = services[current];
+
     return (
-        <div
-            className="min-h-screen flex flex-col"
-            style={{
-                background: 'linear-gradient(135deg, #FAFAF7 0%, #F0EDE6 100%)',
-            }}
-        >
-            {/* Header */}
+        <div className="min-h-screen flex flex-col" style={{ background: '#FFFBF0' }}>
             <OnboardingProgress current="service" />
-            <div className="text-center pt-6 pb-6 px-4">
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <div className="text-center pt-6 pb-4 px-4">
+                <h1 className="text-2xl font-bold text-[#3D2008] mb-2">
                     Orgcell로 무엇을 하시겠습니까?
                 </h1>
-                <p className="text-sm text-gray-500">모든 서비스를 함께 사용할 수 있습니다</p>
+                <p className="text-sm text-[#7A6E5E]">스와이프하여 서비스를 살펴보세요</p>
             </div>
 
-            {/* Cards */}
-            <div className="flex-1 flex flex-col gap-4 px-5 pb-8 max-w-md mx-auto w-full">
-                {services.map((svc) => (
-                    <button
-                        key={svc.title}
-                        onClick={handleNext}
-                        className="text-left rounded-2xl p-5 bg-white border border-gray-200 shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
-                    >
-                        <div className="flex items-start gap-4">
-                            <span className="text-4xl">{svc.icon}</span>
-                            <div className="flex-1">
-                                <h3 className="text-lg font-bold text-gray-900 mb-1">{svc.title}</h3>
-                                <p className="text-sm text-gray-600 mb-2">{svc.desc}</p>
-                                <span className="text-xs text-emerald-600 font-medium">{svc.sub}</span>
+            {/* 스와이프 카드 영역 */}
+            <div className="flex-1 flex flex-col justify-center px-5 max-w-md mx-auto w-full overflow-hidden">
+                <div
+                    className="flex w-full"
+                    ref={containerRef}
+                    onTouchStart={onTouchStart}
+                    onTouchMove={onTouchMove}
+                    onTouchEnd={onTouchEnd}
+                    style={{ transform: 'translateX(0%)' }}
+                >
+                    {services.map((svc, idx) => (
+                        <div
+                            key={svc.title}
+                            className="w-full flex-shrink-0 px-2"
+                        >
+                            <div
+                                className="bg-white rounded-3xl p-8 border border-[#E8E3D8] text-center"
+                                style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}
+                            >
+                                <div
+                                    className="w-20 h-20 rounded-2xl mx-auto flex items-center justify-center mb-6"
+                                    style={{ background: svc.color + '15' }}
+                                >
+                                    <span className="text-5xl">{svc.icon}</span>
+                                </div>
+                                <h3 className="text-xl font-bold text-[#3D2008] mb-3">{svc.title}</h3>
+                                <p className="text-sm text-[#7A6E5E] mb-3 leading-relaxed">{svc.desc}</p>
+                                <span
+                                    className="inline-block text-xs font-semibold px-3 py-1 rounded-full"
+                                    style={{ background: svc.color + '15', color: svc.color }}
+                                >
+                                    {svc.sub}
+                                </span>
                             </div>
-                            <span className="text-gray-400 text-xl mt-1">&rsaquo;</span>
                         </div>
-                    </button>
-                ))}
+                    ))}
+                </div>
+
+                {/* 점 인디케이터 */}
+                <div className="flex justify-center gap-2.5 mt-6">
+                    {services.map((_, idx) => (
+                        <button
+                            key={idx}
+                            onClick={() => setCurrent(idx)}
+                            className={`rounded-full transition-all duration-300 ${
+                                idx === current
+                                    ? 'w-6 h-2.5 bg-[#5A9460]'
+                                    : 'w-2.5 h-2.5 bg-[#D4CFBF]'
+                            }`}
+                        />
+                    ))}
+                </div>
+
+                <p className="text-center text-xs text-[#A09882] mt-4">
+                    모든 서비스를 함께 사용할 수 있습니다
+                </p>
             </div>
 
-            {/* Footer */}
-            <div className="text-center pb-8 px-4">
-                <p className="text-xs text-gray-400">위성폰 포함 모든 기기 지원</p>
+            {/* 하단 고정 버튼 */}
+            <div className="px-5 pb-8 max-w-md mx-auto w-full">
+                <button
+                    onClick={handleNext}
+                    className="w-full rounded-2xl font-bold text-white active:scale-[0.98] transition-all"
+                    style={{ height: 56, background: 'linear-gradient(135deg, #5A9460, #4A8450)' }}
+                >
+                    다음
+                </button>
+                <p className="text-center text-xs text-[#A09882] mt-3">
+                    위성폰 포함 모든 기기 지원
+                </p>
             </div>
         </div>
     );

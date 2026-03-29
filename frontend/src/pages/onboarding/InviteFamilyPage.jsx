@@ -134,7 +134,7 @@ export default function InviteFamilyPage() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(135deg, #FAFAF7 0%, #F0EDE6 100%)' }}>
+        <div className="min-h-screen flex flex-col" style={{ background: '#FFFBF0' }}>
             {/* Header */}
             <OnboardingProgress current="invite" />
             <div className="relative text-center pt-6 pb-6 px-4">
@@ -266,9 +266,8 @@ export default function InviteFamilyPage() {
             <div className="px-5 pb-8 max-w-md mx-auto w-full space-y-3">
                 <button
                     onClick={handleFinish}
-                    className={`w-full py-4 rounded-xl font-bold text-white transition-all active:scale-[0.98] ${
-                        inviteSent ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-gray-800 hover:bg-gray-900'
-                    }`}
+                    className="w-full rounded-2xl font-bold text-white transition-all active:scale-[0.98]"
+                    style={{ height: 56, background: inviteSent ? 'linear-gradient(135deg, #5A9460, #4A8450)' : 'linear-gradient(135deg, #3D2008, #5A4020)' }}
                 >
                     {inviteSent ? '🎉 초대 완료 → 박물관 입장' : '🏛️ 박물관으로 이동'}
                 </button>

@@ -61,7 +61,7 @@ export default function PrivacySetPage() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(135deg, #FAFAF7 0%, #F0EDE6 100%)' }}>
+        <div className="min-h-screen flex flex-col" style={{ background: '#FFFBF0' }}>
             {/* Header */}
             <OnboardingProgress current="privacy" />
             <div className="relative text-center pt-6 pb-6 px-4">
@@ -133,7 +133,8 @@ export default function PrivacySetPage() {
             <div className="px-5 pb-8 max-w-md mx-auto w-full space-y-3">
                 <button
                     onClick={handleApply}
-                    className="w-full py-4 rounded-xl font-bold text-white bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] transition-all"
+                    className="w-full rounded-2xl font-bold text-white active:scale-[0.98] transition-all"
+                    style={{ height: 56, background: 'linear-gradient(135deg, #5A9460, #4A8450)' }}
                 >
                     지금 설정하기
                 </button>

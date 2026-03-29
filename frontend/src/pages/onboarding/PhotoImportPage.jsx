@@ -67,7 +67,7 @@ export default function PhotoImportPage() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(135deg, #FAFAF7 0%, #F0EDE6 100%)' }}>
+        <div className="min-h-screen flex flex-col" style={{ background: '#FFFBF0' }}>
             {/* Header */}
             <OnboardingProgress current="photos" />
             <div className="relative text-center pt-6 pb-6 px-4">
