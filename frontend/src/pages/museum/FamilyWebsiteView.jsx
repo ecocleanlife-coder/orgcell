@@ -120,12 +120,10 @@ export default function FamilyWebsiteView() {
         }
         setProcessing(true);
         try {
-            const token = useAuthStore.getState().token;
             const res = await fetch('/api/domain/register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
                 },
                 body: JSON.stringify({ subdomain }),
             });

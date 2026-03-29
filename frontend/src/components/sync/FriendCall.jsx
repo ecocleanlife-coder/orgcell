@@ -12,7 +12,7 @@ import { decryptBlob } from '../../utils/cryptoUtils';
 import { addWatermarkToImage } from '../../utils/watermarkUtils';
 
 export default function FriendCall({ localPhotos = [] }) {
-    const { user, token } = useAuthStore();
+    const { user, isAuthenticated } = useAuthStore();
     const { connect, disconnect, isConnected, activeRoom, socket } = useSocketStore();
 
     // Fake transfer states for UI testing (these would sync with socket events)
@@ -21,10 +21,10 @@ export default function FriendCall({ localPhotos = [] }) {
 
     // Auto-connect socket when logged in
     useEffect(() => {
-        if (user && token && !isConnected) {
-            connect(token);
+        if (user && isAuthenticated && !isConnected) {
+            connect(); // Token is sent via httpOnly cookie
         }
-    }, [user, token, isConnected, connect]);
+    }, [user, isAuthenticated, isConnected, connect]);
 
     const handleSendPhotos = async (selectedPhotos) => {
         if (!socket || !activeRoom) {

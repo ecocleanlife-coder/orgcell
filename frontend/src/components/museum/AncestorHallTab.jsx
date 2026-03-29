@@ -29,7 +29,6 @@ const EMPTY_FORM = {
 
 export default function AncestorHallTab({ siteId, subdomain, role, t }) {
     const navigate = useNavigate();
-    const token = useAuthStore((s) => s.token);
     const [ancestors, setAncestors] = useState([]);
     const [persons, setPersons] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -106,11 +105,10 @@ export default function AncestorHallTab({ siteId, subdomain, role, t }) {
         };
 
         try {
-            const headers = token ? { Authorization: `Bearer ${token}` } : {};
             if (editTarget) {
-                await axios.put(`/api/exhibitions/${editTarget.id}`, payload, { headers });
+                await axios.put(`/api/exhibitions/${editTarget.id}`, payload);
             } else {
-                await axios.post('/api/exhibitions', payload, { headers });
+                await axios.post('/api/exhibitions', payload);
             }
             setShowModal(false);
             fetchAncestors();
@@ -123,8 +121,7 @@ export default function AncestorHallTab({ siteId, subdomain, role, t }) {
 
     const handleDelete = async (id) => {
         try {
-            const headers = token ? { Authorization: `Bearer ${token}` } : {};
-            await axios.delete(`/api/exhibitions/${id}`, { headers });
+            await axios.delete(`/api/exhibitions/${id}`);
             setDeleteConfirm(null);
             fetchAncestors();
         } catch (err) {

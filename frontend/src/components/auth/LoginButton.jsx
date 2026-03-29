@@ -11,13 +11,14 @@ export default function LoginButton() {
 
     const handleSuccess = async (credentialResponse) => {
         try {
-            // Send token to our backend
+            // Send credential to our backend (token is set via httpOnly cookie)
             const res = await axios.post('/api/auth/google', {
                 credential: credentialResponse.credential,
             });
 
-            if (res.data?.success && res.data?.token) {
-                setAuth(res.data.user, res.data.token);
+            if (res.data?.success && res.data?.user) {
+                // Backend sets token via httpOnly cookie, we only pass user data
+                setAuth(res.data.user);
             }
         } catch (err) {
             console.error('Google login failed on backend:', err);

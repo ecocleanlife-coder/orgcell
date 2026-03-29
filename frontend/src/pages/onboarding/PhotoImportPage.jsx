@@ -16,7 +16,6 @@ export default function PhotoImportPage() {
     const [searchParams] = useSearchParams();
     const storage = searchParams.get('storage') || 'google';
     const storageInfo = STORAGE_LABELS[storage] || STORAGE_LABELS.google;
-    const token = useAuthStore(s => s.token);
 
     const [phase, setPhase] = useState('select'); // select | importing | done | error
     const [progress, setProgress] = useState(0);
@@ -45,8 +44,7 @@ export default function PhotoImportPage() {
             try {
                 const formData = new FormData();
                 formData.append('file', file);
-                const headers = token ? { Authorization: `Bearer ${token}` } : {};
-                await axios.post('/api/photos/upload', formData, { headers });
+                await axios.post('/api/photos/upload', formData);
             } catch {
                 // 개별 실패는 무시하고 진행
             }
@@ -63,9 +61,7 @@ export default function PhotoImportPage() {
         setProgress(10);
 
         try {
-            const headers = token ? { Authorization: `Bearer ${token}` } : {};
             const res = await axios.get(storageInfo.api, {
-                headers,
                 params: { limit: 100 },
             });
 

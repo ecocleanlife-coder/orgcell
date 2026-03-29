@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import OnboardingProgress from '../../components/onboarding/OnboardingProgress';
 import useOnboardingStore from '../../store/onboardingStore';
+import { encryptJson, decryptJson } from '../../utils/cryptoUtils';
 
 const AGE_STAGES = [
     { id: 'current', icon: '📸', label: '현재', fullLabel: '현재 모습', desc: '카메라 또는 최근 사진', required: true },
@@ -188,14 +189,22 @@ export default function FaceRegisterPage() {
         reader.readAsDataURL(file);
     }, []);
 
-    // 얼굴 선택 확인 → 로컬 저장
-    const confirmFace = useCallback(() => {
+    // 얼굴 선택 확인 → 암호화 후 로컬 저장
+    const confirmFace = useCallback(async () => {
         if (selectedFaceIdx === null || !detectedFaces[selectedFaceIdx]) return;
         const face = detectedFaces[selectedFaceIdx];
 
-        // 로컬 저장 (서버 미전송 — 특허 청구항 1)
+        // AES-GCM 암호화 후 저장 (서버 미전송 — 특허 청구항 1)
         const stageId = stage.id;
-        const stored = JSON.parse(localStorage.getItem('orgcell_face_descriptors') || '{}');
+        let stored = {};
+        try {
+            const encrypted = localStorage.getItem('orgcell_face_descriptors');
+            if (encrypted) {
+                stored = await decryptJson(encrypted);
+            }
+        } catch {
+            stored = {};
+        }
         const existing = stored[stageId] || [];
         existing.push({
             descriptor: face.descriptor,
@@ -203,7 +212,8 @@ export default function FaceRegisterPage() {
             stage: stageId,
         });
         stored[stageId] = existing;
-        localStorage.setItem('orgcell_face_descriptors', JSON.stringify(stored));
+        const encryptedData = await encryptJson(stored);
+        localStorage.setItem('orgcell_face_descriptors', encryptedData);
 
         setRegistered(prev => ({ ...prev, [stageId]: true }));
 

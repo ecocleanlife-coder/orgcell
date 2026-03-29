@@ -11,28 +11,26 @@ import { Globe, Lock, Users, FolderTree, Shield, Star, ArrowRight, Crown, Image 
 const FamilyWebsitePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
-    const token = useAuthStore((s) => s.token);
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
     const [startLoading, setStartLoading] = useState(false);
     const [mySite, setMySite] = useState(null);
 
     // 로그인 상태면 내 사이트 조회
     useEffect(() => {
-        if (!token) return;
-        axios.get('/api/sites/mine', { headers: { Authorization: `Bearer ${token}` } })
+        if (!isAuthenticated) return;
+        axios.get('/api/sites/mine')
             .then(({ data }) => { if (data.data?.subdomain) setMySite(data.data); })
             .catch(() => {});
-    }, [token]);
+    }, [isAuthenticated]);
 
     const handleStartFree = async () => {
-        if (!token) {
+        if (!isAuthenticated) {
             navigate('/onboarding/service');
             return;
         }
         setStartLoading(true);
         try {
-            const { data } = await axios.get('/api/sites/mine', {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            const { data } = await axios.get('/api/sites/mine');
             if (data.data?.subdomain) {
                 navigate(`/${data.data.subdomain}`);
             } else {

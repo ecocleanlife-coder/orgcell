@@ -12,11 +12,11 @@ const useSocketStore = create((set, get) => ({
     newPhotos: [], // Incoming actual photos received from `room:receive-photo`
     error: null,
 
-    connect: (token) => {
+    connect: () => {
         if (get().socket) return;
 
         const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5001', {
-            auth: { token }
+            withCredentials: true // Send httpOnly cookies
         });
 
         socket.on('connect', () => {

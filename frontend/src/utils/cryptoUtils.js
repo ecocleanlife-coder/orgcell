@@ -43,6 +43,56 @@ export async function encryptFile(file, key) {
     return encryptedBlob;
 }
 
+// ── 얼굴 데이터 localStorage 암호화 (AES-GCM) ──
+
+const FACE_KEY_STORAGE = 'orgcell_face_key';
+
+async function getFaceKey() {
+    const stored = localStorage.getItem(FACE_KEY_STORAGE);
+    if (stored) {
+        return await importKey(stored);
+    }
+    const key = await generateMasterKey();
+    const exported = await exportKey(key);
+    localStorage.setItem(FACE_KEY_STORAGE, exported);
+    return key;
+}
+
+/**
+ * JSON 데이터를 AES-GCM으로 암호화하여 base64 문자열로 반환
+ */
+export async function encryptJson(data) {
+    const key = await getFaceKey();
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const encoded = new TextEncoder().encode(JSON.stringify(data));
+    const encrypted = await window.crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        encoded
+    );
+    // iv(12) + ciphertext → base64
+    const combined = new Uint8Array(iv.length + encrypted.byteLength);
+    combined.set(iv, 0);
+    combined.set(new Uint8Array(encrypted), iv.length);
+    return btoa(String.fromCharCode(...combined));
+}
+
+/**
+ * base64 암호화 문자열을 복호화하여 원본 JSON 반환
+ */
+export async function decryptJson(base64Str) {
+    const key = await getFaceKey();
+    const raw = Uint8Array.from(atob(base64Str), c => c.charCodeAt(0));
+    const iv = raw.slice(0, 12);
+    const ciphertext = raw.slice(12);
+    const decrypted = await window.crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        ciphertext
+    );
+    return JSON.parse(new TextDecoder().decode(decrypted));
+}
+
 export async function decryptBlob(encryptedBlob, key) {
     const arrayBuffer = await encryptedBlob.arrayBuffer();
 

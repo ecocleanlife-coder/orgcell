@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import OnboardingProgress from '../../components/onboarding/OnboardingProgress';
 import useOnboardingStore from '../../store/onboardingStore';
+import useAuthStore from '../../store/authStore';
 
 export default function InviteFamilyPage() {
     const navigate = useNavigate();
@@ -11,6 +12,7 @@ export default function InviteFamilyPage() {
     const privacy = searchParams.get('privacy') || 'public';
 
     const { setCurrentStep, finishOnboarding } = useOnboardingStore();
+    const { user, isAuthenticated } = useAuthStore();
     useEffect(() => { setCurrentStep('invite'); }, []);
 
     const [subdomain, setSubdomain] = useState('');
@@ -104,8 +106,7 @@ export default function InviteFamilyPage() {
         setConnectStatus('sending');
 
         try {
-            const token = localStorage.getItem('orgcell_token');
-            if (!token) {
+            if (!isAuthenticated) {
                 setConnectStatus('error');
                 return;
             }
@@ -124,12 +125,54 @@ export default function InviteFamilyPage() {
         }
     };
 
-    const handleFinish = () => {
+    const [creating, setCreating] = useState(false);
+
+    const handleFinish = async () => {
         finishOnboarding();
-        if (subdomain) {
+
+        if (subdomain && subdomain !== 'myfamily') {
             navigate(`/${subdomain}`);
-        } else {
+            return;
+        }
+
+        // 사이트 없으면 자동 생성
+        if (!isAuthenticated) {
             navigate('/family-setup');
+            return;
+        }
+
+        setCreating(true);
+        try {
+            // 이미 사이트가 있는지 확인
+            const mineRes = await axios.get('/api/sites/mine');
+            const existing = mineRes.data?.data;
+            if (existing?.subdomain) {
+                navigate(`/${existing.subdomain}`);
+                return;
+            }
+
+            // 이름 기반 서브도메인 생성 (영문 소문자 + 숫자만)
+            const rawName = user?.name || 'myfamily';
+            const base = rawName.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) || 'myfamily';
+            const candidate = base.length < 3 ? base + 'family' : base;
+
+            const res = await axios.post('/api/sites', {
+                subdomain: candidate,
+                theme: 'modern',
+            });
+
+            if (res.data?.success) {
+                const newSub = res.data.data.subdomain;
+                localStorage.setItem('orgcell_family_setup', JSON.stringify({ subdomain: newSub }));
+                navigate(`/${newSub}`);
+            } else {
+                navigate('/family-setup');
+            }
+        } catch {
+            // 서브도메인 충돌 등 — family-setup으로 fallback
+            navigate('/family-setup');
+        } finally {
+            setCreating(false);
         }
     };
 
@@ -266,10 +309,11 @@ export default function InviteFamilyPage() {
             <div className="px-5 pb-8 max-w-md mx-auto w-full space-y-3">
                 <button
                     onClick={handleFinish}
-                    className="w-full rounded-2xl font-bold text-white transition-all active:scale-[0.98]"
+                    disabled={creating}
+                    className={`w-full rounded-2xl font-bold text-white transition-all active:scale-[0.98] ${creating ? 'opacity-60' : ''}`}
                     style={{ height: 56, background: inviteSent ? 'linear-gradient(135deg, #5A9460, #4A8450)' : 'linear-gradient(135deg, #3D2008, #5A4020)' }}
                 >
-                    {inviteSent ? '🎉 초대 완료 → 박물관 입장' : '🏛️ 박물관으로 이동'}
+                    {creating ? '박물관 생성 중...' : inviteSent ? '🎉 초대 완료 → 박물관 입장' : '🏛️ 박물관으로 이동'}
                 </button>
                 {!inviteSent && (
                     <button onClick={handleFinish} className="w-full text-center text-sm text-gray-400 py-2">

@@ -251,27 +251,22 @@ export default function FamilyTagPage() {
         }));
 
         try {
-            const token = localStorage.getItem('orgcell_token');
-            if (token) {
-                const headers = { Authorization: `Bearer ${token}` };
+            // storage_type을 사이트에 저장
+            const storageTypeMap = { google: 'google_drive', onedrive: 'onedrive', orgcell: 'orgcell' };
+            const siteRes = await axios.get('/api/sites/mine').catch(() => null);
+            const siteId = siteRes?.data?.data?.id;
+            if (siteId) {
+                await axios.patch(`/api/sites/${siteId}`, {
+                    storage_type: storageTypeMap[storage] || 'google_drive',
+                }).catch(() => null);
+            }
 
-                // storage_type을 사이트에 저장
-                const storageTypeMap = { google: 'google_drive', onedrive: 'onedrive', orgcell: 'orgcell' };
-                const siteRes = await axios.get('/api/sites/mine', { headers }).catch(() => null);
-                const siteId = siteRes?.data?.data?.id;
-                if (siteId) {
-                    await axios.patch(`/api/sites/${siteId}`, {
-                        storage_type: storageTypeMap[storage] || 'google_drive',
-                    }, { headers }).catch(() => null);
-                }
-
-                for (const member of familyMembers) {
-                    await axios.post('/api/face/register', {
-                        label: member.label,
-                        descriptor: new Array(128).fill(0),
-                        is_reference: true,
-                    }, { headers }).catch(() => null);
-                }
+            for (const member of familyMembers) {
+                await axios.post('/api/face/register', {
+                    label: member.label,
+                    descriptor: new Array(128).fill(0),
+                    is_reference: true,
+                }).catch(() => null);
             }
         } catch {
             // 무시

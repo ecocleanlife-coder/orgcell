@@ -49,14 +49,11 @@ const PageLoader = () => (
 // Authenticated home → 사이트 유무에 따라 분기
 function AuthHome() {
   const navigate = useNavigate();
-  const token = useAuthStore(state => state.token);
 
   useEffect(() => {
     const checkSite = async () => {
       try {
-        const res = await fetch('/api/sites/mine', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await fetch('/api/sites/mine');
         const data = await res.json();
         if (data.data?.subdomain) {
           navigate(`/${data.data.subdomain}`, { replace: true });
@@ -73,13 +70,13 @@ function AuthHome() {
       }
     };
     checkSite();
-  }, [navigate, token]);
+  }, [navigate]);
 
   return <PageLoader />;
 }
 
 function App() {
-  const token = useAuthStore(state => state.token);
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const user = useAuthStore(state => state.user);
   const isLoading = useAuthStore(state => state.isLoading);
   const fetchMe = useAuthStore(state => state.fetchMe);
@@ -89,8 +86,7 @@ function App() {
     initTheme();
   }, [fetchMe]);
 
-  const isAuthenticated = !!(token && user);
-  const isPendingAuth = !!(token && !user && isLoading);
+  const isPendingAuth = !!(isAuthenticated && !user && isLoading);
 
   return (
     <HelmetProvider>

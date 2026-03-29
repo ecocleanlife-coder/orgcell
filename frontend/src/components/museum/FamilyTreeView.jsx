@@ -44,7 +44,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     const navigate = useNavigate();
     const lang = useUiStore((s) => s.lang);
     const t = getT('familyTree', lang);
-    const token = useAuthStore((s) => s.token);
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
     const [persons, setPersons] = useState([]);
     const [relations, setRelations] = useState([]);
@@ -70,11 +70,10 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         if (!siteId) { setIsLoading(false); return; }
         try {
             setIsLoading(true);
-            const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
             const [personsRes, relationsRes, fedRes] = await Promise.all([
-                axios.get(`/api/persons/${siteId}`, config),
-                axios.get(`/api/persons/${siteId}/relations`, config).catch(() => ({ data: { data: [] } })),
-                token ? axios.get('/api/federation/list', config).catch(() => ({ data: { data: [] } })) : Promise.resolve({ data: { data: [] } }),
+                axios.get(`/api/persons/${siteId}`),
+                axios.get(`/api/persons/${siteId}/relations`).catch(() => ({ data: { data: [] } })),
+                isAuthenticated ? axios.get('/api/federation/list').catch(() => ({ data: { data: [] } })) : Promise.resolve({ data: { data: [] } }),
             ]);
             const personsData = personsRes.data?.data || [];
             const relationsData = relationsRes.data?.data || [];
@@ -86,7 +85,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         } finally {
             setIsLoading(false);
         }
-    }, [siteId, token]);
+    }, [siteId, isAuthenticated]);
 
     useEffect(() => { fetchPersons(); }, [fetchPersons]);
 
@@ -257,11 +256,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
     // ── API helpers ──
     const apiCreatePerson = async (data) => {
-        if (!siteId || !token) return null;
+        if (!siteId) return null;
         try {
-            const res = await axios.post(`/api/persons/${siteId}`, data, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            const res = await axios.post(`/api/persons/${siteId}`, data);
             return res.data?.data || null;
         } catch (err) {
             console.error('createPerson error:', err);
@@ -270,11 +267,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     };
 
     const apiUpdatePerson = async (personId, data) => {
-        if (!siteId || !token) return null;
+        if (!siteId) return null;
         try {
-            const res = await axios.put(`/api/persons/${siteId}/${personId}`, data, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            const res = await axios.put(`/api/persons/${siteId}/${personId}`, data);
             return res.data?.data || null;
         } catch (err) {
             console.error('updatePerson error:', err);
@@ -283,11 +278,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     };
 
     const apiDeletePerson = async (personId) => {
-        if (!siteId || !token) return false;
+        if (!siteId) return false;
         try {
-            await axios.delete(`/api/persons/${siteId}/${personId}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            await axios.delete(`/api/persons/${siteId}/${personId}`);
             return true;
         } catch (err) {
             console.error('deletePerson error:', err);
@@ -296,11 +289,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     };
 
     const apiCreateRelation = async (data) => {
-        if (!siteId || !token) return null;
+        if (!siteId) return null;
         try {
-            const res = await axios.post(`/api/persons/${siteId}/relations`, data, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            const res = await axios.post(`/api/persons/${siteId}/relations`, data);
             return res.data?.data || null;
         } catch (err) {
             console.error('createRelation error:', err);
@@ -866,14 +857,13 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                             <input type="file" accept="image/*,.heic,.heif,.HEIC,.HEIF" className="hidden"
                                                 onChange={async (e) => {
                                                     const file = e.target.files?.[0];
-                                                    if (!file || !editPerson || !siteId || !token) return;
+                                                    if (!file || !editPerson || !siteId) return;
                                                     const fd = new FormData();
                                                     fd.append('photo', file);
                                                     try {
                                                         const res = await axios.post(
                                                             `/api/persons/${siteId}/${editPerson.id}/photo`,
-                                                            fd,
-                                                            { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } }
+                                                            fd
                                                         );
                                                         if (res.data?.data?.photo_url) {
                                                             setEditPerson({ ...editPerson, photo_url: res.data.data.photo_url });

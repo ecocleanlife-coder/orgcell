@@ -177,7 +177,7 @@ function OnboardingBanner() {
 export default function HomePage() {
     const navigate = useNavigate();
     const user = useAuthStore(s => s.user);
-    const token = useAuthStore(s => s.token);
+    const isAuthenticated = useAuthStore(s => s.isAuthenticated);
     const logoutFn = useAuthStore(s => s.logout);
 
     const [siteData, setSiteData] = useState(null);
@@ -188,15 +188,14 @@ export default function HomePage() {
 
     // 로그인 안 됐으면 랜딩으로
     useEffect(() => {
-        if (!token) navigate('/', { replace: true });
-    }, [token, navigate]);
+        if (!isAuthenticated) navigate('/', { replace: true });
+    }, [isAuthenticated, navigate]);
 
     // 사이트 정보 + 달력 + 게시판 로드
     useEffect(() => {
-        if (!token) return;
-        const headers = { Authorization: `Bearer ${token}` };
+        if (!isAuthenticated) return;
 
-        axios.get('/api/sites/mine', { headers })
+        axios.get('/api/sites/mine')
             .then(r => {
                 if (r.data?.success && r.data?.data) setSiteData(r.data.data);
             })
@@ -205,7 +204,7 @@ export default function HomePage() {
         const now = new Date();
         const y = now.getFullYear();
         const m = now.getMonth() + 1;
-        axios.get(`/api/calendar?year=${y}&month=${m}`, { headers })
+        axios.get(`/api/calendar?year=${y}&month=${m}`)
             .then(r => {
                 if (r.data?.success) {
                     const upcoming = (r.data.data || [])
@@ -217,12 +216,12 @@ export default function HomePage() {
             })
             .catch(() => {});
 
-        axios.get('/api/board/posts?limit=3', { headers })
+        axios.get('/api/board/posts?limit=3')
             .then(r => {
                 if (r.data?.success) setPosts((r.data.data || []).slice(0, 3));
             })
             .catch(() => {});
-    }, [token]);
+    }, [isAuthenticated]);
 
     const handleMuseum = () => {
         if (siteData?.subdomain) {
@@ -245,7 +244,7 @@ export default function HomePage() {
 
     const EVENT_EMOJI = { birthday: '🎂', anniversary: '💑', event: '🎉', memorial: '🕯️', trip: '✈️' };
 
-    if (!token || !user) return null;
+    if (!isAuthenticated || !user) return null;
 
     return (
         <div className="min-h-screen" style={{ background: '#FAFAF7' }}>

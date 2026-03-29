@@ -46,7 +46,7 @@ const storageOptions = [
 
 export default function StorageSelectPage() {
     const navigate = useNavigate();
-    const token = useAuthStore(s => s.token);
+    const isAuthenticated = useAuthStore(s => s.isAuthenticated);
     const [selected, setSelected] = useState(null);
     const [showWhy, setShowWhy] = useState(false);
     const [connecting, setConnecting] = useState(false);
@@ -54,6 +54,7 @@ export default function StorageSelectPage() {
     // iCloud 대기자
     const [showICloudModal, setShowICloudModal] = useState(false);
     const [icloudEmail, setIcloudEmail] = useState('');
+    const [icloudConsent, setIcloudConsent] = useState(false);
     const [icloudStatus, setIcloudStatus] = useState(null); // null | 'sending' | 'done' | 'error'
 
     const { setCurrentStep, completeStep, setStorage } = useOnboardingStore();
@@ -74,9 +75,8 @@ export default function StorageSelectPage() {
         setConnectError(null);
 
         try {
-            const headers = token ? { Authorization: `Bearer ${token}` } : {};
             const endpoint = storageType === 'google' ? '/api/drive/auth' : '/api/onedrive/auth';
-            const res = await axios.get(endpoint, { headers });
+            const res = await axios.get(endpoint);
 
             if (res.data?.success && res.data.authUrl) {
                 // OAuth 팝업
@@ -102,14 +102,13 @@ export default function StorageSelectPage() {
     // OAuth 연결 완료 확인
     const verifyConnection = async (storageType) => {
         try {
-            const headers = token ? { Authorization: `Bearer ${token}` } : {};
             const endpoint = storageType === 'google' ? '/api/drive/status' : '/api/onedrive/status';
-            const res = await axios.get(endpoint, { headers });
+            const res = await axios.get(endpoint);
 
             if (res.data?.success && res.data.connected) {
                 // 연결 성공 → 폴더 구조 설정
                 const setupEndpoint = storageType === 'google' ? '/api/drive/setup' : '/api/onedrive/setup';
-                await axios.post(setupEndpoint, {}, { headers }).catch(() => null);
+                await axios.post(setupEndpoint, {}).catch(() => null);
 
                 proceedToNext(storageType);
             } else {
@@ -142,7 +141,7 @@ export default function StorageSelectPage() {
         }
 
         // Google Drive / OneDrive → OAuth 연결
-        if (token) {
+        if (isAuthenticated) {
             connectOAuth(choice);
         } else {
             // 비로그인 상태 → 일단 다음으로 (OAuth는 로그인 후)
@@ -155,8 +154,7 @@ export default function StorageSelectPage() {
         if (!icloudEmail || !icloudEmail.includes('@')) return;
         setIcloudStatus('sending');
         try {
-            const headers = token ? { Authorization: `Bearer ${token}` } : {};
-            await axios.post('/api/sites/waitlist/icloud', { email: icloudEmail }, { headers });
+            await axios.post('/api/sites/waitlist/icloud', { email: icloudEmail });
             setIcloudStatus('done');
         } catch {
             setIcloudStatus('error');
@@ -296,15 +294,23 @@ export default function StorageSelectPage() {
                                     placeholder="이메일 주소"
                                     className="w-full px-4 py-3 rounded-xl border border-[#E8E3D8] text-sm focus:outline-none focus:border-[#5A9460] mb-3"
                                 />
-                                <p className="text-[10px] text-[#A09882] mb-4">
-                                    입력하신 이메일은 iCloud 연동 출시 알림 목적으로만 사용됩니다.
-                                </p>
+                                <label className="flex items-start gap-2 mb-4 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={icloudConsent}
+                                        onChange={(e) => setIcloudConsent(e.target.checked)}
+                                        className="mt-0.5 w-4 h-4 accent-[#5A9460]"
+                                    />
+                                    <span className="text-[11px] text-[#7A6E5E] leading-relaxed">
+                                        입력한 이메일을 iCloud 연동 출시 알림 목적으로 수집하는 데 동의합니다.
+                                    </span>
+                                </label>
                                 {icloudStatus === 'error' && (
                                     <p className="text-xs text-red-500 mb-2">등록에 실패했습니다. 다시 시도해주세요.</p>
                                 )}
                                 <button
                                     onClick={handleICloudWaitlist}
-                                    disabled={!icloudEmail.includes('@') || icloudStatus === 'sending'}
+                                    disabled={!icloudEmail.includes('@') || !icloudConsent || icloudStatus === 'sending'}
                                     className="w-full rounded-2xl font-bold text-white active:scale-[0.98] transition-all disabled:opacity-40"
                                     style={{ height: 48, background: 'linear-gradient(135deg, #5A9460, #4A8450)' }}
                                 >

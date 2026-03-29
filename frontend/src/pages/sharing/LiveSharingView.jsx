@@ -69,7 +69,6 @@ const STEPS = {
 export default function LiveSharingView() {
     const lang = useUiStore((s) => s.lang);
     const lt = getT('liveSharing', lang);
-    const token = useAuthStore((s) => s.token);
     const [step, setStep] = useState(STEPS.MAIN);
 
     // ── Individual state ──
@@ -221,14 +220,9 @@ export default function LiveSharingView() {
             formData.append('room_code', groupAlbum?.id || 'default');
             files.forEach(file => formData.append('photos', file));
 
-            const token = localStorage.getItem('token') || '';
-
             // POST to backend API
             const response = await fetch('/api/sharing/upload', {
                 method: 'POST',
-                headers: {
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-                },
                 body: formData
             });
 

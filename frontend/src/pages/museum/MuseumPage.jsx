@@ -127,7 +127,7 @@ export default function MuseumPage({ initialTab }) {
     const lang = useUiStore((s) => s.lang);
     const t = getT('museum', lang);
     const pt = getT('pwa', lang);
-    const { token } = useAuthStore();
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
     const [site, setSite] = useState(null);
     const [role, setRole] = useState(null);
@@ -169,8 +169,7 @@ export default function MuseumPage({ initialTab }) {
     useEffect(() => {
         setLoading(true);
         setNotFound(false);
-        const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-        axios.get(`/api/museum/${subdomain}`, config)
+        axios.get(`/api/museum/${subdomain}`)
             .then((r) => {
                 if (r.data?.success) {
                     setSite(r.data.data);
@@ -183,7 +182,7 @@ export default function MuseumPage({ initialTab }) {
                 if (err.response?.status === 404) setNotFound(true);
             })
             .finally(() => setLoading(false));
-    }, [subdomain, token]);
+    }, [subdomain]);
 
     // ── Show onboarding for owner on first visit ──
     useEffect(() => {

@@ -2,15 +2,16 @@ import { create } from 'zustand';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
+// httpOnly 쿠키 자동 전송
+axios.defaults.withCredentials = true;
+
 // Setup Global Axios Interceptor for Error Handling
 axios.interceptors.response.use(
     response => response,
     error => {
         if (!error.response) {
-            // Network Error or Server Down
             toast.error('서버와의 연결이 끊어졌습니다. 인터넷 상태를 확인해주세요.', { id: 'network-error' });
         } else if (error.response.status === 401) {
-            // Unauthorized - Handled dynamically in fetchMe usually, but global toast helps
             toast.error('세션이 만료되었습니다. 다시 로그인해주세요.', { id: 'auth-error' });
         } else if (error.response.status >= 500) {
             toast.error('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
@@ -21,21 +22,21 @@ axios.interceptors.response.use(
 
 const useAuthStore = create((set) => ({
     user: null,
-    token: localStorage.getItem('orgcell_token') || null,
+    isAuthenticated: false,
     isLoading: false,
     error: null,
     registeredFaces: [],
 
-    setAuth: (user, token) => {
-        localStorage.setItem('orgcell_token', token);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        set({ user, token, error: null });
+    setAuth: (user) => {
+        // 토큰은 httpOnly 쿠키로 관리됨 — localStorage 사용 안 함
+        set({ user, isAuthenticated: true, error: null });
     },
 
-    logout: () => {
-        localStorage.removeItem('orgcell_token');
-        delete axios.defaults.headers.common['Authorization'];
-        set({ user: null, token: null });
+    logout: async () => {
+        try {
+            await axios.post('/api/auth/logout');
+        } catch { /* 쿠키 만료된 경우 무시 */ }
+        set({ user: null, isAuthenticated: false });
     },
 
     devLogin: async (name, email) => {
@@ -46,10 +47,8 @@ const useAuthStore = create((set) => ({
         set({ isLoading: true, error: null });
         try {
             const res = await axios.post('/api/auth/dev-login', { name, email });
-            if (res.data?.success && res.data?.token) {
-                localStorage.setItem('orgcell_token', res.data.token);
-                axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
-                set({ user: res.data.user, token: res.data.token });
+            if (res.data?.success) {
+                set({ user: res.data.user, isAuthenticated: true });
                 toast.success('Mock 로그인 성공');
             }
         } catch (err) {
@@ -63,7 +62,6 @@ const useAuthStore = create((set) => ({
 
     fetchRegisteredFaces: async () => {
         try {
-            // Use mock data until API is fully ready or pull from local dev
             const res = await axios.get('/api/face/descriptors').catch(() => ({ data: { data: [] } }));
             set({ registeredFaces: res.data.data || [] });
         } catch (err) {
@@ -72,12 +70,8 @@ const useAuthStore = create((set) => ({
     },
 
     fetchMe: async () => {
-        const token = localStorage.getItem('orgcell_token');
-        if (!token) return;
-
         set({ isLoading: true });
         try {
-            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
             const res = await Promise.race([
                 axios.get('/api/auth/me'),
                 new Promise((_, reject) =>
@@ -85,19 +79,15 @@ const useAuthStore = create((set) => ({
                 ),
             ]);
             if (res.data?.data) {
-                set({ user: res.data.data });
-                // Also check drive status
+                set({ user: res.data.data, isAuthenticated: true });
                 useAuthStore.getState().checkDriveStatus();
             } else {
                 throw new Error('Invalid user data');
             }
         } catch (err) {
             console.error('Auth check failed:', err);
-            // If unauthorized or timeout, clear token and force re-login
             if (err.response?.status === 401 || err.message === 'Auth check timeout') {
-                localStorage.removeItem('orgcell_token');
-                delete axios.defaults.headers.common['Authorization'];
-                set({ user: null, token: null });
+                set({ user: null, isAuthenticated: false });
             }
             set({ error: err.message });
         } finally {

@@ -267,7 +267,6 @@ function UploadModal({ exhibitionId, t, onClose, onDone }) {
         setUploading(true);
         setProgress(0);
 
-        const token = useAuthStore.getState().token;
         const formData = new FormData();
         files.forEach((f) => formData.append('photos', f));
         formData.append('visibility', visibility);
@@ -277,7 +276,6 @@ function UploadModal({ exhibitionId, t, onClose, onDone }) {
             await axios.post(`/api/exhibitions/${exhibitionId}/photos`, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
                 },
                 onUploadProgress: (e) => {
                     if (e.total) setProgress(Math.round((e.loaded / e.total) * 100));

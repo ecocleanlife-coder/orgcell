@@ -11,20 +11,20 @@ export default function FamilySetupPage() {
     const lang = useUiStore((s) => s.lang);
     const t = getT('familySetup', lang);
     const user = useAuthStore((s) => s.user);
-    const token = useAuthStore((s) => s.token);
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
     const navigate = useNavigate();
 
     // ── 이미 박물관 있으면 바로 이동 ──
     useEffect(() => {
-        if (!token) return;
-        axios.get('/api/sites/mine', { headers: { Authorization: `Bearer ${token}` } })
+        if (!isAuthenticated) return;
+        axios.get('/api/sites/mine')
             .then(({ data }) => {
                 if (data.data?.subdomain) {
                     navigate(`/${data.data.subdomain}`, { replace: true });
                 }
             })
             .catch(() => {});
-    }, [token, navigate]);
+    }, [isAuthenticated, navigate]);
 
     // ── Step state ──
     const [step, setStep] = useState(1); // 1=domain, 2=drive, 3=done

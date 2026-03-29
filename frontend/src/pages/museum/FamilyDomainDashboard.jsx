@@ -27,7 +27,7 @@ const CATEGORY_META = {
 };
 
 // ─── Federation (웜홀 라우팅) card ───
-function FederationCard({ site, token }) {
+function FederationCard({ site }) {
     const [federations, setFederations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -42,9 +42,7 @@ function FederationCard({ site, token }) {
 
     const fetchFederations = async () => {
         try {
-            const res = await axios.get('/api/federation/list', {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            const res = await axios.get('/api/federation/list');
             setFederations(res.data?.data || []);
         } catch { /* ignore */ }
         setLoading(false);
@@ -58,7 +56,7 @@ function FederationCard({ site, token }) {
                 targetDomain: targetDomain.trim(),
                 sourceSiteId: site.id,
                 relationType,
-            }, { headers: { Authorization: `Bearer ${token}` } });
+            });
             setTargetDomain('');
             setShowForm(false);
             fetchFederations();
@@ -70,9 +68,7 @@ function FederationCard({ site, token }) {
 
     const handleAccept = async (requestId) => {
         try {
-            await axios.post('/api/federation/accept', { requestId }, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            await axios.post('/api/federation/accept', { requestId });
             fetchFederations();
         } catch (err) {
             alert(err.response?.data?.message || '승인 실패');
@@ -81,9 +77,7 @@ function FederationCard({ site, token }) {
 
     const handleReject = async (requestId) => {
         try {
-            await axios.post('/api/federation/reject', { requestId }, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            await axios.post('/api/federation/reject', { requestId });
             fetchFederations();
         } catch (err) {
             alert(err.response?.data?.message || '거절 실패');
@@ -227,7 +221,7 @@ function FederationCard({ site, token }) {
 }
 
 // ─── Heritage (디지털 유산 승계) card ───
-function HeritageCard({ site, token, t }) {
+function HeritageCard({ site, t }) {
     const [heirs, setHeirs] = useState([]);
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState({ beneficiary_name: '', beneficiary_email: '', beneficiary_relation: '', activation_condition: 'inactivity_1year' });
@@ -236,12 +230,12 @@ function HeritageCard({ site, token, t }) {
     const fetchHeirs = useCallback(async () => {
         if (!site?.id) return;
         try {
-            const { data } = await axios.get(`/api/heritage/${site.id}`, { headers: { Authorization: `Bearer ${token}` } });
+            const { data } = await axios.get(`/api/heritage/${site.id}`);
             if (data.success) setHeirs(data.data);
         } catch (err) {
             console.error('fetchHeirs error:', err);
         }
-    }, [site?.id, token]);
+    }, [site?.id]);
 
     useEffect(() => { fetchHeirs(); }, [fetchHeirs]);
 
@@ -250,7 +244,7 @@ function HeritageCard({ site, token, t }) {
         if (!form.beneficiary_name || !form.beneficiary_email) return;
         setSaving(true);
         try {
-            await axios.post(`/api/heritage/${site.id}`, form, { headers: { Authorization: `Bearer ${token}` } });
+            await axios.post(`/api/heritage/${site.id}`, form);
             setShowForm(false);
             setForm({ beneficiary_name: '', beneficiary_email: '', beneficiary_relation: '', activation_condition: 'inactivity_1year' });
             fetchHeirs();
@@ -263,7 +257,7 @@ function HeritageCard({ site, token, t }) {
 
     const handleDelete = async (id) => {
         try {
-            await axios.delete(`/api/heritage/${site.id}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+            await axios.delete(`/api/heritage/${site.id}/${id}`);
             fetchHeirs();
         } catch (err) {
             console.error('deleteHeir error:', err);
@@ -1179,10 +1173,10 @@ export default function FamilyDomainDashboard() {
                         </div>
 
                         {/* Federation (웜홀 라우팅) */}
-                        <FederationCard site={site} token={token} />
+                        <FederationCard site={site} />
 
                         {/* Heritage (디지털 유산 승계) */}
-                        <HeritageCard site={site} token={token} t={t} />
+                        <HeritageCard site={site} t={t} />
 
                         {/* Logout */}
                         <button

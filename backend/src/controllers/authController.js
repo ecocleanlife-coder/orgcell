@@ -6,6 +6,14 @@ const { sendMagicLinkEmail } = require('../services/emailService');
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+const COOKIE_OPTIONS = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    path: '/',
+};
+
 // @desc    Google SSO Login
 // @route   POST /api/auth/google
 exports.googleLogin = async (req, res) => {
@@ -53,9 +61,9 @@ exports.googleLogin = async (req, res) => {
             { expiresIn: '30d' }
         );
 
+        res.cookie('orgcell_token', token, COOKIE_OPTIONS);
         res.json({
             success: true,
-            token,
             user: {
                 id: user.id,
                 email: user.email,
@@ -122,11 +130,19 @@ exports.devLogin = async (req, res) => {
             { expiresIn: '30d' }
         );
 
-        res.json({ success: true, token, user });
+        res.cookie('orgcell_token', token, COOKIE_OPTIONS);
+        res.json({ success: true, user });
     } catch (error) {
         console.error('devLogin Error:', error);
         res.status(500).json({ success: false, message: 'Dev login failed' });
     }
+};
+
+// @desc    Logout (clear httpOnly cookie)
+// @route   POST /api/auth/logout
+exports.logout = (req, res) => {
+    res.clearCookie('orgcell_token', { path: '/' });
+    res.json({ success: true });
 };
 
 // Rate limit: max 5 requests per email per 15 min
@@ -247,9 +263,9 @@ exports.verifyMagicLink = async (req, res) => {
             { expiresIn: '30d' }
         );
 
+        res.cookie('orgcell_token', jwtToken, COOKIE_OPTIONS);
         res.json({
             success: true,
-            token: jwtToken,
             user: {
                 id: user.id,
                 email: user.email,

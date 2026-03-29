@@ -16,6 +16,7 @@ registerSW({
 
 // Global Axios configuration for API routing
 axios.defaults.baseURL = import.meta.env.VITE_API_URL || '';
+axios.defaults.withCredentials = true; // Enable cookies in requests
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

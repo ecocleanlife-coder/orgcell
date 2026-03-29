@@ -10,7 +10,7 @@ export default function LoginPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const next = searchParams.get('next') || '/';
-    const token = useAuthStore(s => s.token);
+    const isAuthenticated = useAuthStore(s => s.isAuthenticated);
     const user = useAuthStore(s => s.user);
 
     // Store next param so MagicLinkVerify can pick it up after email link click
@@ -22,7 +22,7 @@ export default function LoginPage() {
 
     // If already authenticated, redirect
     useEffect(() => {
-        if (token && user) {
+        if (isAuthenticated && user) {
             sessionStorage.removeItem('orgcell_post_login_next');
             if (next === 'checkout') {
                 handleCheckoutRedirect();
@@ -30,7 +30,7 @@ export default function LoginPage() {
                 navigate(next === '/' ? '/' : `/${next}`, { replace: true });
             }
         }
-    }, [token, user]);
+    }, [isAuthenticated, user]);
 
     const handleCheckoutRedirect = async () => {
         try {

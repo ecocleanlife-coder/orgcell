@@ -13,7 +13,7 @@ function LandingPage() {
     const { t } = useTranslation();
     const devLogin = useAuthStore(state => state.devLogin);
     const isLoading = useAuthStore(state => state.isLoading);
-    const token = useAuthStore(state => state.token);
+    const isAuthenticated = useAuthStore(state => state.isAuthenticated);
     const user = useAuthStore(state => state.user);
     const [name, setName] = useState('Test User');
     const [email, setEmail] = useState('test@orgcell.com');
@@ -26,7 +26,6 @@ function LandingPage() {
     const handleDevLogin = () => devLogin(name, email);
 
     const [checkoutLoading, setCheckoutLoading] = useState(false);
-    const isAuthenticated = !!(token && user);
 
     const handleCheckout = useCallback(async (e) => {
         if (e) e.stopPropagation();

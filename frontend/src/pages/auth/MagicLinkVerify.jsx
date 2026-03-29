@@ -28,9 +28,9 @@ export default function MagicLinkVerify() {
         const verifyToken = async () => {
             try {
                 const res = await axios.post('/api/auth/magic-link/verify', { token });
-                if (res.data?.success && res.data?.token) {
-                    // Log the user in
-                    setAuth(res.data.user, res.data.token);
+                if (res.data?.success && res.data?.user) {
+                    // Backend sets token via httpOnly cookie, we only pass user data
+                    setAuth(res.data.user);
                     setStatus('success');
 
                     // Allow UI to show success state briefly before redirecting
