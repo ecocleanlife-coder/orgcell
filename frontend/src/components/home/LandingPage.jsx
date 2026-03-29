@@ -11,6 +11,7 @@ const SECTIONS = [
         desc: '가족이 언제 어디서든 접근할 수 있는\n디지털 가족 박물관. 1000장 무료.',
         btnColor: '#7C5CFC',
         btnHover: '#6A4AE0',
+        type: 'museum',
     },
     {
         bg: '#EFF7E8',
@@ -20,6 +21,7 @@ const SECTIONS = [
         desc: '폰이나 컴퓨터의 중복 사진을\n날짜순으로 자동 재정리합니다.',
         btnColor: '#5A9460',
         btnHover: '#4A8450',
+        type: 'ai',
     },
     {
         bg: '#EFF5FF',
@@ -29,6 +31,7 @@ const SECTIONS = [
         desc: '가족 모임 사진을 바로 공유하세요.',
         btnColor: '#4A7FB5',
         btnHover: '#3A6FA5',
+        type: 'share',
     },
 ];
 
@@ -98,16 +101,32 @@ function LandingPage() {
                     </p>
 
                     {/* 버튼 */}
-                    <button
-                        onClick={() => navigate('/onboarding/service')}
-                        className="w-full max-w-[320px] rounded-2xl font-bold text-white text-[15px] cursor-pointer transition-all hover:brightness-110 active:scale-[0.98]"
-                        style={{
-                            height: 56,
-                            background: `linear-gradient(135deg, ${section.btnColor}, ${section.btnHover})`,
-                        }}
-                    >
-                        시작하기
-                    </button>
+                    <div className="flex flex-col items-center gap-3 w-full max-w-[320px]">
+                        <button
+                            onClick={() => navigate(`/onboarding/service?type=${section.type}`)}
+                            className="w-full rounded-2xl font-bold text-white text-[15px] cursor-pointer transition-all hover:brightness-110 active:scale-[0.98]"
+                            style={{
+                                height: 56,
+                                background: `linear-gradient(135deg, ${section.btnColor}, ${section.btnHover})`,
+                            }}
+                        >
+                            시작하기
+                        </button>
+                        {idx === 0 && (
+                            <button
+                                onClick={() => navigate('/lee')}
+                                className="w-full rounded-2xl font-bold text-[15px] cursor-pointer transition-all hover:brightness-105 active:scale-[0.98]"
+                                style={{
+                                    height: 48,
+                                    background: 'transparent',
+                                    border: `2px solid ${section.btnColor}`,
+                                    color: section.btnColor,
+                                }}
+                            >
+                                예시 보기 →
+                            </button>
+                        )}
+                    </div>
                 </section>
             ))}
 

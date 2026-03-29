@@ -6,7 +6,7 @@ import axios from 'axios';
 import Navbar from '../../components/common/Navbar';
 import Footer from '../../components/common/Footer';
 import useAuthStore from '../../store/authStore';
-import { Globe, Lock, Users, FolderTree, Shield, Star, ArrowRight, Crown, Image } from 'lucide-react';
+import { Globe, Lock, Users, FolderTree, Shield, Star, ArrowRight, Crown, Image, ShieldCheck, ChevronDown, Eye } from 'lucide-react';
 
 const FamilyWebsitePage = () => {
     const { t } = useTranslation();
@@ -14,6 +14,7 @@ const FamilyWebsitePage = () => {
     const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
     const [startLoading, setStartLoading] = useState(false);
     const [mySite, setMySite] = useState(null);
+    const [openFaqIndex, setOpenFaqIndex] = useState(null);
 
     // 로그인 상태면 내 사이트 조회
     useEffect(() => {
@@ -235,6 +236,64 @@ const FamilyWebsitePage = () => {
                 </div>
             </section>
 
+            {/* ══ Trust & Security Section ══ */}
+            <section className="py-16 px-5" style={{ background: '#F0FAF0' }}>
+                <div className="max-w-[800px] mx-auto">
+                    {/* Google Drive 권한 안내 카드 */}
+                    <div
+                        className="rounded-2xl p-8 mb-6"
+                        style={{
+                            background: 'linear-gradient(135deg, #E8F5E9, #F1F8E9)',
+                            border: '2px solid #A5D6A7',
+                        }}
+                    >
+                        <div className="flex items-center gap-3 mb-5">
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: '#4CAF50' }}>
+                                <Lock size={20} color="#fff" />
+                            </div>
+                            <h3 className="text-[18px] font-bold" style={{ color: '#2E7D32' }}>
+                                Google Drive 권한 안내
+                            </h3>
+                        </div>
+                        <ul className="space-y-3">
+                            {[
+                                { icon: Eye, text: '읽기 전용(Read-only) 권한만 요청합니다' },
+                                { icon: Shield, text: '파일 삭제나 수정은 절대 하지 않습니다' },
+                                { icon: ShieldCheck, text: 'Orgcell 서버에는 사진이 저장되지 않습니다' },
+                            ].map((item, i) => {
+                                const Icon = item.icon;
+                                return (
+                                    <li key={i} className="flex items-center gap-3">
+                                        <Icon size={18} style={{ color: '#4CAF50', flexShrink: 0 }} />
+                                        <span className="text-[14px] font-medium" style={{ color: '#1B5E20' }}>
+                                            {item.text}
+                                        </span>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </div>
+
+                    {/* "서비스가 사라져도 안전" 배너 */}
+                    <div
+                        className="rounded-2xl p-6 text-center"
+                        style={{
+                            background: 'linear-gradient(135deg, #E3F2FD, #E8EAF6)',
+                            border: '1px solid #90CAF9',
+                        }}
+                    >
+                        <ShieldCheck size={32} style={{ color: '#1565C0', margin: '0 auto 12px' }} />
+                        <h3 className="text-[17px] font-bold mb-2" style={{ color: '#0D47A1' }}>
+                            서비스가 사라져도 내 사진은 안전합니다
+                        </h3>
+                        <p className="text-[14px] leading-relaxed" style={{ color: '#1565C0' }}>
+                            내 구글 드라이브에 저장되기 때문에<br />
+                            Orgcell이 없어져도 사진은 그대로입니다
+                        </p>
+                    </div>
+                </div>
+            </section>
+
             {/* ══ Features Section ══ */}
             <section className="py-20 px-5" style={{ background: '#F5FAF5' }}>
                 <div className="max-w-[1040px] mx-auto">
@@ -426,23 +485,70 @@ const FamilyWebsitePage = () => {
                 </div>
             </section>
 
-            {/* ══ FAQ Section ══ */}
+            {/* ══ "내 데이터는 내 드라이브에" 강조 섹션 ══ */}
+            <section className="py-16 px-5" style={{ background: '#F5FAF5' }}>
+                <div className="max-w-[800px] mx-auto text-center">
+                    <h2
+                        className="mb-4"
+                        style={{
+                            fontSize: 'clamp(28px, 5vw, 42px)',
+                            fontWeight: '800',
+                            fontFamily: 'Georgia, serif',
+                            color: '#2E7D32',
+                            lineHeight: 1.3,
+                        }}
+                    >
+                        내 데이터는<br />내 드라이브에
+                    </h2>
+                    <p className="max-w-lg mx-auto" style={{ fontSize: '16px', color: '#5A6E4E', lineHeight: 1.7 }}>
+                        Orgcell은 사진을 가져가지 않습니다.<br />
+                        내 Google Drive에 저장된 원본을 그대로 보여줄 뿐.<br />
+                        소유권은 언제나 나에게 있습니다.
+                    </p>
+                </div>
+            </section>
+
+            {/* ══ FAQ Section (아코디언) ══ */}
             <section className="py-12 px-5" style={{ background: '#FAFAF7' }}>
                 <div className="max-w-[800px] mx-auto">
                     <h2 className="text-center mb-8" style={{ fontSize: '28px', fontWeight: '700', fontFamily: 'Georgia, serif', color: '#1E2A0E' }}>
                         {t('landing.faqTitle')}
                     </h2>
-                    <div className="space-y-4">
-                        {[1, 2, 3].map(n => (
-                            <div key={n} className="bg-white rounded-2xl p-6 shadow-sm border border-[#e8e2d6]">
-                                <h3 className="font-bold text-[#1E2A0E] text-[15px] mb-2 flex gap-2 items-start">
-                                    <span style={{ color: '#5A9460' }}>Q.</span> {t(`familyWebsite.faq${n}Q`)}
-                                </h3>
-                                <p className="text-[#6b5d4d] text-[13.5px] leading-relaxed pl-6">
-                                    <span className="font-bold text-[#1E2A0E]">A. </span>{t(`familyWebsite.faq${n}A`)}
-                                </p>
-                            </div>
-                        ))}
+                    <div className="space-y-3">
+                        {[1, 2, 3].map(n => {
+                            const isOpen = openFaqIndex === n;
+                            return (
+                                <div key={n} className="bg-white rounded-2xl shadow-sm border border-[#e8e2d6] overflow-hidden">
+                                    <button
+                                        onClick={() => setOpenFaqIndex(isOpen ? null : n)}
+                                        className="w-full flex items-center justify-between p-6 text-left cursor-pointer"
+                                    >
+                                        <h3 className="font-bold text-[#1E2A0E] text-[15px] flex gap-2 items-start pr-4">
+                                            <span style={{ color: '#5A9460' }}>Q.</span> {t(`familyWebsite.faq${n}Q`)}
+                                        </h3>
+                                        <ChevronDown
+                                            size={20}
+                                            className="transition-transform duration-300 flex-shrink-0"
+                                            style={{
+                                                color: '#5A9460',
+                                                transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                                            }}
+                                        />
+                                    </button>
+                                    <div
+                                        className="transition-all duration-300 ease-in-out overflow-hidden"
+                                        style={{
+                                            maxHeight: isOpen ? '200px' : '0px',
+                                            opacity: isOpen ? 1 : 0,
+                                        }}
+                                    >
+                                        <p className="text-[#6b5d4d] text-[13.5px] leading-relaxed px-6 pb-6 pl-[52px]">
+                                            <span className="font-bold text-[#1E2A0E]">A. </span>{t(`familyWebsite.faq${n}A`)}
+                                        </p>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             </section>

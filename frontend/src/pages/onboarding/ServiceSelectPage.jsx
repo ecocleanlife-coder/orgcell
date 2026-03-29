@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import OnboardingProgress from '../../components/onboarding/OnboardingProgress';
 import useOnboardingStore from '../../store/onboardingStore';
 
@@ -27,10 +27,14 @@ const services = [
     },
 ];
 
+const TYPE_INDEX_MAP = { museum: 0, ai: 1, share: 2 };
+
 export default function ServiceSelectPage() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { startOnboarding, setCurrentStep, completeStep } = useOnboardingStore();
-    const [current, setCurrent] = useState(0);
+    const typeParam = searchParams.get('type');
+    const [current, setCurrent] = useState(() => TYPE_INDEX_MAP[typeParam] ?? 0);
     const containerRef = useRef(null);
     const touchStartX = useRef(0);
     const touchDeltaX = useRef(0);
