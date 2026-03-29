@@ -411,6 +411,10 @@ jobs:
             # ── 023: 사진 위치 조정 ──
             docker exec orgcell-db psql -U orgcell_user -d orgcell \
               -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS photo_position JSONB DEFAULT '{\"x\":50,\"y\":50}';"
+            # ── 024: storage_type + iCloud 대기자 ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "ALTER TABLE family_sites ADD COLUMN IF NOT EXISTS storage_type VARCHAR(20) DEFAULT 'google_drive';" \
+              -c "CREATE TABLE IF NOT EXISTS icloud_waitlist (id SERIAL PRIMARY KEY, email VARCHAR(255) NOT NULL, created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP);"
             echo "Migrations done"
             # ─────────────────────────────────────────────────────────────
 

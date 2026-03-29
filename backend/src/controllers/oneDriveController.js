@@ -293,6 +293,56 @@ exports.deleteFile = async (req, res) => {
     }
 };
 
+// @desc    List photos from OneDrive
+// @route   GET /api/onedrive/photos
+exports.listPhotos = async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 50;
+
+        // 이미지 파일만 필터링
+        const resp = await graphFetch(req.user.id, `/me/drive/root:/Orgcell:/children?$top=${limit}&$filter=file/mimeType eq 'image/jpeg' or file/mimeType eq 'image/png' or file/mimeType eq 'image/webp'&$orderby=createdDateTime desc&$select=id,name,file,thumbnails,createdDateTime,size`, {
+            method: 'GET',
+        });
+
+        if (!resp.ok) {
+            // Orgcell 폴더 없으면 전체 사진 검색
+            const fallback = await graphFetch(req.user.id, `/me/drive/root/search(q='.jpg')?$top=${limit}&$select=id,name,file,thumbnails,createdDateTime,size`, {
+                method: 'GET',
+            });
+            if (!fallback.ok) {
+                return res.status(500).json({ success: false, message: 'Failed to list photos' });
+            }
+            const data = await fallback.json();
+            const photos = (data.value || [])
+                .filter(f => f.file && f.file.mimeType?.startsWith('image/'))
+                .map(f => ({
+                    id: f.id,
+                    name: f.name,
+                    mimeType: f.file?.mimeType,
+                    thumbnailUrl: f.thumbnails?.[0]?.medium?.url || null,
+                    createdAt: f.createdDateTime,
+                    size: f.size,
+                }));
+            return res.json({ success: true, data: photos, total: photos.length });
+        }
+
+        const data = await resp.json();
+        const photos = (data.value || []).map(f => ({
+            id: f.id,
+            name: f.name,
+            mimeType: f.file?.mimeType,
+            thumbnailUrl: f.thumbnails?.[0]?.medium?.url || null,
+            createdAt: f.createdDateTime,
+            size: f.size,
+        }));
+
+        res.json({ success: true, data: photos, total: photos.length });
+    } catch (error) {
+        console.error('listOneDrivePhotos Error:', error.message);
+        res.status(500).json({ success: false, message: 'Failed to list photos' });
+    }
+};
+
 // @desc    Disconnect OneDrive
 // @route   POST /api/onedrive/disconnect
 exports.disconnect = async (req, res) => {

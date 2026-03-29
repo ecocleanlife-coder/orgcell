@@ -335,6 +335,68 @@ exports.removeMember = async (req, res) => {
     }
 };
 
+// @desc    Update site settings (storage_type, etc.)
+// @route   PATCH /api/sites/:siteId
+exports.updateSite = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { siteId } = req.params;
+        const { storage_type } = req.body;
+
+        // 소유자 확인
+        const site = await db.query(
+            `SELECT id FROM family_sites WHERE id = $1 AND user_id = $2`, [siteId, userId]
+        );
+        if (!site.rows.length) {
+            return res.status(404).json({ success: false, message: 'Site not found' });
+        }
+
+        const allowed = ['google_drive', 'onedrive', 'orgcell'];
+        if (storage_type && !allowed.includes(storage_type)) {
+            return res.status(400).json({ success: false, message: 'Invalid storage type' });
+        }
+
+        const { rows } = await db.query(
+            `UPDATE family_sites SET storage_type = COALESCE($1, storage_type), updated_at = NOW()
+             WHERE id = $2 RETURNING *`,
+            [storage_type, siteId]
+        );
+
+        res.json({ success: true, data: rows[0] });
+    } catch (error) {
+        console.error('updateSite Error:', error.message);
+        res.status(500).json({ success: false, message: 'Failed to update site' });
+    }
+};
+
+// @desc    Register iCloud waitlist
+// @route   POST /api/waitlist/icloud
+exports.joinICloudWaitlist = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email || !email.includes('@')) {
+            return res.status(400).json({ success: false, message: 'Valid email required' });
+        }
+
+        // 중복 체크
+        const existing = await db.query(
+            `SELECT id FROM icloud_waitlist WHERE email = $1`, [email.toLowerCase()]
+        );
+        if (existing.rows.length > 0) {
+            return res.json({ success: true, message: 'Already registered' });
+        }
+
+        await db.query(
+            `INSERT INTO icloud_waitlist (email) VALUES ($1)`, [email.toLowerCase()]
+        );
+
+        res.status(201).json({ success: true, message: 'Registered for iCloud waitlist' });
+    } catch (error) {
+        console.error('joinICloudWaitlist Error:', error.message);
+        res.status(500).json({ success: false, message: 'Failed to join waitlist' });
+    }
+};
+
 // @desc    Get pricing info
 // @route   GET /api/sites/pricing
 exports.getPricing = async (req, res) => {

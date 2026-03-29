@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const {
-    createSite, getMySite, createFolder, getFolderMedia,
+    createSite, getMySite, updateSite, createFolder, getFolderMedia,
     addMedia, getPricing, getPublicSite,
-    listMembers, updateMemberRole, removeMember
+    listMembers, updateMemberRole, removeMember,
+    joinICloudWaitlist
 } = require('../controllers/siteController');
 const { protect } = require('../middlewares/authMiddleware');
 
@@ -15,6 +16,8 @@ router.get('/public/:subdomain', getPublicSite);
 router.use(protect);
 router.post('/', createSite);
 router.get('/mine', getMySite);
+router.post('/waitlist/icloud', joinICloudWaitlist);
+router.patch('/:siteId', updateSite);
 router.get('/:siteId/members', listMembers);
 router.put('/:siteId/members/:memberId', updateMemberRole);
 router.delete('/:siteId/members/:memberId', removeMember);

@@ -16,6 +16,7 @@ router.post('/callback', ctrl.callback);
 router.get('/status', ctrl.status);
 router.post('/setup', ctrl.setupFolder);
 router.post('/upload', upload.single('file'), ctrl.upload);
+router.get('/photos', ctrl.listPhotos);
 router.get('/download/:fileId', ctrl.download);
 router.delete('/file/:fileId', ctrl.deleteFile);
 router.post('/disconnect', ctrl.disconnect);

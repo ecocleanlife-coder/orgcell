@@ -238,6 +238,49 @@ exports.deleteFromDrive = async (req, res) => {
     }
 };
 
+// @desc    List photos from Google Drive (Orgcell folder)
+// @route   GET /api/drive/photos
+exports.listDrivePhotos = async (req, res) => {
+    try {
+        const token = await getDriveToken(req.user.id);
+        if (!token) {
+            return res.status(401).json({ success: false, message: 'Drive not connected' });
+        }
+
+        const drive = getDriveClient(token);
+        const pageSize = parseInt(req.query.limit) || 50;
+        const pageToken = req.query.pageToken || undefined;
+
+        // Orgcell 폴더 내 이미지 파일 검색
+        const response = await drive.files.list({
+            q: "mimeType contains 'image/' and trashed = false",
+            fields: 'nextPageToken, files(id, name, mimeType, thumbnailLink, createdTime, size)',
+            pageSize,
+            pageToken,
+            orderBy: 'createdTime desc',
+        });
+
+        const photos = (response.data.files || []).map(f => ({
+            id: f.id,
+            name: f.name,
+            mimeType: f.mimeType,
+            thumbnailUrl: f.thumbnailLink,
+            createdAt: f.createdTime,
+            size: f.size,
+        }));
+
+        res.json({
+            success: true,
+            data: photos,
+            nextPageToken: response.data.nextPageToken || null,
+            total: photos.length,
+        });
+    } catch (error) {
+        console.error('listDrivePhotos Error:', error.message);
+        res.status(500).json({ success: false, message: 'Failed to list photos' });
+    }
+};
+
 // @desc    Disconnect Google Drive (revoke tokens + remove from DB)
 // @route   POST /api/drive/disconnect
 exports.disconnectDrive = async (req, res) => {
