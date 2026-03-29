@@ -130,6 +130,17 @@ function LandingPage() {
                 </section>
             ))}
 
+            {/* 특허 출원 배지 */}
+            <div className="text-center" style={{ padding: '16px 24px 0', background: '#FAFAF7' }}>
+                <span
+                    className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[12px] font-medium"
+                    style={{ background: '#F0F0EC', color: '#7A6E5E', border: '1px solid #E0DCD4' }}
+                >
+                    🔬 본 서비스는 한국 특허 출원된 독자 기술을 적용합니다
+                    <span style={{ color: '#A09882' }}>Patented Technology Applied (KR)</span>
+                </span>
+            </div>
+
             {/* 하단 — 로그인 링크 */}
             <div
                 className="text-center"
