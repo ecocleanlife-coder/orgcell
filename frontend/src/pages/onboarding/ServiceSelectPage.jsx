@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import OnboardingProgress from '../../components/onboarding/OnboardingProgress';
 
 const services = [
     {
@@ -36,7 +37,8 @@ export default function ServiceSelectPage() {
             }}
         >
             {/* Header */}
-            <div className="text-center pt-12 pb-6 px-4">
+            <OnboardingProgress current="service" />
+            <div className="text-center pt-6 pb-6 px-4">
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">
                     Orgcell로 무엇을 하시겠습니까?
                 </h1>

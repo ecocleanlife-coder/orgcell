@@ -164,7 +164,7 @@ function LandingPage() {
                             {/* CTA 버튼 — 1줄: 무료시작 + 예시보기 */}
                             <div className="flex flex-wrap gap-3 mt-6">
                                 <button
-                                    onClick={() => navigate('/auth/login')}
+                                    onClick={() => navigate('/onboarding/service')}
                                     className="px-6 py-3 rounded-full font-bold text-[15px] shadow-md cursor-pointer transition-all hover:brightness-105 active:scale-95 whitespace-nowrap"
                                     style={{ background: '#8DB86B', color: '#fff' }}
                                 >

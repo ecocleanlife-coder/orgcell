@@ -25,7 +25,7 @@ const FamilyWebsitePage = () => {
 
     const handleStartFree = async () => {
         if (!token) {
-            navigate('/auth/login');
+            navigate('/onboarding/service');
             return;
         }
         setStartLoading(true);
@@ -36,10 +36,10 @@ const FamilyWebsitePage = () => {
             if (data.data?.subdomain) {
                 navigate(`/${data.data.subdomain}`);
             } else {
-                navigate('/family-setup');
+                navigate('/onboarding/service');
             }
         } catch {
-            navigate('/family-setup');
+            navigate('/onboarding/service');
         } finally {
             setStartLoading(false);
         }

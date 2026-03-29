@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
+import OnboardingProgress from '../../components/onboarding/OnboardingProgress';
 
 const RELATIONS = [
     { id: 'me', label: '나', icon: '👤' },
@@ -188,7 +189,8 @@ export default function FamilyTagPage() {
     return (
         <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(135deg, #FAFAF7 0%, #F0EDE6 100%)' }}>
             {/* Header */}
-            <div className="relative text-center pt-10 pb-4 px-4">
+            <OnboardingProgress current="family" />
+            <div className="relative text-center pt-4 pb-4 px-4">
                 <button onClick={() => navigate(-1)} className="absolute left-4 top-4 text-gray-400 text-2xl">
                     &lsaquo;
                 </button>

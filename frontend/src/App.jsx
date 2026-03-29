@@ -45,12 +45,35 @@ const PageLoader = () => (
   </div>
 );
 
-// Authenticated home → /home 허브 페이지로 이동
+// Authenticated home → 사이트 유무에 따라 분기
 function AuthHome() {
   const navigate = useNavigate();
+  const token = useAuthStore(state => state.token);
+
   useEffect(() => {
-    navigate('/home', { replace: true });
-  }, [navigate]);
+    const checkSite = async () => {
+      try {
+        const res = await fetch('/api/sites/mine', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (data.data?.subdomain) {
+          navigate(`/${data.data.subdomain}`, { replace: true });
+        } else {
+          // 모바일이면 온보딩, 데스크탑이면 홈
+          if (window.innerWidth < 768) {
+            navigate('/onboarding/service', { replace: true });
+          } else {
+            navigate('/home', { replace: true });
+          }
+        }
+      } catch {
+        navigate('/home', { replace: true });
+      }
+    };
+    checkSite();
+  }, [navigate, token]);
+
   return <PageLoader />;
 }
 

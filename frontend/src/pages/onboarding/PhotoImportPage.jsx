@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import OnboardingProgress from '../../components/onboarding/OnboardingProgress';
 
 const STORAGE_LABELS = {
     google: { name: 'Google Drive', icon: '☁️' },
@@ -53,7 +54,8 @@ export default function PhotoImportPage() {
     return (
         <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(135deg, #FAFAF7 0%, #F0EDE6 100%)' }}>
             {/* Header */}
-            <div className="relative text-center pt-12 pb-6 px-4">
+            <OnboardingProgress current="photos" />
+            <div className="relative text-center pt-6 pb-6 px-4">
                 <button onClick={() => navigate(`/onboarding/storage`)} className="absolute left-4 top-4 text-gray-400 text-2xl">
                     &lsaquo;
                 </button>

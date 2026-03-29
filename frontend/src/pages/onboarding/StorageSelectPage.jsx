@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import OnboardingProgress from '../../components/onboarding/OnboardingProgress';
 
 const storageOptions = [
     {
@@ -73,7 +74,8 @@ export default function StorageSelectPage() {
             }}
         >
             {/* Header */}
-            <div className="relative text-center pt-12 pb-6 px-4">
+            <OnboardingProgress current="storage" />
+            <div className="relative text-center pt-6 pb-6 px-4">
                 <button
                     onClick={() => navigate('/onboarding/service')}
                     className="absolute left-4 top-4 text-gray-400 text-2xl"

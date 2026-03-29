@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import OnboardingProgress from '../../components/onboarding/OnboardingProgress';
 
 const AGE_STAGES = [
     { id: 'current', icon: '📸', label: '현재 모습', desc: '카메라 또는 최근 사진', required: true },
@@ -254,7 +255,8 @@ export default function FaceRegisterPage() {
     return (
         <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(135deg, #FAFAF7 0%, #F0EDE6 100%)' }}>
             {/* Header */}
-            <div className="relative text-center pt-10 pb-4 px-4">
+            <OnboardingProgress current="face" />
+            <div className="relative text-center pt-4 pb-4 px-4">
                 <button onClick={() => step === 0 ? navigate(-1) : setStep(step - 1)} className="absolute left-4 top-4 text-gray-400 text-2xl">
                     &lsaquo;
                 </button>
