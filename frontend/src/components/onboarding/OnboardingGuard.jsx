@@ -16,7 +16,7 @@ export default function OnboardingGuard({ children }) {
         if (!token && !isPublic) {
             // 로그인 후 원래 페이지로 돌아오기
             const returnUrl = location.pathname + location.search;
-            navigate(`/auth/login?redirect=${encodeURIComponent(returnUrl)}`, { replace: true });
+            navigate(`/auth/login?next=${encodeURIComponent(returnUrl)}`, { replace: true });
         }
     }, [token, isPublic, location, navigate]);
 

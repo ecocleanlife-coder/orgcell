@@ -15,10 +15,11 @@ export default function PhotoImportPage() {
     const storage = searchParams.get('storage') || 'google';
     const storageInfo = STORAGE_LABELS[storage] || STORAGE_LABELS.google;
 
-    const [phase, setPhase] = useState('select'); // select | importing | done
+    const [phase, setPhase] = useState('select'); // select | importing | done | error
     const [progress, setProgress] = useState(0);
     const [photoCount, setPhotoCount] = useState(0);
     const [files, setFiles] = useState([]);
+    const [errorMsg, setErrorMsg] = useState('');
     const { setCurrentStep, completeStep } = useOnboardingStore();
 
     useEffect(() => { setCurrentStep('photos'); }, []);
@@ -27,14 +28,23 @@ export default function PhotoImportPage() {
         const selected = Array.from(e.target.files || []);
         if (selected.length === 0) return;
         setFiles(selected);
+        setErrorMsg('');
         setPhase('importing');
         simulateImport(selected.length);
     };
 
     const handleCloudConnect = () => {
+        setErrorMsg('');
         setPhase('importing');
         // 실제로는 OAuth 플로우 시작
         simulateImport(47);
+    };
+
+    const handleRetry = () => {
+        setPhase('select');
+        setProgress(0);
+        setPhotoCount(0);
+        setErrorMsg('');
     };
 
     const simulateImport = (total) => {
@@ -165,6 +175,34 @@ export default function PhotoImportPage() {
                                 className="w-full py-3 rounded-xl text-sm text-gray-500 hover:text-gray-700"
                             >
                                 건너뛰기 →
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Phase: Error */}
+                {phase === 'error' && (
+                    <div className="w-full text-center">
+                        <span className="text-6xl block mb-4">⚠️</span>
+                        <p className="text-xl font-bold text-gray-900 mb-2">연결에 실패했어요</p>
+                        <p className="text-sm text-gray-500 mb-8">
+                            {errorMsg || '네트워크 상태를 확인하고 다시 시도해주세요'}
+                        </p>
+                        <div className="space-y-3">
+                            <button
+                                onClick={handleRetry}
+                                className="w-full py-4 rounded-xl font-bold text-white bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] transition-all"
+                            >
+                                다시 시도
+                            </button>
+                            <button
+                                onClick={() => {
+                                    completeStep('photos');
+                                    navigate(`/onboarding/face?storage=${storage}`);
+                                }}
+                                className="w-full text-sm text-gray-400 py-2"
+                            >
+                                나중에 하기 →
                             </button>
                         </div>
                     </div>

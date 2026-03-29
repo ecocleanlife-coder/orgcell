@@ -38,6 +38,7 @@ export default function FaceRegisterPage() {
     const [detectedFaces, setDetectedFaces] = useState([]);
     const [selectedFaceIdx, setSelectedFaceIdx] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(null);
+    const [error, setError] = useState(null); // null | 'no_face' | 'error'
 
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
@@ -62,17 +63,18 @@ export default function FaceRegisterPage() {
             if (type === 'SCAN_COMPLETE') {
                 setProcessing(false);
                 if (payload.faces.length > 0) {
+                    setError(null);
                     setDetectedFaces(payload.faces);
                     if (payload.faces.length === 1) {
                         setSelectedFaceIdx(0);
                     }
                 } else {
                     setDetectedFaces([]);
-                    alert('얼굴을 감지하지 못했습니다. 다른 사진을 시도해주세요.');
+                    setError('no_face');
                 }
             } else if (type === 'ERROR') {
                 setProcessing(false);
-                alert('얼굴 감지 중 오류: ' + payload);
+                setError('error');
             }
         };
 
@@ -90,6 +92,7 @@ export default function FaceRegisterPage() {
         setDetectedFaces([]);
         setSelectedFaceIdx(null);
         setPreviewUrl(null);
+        setError(null);
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: 'user', width: 640, height: 480 }
@@ -99,7 +102,7 @@ export default function FaceRegisterPage() {
                 videoRef.current.srcObject = stream;
             }
         } catch {
-            alert('카메라에 접근할 수 없습니다.');
+            setError('camera');
             setMode(null);
         }
     }, []);
@@ -364,6 +367,45 @@ export default function FaceRegisterPage() {
                         <span className="text-5xl block mb-4 animate-pulse">🔍</span>
                         <p className="text-base font-bold text-gray-900">얼굴을 감지하는 중...</p>
                         <p className="text-xs text-gray-500 mt-1">AI가 사진을 분석하고 있습니다</p>
+                    </div>
+                )}
+
+                {/* Error: face detection failed */}
+                {!processing && error && detectedFaces.length === 0 && (
+                    <div className="w-full text-center py-8">
+                        <span className="text-5xl block mb-4">
+                            {error === 'no_face' ? '😕' : error === 'camera' ? '📷' : '⚠️'}
+                        </span>
+                        <p className="text-base font-bold text-gray-900 mb-2">
+                            {error === 'no_face' ? '얼굴을 감지하지 못했어요'
+                             : error === 'camera' ? '카메라에 접근할 수 없어요'
+                             : '오류가 발생했어요'}
+                        </p>
+                        <p className="text-sm text-gray-500 mb-6">
+                            {error === 'no_face'
+                                ? '정면 얼굴이 잘 보이는 사진으로 다시 시도해주세요'
+                                : error === 'camera'
+                                ? '카메라 권한을 허용하거나 사진을 선택해주세요'
+                                : '잠시 후 다시 시도해주세요'}
+                        </p>
+                        <div className="space-y-3">
+                            <button
+                                onClick={() => {
+                                    setError(null);
+                                    setMode(null);
+                                    setPreviewUrl(null);
+                                }}
+                                className="w-full py-3 rounded-xl font-bold text-white bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] transition-all"
+                            >
+                                다른 사진으로 다시 시도
+                            </button>
+                            <button
+                                onClick={skipStage}
+                                className="w-full text-sm text-gray-400 py-2"
+                            >
+                                이 단계 건너뛰기 →
+                            </button>
+                        </div>
                     </div>
                 )}
 
