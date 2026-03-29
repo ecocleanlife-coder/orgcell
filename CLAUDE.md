@@ -88,7 +88,22 @@ Orgcell 작업 시 항상 확인할 것:
    - `grep -r "ksarang" frontend/src` 로 확인
    - i18n 파일 5개 언어 모두 확인
 
-## 8. 개발 원칙
+## 8. 온보딩 구조 (7단계)
+
+service → storage → photos → face → family → privacy → invite
+
+파일 위치: `frontend/src/pages/onboarding/`
+- `ServiceSelectPage.jsx` — 서비스 소개/선택
+- `StorageSelectPage.jsx` — 클라우드 저장소 선택 (Google Drive, OneDrive, Orgcell)
+- `PhotoImportPage.jsx` — 사진 가져오기
+- `FaceRegisterPage.jsx` — 얼굴/연령대 등록
+- `FamilyTagPage.jsx` — 가족 태그 + 저장소 연동
+- `PrivacySetPage.jsx` — 공개 범위 설정
+- `InviteFamilyPage.jsx` — 가족 초대 + 박물관 자동 생성
+
+상태 관리: `frontend/src/store/onboardingStore.js` (Zustand + localStorage)
+
+## 9. 개발 원칙
 
 - i18n 다국어 반영은 모든 기능 완성 후 마지막에 일괄 처리
 - 개발 중에는 한국어만 사용
