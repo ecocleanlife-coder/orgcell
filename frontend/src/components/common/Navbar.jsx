@@ -92,7 +92,7 @@ export default function Navbar({ onCtaClick }) {
                 {/* Desktop Right */}
                 <div className="hidden md:flex items-center gap-3">
                     <LanguageSwitcher />
-                    {token ? (
+                    {isAuthenticated ? (
                         <button
                             onClick={logout}
                             className="text-[13px] font-semibold text-[#7A6E5E] hover:text-[#3D2008] transition cursor-pointer"
@@ -136,7 +136,7 @@ export default function Navbar({ onCtaClick }) {
                     ))}
                     <div className="pt-2 flex gap-2">
                         <div className="flex-1"><LanguageSwitcher /></div>
-                        {!token && (
+                        {!isAuthenticated && (
                             <button
                                 onClick={handleCta}
                                 className="flex-1 py-2.5 rounded-full text-[13px] font-bold text-white cursor-pointer"
