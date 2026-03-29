@@ -57,7 +57,7 @@ export default function StorageSelectPage() {
 
     const handleSelect = (option) => {
         if (!option.enabled) return;
-        navigate(`/family-setup?storage=${option.id}`);
+        navigate(`/onboarding/photos?storage=${option.id}`);
     };
 
     const handleInterest = (e) => {

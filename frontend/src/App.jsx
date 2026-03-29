@@ -32,6 +32,9 @@ const DropboxCallback = lazy(() => import('./pages/DropboxCallback'));
 const HomePage = lazy(() => import('./pages/home/HomePage'));
 const ServiceSelectPage = lazy(() => import('./pages/onboarding/ServiceSelectPage'));
 const StorageSelectPage = lazy(() => import('./pages/onboarding/StorageSelectPage'));
+const PhotoImportPage = lazy(() => import('./pages/onboarding/PhotoImportPage'));
+const FaceRegisterPage = lazy(() => import('./pages/onboarding/FaceRegisterPage'));
+const FamilyTagPage = lazy(() => import('./pages/onboarding/FamilyTagPage'));
 // DemoMuseumPage 제거 — /demo는 /:subdomain (MuseumPage)에서 처리
 
 const PageLoader = () => (
@@ -142,6 +145,30 @@ function App() {
           element={
             <Suspense fallback={<PageLoader />}>
               <StorageSelectPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/onboarding/photos"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <PhotoImportPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/onboarding/face"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <FaceRegisterPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/onboarding/family"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <FamilyTagPage />
             </Suspense>
           }
         />
