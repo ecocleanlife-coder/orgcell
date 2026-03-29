@@ -260,7 +260,7 @@ export default function DemoMuseumPage() {
             우리 가족만의 디지털 박물관을 만들어보세요
           </h2>
           <p className="text-[13px] text-[#7a6e5e] mb-6">
-            100장까지 무료 · 신용카드 불필요 · 가족 무제한 초대
+            클라우드 연결 무료 · 신용카드 불필요 · 가족 초대
           </p>
           <button
             onClick={() => navigate('/auth/login')}

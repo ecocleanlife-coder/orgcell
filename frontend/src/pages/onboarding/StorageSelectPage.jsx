@@ -28,7 +28,7 @@ const storageOptions = [
         id: 'orgcell',
         icon: '🏠',
         title: 'Orgcell 서버',
-        price: '1,000장 $5/년 · 무제한 $10/년',
+        price: '$10/년',
         lines: ['별도 클라우드 불필요', '바로 시작 가능'],
         recommended: false,
         enabled: true,
@@ -51,6 +51,8 @@ export default function StorageSelectPage() {
     const [showWhy, setShowWhy] = useState(false);
     const [connecting, setConnecting] = useState(false);
     const [connectError, setConnectError] = useState(null);
+    // Orgcell 서버 유료 모달
+    const [showOrgcellModal, setShowOrgcellModal] = useState(false);
     // iCloud 대기자
     const [showICloudModal, setShowICloudModal] = useState(false);
     const [icloudEmail, setIcloudEmail] = useState('');
@@ -64,6 +66,10 @@ export default function StorageSelectPage() {
     const handleSelect = (option) => {
         if (!option.enabled) {
             if (option.id === 'icloud') setShowICloudModal(true);
+            return;
+        }
+        if (option.id === 'orgcell') {
+            setShowOrgcellModal(true);
             return;
         }
         setSelected(option.id);
@@ -228,7 +234,7 @@ export default function StorageSelectPage() {
                     <div className="bg-white rounded-2xl p-4 border border-[#E8E3D8] text-left -mt-1">
                         <ul className="space-y-2 text-xs text-[#7A6E5E]">
                             <li className="flex gap-2"><span className="text-[#5A9460]">✓</span> 사진이 본인 계정에 저장 (우리 서버 미저장)</li>
-                            <li className="flex gap-2"><span className="text-[#5A9460]">✓</span> 무제한 용량, 추가 비용 없음</li>
+                            <li className="flex gap-2"><span className="text-[#5A9460]">✓</span> 추가 비용 없음</li>
                             <li className="flex gap-2"><span className="text-[#5A9460]">✓</span> 기기 변경 시에도 사진 유지</li>
                             <li className="flex gap-2"><span className="text-[#5A9460]">✓</span> Google 보안 인프라 적용</li>
                         </ul>
@@ -259,6 +265,41 @@ export default function StorageSelectPage() {
                     {connecting ? '연결 중...' : selected === 'orgcell' ? '다음' : '연결하고 다음'}
                 </button>
             </div>
+
+            {/* Orgcell 서버 유료 모달 */}
+            {showOrgcellModal && (
+                <>
+                    <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setShowOrgcellModal(false)} />
+                    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl px-5 pb-8 pt-4 max-w-md mx-auto"
+                         style={{ animation: 'slideUp 0.3s ease-out' }}>
+                        <div className="w-10 h-1 bg-[#E8E3D8] rounded-full mx-auto mb-4" />
+                        <div className="text-center">
+                            <span className="text-4xl block mb-3">🏠</span>
+                            <h3 className="text-lg font-bold text-[#3D2008] mb-2">Orgcell 서버 저장</h3>
+                            <p className="text-sm text-[#7A6E5E] mb-6 leading-relaxed">
+                                본 서비스를 이용하시려면<br />
+                                <span className="font-bold text-[#3D2008]">$10/년</span> 이용료가 발생합니다.
+                            </p>
+                            <button
+                                onClick={() => {
+                                    setSelected('orgcell');
+                                    setShowOrgcellModal(false);
+                                }}
+                                className="w-full rounded-2xl font-bold text-white active:scale-[0.98] transition-all mb-3"
+                                style={{ height: 48, background: 'linear-gradient(135deg, #5A9460, #4A8450)' }}
+                            >
+                                계속하기 $10/년
+                            </button>
+                            <button
+                                onClick={() => setShowOrgcellModal(false)}
+                                className="w-full text-sm text-[#A09882] py-2"
+                            >
+                                취소
+                            </button>
+                        </div>
+                    </div>
+                </>
+            )}
 
             {/* iCloud 대기자 모달 */}
             {showICloudModal && (

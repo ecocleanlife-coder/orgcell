@@ -7,8 +7,9 @@ const SECTIONS = [
         bg: '#F3EFFF',
         image: '/images/landing/card-museum.png',
         imageAlt: '가족 박물관 - 디지털 가족 공간',
-        title: '나만의 가족 박물관',
-        desc: '가족이 언제 어디서든 접근할 수 있는\n디지털 가족 박물관. 1000장 무료.',
+        title: '사라지지 않는 가족의 역사',
+        desc: '나와 우리 가족의 소중한 기록이\n영원히 보관되는 디지털 박물관을 만들어보세요.',
+        btnText: '박물관 만들기',
         btnColor: '#7C5CFC',
         btnHover: '#6A4AE0',
         type: 'museum',
@@ -17,8 +18,9 @@ const SECTIONS = [
         bg: '#EFF7E8',
         image: '/images/landing/card-ai-sort.png',
         imageAlt: 'AI 스마트 분류',
-        title: 'AI 스마트 분류',
-        desc: '폰이나 컴퓨터의 중복 사진을\n날짜순으로 자동 재정리합니다.',
+        title: '중복 사진은 지우고, 추억만 남기고',
+        desc: 'AI가 수만 장의 사진 속 중복을 찾아내고\n날짜별로 깔끔하게 정리해 드립니다.',
+        btnText: '시작하기',
         btnColor: '#5A9460',
         btnHover: '#4A8450',
         type: 'ai',
@@ -27,8 +29,9 @@ const SECTIONS = [
         bg: '#EFF5FF',
         image: '/images/landing/card-live-share.png',
         imageAlt: '실시간 사진 공유',
-        title: '실시간 공유',
-        desc: '가족 모임 사진을 바로 공유하세요.',
+        title: '설명 없이도 쉬운 실시간 공유',
+        desc: 'IT가 낯선 부모님도, 바쁜 자녀도\n클릭 한 번으로 가족의 오늘을 함께 나눕니다.',
+        btnText: '시작하기',
         btnColor: '#4A7FB5',
         btnHover: '#3A6FA5',
         type: 'share',
@@ -42,11 +45,67 @@ function LandingPage() {
         <div className="min-h-screen" style={{ background: '#FAFAF7' }}>
             <Helmet>
                 <title>Orgcell — AI 가족 사진 자동 정리 · Digital Family Museum</title>
-                <meta name="description" content="AI Smart Sort로 중복 사진 정리, 가족 도메인 개설, Live Sharing으로 실시간 공유. 1000장 무료. 가족 사진의 모든 것을 Orgcell에서." />
+                <meta name="description" content="AI Smart Sort로 중복 사진 정리, 가족 도메인 개설, Live Sharing으로 실시간 공유. 가족 사진의 모든 것을 Orgcell에서." />
                 <meta property="og:title" content="Orgcell — AI 가족 사진 자동 정리" />
-                <meta property="og:description" content="AI가 사진을 정리하고 나만의 가족 박물관을 무료로 시작하세요. 원본은 구글 드라이브에 안전하게." />
+                <meta property="og:description" content="AI가 사진을 정리하고 나만의 가족 박물관을 만들어보세요. 원본은 내 구글 드라이브에 안전하게." />
                 <meta property="og:image" content="/pwa-512x512.png" />
             </Helmet>
+
+            {/* ══ Hero Section ══ */}
+            <section
+                className="flex flex-col items-center justify-center text-center"
+                style={{ minHeight: '100vh', padding: '60px 24px', background: '#FFFFFF' }}
+            >
+                <span
+                    className="text-[32px] font-black text-[#3D2008] mb-4"
+                    style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
+                >
+                    Orgcell
+                </span>
+
+                <h1
+                    className="mb-4"
+                    style={{
+                        fontSize: 'clamp(32px, 6vw, 52px)',
+                        fontWeight: '800',
+                        fontFamily: 'Georgia, serif',
+                        color: '#1E2A0E',
+                        lineHeight: 1.2,
+                    }}
+                >
+                    흩어진 가족의 시간을<br />영원한 기록으로
+                </h1>
+
+                <p className="text-[16px] leading-relaxed mb-10 max-w-[400px]" style={{ color: '#7A6E5E' }}>
+                    사진은 쌓여가는데 정리는 막막하고,<br />
+                    가족과 나누기도 번거로우셨죠?
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-4 w-full max-w-[600px] mb-10">
+                    {[
+                        { icon: '🏛️', text: '영원히 보관될 우리만의 박물관' },
+                        { icon: '🤖', text: '뒤죽박죽 중복 사진 자동 정리' },
+                        { icon: '📤', text: '누구나 쉬운 실시간 공유' },
+                    ].map((card) => (
+                        <div
+                            key={card.icon}
+                            className="flex-1 rounded-2xl p-5 text-center"
+                            style={{ background: '#FAFAF7', border: '1px solid #E8E3D8' }}
+                        >
+                            <span className="text-3xl block mb-2">{card.icon}</span>
+                            <p className="text-[13px] font-medium" style={{ color: '#3D2008' }}>{card.text}</p>
+                        </div>
+                    ))}
+                </div>
+
+                <button
+                    onClick={() => navigate('/onboarding/service')}
+                    className="w-full max-w-[320px] rounded-2xl font-bold text-white text-[15px] cursor-pointer transition-all hover:brightness-110 active:scale-[0.98]"
+                    style={{ height: 56, background: 'linear-gradient(135deg, #5A9460, #4A8450)' }}
+                >
+                    지금 시작하기
+                </button>
+            </section>
 
             {SECTIONS.map((section, idx) => (
                 <section
@@ -58,21 +117,6 @@ function LandingPage() {
                         background: section.bg,
                     }}
                 >
-                    {/* 첫 섹션에만 로고 표시 */}
-                    {idx === 0 && (
-                        <div className="mb-8">
-                            <span
-                                className="text-[28px] font-black text-[#3D2008]"
-                                style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
-                            >
-                                Orgcell
-                            </span>
-                            <p className="text-[14px] text-[#7A6E5E] mt-1 font-medium">
-                                디지털 가족 박물관
-                            </p>
-                        </div>
-                    )}
-
                     {/* 이미지 */}
                     <div className="w-full flex justify-center mb-8" style={{ maxWidth: 260 }}>
                         <img
@@ -110,7 +154,7 @@ function LandingPage() {
                                 background: `linear-gradient(135deg, ${section.btnColor}, ${section.btnHover})`,
                             }}
                         >
-                            시작하기
+                            {section.btnText}
                         </button>
                         {idx === 0 && (
                             <button

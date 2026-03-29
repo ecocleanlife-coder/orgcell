@@ -59,9 +59,9 @@ const FamilyWebsitePage = () => {
         <div style={{ background: '#FAFAF7', color: '#1E2A0E' }}>
                 <Helmet>
                 <title>Family Museum — Orgcell</title>
-                <meta name="description" content="나만의 가족 도메인(yourfamily.orgcell.com)을 무료로 시작하세요. Google Drive 연결 시 무제한 무료. 4세대 가계도, 사진 갤러리, 가족 채팅 포함." />
+                <meta name="description" content="나만의 가족 도메인(yourfamily.orgcell.com)을 무료로 시작하세요. Google Drive 연결으로 사진을 안전하게 보관. 4세대 가계도, 사진 갤러리, 가족 채팅 포함." />
                 <meta property="og:title" content="Family Museum — Orgcell" />
-                <meta property="og:description" content="yourfamily.orgcell.com 도메인 개설. Google Drive/OneDrive 연결 무제한 무료. 가계도·앨범·라이브 공유 포함." />
+                <meta property="og:description" content="yourfamily.orgcell.com 도메인 개설. Google Drive/OneDrive 연결 무료. 가계도·앨범·라이브 공유 포함." />
                 <meta property="og:image" content="/pwa-512x512.png" />
             </Helmet>
 

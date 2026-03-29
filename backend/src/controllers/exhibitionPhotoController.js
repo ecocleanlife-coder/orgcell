@@ -1,7 +1,7 @@
 const db = require('../config/db');
 const fs = require('fs');
 const path = require('path');
-const { FREE_PHOTO_LIMIT, CLOUD_STORAGE_UNLIMITED } = require('../config/constants');
+const { CLOUD_STORAGE_UNLIMITED } = require('../config/constants');
 
 // GET /api/exhibitions/:id/photos
 exports.listPhotos = async (req, res) => {
@@ -35,7 +35,10 @@ exports.uploadPhotos = async (req, res) => {
         );
         const hasSubscription = subRows.length > 0;
 
-        // 클라우드 저장소(Google Drive/OneDrive) 사용자는 무제한
+        // 클라우드 저장소(Google Drive/OneDrive) 사용자는 무료
+        // Orgcell 서버 사용자는 $10/년 유료 플랜 (결제 연동 별도 구현 예정)
+        // 장수 제한 체크 비활성화 — 유료 전환 후 구독 상태로 관리
+        /*
         const userStorageType = req.user?.storage_type;
         const isCloudStorage = ['google', 'onedrive'].includes(userStorageType);
 
@@ -52,11 +55,12 @@ exports.uploadPhotos = async (req, res) => {
                 });
                 return res.status(403).json({
                     error: 'FREE_LIMIT_EXCEEDED',
-                    message: `Orgcell 서버는 무료 ${FREE_PHOTO_LIMIT}장까지 가능합니다. $5/년(1,000장) 또는 $10/년(무제한)으로 업그레이드하세요. Google Drive 연결 시 무제한 무료!`,
+                    message: 'Orgcell 서버는 유료입니다. $10/년으로 업그레이드하세요.',
                     upgradeUrl: '/onboarding/storage',
                 });
             }
         }
+        */
 
         const vis = ['public', 'family', 'private'].includes(visibility) ? visibility : 'private';
         const isCover = set_cover === 'true';
