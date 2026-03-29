@@ -54,46 +54,46 @@ function LandingPage() {
             {/* ══ Hero Section ══ */}
             <section
                 className="flex flex-col items-center justify-center text-center"
-                style={{ minHeight: '100vh', padding: '60px 24px', background: '#FFFFFF' }}
+                style={{ minHeight: '100vh', padding: '32px 16px 24px', background: '#FFFFFF' }}
             >
                 <span
-                    className="text-[32px] font-black text-[#3D2008] mb-4"
+                    className="text-[24px] sm:text-[32px] font-black text-[#3D2008] mb-2 sm:mb-4"
                     style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
                 >
                     Orgcell
                 </span>
 
                 <h1
-                    className="mb-4"
+                    className="mb-2 sm:mb-4"
                     style={{
-                        fontSize: 'clamp(32px, 6vw, 52px)',
+                        fontSize: 'clamp(24px, 5vw, 48px)',
                         fontWeight: '800',
                         fontFamily: 'Georgia, serif',
                         color: '#1E2A0E',
-                        lineHeight: 1.2,
+                        lineHeight: 1.15,
                     }}
                 >
                     흩어진 가족의 시간을<br />영원한 기록으로
                 </h1>
 
-                <p className="text-[16px] leading-relaxed mb-10 max-w-[400px]" style={{ color: '#7A6E5E' }}>
+                <p className="text-[14px] sm:text-[16px] leading-snug mb-5 sm:mb-10 max-w-[400px]" style={{ color: '#7A6E5E' }}>
                     사진은 쌓여가는데 정리는 막막하고,<br />
                     가족과 나누기도 번거로우셨죠?
                 </p>
 
-                <div className="flex flex-col sm:flex-row gap-4 w-full max-w-[600px] mb-10">
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 w-full max-w-[600px] mb-5 sm:mb-10">
                     {[
-                        { icon: '🏛️', text: '영원히 보관될 우리만의 박물관' },
-                        { icon: '🤖', text: '뒤죽박죽 중복 사진 자동 정리' },
-                        { icon: '📤', text: '누구나 쉬운 실시간 공유' },
+                        { icon: '🏛️', text: '우리만의 박물관' },
+                        { icon: '🤖', text: '중복 사진 자동 정리' },
+                        { icon: '📤', text: '쉬운 실시간 공유' },
                     ].map((card) => (
                         <div
                             key={card.icon}
-                            className="flex-1 rounded-2xl p-5 text-center"
+                            className="rounded-xl sm:rounded-2xl p-2 sm:p-5 text-center"
                             style={{ background: '#FAFAF7', border: '1px solid #E8E3D8' }}
                         >
-                            <span className="text-3xl block mb-2">{card.icon}</span>
-                            <p className="text-[13px] font-medium" style={{ color: '#3D2008' }}>{card.text}</p>
+                            <span className="text-2xl sm:text-3xl block mb-1 sm:mb-2">{card.icon}</span>
+                            <p className="text-[11px] sm:text-[13px] font-medium leading-tight" style={{ color: '#3D2008' }}>{card.text}</p>
                         </div>
                     ))}
                 </div>
@@ -101,7 +101,7 @@ function LandingPage() {
                 <button
                     onClick={() => navigate('/onboarding/service')}
                     className="w-full max-w-[320px] rounded-2xl font-bold text-white text-[15px] cursor-pointer transition-all hover:brightness-110 active:scale-[0.98]"
-                    style={{ height: 56, background: 'linear-gradient(135deg, #5A9460, #4A8450)' }}
+                    style={{ height: 48, background: 'linear-gradient(135deg, #5A9460, #4A8450)' }}
                 >
                     지금 시작하기
                 </button>
