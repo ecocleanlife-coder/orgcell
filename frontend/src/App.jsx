@@ -40,6 +40,8 @@ const InviteFamilyPage = lazy(() => import('./pages/onboarding/InviteFamilyPage'
 const OnboardingWelcomePage = lazy(() => import('./pages/onboarding/OnboardingWelcomePage'));
 const OnboardingGuard = lazy(() => import('./components/onboarding/OnboardingGuard'));
 const FamilySearchCallback = lazy(() => import('./pages/auth/FamilySearchCallback'));
+const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'));
+const TermsOfServicePage = lazy(() => import('./pages/TermsOfServicePage'));
 // DemoMuseumPage 제거 — /demo는 /:subdomain (MuseumPage)에서 처리
 
 const PageLoader = () => (
@@ -280,6 +282,22 @@ function App() {
                 <HomePage />
               </Suspense>
             </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/privacy"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <PrivacyPolicyPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/terms"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <TermsOfServicePage />
+            </Suspense>
           }
         />
         <Route

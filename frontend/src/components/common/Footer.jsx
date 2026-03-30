@@ -62,11 +62,26 @@ export default function Footer() {
                         <h4 className="text-[12px] font-bold uppercase tracking-widest mb-4" style={{ color: '#7A6E5E' }}>
                             안내
                         </h4>
-                        <ul className="space-y-2.5 text-[13.5px]" style={{ color: '#A89880' }}>
-                            <li>개인정보 처리방침</li>
-                            <li>이용약관</li>
-                            <li>고객지원</li>
-                            <li>보안 정책</li>
+                        <ul className="space-y-2.5">
+                            {[
+                                { label: '개인정보 처리방침', path: '/privacy' },
+                                { label: '이용약관', path: '/terms' },
+                            ].map(item => (
+                                <li key={item.path}>
+                                    <button
+                                        onClick={() => navigate(item.path)}
+                                        className="text-[13.5px] hover:text-white transition cursor-pointer"
+                                        style={{ color: '#A89880' }}
+                                    >
+                                        {item.label}
+                                    </button>
+                                </li>
+                            ))}
+                            <li className="text-[13.5px]" style={{ color: '#A89880' }}>
+                                <a href="mailto:ecocleanlife@gmail.com" className="hover:text-white transition">
+                                    고객지원
+                                </a>
+                            </li>
                         </ul>
                     </div>
                 </div>
