@@ -1,15 +1,38 @@
 const nodemailer = require('nodemailer');
+const { getSecrets } = require('../config/secrets');
 
-// Resend SMTP
-const transporter = nodemailer.createTransport({
-    host: 'smtp.resend.com',
-    port: 465,
-    secure: true,
-    auth: {
-        user: 'resend',
-        pass: process.env.RESEND_API_KEY,
-    },
-});
+let resendTransporter = null;
+let gmailTransporter = null;
+
+async function getResendTransporter() {
+    if (resendTransporter) return resendTransporter;
+    const secrets = await getSecrets();
+    resendTransporter = nodemailer.createTransport({
+        host: 'smtp.resend.com',
+        port: 465,
+        secure: true,
+        auth: {
+            user: 'resend',
+            pass: secrets.RESEND_API_KEY,
+        },
+    });
+    return resendTransporter;
+}
+
+async function getGmailTransporter() {
+    if (gmailTransporter) return gmailTransporter;
+    const secrets = await getSecrets();
+    gmailTransporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: false,
+        auth: {
+            user: secrets.SMTP_USER,
+            pass: secrets.SMTP_PASS,
+        },
+    });
+    return gmailTransporter;
+}
 
 /**
  * Send magic link email
@@ -20,6 +43,7 @@ const transporter = nodemailer.createTransport({
  * Send payment confirmation email to customer
  */
 exports.sendPaymentConfirmationEmail = async (to, { amountUsd, sessionId }) => {
+    const transporter = await getResendTransporter();
     const amountDisplay = `$${(amountUsd / 100).toFixed(2)}`;
     const mailOptions = {
         // TODO: orgcell.com 도메인을 resend.com/domains에서 인증 후 noreply@orgcell.com 으로 변경
@@ -87,6 +111,7 @@ exports.sendPaymentConfirmationEmail = async (to, { amountUsd, sessionId }) => {
  * Send new payment notification to admin
  */
 exports.sendAdminPaymentNotification = async ({ email, amountUsd, paidAt }) => {
+    const transporter = await getResendTransporter();
     const amountDisplay = `$${(amountUsd / 100).toFixed(2)}`;
     const mailOptions = {
         // TODO: orgcell.com 도메인을 resend.com/domains에서 인증 후 noreply@orgcell.com 으로 변경
@@ -120,6 +145,7 @@ exports.sendAdminPaymentNotification = async ({ email, amountUsd, paidAt }) => {
  * Send family invite email
  */
 exports.sendInviteEmail = async ({ to, code, inviterName, subdomain }) => {
+    const transporter = await getResendTransporter();
     const inviteUrl = `https://orgcell.com/invite?code=${code}`;
     const museumLabel = subdomain ? `${subdomain}.orgcell.com` : 'Orgcell';
     const mailOptions = {
@@ -163,25 +189,27 @@ exports.sendInviteEmail = async ({ to, code, inviterName, subdomain }) => {
 };
 
 exports.sendMagicLinkEmail = async (to, magicLink) => {
+    const transporter = await getResendTransporter();
     const mailOptions = {
         // TODO: orgcell.com 도메인을 resend.com/domains에서 인증 후 noreply@orgcell.com 으로 변경
         from: '"Orgcell" <onboarding@resend.dev>',
         to,
-        subject: 'Orgcell Login Link',
+        subject: '[Orgcell] 로그인 링크',
         html: `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
-                <h1 style="font-size: 28px; font-weight: 800; color: #111; margin-bottom: 8px;">Orgcell</h1>
-                <p style="color: #666; margin-bottom: 32px;">AI Family Photo Platform</p>
+                <h1 style="font-size: 28px; font-weight: 800; color: #111; margin-bottom: 4px;">Orgcell</h1>
+                <p style="color: #888; font-size: 13px; margin-top: 0; margin-bottom: 32px;">디지털 가족 박물관</p>
                 <p style="color: #333; font-size: 16px; line-height: 1.6;">
-                    Click the button below to log in. This link expires in <strong>15 minutes</strong> and can only be used once.
+                    아래 버튼을 눌러 로그인하세요.<br/>
+                    이 링크는 <strong>15분간</strong> 유효하며, 한 번만 사용할 수 있습니다.
                 </p>
                 <a href="${magicLink}"
-                   style="display: inline-block; margin: 24px 0; padding: 14px 32px; background: #7c3aed; color: #fff; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 16px;">
-                    Log in to Orgcell
+                   style="display: inline-block; margin: 24px 0; padding: 14px 32px; background: linear-gradient(135deg, #7C5CFC, #6A4AE0); color: #fff; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 16px;">
+                    Orgcell 로그인하기 →
                 </a>
                 <p style="color: #999; font-size: 13px; margin-top: 32px;">
-                    If you didn't request this, you can safely ignore this email.<br/>
-                    Link: <a href="${magicLink}" style="color: #7c3aed; word-break: break-all;">${magicLink}</a>
+                    본인이 요청하지 않았다면 이 이메일을 무시하세요.<br/>
+                    직접 접속: <a href="${magicLink}" style="color: #7C5CFC; word-break: break-all;">${magicLink}</a>
                 </p>
             </div>
         `,
@@ -192,6 +220,14 @@ exports.sendMagicLinkEmail = async (to, magicLink) => {
         return result;
     } catch (error) {
         console.error('Email send failed:', error.message, error.code, error.response);
+        // Resend 테스트 도메인 제한 에러를 명확하게 전달
+        if (error.message?.includes('550') && error.message?.includes('testing emails')) {
+            const err = new Error('DOMAIN_NOT_VERIFIED');
+            err.code = 'DOMAIN_NOT_VERIFIED';
+            throw err;
+        }
         throw error;
     }
 };
+
+exports.getGmailTransporter = getGmailTransporter;

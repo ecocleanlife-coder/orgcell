@@ -198,7 +198,14 @@ exports.requestMagicLink = async (req, res) => {
         res.json({ success: true, message: 'Magic link sent to your email', exists, maskedEmail: masked });
     } catch (error) {
         console.error('requestMagicLink Error:', error);
-        res.status(500).json({ success: false, message: 'Failed to send magic link' });
+        if (error.code === 'DOMAIN_NOT_VERIFIED') {
+            return res.status(503).json({
+                success: false,
+                message: '이메일 발송 서비스가 아직 준비 중입니다. Google 로그인을 이용해주세요.',
+                errorCode: 'DOMAIN_NOT_VERIFIED',
+            });
+        }
+        res.status(500).json({ success: false, message: '이메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.' });
     }
 };
 

@@ -58,14 +58,14 @@ export default function LoginPage() {
                 borderRadius: 24,
                 padding: '48px 40px',
                 boxShadow: '0 4px 32px rgba(0,0,0,0.08)',
-                border: '1px solid #eee',
+                border: '1px solid #E8E3D8',
             }}>
                 {/* Logo */}
                 <div style={{ textAlign: 'center', marginBottom: 32 }}>
-                    <div style={{ fontSize: 28, fontWeight: 900, color: '#1E2A0E', letterSpacing: '-0.02em' }}>
-                        Orgcell<span style={{ color: '#8DB86B' }}>.com</span>
+                    <div style={{ fontSize: 30, fontWeight: 900, color: '#3D2008', letterSpacing: '-0.02em', fontFamily: 'Georgia, serif' }}>
+                        Orgcell<span style={{ color: '#5A9460' }}>.com</span>
                     </div>
-                    <p style={{ marginTop: 8, fontSize: 14, color: '#6a7a5a' }}>
+                    <p style={{ marginTop: 10, fontSize: 15, color: '#7A6E5E', lineHeight: 1.6 }}>
                         {next === 'checkout'
                             ? '결제를 진행하려면 먼저 로그인해 주세요.'
                             : '가족 디지털 박물관에 오신 것을 환영합니다.'}
@@ -78,22 +78,11 @@ export default function LoginPage() {
                 {/* Magic Link */}
                 <MagicLinkAuth />
 
-                {/* Forgot link */}
-                <p style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: '#aaa' }}>
-                    비밀번호를 잊으셨나요?{' '}
-                    <button
-                        onClick={() => navigate('/auth/forgot-password')}
-                        style={{ color: '#4A7F4A', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}
-                    >
-                        이메일로 로그인하기
-                    </button>
-                </p>
-
                 {/* Back */}
-                <p style={{ marginTop: 12, textAlign: 'center', fontSize: 13, color: '#bbb' }}>
+                <p style={{ marginTop: 24, textAlign: 'center', fontSize: 14, color: '#A09882' }}>
                     <button
                         onClick={() => navigate(-1)}
-                        style={{ color: '#aaa', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}
+                        style={{ color: '#7A6E5E', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 500 }}
                     >
                         ← 돌아가기
                     </button>
