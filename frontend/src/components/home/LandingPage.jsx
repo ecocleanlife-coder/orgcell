@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 
@@ -38,8 +38,29 @@ const SECTIONS = [
     },
 ];
 
+function useFadeInOnScroll() {
+    const refs = useRef([]);
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }
+                });
+            },
+            { threshold: 0.15 }
+        );
+        refs.current.forEach((el) => { if (el) observer.observe(el); });
+        return () => observer.disconnect();
+    }, []);
+    return refs;
+}
+
 function LandingPage() {
     const navigate = useNavigate();
+    const sectionRefs = useFadeInOnScroll();
 
     return (
         <div className="min-h-screen" style={{ background: '#FAFAF7' }}>
@@ -76,16 +97,24 @@ function LandingPage() {
                     흩어진 가족의 시간을<br />영원한 기록으로
                 </h1>
 
-                <p className="text-[14px] sm:text-[16px] leading-snug mb-5 sm:mb-10 max-w-[400px]" style={{ color: '#7A6E5E' }}>
+                <p className="text-[14px] sm:text-[16px] leading-snug mb-3 sm:mb-6 max-w-[400px]" style={{ color: '#7A6E5E' }}>
                     사진은 쌓여가는데 정리는 막막하고,<br />
                     가족과 나누기도 번거로우셨죠?
                 </p>
 
+                {/* 약속 한 줄 */}
+                <p
+                    className="text-[13px] sm:text-[16px] mb-5 sm:mb-8 max-w-[440px]"
+                    style={{ color: '#6B5E4E', fontStyle: 'italic', fontFamily: 'Georgia, serif', lineHeight: 1.4 }}
+                >
+                    박물관처럼 영원하게, AI처럼 스마트하게, 가족처럼 가깝게
+                </p>
+
                 <div className="grid grid-cols-3 gap-2 sm:gap-4 w-full max-w-[600px] mb-5 sm:mb-10">
                     {[
-                        { image: '/images/landing/card-museum.png', text: '우리만의 박물관', bg: '#F3EFFF' },
-                        { image: '/images/landing/card-ai-sort.png', text: '중복 사진 자동 정리', bg: '#EFF7E8' },
-                        { image: '/images/landing/card-live-share.png', text: '쉬운 실시간 공유', bg: '#EFF5FF' },
+                        { image: '/images/landing/card-museum.png', text: '영원히 기록될 우리 가족만의 박물관', bg: '#F3EFFF' },
+                        { image: '/images/landing/card-ai-sort.png', text: 'AI가 지워주는 중복, 찾아주는 추억', bg: '#EFF7E8' },
+                        { image: '/images/landing/card-live-share.png', text: '부모님도 클릭 한 번이면 끝', bg: '#EFF5FF' },
                     ].map((card) => (
                         <div
                             key={card.text}
@@ -115,11 +144,15 @@ function LandingPage() {
             {SECTIONS.map((section, idx) => (
                 <section
                     key={idx}
+                    ref={(el) => { sectionRefs.current[idx] = el; }}
                     className="flex flex-col items-center justify-center text-center"
                     style={{
                         minHeight: '100vh',
                         padding: '40px 24px',
                         background: section.bg,
+                        opacity: 0,
+                        transform: 'translateY(30px)',
+                        transition: 'opacity 0.6s ease, transform 0.6s ease',
                     }}
                 >
                     {/* 이미지 */}
@@ -179,16 +212,39 @@ function LandingPage() {
                 </section>
             ))}
 
-            {/* 특허 출원 배지 */}
-            <div className="text-center" style={{ padding: '16px 24px 0', background: '#FAFAF7' }}>
-                <span
-                    className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[12px] font-medium"
-                    style={{ background: '#F0F0EC', color: '#7A6E5E', border: '1px solid #E0DCD4' }}
-                >
-                    🔬 본 서비스는 한국 특허 출원된 독자 기술을 적용합니다
-                    <span style={{ color: '#A09882' }}>Patented Technology Applied (KR)</span>
-                </span>
-            </div>
+            {/* ══ 왜 Orgcell인가요? ══ */}
+            <section
+                ref={(el) => { sectionRefs.current[3] = el; }}
+                className="py-16 px-5 text-center"
+                style={{
+                    background: '#F9F7F4',
+                    opacity: 0,
+                    transform: 'translateY(30px)',
+                    transition: 'opacity 0.6s ease, transform 0.6s ease',
+                }}
+            >
+                <div className="max-w-[600px] mx-auto">
+                    <h2
+                        className="mb-6"
+                        style={{ fontSize: '28px', fontWeight: '700', fontFamily: 'Georgia, serif', color: '#1E2A0E' }}
+                    >
+                        왜 Orgcell인가요?
+                    </h2>
+                    <p className="text-[15px] leading-relaxed mb-8" style={{ color: '#5A5A4A' }}>
+                        Orgcell은 <strong>Organize</strong>(정리)와 <strong>Cell</strong>(세포/가족단위)의 합성어입니다.<br />
+                        마치 세포가 생명의 기본 단위이듯,<br />
+                        가족 한 명 한 명의 소중한 기록이<br />
+                        영원히 보존되어야 한다는 믿음으로 만들었습니다.
+                    </p>
+                    <span
+                        className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[12px] font-medium"
+                        style={{ background: '#F0F0EC', color: '#7A6E5E', border: '1px solid #E0DCD4' }}
+                    >
+                        🔬 본 서비스는 한국 특허 출원된 독자 기술을 적용합니다
+                        <span style={{ color: '#A09882' }}>Patented Technology Applied (KR)</span>
+                    </span>
+                </div>
+            </section>
 
             {/* 하단 — 로그인 링크 */}
             <div
