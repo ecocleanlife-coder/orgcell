@@ -90,12 +90,21 @@ export default function MagicLinkAuth() {
                 <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Mail className="text-emerald-600" size={24} />
                 </div>
-                <h3 className="text-[16px] font-bold text-emerald-900 mb-2">이메일을 확인해주세요!</h3>
-                <p className="text-[14px] text-emerald-700 leading-relaxed">
+                <h3 className="text-[16px] font-bold text-emerald-900 mb-2">이메일을 보냈습니다!</h3>
+                <p className="text-[14px] text-emerald-700 leading-relaxed mb-3">
                     <span className="font-semibold">{email}</span> 주소로<br />
-                    보안 로그인 링크를 보내드렸습니다.<br />
-                    이 창을 닫고 메일함의 링크를 클릭해주세요.
+                    보안 로그인 링크를 보내드렸습니다.
                 </p>
+                <p className="text-[12px] text-emerald-600 mb-3">
+                    <span className="font-semibold">noreply@orgcell.com</span> 에서 발송됩니다.
+                </p>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-left">
+                    <p className="text-[13px] text-amber-800 leading-relaxed">
+                        <span className="font-bold">이메일이 안 보이시면:</span><br />
+                        스팸/정크 메일함을 확인해주세요.<br />
+                        받은편지함으로 이동하시면 다음부터 정상 수신됩니다.
+                    </p>
+                </div>
             </div>
         );
     }

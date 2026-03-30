@@ -11,24 +11,30 @@ export default function LoginButton() {
 
     const handleSuccess = async (credentialResponse) => {
         try {
-            // Send credential to our backend (token is set via httpOnly cookie)
             const res = await axios.post('/api/auth/google', {
                 credential: credentialResponse.credential,
             });
 
             if (res.data?.success && res.data?.user) {
-                // Backend sets token via httpOnly cookie, we only pass user data
                 setAuth(res.data.user);
             }
         } catch (err) {
             console.error('Google login failed on backend:', err);
-            alert('로그인에 실패했습니다. 백엔드 연결을 확인해주세요.');
+            const status = err.response?.status;
+            const msg = err.response?.data?.message;
+            if (status === 500) {
+                alert(`Google 로그인 처리 중 오류가 발생했습니다.\n(${msg || '서버 오류'})\n\n잠시 후 다시 시도해주세요.`);
+            } else if (!err.response) {
+                alert('서버에 연결할 수 없습니다.\n네트워크 연결을 확인해주세요.');
+            } else {
+                alert(`로그인에 실패했습니다. (${status}: ${msg || '알 수 없는 오류'})`);
+            }
         }
     };
 
     const handleError = () => {
         console.error('Google Auth Failed');
-        alert('구글 로그인 팝업 처리에 실패했습니다.');
+        alert('Google 로그인 팝업이 차단되었거나 오류가 발생했습니다.\n\n팝업 차단을 해제하거나, 이메일 로그인을 이용해주세요.');
     };
 
     if (!GOOGLE_CLIENT_ID) {
