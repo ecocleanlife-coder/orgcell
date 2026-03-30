@@ -10,8 +10,8 @@ const storageOptions = [
         id: 'google',
         icon: '☁️',
         title: 'Google Drive',
-        price: '무제한 무료',
         lines: ['아이폰/안드로이드/위성폰 모두 지원', '폰 바꿔도 사진 안전'],
+        note: 'Gmail 사용자',
         recommended: true,
         enabled: true,
     },
@@ -19,8 +19,8 @@ const storageOptions = [
         id: 'onedrive',
         icon: '☁️',
         title: 'OneDrive',
-        price: '무제한 무료',
         lines: ['Windows 사용자 추천', 'Microsoft 365 연동'],
+        note: 'Hotmail 사용자',
         recommended: false,
         enabled: true,
     },
@@ -28,8 +28,8 @@ const storageOptions = [
         id: 'orgcell',
         icon: '🏠',
         title: 'Orgcell 서버',
-        price: '$10/년',
         lines: ['별도 클라우드 불필요', '바로 시작 가능'],
+        note: '',
         recommended: false,
         enabled: true,
     },
@@ -37,8 +37,8 @@ const storageOptions = [
         id: 'icloud',
         icon: '🔒',
         title: 'iCloud',
-        price: 'iOS 앱 출시 후 지원 예정',
         lines: ['iPhone/iPad 사용자 최적화'],
+        note: 'iOS 앱 출시 후 지원 예정',
         recommended: false,
         enabled: false,
     },
@@ -178,7 +178,7 @@ export default function StorageSelectPage() {
                     &lsaquo;
                 </button>
                 <h1 className="text-2xl font-bold text-[#3D2008] mb-2">사진 저장소 선택</h1>
-                <p className="text-sm text-[#7A6E5E]">사진은 본인의 클라우드에 안전하게 저장됩니다</p>
+                <p className="text-sm text-[#7A6E5E] leading-relaxed">본인이 현재 이용하시는 서비스를 선택하시면<br />해당 클라우드에 안전하게 저장해드립니다</p>
             </div>
 
             {/* Cards */}
@@ -205,13 +205,13 @@ export default function StorageSelectPage() {
                             <div className="flex items-start gap-4">
                                 <span className="text-3xl">{opt.icon}</span>
                                 <div className="flex-1">
-                                    <h3 className="text-base font-bold text-[#3D2008] mb-0.5">{opt.title}</h3>
-                                    <p className={`text-sm font-semibold mb-2 ${opt.enabled ? 'text-[#5A9460]' : 'text-[#A09882]'}`}>
-                                        {opt.price}
-                                    </p>
+                                    <h3 className="text-base font-bold text-[#3D2008] mb-1">{opt.title}</h3>
                                     {opt.lines.map((line) => (
                                         <p key={line} className="text-xs text-[#7A6E5E] leading-relaxed">{line}</p>
                                     ))}
+                                    {opt.note && (
+                                        <p className="text-[11px] text-[#A09882] mt-1">{opt.note}</p>
+                                    )}
                                 </div>
                                 {opt.enabled && (
                                     <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-1 transition-all ${
