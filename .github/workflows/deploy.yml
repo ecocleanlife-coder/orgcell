@@ -80,6 +80,65 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Validate Backend Dependencies
+        run: |
+          echo "=== 백엔드 의존성 검증 ==="
+          cd backend
+
+          # package.json에 선언된 의존성이 실제 require되는지 확인
+          MISSING=0
+          for src_file in server.js src/controllers/*.js src/routes/*.js src/services/*.js src/config/*.js src/middlewares/*.js; do
+            [ -f "$src_file" ] || continue
+            # require('모듈명')에서 로컬 파일(./)이 아닌 npm 패키지만 추출
+            MODULES=$(grep -oP "require\(['\"]([^./][^'\"]*)['\"]" "$src_file" 2>/dev/null | sed "s/require(['\"]//;s/['\"]$//" | cut -d/ -f1 | sort -u)
+            for mod in $MODULES; do
+              # Node.js 내장 모듈 제외
+              case "$mod" in
+                fs|path|http|https|crypto|stream|url|util|os|events|child_process|net|tls|zlib|querystring|buffer) continue ;;
+              esac
+              if ! grep -q "\"$mod\"" package.json 2>/dev/null; then
+                echo "❌ Missing dependency: '$mod' (used in $src_file)"
+                MISSING=1
+              fi
+            done
+          done
+
+          if [ "$MISSING" = "1" ]; then
+            echo ""
+            echo "============================================"
+            echo "🚫 배포 차단: 누락된 npm 의존성 발견"
+            echo "   npm install <패키지> --save 후 다시 푸시하세요."
+            echo "============================================"
+            exit 1
+          fi
+
+          echo "✅ 의존성 검증 통과"
+          cd ..
+
+      - name: Validate Route Files Exist
+        run: |
+          echo "=== 라우트 파일 존재 검증 ==="
+          MISSING=0
+          # server.js의 ROUTE_MAP에서 파일명 추출
+          ROUTE_FILES=$(grep -oP "'([a-zA-Z]+Routes)'" backend/server.js | tr -d "'" | sort -u)
+          for rf in $ROUTE_FILES; do
+            if [ ! -f "backend/src/routes/${rf}.js" ]; then
+              echo "❌ Missing route file: backend/src/routes/${rf}.js"
+              MISSING=1
+            fi
+          done
+
+          if [ "$MISSING" = "1" ]; then
+            echo ""
+            echo "============================================"
+            echo "🚫 배포 차단: 라우트 파일 누락"
+            echo "   git add 후 다시 푸시하세요."
+            echo "============================================"
+            exit 1
+          fi
+
+          echo "✅ 라우트 파일 검증 통과 ($(echo "$ROUTE_FILES" | wc -w)개)"
+
       - name: Build and Push Backend Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -420,6 +479,9 @@ jobs:
             docker exec orgcell-db psql -U orgcell_user -d orgcell \
               -c "ALTER TABLE family_sites ADD COLUMN IF NOT EXISTS storage_type VARCHAR(20) DEFAULT 'google_drive';" \
               -c "CREATE TABLE IF NOT EXISTS icloud_waitlist (id SERIAL PRIMARY KEY, email VARCHAR(255) NOT NULL, created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP);"
+            # ── 025: FamilySearch unique constraint (upsert 지원) ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "CREATE UNIQUE INDEX IF NOT EXISTS idx_persons_site_fs_person ON persons (site_id, fs_person_id) WHERE fs_person_id IS NOT NULL;"
             echo "Migrations done"
             # ─────────────────────────────────────────────────────────────
 
@@ -473,7 +535,43 @@ jobs:
               docker logs orgcell-frontend --tail=20
             fi
 
-            # 4. 포트 점유 최종 확인
+            # 4. 헬스체크 API 상세 확인
+            echo "--- 헬스체크 상세 ---"
+            HEALTH_BODY=$(curl -s http://localhost:5001/api/health 2>/dev/null || echo '{"status":"unreachable"}')
+            echo "$HEALTH_BODY"
+            HEALTH_STATUS=$(echo "$HEALTH_BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','error'))" 2>/dev/null || echo "error")
+            FAILED_ROUTES=$(echo "$HEALTH_BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('routes',{}).get('failed',0))" 2>/dev/null || echo "0")
+            DB_STATUS=$(echo "$HEALTH_BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('db','unknown'))" 2>/dev/null || echo "unknown")
+
+            if [ "$HEALTH_STATUS" = "degraded" ] || [ "$HEALTH_STATUS" = "error" ]; then
+              echo "⚠️ 헬스체크 비정상: status=$HEALTH_STATUS, db=$DB_STATUS, failedRoutes=$FAILED_ROUTES"
+            else
+              echo "✅ 헬스체크 정상: status=$HEALTH_STATUS, db=$DB_STATUS"
+            fi
+
+            # 5. Unhealthy 컨테이너 자동 재시작
+            echo "--- Unhealthy 컨테이너 자동 재시작 ---"
+            UNHEALTHY=$(docker ps --filter "health=unhealthy" --filter "name=orgcell" --format "{{.Names}}" 2>/dev/null || true)
+            if [ -n "$UNHEALTHY" ]; then
+              echo "⚠️ Unhealthy 컨테이너 감지: $UNHEALTHY"
+              for container in $UNHEALTHY; do
+                echo "  → $container 재시작 중..."
+                docker restart "$container"
+              done
+              sleep 15
+              # 재시작 후 재확인
+              STILL_UNHEALTHY=$(docker ps --filter "health=unhealthy" --filter "name=orgcell" --format "{{.Names}}" 2>/dev/null || true)
+              if [ -n "$STILL_UNHEALTHY" ]; then
+                echo "❌ 재시작 후에도 unhealthy: $STILL_UNHEALTHY"
+                docker logs orgcell-backend --tail=30
+              else
+                echo "✅ 자동 재시작 성공 — 모든 컨테이너 healthy"
+              fi
+            else
+              echo "✅ 모든 컨테이너 healthy"
+            fi
+
+            # 6. 포트 점유 최종 확인
             echo "--- 포트 점유 확인 ---"
             sudo ss -tlnp | grep -E ':80 |:443 |:8081 ' || true
             echo "=== 배포 검증 완료 ==="
