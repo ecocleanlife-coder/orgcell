@@ -4,7 +4,7 @@ import { Mail, ArrowRight, Loader, UserCheck, UserPlus } from 'lucide-react';
 
 export default function MagicLinkAuth() {
     const [email, setEmail] = useState('');
-    const [status, setStatus] = useState('idle'); // idle, loading, success, error, exists, domain_error
+    const [status, setStatus] = useState('idle'); // idle, loading, success, error, exists
     const [errorMessage, setErrorMessage] = useState('');
     const [showForm, setShowForm] = useState(false);
     const [maskedEmail, setMaskedEmail] = useState('');
@@ -23,14 +23,8 @@ export default function MagicLinkAuth() {
                 setStatus('success');
             }
         } catch (err) {
-            const code = err.response?.data?.errorCode;
-            if (code === 'DOMAIN_NOT_VERIFIED') {
-                setStatus('domain_error');
-                setErrorMessage(err.response.data.message);
-            } else {
-                setStatus('error');
-                setErrorMessage(err.response?.data?.message || '로그인 링크 전송에 실패했습니다. 다시 시도해주세요.');
-            }
+            setStatus('error');
+            setErrorMessage(err.response?.data?.message || '로그인 링크 전송에 실패했습니다. 다시 시도해주세요.');
         }
     };
 
@@ -60,27 +54,6 @@ export default function MagicLinkAuth() {
         setStatus('idle');
         setErrorMessage('');
     };
-
-    // 도메인 미인증 안내
-    if (status === 'domain_error') {
-        return (
-            <div className="w-full mt-6 bg-purple-50 border border-purple-200 rounded-xl p-6 text-center">
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Mail className="text-purple-600" size={24} />
-                </div>
-                <h3 className="text-[16px] font-bold text-purple-900 mb-2">이메일 로그인 준비 중</h3>
-                <p className="text-[14px] text-purple-700 leading-relaxed mb-4">
-                    {errorMessage}
-                </p>
-                <button
-                    onClick={() => { setStatus('idle'); setShowForm(false); setErrorMessage(''); }}
-                    className="text-[14px] font-bold text-purple-600 hover:text-purple-800 transition"
-                >
-                    ← 돌아가기
-                </button>
-            </div>
-        );
-    }
 
     // 이미 가입된 이메일 안내
     if (status === 'exists') {
