@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 const STORAGE_KEY = 'orgcell_onboarding';
 
-const STEPS = ['service', 'storage', 'photos', 'face', 'family', 'privacy', 'invite'];
+const STEPS = ['start', 'service', 'storage', 'photos', 'face', 'family', 'privacy', 'invite'];
 
 function loadState() {
     try {
@@ -38,7 +38,7 @@ const useOnboardingStore = create((set, get) => ({
 
     // 단계 시작
     startOnboarding: () => {
-        const next = { ...get(), started: true, currentStep: 'service' };
+        const next = { ...get(), started: true, currentStep: 'start' };
         saveState(next);
         set(next);
     },

@@ -133,7 +133,7 @@ function LandingPage() {
                 </div>
 
                 <button
-                    onClick={() => navigate('/onboarding/service')}
+                    onClick={() => navigate('/onboarding/start')}
                     className="w-full max-w-[320px] rounded-2xl font-bold text-white text-[15px] cursor-pointer transition-all hover:brightness-110 active:scale-[0.98]"
                     style={{ height: 48, background: 'linear-gradient(135deg, #5A9460, #4A8450)' }}
                 >
@@ -185,7 +185,7 @@ function LandingPage() {
                     {/* 버튼 */}
                     <div className="flex flex-col items-center gap-3 w-full max-w-[320px]">
                         <button
-                            onClick={() => navigate(`/onboarding/service?type=${section.type}`)}
+                            onClick={() => navigate(`/onboarding/start?type=${section.type}`)}
                             className="w-full rounded-2xl font-bold text-white text-[15px] cursor-pointer transition-all hover:brightness-110 active:scale-[0.98]"
                             style={{
                                 height: 56,

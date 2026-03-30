@@ -37,6 +37,7 @@ const FaceRegisterPage = lazy(() => import('./pages/onboarding/FaceRegisterPage'
 const FamilyTagPage = lazy(() => import('./pages/onboarding/FamilyTagPage'));
 const PrivacySetPage = lazy(() => import('./pages/onboarding/PrivacySetPage'));
 const InviteFamilyPage = lazy(() => import('./pages/onboarding/InviteFamilyPage'));
+const OnboardingWelcomePage = lazy(() => import('./pages/onboarding/OnboardingWelcomePage'));
 const OnboardingGuard = lazy(() => import('./components/onboarding/OnboardingGuard'));
 // DemoMuseumPage 제거 — /demo는 /:subdomain (MuseumPage)에서 처리
 
@@ -60,7 +61,7 @@ function AuthHome() {
         } else {
           // 모바일이면 온보딩, 데스크탑이면 홈
           if (window.innerWidth < 768) {
-            navigate('/onboarding/service', { replace: true });
+            navigate('/onboarding/start', { replace: true });
           } else {
             navigate('/home', { replace: true });
           }
@@ -151,6 +152,14 @@ function App() {
           element={
             <Suspense fallback={<PageLoader />}>
               <ForgotPasswordPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/onboarding/start"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <OnboardingWelcomePage />
             </Suspense>
           }
         />

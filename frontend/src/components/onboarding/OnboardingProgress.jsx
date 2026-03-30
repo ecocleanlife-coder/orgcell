@@ -2,6 +2,7 @@ import React from 'react';
 import useOnboardingStore from '../../store/onboardingStore';
 
 const STEPS = [
+    { id: 'start', label: '시작' },
     { id: 'service', label: '서비스' },
     { id: 'storage', label: '저장소' },
     { id: 'photos', label: '사진' },

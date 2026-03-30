@@ -103,7 +103,7 @@ export default function ServiceSelectPage() {
             <OnboardingProgress current="service" />
             <div className="text-center pt-6 pb-4 px-4">
                 <h1 className="text-2xl font-bold text-[#3D2008] mb-2">
-                    Orgcell로 무엇을 하시겠습니까?
+                    어떤 서비스를 먼저 시작할까요?
                 </h1>
                 <p className="text-sm text-[#7A6E5E]">스와이프하여 서비스를 살펴보세요</p>
             </div>
