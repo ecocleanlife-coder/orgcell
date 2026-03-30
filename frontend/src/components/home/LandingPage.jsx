@@ -83,16 +83,21 @@ function LandingPage() {
 
                 <div className="grid grid-cols-3 gap-2 sm:gap-4 w-full max-w-[600px] mb-5 sm:mb-10">
                     {[
-                        { icon: '🏛️', text: '우리만의 박물관' },
-                        { icon: '🤖', text: '중복 사진 자동 정리' },
-                        { icon: '📤', text: '쉬운 실시간 공유' },
+                        { image: '/images/landing/card-museum.png', text: '우리만의 박물관', bg: '#F3EFFF' },
+                        { image: '/images/landing/card-ai-sort.png', text: '중복 사진 자동 정리', bg: '#EFF7E8' },
+                        { image: '/images/landing/card-live-share.png', text: '쉬운 실시간 공유', bg: '#EFF5FF' },
                     ].map((card) => (
                         <div
-                            key={card.icon}
+                            key={card.text}
                             className="rounded-xl sm:rounded-2xl p-2 sm:p-5 text-center"
-                            style={{ background: '#FAFAF7', border: '1px solid #E8E3D8' }}
+                            style={{ background: card.bg, border: '1px solid #E8E3D8' }}
                         >
-                            <span className="text-2xl sm:text-3xl block mb-1 sm:mb-2">{card.icon}</span>
+                            <img
+                                src={card.image}
+                                alt={card.text}
+                                className="mx-auto mb-1 sm:mb-2"
+                                style={{ width: 60, height: 60, objectFit: 'contain' }}
+                            />
                             <p className="text-[11px] sm:text-[13px] font-medium leading-tight" style={{ color: '#3D2008' }}>{card.text}</p>
                         </div>
                     ))}

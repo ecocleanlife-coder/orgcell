@@ -275,8 +275,11 @@ export default function FamilyTagPage() {
         setTimeout(() => setPhase('done'), 1500);
     };
 
+    const onboardingType = localStorage.getItem('onboarding_type') || 'museum';
+    const themeBg = { museum: '#F3EFFF', ai: '#EFF7E8', share: '#EFF5FF' }[onboardingType];
+
     return (
-        <div className="min-h-screen flex flex-col" style={{ background: '#FFFBF0' }}>
+        <div className="min-h-screen flex flex-col" style={{ background: themeBg }}>
             {/* CSS 애니메이션 */}
             <style>{`
                 @keyframes spin { to { transform: rotate(360deg); } }

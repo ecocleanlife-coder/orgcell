@@ -167,8 +167,11 @@ export default function StorageSelectPage() {
         }
     };
 
+    const onboardingType = localStorage.getItem('onboarding_type') || 'museum';
+    const themeBg = { museum: '#F3EFFF', ai: '#EFF7E8', share: '#EFF5FF' }[onboardingType];
+
     return (
-        <div className="min-h-screen flex flex-col" style={{ background: '#FFFBF0' }}>
+        <div className="min-h-screen flex flex-col" style={{ background: themeBg }}>
             <OnboardingProgress current="storage" />
             <div className="relative text-center pt-6 pb-4 px-4">
                 <button onClick={() => navigate('/onboarding/service')} className="absolute left-4 top-4 text-[#A09882] text-2xl">

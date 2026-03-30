@@ -60,8 +60,11 @@ export default function PrivacySetPage() {
         navigate(`/onboarding/invite?storage=${storage}&privacy=public`);
     };
 
+    const onboardingType = localStorage.getItem('onboarding_type') || 'museum';
+    const themeBg = { museum: '#F3EFFF', ai: '#EFF7E8', share: '#EFF5FF' }[onboardingType];
+
     return (
-        <div className="min-h-screen flex flex-col" style={{ background: '#FFFBF0' }}>
+        <div className="min-h-screen flex flex-col" style={{ background: themeBg }}>
             {/* Header */}
             <OnboardingProgress current="privacy" />
             <div className="relative text-center pt-6 pb-6 px-4">

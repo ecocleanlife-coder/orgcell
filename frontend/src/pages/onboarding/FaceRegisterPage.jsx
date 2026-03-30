@@ -302,8 +302,11 @@ export default function FaceRegisterPage() {
         }
     };
 
+    const onboardingType = localStorage.getItem('onboarding_type') || 'museum';
+    const themeBg = { museum: '#F3EFFF', ai: '#EFF7E8', share: '#EFF5FF' }[onboardingType];
+
     return (
-        <div className="min-h-screen flex flex-col" style={{ background: '#FFFBF0' }}>
+        <div className="min-h-screen flex flex-col" style={{ background: themeBg }}>
             <OnboardingProgress current="face" />
 
             {/* Header */}

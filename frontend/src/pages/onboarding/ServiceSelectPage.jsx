@@ -9,21 +9,27 @@ const services = [
         title: '가족 박물관',
         desc: '가계도 · 사진 앨범 · 가족 채팅',
         sub: 'yourfamily.orgcell.com 도메인 무료',
-        color: '#5A9460',
+        color: '#7C5CFC',
+        bg: '#F3EFFF',
+        type: 'museum',
     },
     {
         icon: '🤖',
         title: 'AI 스마트 정리',
         desc: '얼굴 인식 · 자동 분류 · 중복 제거',
         sub: '수만 장의 사진을 자동으로 정리',
-        color: '#4A7FB5',
+        color: '#5A9460',
+        bg: '#EFF7E8',
+        type: 'ai',
     },
     {
         icon: '📤',
         title: '실시간 공유',
         desc: 'Friend Call · 라이브 앨범 · 가족 방송',
         sub: '어디서나 실시간으로 사진 공유',
-        color: '#9B59B6',
+        color: '#4A7FB5',
+        bg: '#EFF5FF',
+        type: 'share',
     },
 ];
 
@@ -46,6 +52,7 @@ export default function ServiceSelectPage() {
     }, []);
 
     const handleNext = () => {
+        localStorage.setItem('onboarding_type', services[current].type);
         completeStep('service');
         navigate('/onboarding/storage');
     };
@@ -92,7 +99,7 @@ export default function ServiceSelectPage() {
     const svc = services[current];
 
     return (
-        <div className="min-h-screen flex flex-col" style={{ background: '#FFFBF0' }}>
+        <div className="min-h-screen flex flex-col" style={{ background: services[current].bg }}>
             <OnboardingProgress current="service" />
             <div className="text-center pt-6 pb-4 px-4">
                 <h1 className="text-2xl font-bold text-[#3D2008] mb-2">
@@ -117,8 +124,8 @@ export default function ServiceSelectPage() {
                             className="w-full flex-shrink-0 px-2"
                         >
                             <div
-                                className="bg-white rounded-3xl p-8 border border-[#E8E3D8] text-center"
-                                style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}
+                                className="rounded-3xl p-8 border border-[#E8E3D8] text-center"
+                                style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.06)', background: idx === current ? '#FFFFFF' : svc.bg }}
                             >
                                 <div
                                     className="w-20 h-20 rounded-2xl mx-auto flex items-center justify-center mb-6"
