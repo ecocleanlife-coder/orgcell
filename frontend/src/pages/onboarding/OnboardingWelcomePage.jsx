@@ -26,10 +26,6 @@ export default function OnboardingWelcomePage() {
         navigate('/onboarding/storage');
     };
 
-    const handleSkip = () => {
-        navigate('/onboarding/service');
-    };
-
     return (
         <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: theme.bg }}>
             {/* AI 이미지 */}
@@ -76,28 +72,40 @@ export default function OnboardingWelcomePage() {
                 >
                     시작하기
                 </button>
-                <button
-                    onClick={handleSkip}
-                    className="w-full rounded-2xl font-bold text-[15px] cursor-pointer transition-all hover:brightness-105 active:scale-[0.98]"
-                    style={{
-                        height: 48,
-                        background: 'transparent',
-                        border: `2px solid ${theme.color}`,
-                        color: theme.color,
-                    }}
-                >
-                    이미 정리됐어요
-                </button>
             </div>
 
-            {/* 하단 스킵 텍스트 */}
-            <button
-                onClick={handleSkip}
-                className="mt-6 text-[13px] cursor-pointer hover:underline"
-                style={{ color: '#A09882' }}
-            >
-                사진 정리는 나중에 해도 됩니다
-            </button>
+            {/* 바로가기 */}
+            <div className="w-full max-w-[320px] mt-10 flex flex-col items-center">
+                <p className="text-[12px] mb-3" style={{ color: '#A09882' }}>
+                    사진 정리가 필요 없으신가요?
+                </p>
+                <div className="flex gap-2 w-full">
+                    <button
+                        onClick={() => navigate('/onboarding/service?type=museum')}
+                        className="flex-1 rounded-xl text-[13px] font-semibold cursor-pointer transition-all hover:brightness-105 active:scale-[0.98]"
+                        style={{
+                            height: 42,
+                            background: 'transparent',
+                            border: '1.5px solid #D4CFBF',
+                            color: '#7A6E5E',
+                        }}
+                    >
+                        🏛️ 가족 박물관
+                    </button>
+                    <button
+                        onClick={() => navigate('/onboarding/service?type=share')}
+                        className="flex-1 rounded-xl text-[13px] font-semibold cursor-pointer transition-all hover:brightness-105 active:scale-[0.98]"
+                        style={{
+                            height: 42,
+                            background: 'transparent',
+                            border: '1.5px solid #D4CFBF',
+                            color: '#7A6E5E',
+                        }}
+                    >
+                        📤 실시간 공유
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }
