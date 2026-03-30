@@ -51,6 +51,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     const [isLoading, setIsLoading] = useState(true);
     const [federations, setFederations] = useState([]);
     const [portalFed, setPortalFed] = useState(null);
+    const [fsSyncing, setFsSyncing] = useState(false);
 
     const canEdit = !readOnly && (role === 'owner' || role === 'member');
 
@@ -88,6 +89,45 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     }, [siteId, isAuthenticated]);
 
     useEffect(() => { fetchPersons(); }, [fetchPersons]);
+
+    // ── FamilySearch 연동 ──
+    const handleFamilySearchSync = async () => {
+        try {
+            setFsSyncing(true);
+            // 연결 상태 확인
+            const statusRes = await axios.get('/api/familysearch/status');
+            if (!statusRes.data?.connected) {
+                // OAuth 로그인 필요
+                const authRes = await axios.get('/api/familysearch/auth');
+                if (authRes.data?.authUrl) {
+                    window.location.href = authRes.data.authUrl;
+                    return;
+                }
+            }
+            // 가계도 가져오기
+            const treeRes = await axios.get(`/api/familysearch/tree/${siteId}`);
+            if (treeRes.data?.success) {
+                const count = treeRes.data.data?.importedCount || 0;
+                alert(`FamilySearch에서 ${count}명의 인물을 가져왔습니다.`);
+                fetchPersons();
+            }
+        } catch (err) {
+            console.error('FamilySearch sync error:', err);
+            if (err.response?.status === 401) {
+                // 토큰 만료 → 재인증
+                try {
+                    const authRes = await axios.get('/api/familysearch/auth');
+                    if (authRes.data?.authUrl) {
+                        window.location.href = authRes.data.authUrl;
+                        return;
+                    }
+                } catch { /* ignore */ }
+            }
+            alert(err.response?.data?.message || 'FamilySearch 연동에 실패했습니다.');
+        } finally {
+            setFsSyncing(false);
+        }
+    };
 
     // ── family-chart 카드 클릭 핸들러 (hover 버튼용) ──
     const handleCardAction = useCallback((personId, action) => {
@@ -688,6 +728,14 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                 className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-xl shadow transition-colors flex items-center gap-1"
                             >
                                 <Plus size={16} /> {lang === 'ko' ? '인물 추가' : 'Add Person'}
+                            </button>
+                            <button
+                                onClick={handleFamilySearchSync}
+                                disabled={fsSyncing}
+                                className="px-4 py-2 text-white text-sm font-bold rounded-xl shadow transition-colors flex items-center gap-1 disabled:opacity-50"
+                                style={{ background: fsSyncing ? '#9CA3AF' : 'linear-gradient(135deg, #4a8c3f, #3d7434)' }}
+                            >
+                                {fsSyncing ? '동기화 중...' : '🌳 FamilySearch 연동'}
                             </button>
                         </div>
                     )}
