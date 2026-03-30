@@ -197,15 +197,17 @@ export default function StorageSelectPage() {
                             }`}
                             style={{ border: isSelected ? '2px solid #5A9460' : '0.5px solid #E8E3D8' }}
                         >
-                            {opt.recommended && (
-                                <span className="absolute -top-2.5 right-4 bg-[#5A9460] text-white text-xs font-bold px-3 py-0.5 rounded-full">
-                                    추천
-                                </span>
-                            )}
                             <div className="flex items-start gap-4">
                                 <span className="text-3xl">{opt.icon}</span>
                                 <div className="flex-1">
-                                    <h3 className="text-[18px] font-bold text-[#3D2008] mb-1">{opt.title}</h3>
+                                    <h3 className="text-[18px] font-bold text-[#3D2008] mb-1 flex items-center gap-2">
+                                        {opt.title}
+                                        {opt.recommended && (
+                                            <span className="bg-[#5A9460] text-white text-[11px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">
+                                                추천
+                                            </span>
+                                        )}
+                                    </h3>
                                     {opt.lines.map((line) => (
                                         <p key={line} className="text-[14px] text-[#7A6E5E] leading-relaxed">{line}</p>
                                     ))}
