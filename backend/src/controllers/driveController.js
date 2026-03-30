@@ -1,14 +1,31 @@
 const { google } = require('googleapis');
 const db = require('../config/db');
 
-// Google Drive OAuth2 client
-function getDriveClient(tokens) {
+// Google Drive OAuth2 client (토큰 갱신 시 DB 자동 저장)
+function getDriveClient(tokens, userId) {
     const oauth2Client = new google.auth.OAuth2(
         process.env.GOOGLE_CLIENT_ID,
         process.env.GOOGLE_CLIENT_SECRET,
-        process.env.GOOGLE_REDIRECT_URI
+        `${process.env.FRONTEND_URL}/drive-callback`
     );
-    oauth2Client.setCredentials(typeof tokens === 'string' ? JSON.parse(tokens) : tokens);
+    const parsed = typeof tokens === 'string' ? JSON.parse(tokens) : tokens;
+    oauth2Client.setCredentials(parsed);
+
+    // 토큰 갱신 시 DB에 자동 저장
+    if (userId) {
+        oauth2Client.on('tokens', async (newTokens) => {
+            const merged = { ...parsed, ...newTokens };
+            try {
+                await db.query(
+                    `UPDATE users SET google_drive_token = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+                    [JSON.stringify(merged), userId]
+                );
+            } catch (err) {
+                console.error('Failed to save refreshed Drive token:', err.message);
+            }
+        });
+    }
+
     return google.drive({ version: 'v3', auth: oauth2Client });
 }
 
@@ -111,7 +128,7 @@ exports.setupDriveFolder = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Google Drive not connected' });
         }
 
-        const drive = getDriveClient(token);
+        const drive = getDriveClient(token, req.user.id);
 
         // Check if Orgcell folder already exists
         const existing = await drive.files.list({
@@ -160,7 +177,7 @@ exports.uploadToDrive = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Google Drive not connected' });
         }
 
-        const drive = getDriveClient(token);
+        const drive = getDriveClient(token, req.user.id);
         const { filename, mimeType, folderId } = req.body;
 
         if (!req.file) {
@@ -204,7 +221,7 @@ exports.downloadFromDrive = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Google Drive not connected' });
         }
 
-        const drive = getDriveClient(token);
+        const drive = getDriveClient(token, req.user.id);
         const response = await drive.files.get(
             { fileId: req.params.fileId, alt: 'media' },
             { responseType: 'stream' }
@@ -228,7 +245,7 @@ exports.deleteFromDrive = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Google Drive not connected' });
         }
 
-        const drive = getDriveClient(token);
+        const drive = getDriveClient(token, req.user.id);
         await drive.files.delete({ fileId: req.params.fileId });
 
         res.json({ success: true, message: 'File deleted from Drive' });
@@ -247,7 +264,7 @@ exports.listDrivePhotos = async (req, res) => {
             return res.status(401).json({ success: false, message: 'Drive not connected' });
         }
 
-        const drive = getDriveClient(token);
+        const drive = getDriveClient(token, req.user.id);
         const pageSize = parseInt(req.query.limit) || 50;
         const pageToken = req.query.pageToken || undefined;
 
@@ -277,7 +294,15 @@ exports.listDrivePhotos = async (req, res) => {
         });
     } catch (error) {
         console.error('listDrivePhotos Error:', error.message);
-        res.status(500).json({ success: false, message: 'Failed to list photos' });
+        const status = error.code || error.response?.status;
+        if (status === 401 || status === 403 || error.message?.includes('invalid_grant')) {
+            return res.status(401).json({
+                success: false,
+                message: 'Drive token expired',
+                errorCode: 'TOKEN_EXPIRED',
+            });
+        }
+        res.status(500).json({ success: false, message: 'Failed to list photos', errorCode: 'NETWORK_ERROR' });
     }
 };
 

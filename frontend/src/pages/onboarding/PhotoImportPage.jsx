@@ -53,6 +53,8 @@ export default function PhotoImportPage() {
     const [photos, setPhotos] = useState([]);
     const [localFiles, setLocalFiles] = useState([]);
     const [errorMsg, setErrorMsg] = useState('');
+    const [errorCode, setErrorCode] = useState(''); // TOKEN_EXPIRED | NETWORK_ERROR
+    const [errorSource, setErrorSource] = useState(''); // google | onedrive | dropbox
     const [importingSrc, setImportingSrc] = useState('');
 
     useEffect(() => { setCurrentStep('photos'); }, []);
@@ -138,8 +140,12 @@ export default function PhotoImportPage() {
                     allPhotos.push(...unique);
                 }
             } catch (err) {
-                if (err.response?.status === 401) {
-                    setErrorMsg(`${src.title} 연결이 만료되었습니다. 다시 연결해주세요.`);
+                const errorCode = err.response?.data?.errorCode;
+                const status = err.response?.status;
+                if (status === 401 || errorCode === 'TOKEN_EXPIRED') {
+                    setErrorMsg(`${src.title} 연결이 만료되었습니다.`);
+                    setErrorCode('TOKEN_EXPIRED');
+                    setErrorSource(srcId);
                     setPhase('error');
                     return;
                 }
@@ -171,6 +177,8 @@ export default function PhotoImportPage() {
         setProgress(0);
         setPhotos([]);
         setErrorMsg('');
+        setErrorCode('');
+        setErrorSource('');
         setImportingSrc('');
     };
 
@@ -398,21 +406,51 @@ export default function PhotoImportPage() {
                 {/* Phase: Error */}
                 {phase === 'error' && (
                     <div className="flex-1 flex flex-col items-center justify-center">
-                        <span className="text-6xl block mb-4">⚠️</span>
-                        <p className="text-xl font-bold text-[#3D2008] mb-2">연결에 실패했어요</p>
-                        <p className="text-sm text-[#7A6E5E] mb-8">{errorMsg || '네트워크 상태를 확인하고 다시 시도해주세요'}</p>
+                        <span className="text-6xl block mb-4">
+                            {errorCode === 'TOKEN_EXPIRED' ? '🔑' : '⚠️'}
+                        </span>
+                        <p className="text-xl font-bold text-[#3D2008] mb-2">
+                            {errorCode === 'TOKEN_EXPIRED' ? '연결이 만료되었어요' : '연결에 실패했어요'}
+                        </p>
+                        <p className="text-[15px] text-[#7A6E5E] mb-8 text-center">
+                            {errorCode === 'TOKEN_EXPIRED'
+                                ? `${SOURCES.find((s) => s.id === errorSource)?.title || '클라우드'} 인증이 만료되었습니다.\n다시 연결하면 바로 사용할 수 있어요.`
+                                : errorMsg || '네트워크 상태를 확인하고 다시 시도해주세요'}
+                        </p>
                         <div className="w-full space-y-3 pb-8">
-                            <button
-                                onClick={handleRetry}
-                                className="w-full rounded-2xl font-bold text-white active:scale-[0.98] transition-all"
-                                style={{
-                                    height: 56,
-                                    background: `linear-gradient(135deg, ${themeColor}, ${themeHover})`,
-                                }}
-                            >
-                                다시 시도
-                            </button>
-                            <button onClick={handleSkip} className="w-full text-sm text-[#A09882] py-2">
+                            {errorCode === 'TOKEN_EXPIRED' ? (
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            const res = await axios.get('/api/drive/auth');
+                                            if (res.data?.authUrl) {
+                                                window.location.href = res.data.authUrl;
+                                            }
+                                        } catch {
+                                            window.location.href = '/onboarding/storage';
+                                        }
+                                    }}
+                                    className="w-full rounded-2xl font-bold text-white active:scale-[0.98] transition-all"
+                                    style={{
+                                        height: 56,
+                                        background: `linear-gradient(135deg, ${themeColor}, ${themeHover})`,
+                                    }}
+                                >
+                                    {SOURCES.find((s) => s.id === errorSource)?.title || '클라우드'} 재연결하기
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={handleRetry}
+                                    className="w-full rounded-2xl font-bold text-white active:scale-[0.98] transition-all"
+                                    style={{
+                                        height: 56,
+                                        background: `linear-gradient(135deg, ${themeColor}, ${themeHover})`,
+                                    }}
+                                >
+                                    다시 시도
+                                </button>
+                            )}
+                            <button onClick={handleSkip} className="w-full text-[15px] text-[#A09882] py-2">
                                 나중에 하기
                             </button>
                         </div>
