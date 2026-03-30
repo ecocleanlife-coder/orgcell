@@ -371,7 +371,7 @@ const FamilyWebsitePage = () => {
                         <div className="mb-2">
                             <span style={{ fontSize: '64px', fontWeight: '800', color: '#5A9460', fontFamily: 'Georgia, serif', lineHeight: 1 }}>Free</span>
                         </div>
-                        <p className="mb-8" style={{ color: '#7A6E5E', fontSize: '14px' }}>{t('familyWebsite.priceYearLabel')}</p>
+                        <p className="mb-8" style={{ color: '#7A6E5E', fontSize: '16px' }}>{t('familyWebsite.priceYearLabel')}</p>
 
                         {/* Features */}
                         <ul className="text-left space-y-3 mb-8 max-w-[300px] mx-auto">
@@ -383,7 +383,7 @@ const FamilyWebsitePage = () => {
                                 t('familyWebsite.priceFeature5'),
                                 t('familyWebsite.priceFeature6'),
                             ].map(f => (
-                                <li key={f} className="flex items-center gap-2.5 text-[14px]" style={{ color: '#1E2A0E' }}>
+                                <li key={f} className="flex items-center gap-2.5 text-[16px]" style={{ color: '#1E2A0E' }}>
                                     <span style={{ color: '#5A9460', fontWeight: '700', flexShrink: 0 }}>✓</span>
                                     {f}
                                 </li>
@@ -534,7 +534,7 @@ const FamilyWebsitePage = () => {
                                         onClick={() => setOpenFaqIndex(isOpen ? null : n)}
                                         className="w-full flex items-center justify-between p-6 text-left cursor-pointer"
                                     >
-                                        <h3 className="font-bold text-[#1E2A0E] text-[15px] flex gap-2 items-start pr-4">
+                                        <h3 className="font-bold text-[#1E2A0E] text-[16px] flex gap-2 items-start pr-4">
                                             <span style={{ color: '#5A9460' }}>Q.</span> {t(`familyWebsite.faq${n}Q`)}
                                         </h3>
                                         <ChevronDown
@@ -553,7 +553,7 @@ const FamilyWebsitePage = () => {
                                             opacity: isOpen ? 1 : 0,
                                         }}
                                     >
-                                        <p className="text-[#6b5d4d] text-[13.5px] leading-relaxed px-6 pb-6 pl-[52px]">
+                                        <p className="text-[#6b5d4d] text-[16px] leading-relaxed px-6 pb-6 pl-[52px]">
                                             <span className="font-bold text-[#1E2A0E]">A. </span>{t(`familyWebsite.faq${n}A`)}
                                         </p>
                                     </div>

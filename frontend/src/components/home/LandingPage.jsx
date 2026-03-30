@@ -97,14 +97,14 @@ function LandingPage() {
                     흩어진 가족의 시간을<br />영원한 기록으로
                 </h1>
 
-                <p className="text-[14px] sm:text-[16px] leading-snug mb-3 sm:mb-6 max-w-[400px]" style={{ color: '#7A6E5E' }}>
+                <p className="text-[16px] sm:text-[18px] leading-snug mb-3 sm:mb-6 max-w-[400px]" style={{ color: '#7A6E5E' }}>
                     사진은 쌓여가는데 정리는 막막하고,<br />
                     가족과 나누기도 번거로우셨죠?
                 </p>
 
                 {/* 약속 한 줄 */}
                 <p
-                    className="text-[13px] sm:text-[16px] mb-5 sm:mb-8 max-w-[440px]"
+                    className="text-[15px] sm:text-[18px] mb-5 sm:mb-8 max-w-[440px]"
                     style={{ color: '#6B5E4E', fontStyle: 'italic', fontFamily: 'Georgia, serif', lineHeight: 1.4 }}
                 >
                     박물관처럼 영원하게, AI처럼 스마트하게, 가족처럼 가깝게
@@ -127,15 +127,15 @@ function LandingPage() {
                                 className="mx-auto mb-1 sm:mb-2"
                                 style={{ width: 60, height: 60, objectFit: 'contain' }}
                             />
-                            <p className="text-[11px] sm:text-[13px] font-medium leading-tight" style={{ color: '#3D2008' }}>{card.text}</p>
+                            <p className="text-[14px] sm:text-[15px] font-medium leading-tight" style={{ color: '#3D2008' }}>{card.text}</p>
                         </div>
                     ))}
                 </div>
 
                 <button
                     onClick={() => navigate('/onboarding/start')}
-                    className="w-full max-w-[320px] rounded-2xl font-bold text-white text-[15px] cursor-pointer transition-all hover:brightness-110 active:scale-[0.98]"
-                    style={{ height: 48, background: 'linear-gradient(135deg, #5A9460, #4A8450)' }}
+                    className="w-full max-w-[320px] rounded-2xl font-bold text-white text-[18px] cursor-pointer transition-all hover:brightness-110 active:scale-[0.98]"
+                    style={{ height: 56, background: 'linear-gradient(135deg, #5A9460, #4A8450)' }}
                 >
                     지금 시작하기
                 </button>
@@ -168,7 +168,7 @@ function LandingPage() {
 
                     {/* 제목 */}
                     <h2
-                        className="text-[26px] font-extrabold text-[#1E2A0E] mb-4"
+                        className="text-[28px] font-extrabold text-[#1E2A0E] mb-4"
                         style={{ fontFamily: 'Georgia, serif', lineHeight: 1.3 }}
                     >
                         {section.title}
@@ -176,7 +176,7 @@ function LandingPage() {
 
                     {/* 설명 */}
                     <p
-                        className="text-[15px] leading-relaxed mb-8 max-w-[320px]"
+                        className="text-[16px] leading-relaxed mb-8 max-w-[340px]"
                         style={{ color: '#5A5A4A', whiteSpace: 'pre-line' }}
                     >
                         {section.desc}
@@ -186,7 +186,7 @@ function LandingPage() {
                     <div className="flex flex-col items-center gap-3 w-full max-w-[320px]">
                         <button
                             onClick={() => navigate(`/onboarding/start?type=${section.type}`)}
-                            className="w-full rounded-2xl font-bold text-white text-[15px] cursor-pointer transition-all hover:brightness-110 active:scale-[0.98]"
+                            className="w-full rounded-2xl font-bold text-white text-[18px] cursor-pointer transition-all hover:brightness-110 active:scale-[0.98]"
                             style={{
                                 height: 56,
                                 background: `linear-gradient(135deg, ${section.btnColor}, ${section.btnHover})`,
@@ -197,7 +197,7 @@ function LandingPage() {
                         {idx === 0 && (
                             <button
                                 onClick={() => navigate('/lee')}
-                                className="w-full rounded-2xl font-bold text-[15px] cursor-pointer transition-all hover:brightness-105 active:scale-[0.98]"
+                                className="w-full rounded-2xl font-bold text-[18px] cursor-pointer transition-all hover:brightness-105 active:scale-[0.98]"
                                 style={{
                                     height: 48,
                                     background: 'transparent',
@@ -230,7 +230,7 @@ function LandingPage() {
                     >
                         왜 Orgcell인가요?
                     </h2>
-                    <p className="text-[15px] leading-relaxed mb-8" style={{ color: '#5A5A4A' }}>
+                    <p className="text-[16px] leading-relaxed mb-8" style={{ color: '#5A5A4A' }}>
                         Orgcell은 <strong>Organize</strong>(정리)와 <strong>Cell</strong>(세포/가족단위)의 합성어입니다.<br />
                         마치 세포가 생명의 기본 단위이듯,<br />
                         가족 한 명 한 명의 소중한 기록이<br />
@@ -251,7 +251,7 @@ function LandingPage() {
                 className="text-center"
                 style={{ padding: '32px 24px', background: '#FAFAF7' }}
             >
-                <p className="text-[14px] text-[#7A6E5E]">
+                <p className="text-[16px] text-[#7A6E5E]">
                     이미 계정이 있으신가요?{' '}
                     <button
                         onClick={() => navigate('/auth/login')}

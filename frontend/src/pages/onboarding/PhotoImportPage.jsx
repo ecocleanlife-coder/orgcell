@@ -201,11 +201,11 @@ export default function PhotoImportPage() {
                 <button onClick={() => navigate(-1)} className="absolute left-4 top-4 text-[#A09882] text-2xl">
                     &lsaquo;
                 </button>
-                <h1 className="text-2xl font-bold text-[#3D2008] mb-2">
+                <h1 className="text-[28px] font-bold text-[#3D2008] mb-2">
                     {phase === 'select' ? '어디서 사진을 가져올까요?' : '사진 가져오기'}
                 </h1>
                 {phase === 'select' && (
-                    <p className="text-sm text-[#7A6E5E]">여러 곳에서 동시에 가져올 수 있어요</p>
+                    <p className="text-[15px] text-[#7A6E5E]">여러 곳에서 동시에 가져올 수 있어요</p>
                 )}
             </div>
 
@@ -230,8 +230,8 @@ export default function PhotoImportPage() {
                                         <div className="flex items-center gap-4">
                                             <span className="text-3xl">{src.icon}</span>
                                             <div className="flex-1">
-                                                <h3 className="text-[15px] font-bold text-[#3D2008]">{src.title}</h3>
-                                                <p className="text-xs text-[#7A6E5E] mt-0.5">{src.desc}</p>
+                                                <h3 className="text-[16px] font-bold text-[#3D2008]">{src.title}</h3>
+                                                <p className="text-[14px] text-[#7A6E5E] mt-0.5">{src.desc}</p>
                                             </div>
                                             <div
                                                 className="w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all"

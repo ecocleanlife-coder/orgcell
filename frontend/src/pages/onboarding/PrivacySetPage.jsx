@@ -71,8 +71,8 @@ export default function PrivacySetPage() {
                 <button onClick={() => navigate(-1)} className="absolute left-4 top-4 text-gray-400 text-2xl">
                     &lsaquo;
                 </button>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">공개 범위 설정</h1>
-                <p className="text-sm text-gray-500">
+                <h1 className="text-[28px] font-bold text-gray-900 mb-2">공개 범위 설정</h1>
+                <p className="text-[15px] text-gray-500">
                     사진 공개 범위를 설정하시겠어요?
                     <br />기본은 일반공개입니다.
                 </p>
@@ -98,9 +98,9 @@ export default function PrivacySetPage() {
                         <div className="flex items-start gap-4">
                             <span className="text-3xl">{opt.icon}</span>
                             <div className="flex-1">
-                                <h3 className="text-base font-bold text-gray-900 mb-0.5">{opt.title}</h3>
-                                <p className="text-sm text-gray-600">{opt.desc}</p>
-                                <p className="text-xs text-gray-400 mt-1">{opt.detail}</p>
+                                <h3 className="text-[18px] font-bold text-gray-900 mb-0.5">{opt.title}</h3>
+                                <p className="text-[15px] text-gray-600">{opt.desc}</p>
+                                <p className="text-[13px] text-gray-400 mt-1">{opt.detail}</p>
                             </div>
                             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-1 ${
                                 selected === opt.id ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300'

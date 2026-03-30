@@ -177,8 +177,8 @@ export default function StorageSelectPage() {
                 <button onClick={() => navigate('/onboarding/service')} className="absolute left-4 top-4 text-[#A09882] text-2xl">
                     &lsaquo;
                 </button>
-                <h1 className="text-2xl font-bold text-[#3D2008] mb-2">사진 저장소 선택</h1>
-                <p className="text-sm text-[#7A6E5E] leading-relaxed">본인이 현재 이용하시는 서비스를 선택하시면<br />해당 클라우드에 안전하게 저장해드립니다</p>
+                <h1 className="text-[28px] font-bold text-[#3D2008] mb-2">사진 저장소 선택</h1>
+                <p className="text-[15px] text-[#7A6E5E] leading-relaxed">본인이 현재 이용하시는 서비스를 선택하시면<br />해당 클라우드에 안전하게 저장해드립니다</p>
             </div>
 
             {/* Cards */}
@@ -205,12 +205,12 @@ export default function StorageSelectPage() {
                             <div className="flex items-start gap-4">
                                 <span className="text-3xl">{opt.icon}</span>
                                 <div className="flex-1">
-                                    <h3 className="text-base font-bold text-[#3D2008] mb-1">{opt.title}</h3>
+                                    <h3 className="text-[18px] font-bold text-[#3D2008] mb-1">{opt.title}</h3>
                                     {opt.lines.map((line) => (
-                                        <p key={line} className="text-xs text-[#7A6E5E] leading-relaxed">{line}</p>
+                                        <p key={line} className="text-[14px] text-[#7A6E5E] leading-relaxed">{line}</p>
                                     ))}
                                     {opt.note && (
-                                        <p className="text-[11px] text-[#A09882] mt-1">{opt.note}</p>
+                                        <p className="text-[13px] text-[#A09882] mt-1">{opt.note}</p>
                                     )}
                                 </div>
                                 {opt.enabled && (

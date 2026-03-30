@@ -3,7 +3,19 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    font-size: 16px;
+  }
   body {
     @apply bg-gray-50 text-gray-900;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  /* 노년층 접근성: 최소 터치 영역 + 입력 폰트 줌 방지 */
+  button, a {
+    min-height: 44px;
+  }
+  input, select, textarea {
+    font-size: 16px;
   }
 }

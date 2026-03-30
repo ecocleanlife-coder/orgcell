@@ -102,10 +102,10 @@ export default function ServiceSelectPage() {
         <div className="min-h-screen flex flex-col" style={{ background: services[current].bg }}>
             <OnboardingProgress current="service" />
             <div className="text-center pt-6 pb-4 px-4">
-                <h1 className="text-2xl font-bold text-[#3D2008] mb-2">
+                <h1 className="text-[28px] font-bold text-[#3D2008] mb-2">
                     어떤 서비스를 먼저 시작할까요?
                 </h1>
-                <p className="text-sm text-[#7A6E5E]">스와이프하여 서비스를 살펴보세요</p>
+                <p className="text-[15px] text-[#7A6E5E]">스와이프하여 서비스를 살펴보세요</p>
             </div>
 
             {/* 스와이프 카드 영역 */}
@@ -133,8 +133,8 @@ export default function ServiceSelectPage() {
                                 >
                                     <span className="text-5xl">{svc.icon}</span>
                                 </div>
-                                <h3 className="text-xl font-bold text-[#3D2008] mb-3">{svc.title}</h3>
-                                <p className="text-sm text-[#7A6E5E] mb-3 leading-relaxed">{svc.desc}</p>
+                                <h3 className="text-[22px] font-bold text-[#3D2008] mb-3">{svc.title}</h3>
+                                <p className="text-[15px] text-[#7A6E5E] mb-3 leading-relaxed">{svc.desc}</p>
                                 <span
                                     className="inline-block text-xs font-semibold px-3 py-1 rounded-full"
                                     style={{ background: svc.color + '15', color: svc.color }}

@@ -46,7 +46,7 @@ export default function OnboardingProgress({ current }) {
                                 )}
                             </div>
                             <span
-                                className="text-[9px] mt-1 transition-all"
+                                className="text-[11px] mt-1 transition-all"
                                 style={{
                                     color: isActive ? accent.text
                                         : isDone ? accent.active

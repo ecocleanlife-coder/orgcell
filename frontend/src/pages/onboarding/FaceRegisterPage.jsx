@@ -314,7 +314,7 @@ export default function FaceRegisterPage() {
                 <button onClick={() => step === 0 ? navigate(-1) : setStep(step - 1)} className="absolute left-4 top-4 text-[#A09882] text-2xl">
                     &lsaquo;
                 </button>
-                <h1 className="text-xl font-bold text-[#3D2008] mb-1">
+                <h1 className="text-[28px] font-bold text-[#3D2008] mb-1">
                     {isCurrentStep ? '본인 얼굴 등록' : '과거 사진 등록'}
                 </h1>
                 <p className="text-sm text-[#7A6E5E]">{stage.icon} {stage.fullLabel}</p>

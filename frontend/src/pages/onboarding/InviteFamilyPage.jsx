@@ -190,8 +190,8 @@ export default function InviteFamilyPage() {
                 <button onClick={() => navigate(-1)} className="absolute left-4 top-4 text-gray-400 text-2xl">
                     &lsaquo;
                 </button>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">초대하기</h1>
-                <p className="text-sm text-gray-500">가족과 친구에게 내 박물관을 알려주세요</p>
+                <h1 className="text-[28px] font-bold text-gray-900 mb-2">초대하기</h1>
+                <p className="text-[15px] text-gray-500">가족과 친구에게 내 박물관을 알려주세요</p>
             </div>
 
             {/* 가족/친구 탭 */}

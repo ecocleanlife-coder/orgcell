@@ -291,10 +291,10 @@ export default function FamilyTagPage() {
                 <button onClick={() => navigate(-1)} className="absolute left-4 top-4 text-[#A09882] text-2xl">
                     &lsaquo;
                 </button>
-                <h1 className="text-xl font-bold text-[#3D2008] mb-1">
+                <h1 className="text-[28px] font-bold text-[#3D2008] mb-1">
                     {phase === 'manual' ? '수동 분류' : '가족 태그'}
                 </h1>
-                <p className="text-sm text-[#7A6E5E]">
+                <p className="text-[15px] text-[#7A6E5E]">
                     {phase === 'manual'
                         ? '사진을 선택하고 폴더를 지정하세요'
                         : 'AI가 감지한 얼굴에 관계를 지정하세요'}
