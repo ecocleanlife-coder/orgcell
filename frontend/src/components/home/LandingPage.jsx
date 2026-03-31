@@ -31,7 +31,7 @@ function LandingPage() {
     const sectionRefs = useScrollReveal();
 
     return (
-        <div className="min-h-screen" style={{ background: '#FAFAF7' }}>
+        <div className="min-h-screen" style={{ background: '#FAFAF7', overflowX: 'hidden', maxWidth: '100vw' }}>
             <Helmet>
                 <title>Orgcell — 자손들에게 물려줄 우리 가족만의 박물관</title>
                 <meta name="description" content="소중한 사진과 이야기를 가족과 함께 영원히 보존하세요. 가족행사 달력, 전시관, 가족트리를 한곳에." />
@@ -243,7 +243,7 @@ function LandingPage() {
                     transition: 'opacity 0.7s ease, transform 0.7s ease',
                 }}
             >
-                <div style={{ maxWidth: 500, margin: '0 auto' }}>
+                <div style={{ maxWidth: 500, margin: '0 auto', overflowX: 'hidden' }}>
                     <h2 style={{
                         fontSize: 'clamp(22px, 5vw, 32px)',
                         fontWeight: 700,

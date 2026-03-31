@@ -104,10 +104,10 @@ export default function FamilyTreePreview() {
     return (
         <div style={{
             background: '#FFFDF7', borderRadius: 20, padding: '24px 12px 20px',
-            border: '1px solid #E8E3D8', width: '100%', margin: '0 auto',
+            border: '1px solid #E8E3D8', width: '100%', maxWidth: '100%', margin: '0 auto',
             boxShadow: '0 8px 32px rgba(61,32,8,0.06)', overflowX: 'auto',
         }}>
-            <div style={{ minWidth: 640, padding: '0 8px' }}>
+            <div style={{ minWidth: 600, padding: '0 8px' }}>
 
                 {/* ─── FamilySearch 증조부모 ─── */}
                 <div style={{
