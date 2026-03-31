@@ -1,11 +1,11 @@
-import React, { Suspense, lazy, useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import React, { Suspense, lazy, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
-import axios from 'axios';
 
 import useAuthStore from './store/authStore';
 import { initTheme } from './store/uiStore';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import MainLayout from './components/layout/MainLayout';
 
 // Lazy loading
 const LandingPage = lazy(() => import('./components/home/LandingPage'));
@@ -44,7 +44,6 @@ const FamilySearchCallback = lazy(() => import('./pages/auth/FamilySearchCallbac
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'));
 const TermsOfServicePage = lazy(() => import('./pages/TermsOfServicePage'));
 const InviteDashboard = lazy(() => import('./components/museum/InviteDashboard'));
-// DemoMuseumPage 제거 — /demo는 /:subdomain (MuseumPage)에서 처리
 
 const PageLoader = () => (
   <div className="flex h-64 w-full items-center justify-center">
@@ -64,7 +63,6 @@ function AuthHome() {
         if (data.data?.subdomain) {
           navigate(`/${data.data.subdomain}`, { replace: true });
         } else {
-          // 모바일이면 온보딩, 데스크탑이면 홈
           if (window.innerWidth < 768) {
             navigate('/onboarding/start', { replace: true });
           } else {
@@ -79,6 +77,37 @@ function AuthHome() {
   }, [navigate]);
 
   return <PageLoader />;
+}
+
+// 헤더 제외 경로 판별
+const NO_LAYOUT_PATTERNS = [
+  '/',           // 랜딩 (정확 일치)
+  '/auth/',      // 인증
+  '/onboarding/', // 온보딩
+  '/drive-callback',
+  '/onedrive-callback',
+  '/dropbox-callback',
+  '/familysearch-callback',
+  '/invite',     // 초대 수락 페이지 (정확 일치)
+];
+
+function ConditionalLayout({ children }) {
+  const location = useLocation();
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const path = location.pathname;
+
+  const skipLayout =
+    (path === '/') ||
+    (path === '/invite') ||
+    path.startsWith('/auth/') ||
+    path.startsWith('/onboarding/') ||
+    path.endsWith('-callback');
+
+  if (skipLayout || !isAuthenticated) {
+    return <>{children}</>;
+  }
+
+  return <MainLayout>{children}</MainLayout>;
 }
 
 function App() {
@@ -97,7 +126,9 @@ function App() {
   return (
     <HelmetProvider>
     <BrowserRouter>
+      <ConditionalLayout>
       <Routes>
+        {/* ══════ 레이아웃 없는 페이지 ══════ */}
         <Route
           path="/"
           element={
@@ -112,308 +143,48 @@ function App() {
             )
           }
         />
-        <Route
-          path="/drive-callback"
-          element={
-            <Suspense fallback={<PageLoader />}>
-              <DriveCallback />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/onedrive-callback"
-          element={
-            <Suspense fallback={<PageLoader />}>
-              <OneDriveCallback />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/familysearch-callback"
-          element={
-            <Suspense fallback={<PageLoader />}>
-              <FamilySearchCallback />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/dropbox-callback"
-          element={
-            <Suspense fallback={<PageLoader />}>
-              <DropboxCallback />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/auth/verify"
-          element={
-            <Suspense fallback={<PageLoader />}>
-              <MagicLinkVerify />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/auth/login"
-          element={
-            <Suspense fallback={<PageLoader />}>
-              <LoginPage />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/auth/forgot-password"
-          element={
-            <Suspense fallback={<PageLoader />}>
-              <ForgotPasswordPage />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/onboarding/start"
-          element={
-            <Suspense fallback={<PageLoader />}>
-              <OnboardingWelcomePage />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/onboarding/service"
-          element={
-            <Suspense fallback={<PageLoader />}>
-              <ServiceSelectPage />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/onboarding/storage"
-          element={
-            <Suspense fallback={<PageLoader />}>
-              <StorageSelectPage />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/onboarding/photos"
-          element={
-            <Suspense fallback={<PageLoader />}>
-              <OnboardingGuard><PhotoImportPage /></OnboardingGuard>
-            </Suspense>
-          }
-        />
-        <Route
-          path="/onboarding/face"
-          element={
-            <Suspense fallback={<PageLoader />}>
-              <OnboardingGuard><FaceRegisterPage /></OnboardingGuard>
-            </Suspense>
-          }
-        />
-        <Route
-          path="/onboarding/family"
-          element={
-            <Suspense fallback={<PageLoader />}>
-              <OnboardingGuard><FamilyTagPage /></OnboardingGuard>
-            </Suspense>
-          }
-        />
-        <Route
-          path="/onboarding/privacy"
-          element={
-            <Suspense fallback={<PageLoader />}>
-              <OnboardingGuard><PrivacySetPage /></OnboardingGuard>
-            </Suspense>
-          }
-        />
-        <Route
-          path="/onboarding/invite"
-          element={
-            <Suspense fallback={<PageLoader />}>
-              <OnboardingGuard><InviteFamilyPage /></OnboardingGuard>
-            </Suspense>
-          }
-        />
-        <Route
-          path="/smart-sort"
-          element={
-            <ErrorBoundary>
-              <Suspense fallback={<PageLoader />}>
-                <SmartSortPage />
-              </Suspense>
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/family-website"
-          element={
-            <ErrorBoundary>
-              <Suspense fallback={<PageLoader />}>
-                <FamilyWebsitePage />
-              </Suspense>
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/family-setup"
-          element={
-            <ErrorBoundary>
-              <Suspense fallback={<PageLoader />}>
-                <FamilySetupPage />
-              </Suspense>
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/museum"
-          element={
-            <ErrorBoundary>
-              <Suspense fallback={<PageLoader />}>
-                <FamilyDomainDashboard />
-              </Suspense>
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/family-dashboard"
-          element={<Navigate to="/museum" replace />}
-        />
-        <Route
-          path="/museums"
-          element={
-            <ErrorBoundary>
-              <Suspense fallback={<PageLoader />}>
-                <MuseumListPage />
-              </Suspense>
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/home"
-          element={
-            <ErrorBoundary>
-              <Suspense fallback={<PageLoader />}>
-                <HomePage />
-              </Suspense>
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/privacy"
-          element={
-            <Suspense fallback={<PageLoader />}>
-              <PrivacyPolicyPage />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/terms"
-          element={
-            <Suspense fallback={<PageLoader />}>
-              <TermsOfServicePage />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/invite-dashboard"
-          element={
-            <ErrorBoundary>
-              <Suspense fallback={<PageLoader />}>
-                <InviteDashboard />
-              </Suspense>
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/:subdomain/gallery/:id"
-          element={
-            <ErrorBoundary>
-              <Suspense fallback={<PageLoader />}>
-                <ExhibitionDetailPage />
-              </Suspense>
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/:subdomain/board"
-          element={
-            <ErrorBoundary>
-              <Suspense fallback={<PageLoader />}>
-                <MuseumPage initialTab="board" />
-              </Suspense>
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/:subdomain"
-          element={
-            <ErrorBoundary>
-              <Suspense fallback={<PageLoader />}>
-                <MuseumPage />
-              </Suspense>
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/family-tree"
-          element={
-            <ErrorBoundary>
-              <Suspense fallback={<PageLoader />}>
-                <FamilyTreeView />
-              </Suspense>
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/person/:id"
-          element={
-            <ErrorBoundary>
-              <Suspense fallback={<PageLoader />}>
-                <PersonFolderView />
-              </Suspense>
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/live-sharing"
-          element={
-            <ErrorBoundary>
-              <Suspense fallback={<PageLoader />}>
-                <LiveSharingPage />
-              </Suspense>
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/redeem"
-          element={
-            <ErrorBoundary>
-              <Suspense fallback={<PageLoader />}>
-                <RedeemPage />
-              </Suspense>
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/invite"
-          element={
-            <ErrorBoundary>
-              <Suspense fallback={<PageLoader />}>
-                <InvitePage />
-              </Suspense>
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/payment/success"
-          element={
-            <ErrorBoundary>
-              <Suspense fallback={<PageLoader />}>
-                <PaymentSuccessPage />
-              </Suspense>
-            </ErrorBoundary>
-          }
-        />
-        {/* /demo → /:subdomain (MuseumPage)에서 subdomain="demo"로 처리 */}
+        <Route path="/drive-callback" element={<Suspense fallback={<PageLoader />}><DriveCallback /></Suspense>} />
+        <Route path="/onedrive-callback" element={<Suspense fallback={<PageLoader />}><OneDriveCallback /></Suspense>} />
+        <Route path="/familysearch-callback" element={<Suspense fallback={<PageLoader />}><FamilySearchCallback /></Suspense>} />
+        <Route path="/dropbox-callback" element={<Suspense fallback={<PageLoader />}><DropboxCallback /></Suspense>} />
+        <Route path="/auth/verify" element={<Suspense fallback={<PageLoader />}><MagicLinkVerify /></Suspense>} />
+        <Route path="/auth/login" element={<Suspense fallback={<PageLoader />}><LoginPage /></Suspense>} />
+        <Route path="/auth/forgot-password" element={<Suspense fallback={<PageLoader />}><ForgotPasswordPage /></Suspense>} />
+
+        {/* ══════ 온보딩 (레이아웃 없음) ══════ */}
+        <Route path="/onboarding/start" element={<Suspense fallback={<PageLoader />}><OnboardingWelcomePage /></Suspense>} />
+        <Route path="/onboarding/service" element={<Suspense fallback={<PageLoader />}><ServiceSelectPage /></Suspense>} />
+        <Route path="/onboarding/storage" element={<Suspense fallback={<PageLoader />}><StorageSelectPage /></Suspense>} />
+        <Route path="/onboarding/photos" element={<Suspense fallback={<PageLoader />}><OnboardingGuard><PhotoImportPage /></OnboardingGuard></Suspense>} />
+        <Route path="/onboarding/face" element={<Suspense fallback={<PageLoader />}><OnboardingGuard><FaceRegisterPage /></OnboardingGuard></Suspense>} />
+        <Route path="/onboarding/family" element={<Suspense fallback={<PageLoader />}><OnboardingGuard><FamilyTagPage /></OnboardingGuard></Suspense>} />
+        <Route path="/onboarding/privacy" element={<Suspense fallback={<PageLoader />}><OnboardingGuard><PrivacySetPage /></OnboardingGuard></Suspense>} />
+        <Route path="/onboarding/invite" element={<Suspense fallback={<PageLoader />}><OnboardingGuard><InviteFamilyPage /></OnboardingGuard></Suspense>} />
+
+        {/* ══════ MainLayout 적용 페이지 ══════ */}
+        <Route path="/home" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><HomePage /></Suspense></ErrorBoundary>} />
+        <Route path="/museums" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><MuseumListPage /></Suspense></ErrorBoundary>} />
+        <Route path="/museum" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><FamilyDomainDashboard /></Suspense></ErrorBoundary>} />
+        <Route path="/family-dashboard" element={<Navigate to="/museum" replace />} />
+        <Route path="/smart-sort" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><SmartSortPage /></Suspense></ErrorBoundary>} />
+        <Route path="/family-website" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><FamilyWebsitePage /></Suspense></ErrorBoundary>} />
+        <Route path="/family-setup" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><FamilySetupPage /></Suspense></ErrorBoundary>} />
+        <Route path="/live-sharing" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><LiveSharingPage /></Suspense></ErrorBoundary>} />
+        <Route path="/family-tree" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><FamilyTreeView /></Suspense></ErrorBoundary>} />
+        <Route path="/person/:id" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><PersonFolderView /></Suspense></ErrorBoundary>} />
+        <Route path="/invite-dashboard" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><InviteDashboard /></Suspense></ErrorBoundary>} />
+        <Route path="/redeem" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><RedeemPage /></Suspense></ErrorBoundary>} />
+        <Route path="/payment/success" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><PaymentSuccessPage /></Suspense></ErrorBoundary>} />
+        <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><PrivacyPolicyPage /></Suspense>} />
+        <Route path="/terms" element={<Suspense fallback={<PageLoader />}><TermsOfServicePage /></Suspense>} />
+        <Route path="/invite" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><InvitePage /></Suspense></ErrorBoundary>} />
+
+        {/* ══════ 동적 서브도메인 (자체 헤더 사용) ══════ */}
+        <Route path="/:subdomain/gallery/:id" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><ExhibitionDetailPage /></Suspense></ErrorBoundary>} />
+        <Route path="/:subdomain/board" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><MuseumPage initialTab="board" /></Suspense></ErrorBoundary>} />
+        <Route path="/:subdomain" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><MuseumPage /></Suspense></ErrorBoundary>} />
       </Routes>
+      </ConditionalLayout>
     </BrowserRouter>
     </HelmetProvider>
   );

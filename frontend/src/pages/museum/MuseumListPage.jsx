@@ -1,4 +1,3 @@
-// src/pages/MuseumListPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -11,7 +10,6 @@ const MuseumListPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // ✅ API 호출: 박물관 목록 조회
   useEffect(() => {
     fetchMuseums();
   }, []);
@@ -31,24 +29,22 @@ const MuseumListPage = () => {
     }
   };
 
-  // ✅ 탭별 필터링
   const filteredMuseums = museums.filter(m => m.type === activeTab);
 
-  // ✅ 빈 상태 렌더링
   const renderEmptyState = () => {
     const emptyConfig = {
       public: {
-        icon: '🏛️',
-        title: '전시된 기록이 아직 없네요',
-        description: '누구나 볼 수 있는 우리 가족의 명예의 전당입니다.',
-        hint: '첫 번째 박물관을 만들어 소중한 추억을 공유해보세요.'
+        icon: '🏺',
+        title: '아직 전시된 기록이 없습니다',
+        description: '누구나 볼 수 있는 우리 가족의 명예의 전당.',
+        hint: '소중한 추억을 세상과 나눠보세요. 첫 번째 박물관이 여기서 시작됩니다.',
       },
       family: {
         icon: '🏠',
-        title: '가족 박물관이 아직 없네요',
-        description: '가족끼리만 공유하는 비밀스러운 공간입니다.',
-        hint: '가족의 특별한 순간들을 담아보세요.'
-      }
+        title: '가족만의 공간을 만들어보세요',
+        description: '가족끼리만 공유하는 비밀스러운 추억 보관함.',
+        hint: '웃음, 눈물, 일상의 소소한 순간까지 — 모두 담을 수 있어요.',
+      },
     };
 
     const config = emptyConfig[activeTab];
@@ -61,7 +57,7 @@ const MuseumListPage = () => {
         <p className="hint">{config.hint}</p>
         <button
           className="main-create-btn"
-          onClick={() => navigate('/create-museum')}
+          onClick={() => navigate('/family-setup')}
         >
           <span className="plus-icon">+</span> 새 박물관 만들기
         </button>
@@ -69,7 +65,6 @@ const MuseumListPage = () => {
     );
   };
 
-  // ✅ 로딩 상태
   if (loading) {
     return (
       <div className="museum-list-container">
@@ -81,12 +76,11 @@ const MuseumListPage = () => {
     );
   }
 
-  // ✅ 에러 상태
   if (error) {
     return (
       <div className="museum-list-container">
         <div className="error-state">
-          <p>⚠️ {error}</p>
+          <p>{error}</p>
           <button onClick={fetchMuseums} className="retry-btn">
             다시 시도
           </button>
@@ -98,21 +92,20 @@ const MuseumListPage = () => {
   return (
     <div className="museum-list-container">
       <div className="list-header">
-        <h1>나의 박물관 기록</h1>
+        <h1>나의 박물관</h1>
 
-        {/* ✅ 탭 버튼 */}
         <div className="tab-bar">
           <button
             className={`tab-btn ${activeTab === 'public' ? 'active' : ''}`}
             onClick={() => setActiveTab('public')}
           >
-            🏛️ 일반공개관
+            공개 박물관
           </button>
           <button
             className={`tab-btn ${activeTab === 'family' ? 'active' : ''}`}
             onClick={() => setActiveTab('family')}
           >
-            🏠 가족공개관
+            가족 박물관
           </button>
         </div>
       </div>
@@ -124,9 +117,8 @@ const MuseumListPage = () => {
               <div
                 key={museum.id}
                 className="museum-card"
-                onClick={() => navigate(`/museums/${museum.subdomain}`)}
+                onClick={() => navigate(`/${museum.subdomain}`)}
               >
-                {/* ✅ 박물관 이미지 */}
                 <div className="card-image">
                   {museum.thumbnail_url ? (
                     <img src={museum.thumbnail_url} alt={museum.title} />
@@ -137,7 +129,6 @@ const MuseumListPage = () => {
                   )}
                 </div>
 
-                {/* ✅ 박물관 정보 */}
                 <div className="card-content">
                   <h3 className="card-title">{museum.title}</h3>
                   <p className="card-description">
@@ -154,7 +145,6 @@ const MuseumListPage = () => {
                   </div>
                 </div>
 
-                {/* ✅ 호버 효과 오버레이 */}
                 <div className="card-overlay">
                   <button className="view-btn">둘러보기</button>
                 </div>
