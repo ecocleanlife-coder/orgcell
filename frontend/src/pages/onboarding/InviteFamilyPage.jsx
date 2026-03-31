@@ -217,6 +217,8 @@ export default function InviteFamilyPage() {
         }
     };
 
+    const [agreedTerms, setAgreedTerms] = useState(false);
+
     const onboardingType = localStorage.getItem('onboarding_type') || 'museum';
     const themeBg = { museum: '#F3EFFF', ai: '#EFF7E8', share: '#EFF5FF' }[onboardingType];
 
@@ -468,12 +470,27 @@ export default function InviteFamilyPage() {
                 </div>
             </div>
 
-            {/* Footer buttons */}
+            {/* Terms agreement + Footer buttons */}
             <div className="px-5 pb-8 max-w-md mx-auto w-full space-y-3">
+                {/* 약관 동의 체크박스 */}
+                <label className="flex items-start gap-2.5 cursor-pointer py-2">
+                    <input
+                        type="checkbox"
+                        checked={agreedTerms}
+                        onChange={(e) => setAgreedTerms(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 rounded border-gray-300 accent-emerald-500 shrink-0"
+                    />
+                    <span className="text-xs text-gray-500 leading-relaxed">
+                        <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline text-gray-600">개인정보처리방침</a>과{' '}
+                        <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline text-gray-600">이용약관</a>을
+                        읽었으며 동의합니다.
+                    </span>
+                </label>
+
                 <button
                     onClick={handleFinish}
-                    disabled={creating}
-                    className={`w-full rounded-2xl font-bold text-white transition-all active:scale-[0.98] ${creating ? 'opacity-60' : ''}`}
+                    disabled={creating || !agreedTerms}
+                    className={`w-full rounded-2xl font-bold text-white transition-all active:scale-[0.98] ${(creating || !agreedTerms) ? 'opacity-60' : ''}`}
                     style={{ height: 56, background: inviteSent ? 'linear-gradient(135deg, #5A9460, #4A8450)' : 'linear-gradient(135deg, #3D2008, #5A4020)' }}
                 >
                     {creating ? '박물관 생성 중...' : inviteSent ? '초대 완료 → 박물관 입장' : '박물관으로 이동'}

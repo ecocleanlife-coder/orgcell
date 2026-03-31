@@ -246,10 +246,10 @@ function LandingPage() {
                 </div>
             </section>
 
-            {/* 하단 — 로그인 링크 */}
+            {/* 하단 — 로그인 링크 + 법률 문서 */}
             <div
                 className="text-center"
-                style={{ padding: '32px 24px', background: '#FAFAF7' }}
+                style={{ padding: '32px 24px 20px', background: '#FAFAF7' }}
             >
                 <p className="text-[16px] text-[#7A6E5E]">
                     이미 계정이 있으신가요?{' '}
@@ -259,6 +259,16 @@ function LandingPage() {
                     >
                         로그인
                     </button>
+                </p>
+                <div style={{ marginTop: 20, fontSize: 13, color: '#999' }}>
+                    <a href="/privacy" style={{ color: '#999', textDecoration: 'none' }} className="hover:underline">개인정보처리방침</a>
+                    <span style={{ margin: '0 8px' }}>|</span>
+                    <a href="/terms" style={{ color: '#999', textDecoration: 'none' }} className="hover:underline">이용약관</a>
+                    <span style={{ margin: '0 8px' }}>|</span>
+                    <a href="mailto:ecocleanlife@gmail.com" style={{ color: '#999', textDecoration: 'none' }} className="hover:underline">문의: ecocleanlife@gmail.com</a>
+                </div>
+                <p style={{ marginTop: 12, fontSize: 11, color: '#bbb' }}>
+                    © 2026 Orgcell. All rights reserved.
                 </p>
             </div>
         </div>

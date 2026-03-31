@@ -78,8 +78,17 @@ export default function LoginPage() {
                 {/* Magic Link */}
                 <MagicLinkAuth />
 
+                {/* Terms agreement notice */}
+                <p style={{ marginTop: 20, textAlign: 'center', fontSize: 12, color: '#888', lineHeight: 1.6 }}>
+                    계속하면{' '}
+                    <a href="/terms" style={{ color: '#888', textDecoration: 'underline' }}>이용약관</a>
+                    {' '}및{' '}
+                    <a href="/privacy" style={{ color: '#888', textDecoration: 'underline' }}>개인정보처리방침</a>
+                    에 동의하는 것으로 간주됩니다.
+                </p>
+
                 {/* Back */}
-                <p style={{ marginTop: 24, textAlign: 'center', fontSize: 14, color: '#A09882' }}>
+                <p style={{ marginTop: 16, textAlign: 'center', fontSize: 14, color: '#A09882' }}>
                     <button
                         onClick={() => navigate(-1)}
                         style={{ color: '#7A6E5E', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 500 }}
