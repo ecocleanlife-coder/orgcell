@@ -482,6 +482,34 @@ jobs:
             # ── 025: FamilySearch unique constraint (upsert 지원) ──
             docker exec orgcell-db psql -U orgcell_user -d orgcell \
               -c "CREATE UNIQUE INDEX IF NOT EXISTS idx_persons_site_fs_person ON persons (site_id, fs_person_id) WHERE fs_person_id IS NOT NULL;"
+            # ── 026: 바이럴 루프 강화 (museum_visitors 유입 추적 + family_invites 확장) ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "ALTER TABLE museum_visitors ADD COLUMN IF NOT EXISTS source VARCHAR(50) DEFAULT 'direct';" \
+              -c "ALTER TABLE museum_visitors ADD COLUMN IF NOT EXISTS referral_code VARCHAR(10);" \
+              -c "ALTER TABLE museum_visitors ADD COLUMN IF NOT EXISTS visit_count INTEGER DEFAULT 1;" \
+              -c "ALTER TABLE museum_visitors ADD COLUMN IF NOT EXISTS last_visited_at TIMESTAMPTZ DEFAULT NOW();" \
+              -c "CREATE INDEX IF NOT EXISTS idx_visitors_source ON museum_visitors(source);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_visitors_referral ON museum_visitors(referral_code);"
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "ALTER TABLE family_invites ADD COLUMN IF NOT EXISTS short_code VARCHAR(6);" \
+              -c "ALTER TABLE family_invites ALTER COLUMN expires_at SET DEFAULT (CURRENT_TIMESTAMP + INTERVAL '30 days');" \
+              -c "CREATE UNIQUE INDEX IF NOT EXISTS idx_invites_short_code ON family_invites(short_code) WHERE short_code IS NOT NULL;"
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "CREATE OR REPLACE VIEW v_friendship_summary AS
+                SELECT fs.id AS site_id, fs.subdomain,
+                  COUNT(CASE WHEN f.status = 'accepted' THEN 1 END) AS accepted_count,
+                  COUNT(CASE WHEN f.status = 'pending' THEN 1 END) AS pending_count,
+                  COUNT(CASE WHEN f.status = 'rejected' THEN 1 END) AS rejected_count,
+                  COUNT(*) AS total_count
+                FROM family_sites fs LEFT JOIN friendships f ON f.site_id = fs.id
+                GROUP BY fs.id, fs.subdomain;" \
+              -c "CREATE OR REPLACE VIEW v_visitor_stats AS
+                SELECT mv.site_id, fs.subdomain, mv.source,
+                  COUNT(DISTINCT mv.visitor_user_id) AS unique_visitors,
+                  SUM(mv.visit_count) AS total_visits,
+                  MAX(mv.last_visited_at) AS last_visit_at
+                FROM museum_visitors mv JOIN family_sites fs ON fs.id = mv.site_id
+                GROUP BY mv.site_id, fs.subdomain, mv.source;"
             echo "Migrations done"
             # ─────────────────────────────────────────────────────────────
 
