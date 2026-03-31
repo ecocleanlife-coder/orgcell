@@ -596,9 +596,8 @@ export default function MuseumPage({ initialTab }) {
                 )}
 
                 {/* ══ SECTION 5: 최근 게시판 ══ */}
-                {role !== 'public' && (
-                    <div ref={boardRef}>
-                        <Section id="section-board">
+                <div ref={boardRef}>
+                    <Section id="section-board">
                             <SectionHeader
                                 title="최근 게시판"
                                 actionLabel="게시판 전체보기"
@@ -653,15 +652,14 @@ export default function MuseumPage({ initialTab }) {
                             )}
                         </Section>
                     </div>
-                )}
             </main>
 
             {/* ════ 플로팅 업로드 버튼 (우측 하단) ════ */}
             {canEdit && (
                 <button
                     onClick={() => setShowUploadModal(true)}
-                    className="fixed bottom-6 right-6 z-30 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white transition-all hover:scale-105 active:scale-95"
-                    style={{ background: 'linear-gradient(135deg, #5A9460, #4A8450)' }}
+                    className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white transition-all hover:scale-105 active:scale-95"
+                    style={{ background: 'linear-gradient(135deg, #5A9460, #4A8450)', boxShadow: '0 4px 20px rgba(76,132,80,0.4)' }}
                 >
                     <Plus size={24} />
                 </button>

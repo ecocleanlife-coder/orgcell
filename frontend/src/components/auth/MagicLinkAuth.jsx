@@ -125,7 +125,7 @@ export default function MagicLinkAuth() {
                     onClick={() => setShowForm(true)}
                     className="w-full flex items-center justify-center py-3 px-4 border border-gray-300 rounded-xl shadow-sm text-[14px] font-bold text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#7C5CFC] transition-all cursor-pointer"
                 >
-                    <Mail className="mr-2 h-5 w-5 text-gray-500" /> 이메일로 1초만에 시작하기
+                    <Mail className="mr-2 h-5 w-5 text-gray-500" /> 이메일로 시작하기
                 </button>
             ) : (
                 <form onSubmit={handleSubmit} className="space-y-3 animate-fade-in-up">
