@@ -9,7 +9,7 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const COOKIE_OPTIONS = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    sameSite: 'lax', // 'strict'는 OAuth 외부 리다이렉트 시 쿠키 미전송 — 'lax' 사용
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     path: '/',
 };

@@ -56,24 +56,24 @@ function AuthHome() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    let cancelled = false;
     const checkSite = async () => {
       try {
-        const res = await fetch('/api/sites/mine');
+        const res = await fetch('/api/sites/mine', { credentials: 'include' });
+        if (cancelled) return;
         const data = await res.json();
         if (data.data?.subdomain) {
           navigate(`/${data.data.subdomain}`, { replace: true });
         } else {
-          if (window.innerWidth < 768) {
-            navigate('/onboarding/start', { replace: true });
-          } else {
-            navigate('/home', { replace: true });
-          }
+          // 모바일/데스크탑 동일하게 /home으로 — 온보딩은 /home에서 안내
+          navigate('/home', { replace: true });
         }
       } catch {
-        navigate('/home', { replace: true });
+        if (!cancelled) navigate('/home', { replace: true });
       }
     };
     checkSite();
+    return () => { cancelled = true; };
   }, [navigate]);
 
   return <PageLoader />;
