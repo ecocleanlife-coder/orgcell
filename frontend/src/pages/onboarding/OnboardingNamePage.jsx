@@ -5,6 +5,8 @@ import useOnboardingStore from '../../store/onboardingStore';
 import useAuthStore from '../../store/authStore';
 import OnboardingProgress from '../../components/onboarding/OnboardingProgress';
 
+const SLUG_REGEX = /^[a-z0-9-]*$/;
+
 export default function OnboardingNamePage() {
     const navigate = useNavigate();
     const { startOnboarding, setCurrentStep, completeStep, setMuseumName } = useOnboardingStore();
@@ -15,6 +17,7 @@ export default function OnboardingNamePage() {
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState('');
     const [slugError, setSlugError] = useState('');
+    const [slugWarning, setSlugWarning] = useState('');
 
     useEffect(() => {
         startOnboarding();
@@ -39,15 +42,23 @@ export default function OnboardingNamePage() {
         setError('');
     };
 
-    // 주소: 영문 소문자, 숫자, 하이픈만 허용
-    const handleSlugChange = (val) => {
-        const clean = val
-            .toLowerCase()
+    // 주소: 대문자→소문자 자동 변환, 허용 외 문자 감지 시 경고
+    const handleSlugChange = (rawVal) => {
+        const lowered = rawVal.toLowerCase();
+        const clean = lowered
             .replace(/[^a-z0-9-]/g, '')
             .replace(/-+/g, '-')
             .slice(0, 20);
+
         setSlug(clean);
         setSlugError('');
+
+        // 원본에 허용 외 문자가 있었는지 감지
+        if (!SLUG_REGEX.test(lowered)) {
+            setSlugWarning('영문 소문자, 숫자, 하이픈만 사용 가능합니다 (3~20자)');
+        } else {
+            setSlugWarning('');
+        }
     };
 
     // [다음] 클릭 시에만 중복 체크 + 생성
@@ -64,7 +75,7 @@ export default function OnboardingNamePage() {
         setSlugError('');
 
         try {
-            // 중복 체크
+            // 중복 체크 (인증 불필요)
             const checkRes = await axios.get(`/api/domain/check?subdomain=${slug}`);
             if (checkRes.data?.success && !checkRes.data.available) {
                 setSlugError('이미 사용 중인 주소예요. 다른 주소를 입력해주세요.');
@@ -100,7 +111,7 @@ export default function OnboardingNamePage() {
         }
     };
 
-    const canProceed = name.trim().length > 0 && slug.trim().length >= 3;
+    const canProceed = name.trim().length > 0 && slug.length >= 3 && slug.length <= 20;
 
     return (
         <div className="min-h-screen flex flex-col" style={{ background: '#FAFAF7' }}>
@@ -164,8 +175,9 @@ export default function OnboardingNamePage() {
                 <div className="flex items-center w-full overflow-hidden"
                     style={{
                         borderRadius: 16,
-                        border: slugError ? '2px solid #E74C3C' : '2px solid #E8E3D8',
+                        border: (slugError || slugWarning) ? '2px solid #E74C3C' : '2px solid #E8E3D8',
                         background: '#fff',
+                        transition: 'border-color 0.2s',
                     }}>
                     <span className="shrink-0 px-4 self-stretch flex items-center"
                         style={{
@@ -180,6 +192,9 @@ export default function OnboardingNamePage() {
                         onChange={(e) => handleSlugChange(e.target.value)}
                         placeholder="my-family"
                         maxLength={20}
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
                         style={{
                             flex: 1, height: 60, border: 'none', outline: 'none',
                             padding: '0 16px', fontSize: 20, color: '#3D2008',
@@ -189,13 +204,22 @@ export default function OnboardingNamePage() {
                     />
                 </div>
 
-                <p className="w-full mt-2" style={{ fontSize: 14, color: '#A09882', lineHeight: 1.5 }}>
-                    영문 소문자, 숫자, 하이픈만 사용 가능합니다 (3~20자)
-                </p>
+                {/* 경고/에러 메시지 (입력창 바로 아래) */}
+                {slugWarning && !slugError && (
+                    <p className="w-full mt-2" style={{ fontSize: 14, color: '#E74C3C', lineHeight: 1.5 }}>
+                        {slugWarning}
+                    </p>
+                )}
 
                 {slugError && (
-                    <p className="w-full mt-1" style={{ fontSize: 15, color: '#E74C3C' }}>
+                    <p className="w-full mt-2" style={{ fontSize: 15, color: '#E74C3C' }}>
                         {slugError}
+                    </p>
+                )}
+
+                {!slugWarning && !slugError && (
+                    <p className="w-full mt-2" style={{ fontSize: 14, color: '#A09882', lineHeight: 1.5 }}>
+                        영문 소문자, 숫자, 하이픈만 사용 가능합니다 (3~20자)
                     </p>
                 )}
 
