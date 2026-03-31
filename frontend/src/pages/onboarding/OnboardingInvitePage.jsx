@@ -22,7 +22,7 @@ export default function OnboardingInvitePage() {
         if (setup.subdomain) {
             setSubdomain(setup.subdomain);
         } else if (isAuthenticated) {
-            axios.get('/api/sites/mine')
+            axios.get('/api/sites/mine', { _skipAuthToast: true })
                 .then(res => {
                     const sub = res.data?.data?.subdomain;
                     if (sub) setSubdomain(sub);

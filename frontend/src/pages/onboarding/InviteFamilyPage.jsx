@@ -28,17 +28,19 @@ export default function InviteFamilyPage() {
         const setup = JSON.parse(localStorage.getItem('orgcell_family_setup') || '{}');
         if (setup.subdomain) {
             setSubdomain(setup.subdomain);
-        } else {
-            axios.get('/api/sites/mine').then(res => {
-                const site = res.data?.data?.[0];
+        } else if (isAuthenticated) {
+            axios.get('/api/sites/mine', { _skipAuthToast: true }).then(res => {
+                const site = res.data?.data;
                 if (site?.subdomain) {
                     setSubdomain(site.subdomain);
                 }
             }).catch(() => {
                 setSubdomain('myfamily');
             });
+        } else {
+            setSubdomain('myfamily');
         }
-    }, []);
+    }, [isAuthenticated]);
 
     const museumUrl = `${subdomain}.orgcell.com`;
     const signupUrl = 'orgcell.com/onboarding/service';
@@ -187,7 +189,7 @@ export default function InviteFamilyPage() {
 
         setCreating(true);
         try {
-            const mineRes = await axios.get('/api/sites/mine');
+            const mineRes = await axios.get('/api/sites/mine', { _skipAuthToast: true });
             const existing = mineRes.data?.data;
             if (existing?.subdomain) {
                 navigate(`/${existing.subdomain}`);

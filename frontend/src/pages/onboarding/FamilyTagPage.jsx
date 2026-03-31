@@ -253,7 +253,7 @@ export default function FamilyTagPage() {
         try {
             // storage_type을 사이트에 저장
             const storageTypeMap = { google: 'google_drive', onedrive: 'onedrive', orgcell: 'orgcell' };
-            const siteRes = await axios.get('/api/sites/mine').catch(() => null);
+            const siteRes = await axios.get('/api/sites/mine', { _skipAuthToast: true }).catch(() => null);
             const siteId = siteRes?.data?.data?.id;
             if (siteId) {
                 await axios.patch(`/api/sites/${siteId}`, {
