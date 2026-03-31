@@ -11,5 +11,6 @@ router.get('/list', protect, ctrl.listFriends);
 router.get('/pending', protect, ctrl.listPending);
 router.post('/visit', protect, ctrl.recordVisit);
 router.get('/visitors', protect, ctrl.listVisitors);
+router.get('/visitor-stats', protect, ctrl.getVisitorStats);
 
 module.exports = router;

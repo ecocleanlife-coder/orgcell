@@ -207,11 +207,12 @@ exports.listPending = async (req, res) => {
 
 // ════════════════════════════════════════
 // POST /api/friends/visit
-// 박물관 방문 기록
+// 박물관 방문 기록 (유입 소스 추적)
+// source: 'direct' | 'invite_link' | 'public' | 'friend'
 // ════════════════════════════════════════
 exports.recordVisit = async (req, res) => {
     try {
-        const { siteId } = req.body;
+        const { siteId, source, referralCode } = req.body;
         if (!siteId) {
             return res.status(400).json({ success: false, message: 'siteId is required' });
         }
@@ -222,17 +223,29 @@ exports.recordVisit = async (req, res) => {
             return res.json({ success: true, message: 'own site' });
         }
 
-        // 최근 1시간 내 중복 방문 방지
-        const { rows: recent } = await db.query(
-            `SELECT id FROM museum_visitors
-             WHERE site_id = $1 AND visitor_user_id = $2 AND visited_at > NOW() - INTERVAL '1 hour'`,
+        const visitSource = source || 'direct';
+
+        // 기존 방문 기록 확인
+        const { rows: existing } = await db.query(
+            `SELECT id, visit_count FROM museum_visitors
+             WHERE site_id = $1 AND visitor_user_id = $2`,
             [siteId, req.user.id]
         );
 
-        if (recent.length === 0) {
+        if (existing.length > 0) {
+            // 기존 기록 업데이트: visit_count 증가 + last_visited_at 갱신
             await db.query(
-                'INSERT INTO museum_visitors (site_id, visitor_user_id) VALUES ($1, $2)',
-                [siteId, req.user.id]
+                `UPDATE museum_visitors
+                 SET visit_count = visit_count + 1, last_visited_at = NOW()
+                 WHERE id = $1`,
+                [existing[0].id]
+            );
+        } else {
+            // 첫 방문: 새 기록 생성
+            await db.query(
+                `INSERT INTO museum_visitors (site_id, visitor_user_id, source, referral_code, visit_count, last_visited_at)
+                 VALUES ($1, $2, $3, $4, 1, NOW())`,
+                [siteId, req.user.id, visitSource, referralCode || null]
             );
         }
 
@@ -245,7 +258,7 @@ exports.recordVisit = async (req, res) => {
 
 // ════════════════════════════════════════
 // GET /api/friends/visitors
-// 최근 방문자 목록
+// 최근 방문자 목록 (유입 소스 + 방문 횟수 포함)
 // ════════════════════════════════════════
 exports.listVisitors = async (req, res) => {
     try {
@@ -256,20 +269,58 @@ exports.listVisitors = async (req, res) => {
 
         const { rows } = await db.query(
             `SELECT DISTINCT ON (mv.visitor_user_id)
-                    mv.visited_at, u.id AS user_id, u.name, u.picture,
+                    mv.visited_at, mv.last_visited_at, mv.source, mv.visit_count, mv.referral_code,
+                    u.id AS user_id, u.name, u.picture,
                     fs.subdomain AS visitor_subdomain
              FROM museum_visitors mv
              JOIN users u ON u.id = mv.visitor_user_id
              LEFT JOIN family_sites fs ON fs.user_id = u.id
              WHERE mv.site_id = $1
-             ORDER BY mv.visitor_user_id, mv.visited_at DESC
-             LIMIT 20`,
+             ORDER BY mv.visitor_user_id, mv.last_visited_at DESC NULLS LAST
+             LIMIT 30`,
             [mySite.id]
         );
 
         res.json({ success: true, data: rows });
     } catch (err) {
         console.error('friend.listVisitors error:', err);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
+
+// ════════════════════════════════════════
+// GET /api/friends/visitor-stats
+// 방문자 통계 (유입 소스별)
+// ════════════════════════════════════════
+exports.getVisitorStats = async (req, res) => {
+    try {
+        const mySite = await getUserSiteId(req.user.id);
+        if (!mySite) {
+            return res.json({ success: true, data: { total: 0, bySource: [] } });
+        }
+
+        // 소스별 통계
+        const { rows: bySource } = await db.query(
+            `SELECT source,
+                    COUNT(DISTINCT visitor_user_id) AS unique_visitors,
+                    SUM(visit_count) AS total_visits
+             FROM museum_visitors
+             WHERE site_id = $1
+             GROUP BY source
+             ORDER BY total_visits DESC`,
+            [mySite.id]
+        );
+
+        // 전체 합산
+        const total = bySource.reduce((sum, r) => sum + parseInt(r.unique_visitors, 10), 0);
+        const totalVisits = bySource.reduce((sum, r) => sum + parseInt(r.total_visits, 10), 0);
+
+        res.json({
+            success: true,
+            data: { uniqueVisitors: total, totalVisits, bySource },
+        });
+    } catch (err) {
+        console.error('friend.getVisitorStats error:', err);
         res.status(500).json({ success: false, message: 'Internal server error' });
     }
 };
