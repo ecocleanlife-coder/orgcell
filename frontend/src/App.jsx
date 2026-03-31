@@ -38,6 +38,7 @@ const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'));
 const TermsOfServicePage = lazy(() => import('./pages/TermsOfServicePage'));
 const InviteDashboard = lazy(() => import('./components/museum/InviteDashboard'));
 const InboxPage = lazy(() => import('./pages/museum/InboxPage'));
+const RequestViewPage = lazy(() => import('./pages/request/RequestViewPage'));
 
 const PageLoader = () => (
   <div className="flex h-64 w-full items-center justify-center">
@@ -95,6 +96,7 @@ function ConditionalLayout({ children }) {
     (path === '/invite') ||
     path.startsWith('/auth/') ||
     path.startsWith('/onboarding/') ||
+    path.startsWith('/request/') ||
     path.endsWith('-callback');
 
   if (skipLayout || !isAuthenticated) {
@@ -168,6 +170,7 @@ function App() {
         <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><PrivacyPolicyPage /></Suspense>} />
         <Route path="/terms" element={<Suspense fallback={<PageLoader />}><TermsOfServicePage /></Suspense>} />
         <Route path="/invite" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><InvitePage /></Suspense></ErrorBoundary>} />
+        <Route path="/request/:token" element={<Suspense fallback={<PageLoader />}><RequestViewPage /></Suspense>} />
 
         {/* ══════ 동적 서브도메인 (자체 헤더 사용) ══════ */}
         <Route path="/:subdomain/gallery/:id" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><ExhibitionDetailPage /></Suspense></ErrorBoundary>} />

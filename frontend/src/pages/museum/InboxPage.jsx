@@ -2,10 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, Check, Trash2, FolderInput, Image as ImageIcon, X,
-    ChevronRight, Globe, Lock, User,
+    ChevronRight, Globe, Lock, User, Clock, CheckCircle, XCircle,
 } from 'lucide-react';
 import axios from 'axios';
-import useAuthStore from '../../store/authStore';
 
 // ─── 이동 목적지 모달 ───
 function MoveModal({ siteId, onMove, onClose }) {
@@ -34,7 +33,7 @@ function MoveModal({ siteId, onMove, onClose }) {
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-bold" style={{ color: '#3a3a2a' }}>어디로 이동할까요?</h3>
+                    <h3 className="text-base font-bold" style={{ color: '#3a3a2a' }}>어디에 전시할까요?</h3>
                     <button onClick={onClose} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: '#f0ece4' }}>
                         <X size={14} style={{ color: '#7a7a6a' }} />
                     </button>
@@ -83,13 +82,34 @@ function MoveModal({ siteId, onMove, onClose }) {
     );
 }
 
+// ─── 탭 정의 ───
+const TABS = [
+    { key: 'pending', label: '대기중', icon: Clock, color: '#D97706' },
+    { key: 'accepted', label: '승인됨', icon: CheckCircle, color: '#16A34A' },
+    { key: 'rejected', label: '거절됨', icon: XCircle, color: '#DC2626' },
+];
+
+// ─── 시간 포맷 ───
+function timeAgo(dateStr) {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return '방금 전';
+    if (mins < 60) return `${mins}분 전`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}시간 전`;
+    const days = Math.floor(hours / 24);
+    return `${days}일 전`;
+}
+
 // ═══════════════════════════════════════════════
-// InboxPage — 받은 사진함
+// InboxPage — 받은 사진함 (탭: 대기중 / 승인됨 / 거절됨)
 // ═══════════════════════════════════════════════
 export default function InboxPage() {
     const navigate = useNavigate();
     const [photos, setPhotos] = useState([]);
+    const [counts, setCounts] = useState({ pending: 0, accepted: 0, rejected: 0 });
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('pending');
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [showMoveModal, setShowMoveModal] = useState(false);
     const [siteId, setSiteId] = useState(null);
@@ -98,28 +118,35 @@ export default function InboxPage() {
     useEffect(() => {
         axios.get('/api/sites/mine')
             .then((r) => {
-                if (r.data?.success && r.data.data) {
-                    setSiteId(r.data.data.id);
-                }
+                if (r.data?.success && r.data.data) setSiteId(r.data.data.id);
             })
             .catch(() => {});
     }, []);
 
     // inbox 사진 fetch
-    const fetchInbox = useCallback(async () => {
+    const fetchInbox = useCallback(async (tab) => {
         if (!siteId) return;
         setLoading(true);
         try {
-            const { data } = await axios.get('/api/inbox', { params: { site_id: siteId } });
-            if (data.success) setPhotos(data.data);
+            const { data } = await axios.get('/api/inbox', { params: { site_id: siteId, status: tab || activeTab } });
+            if (data.success) {
+                setPhotos(data.data);
+                if (data.counts) setCounts(data.counts);
+            }
         } catch {
             // silent
         } finally {
             setLoading(false);
         }
-    }, [siteId]);
+    }, [siteId, activeTab]);
 
     useEffect(() => { fetchInbox(); }, [fetchInbox]);
+
+    const handleTabChange = (tab) => {
+        setActiveTab(tab);
+        setSelectedIds(new Set());
+        fetchInbox(tab);
+    };
 
     const toggleSelect = (id) => {
         setSelectedIds((prev) => {
@@ -138,6 +165,7 @@ export default function InboxPage() {
         }
     };
 
+    // 전시하기 (accept + move to exhibition)
     const handleMove = async (exhibitionId) => {
         const ids = Array.from(selectedIds);
         try {
@@ -153,8 +181,22 @@ export default function InboxPage() {
         }
     };
 
+    // 거절 (reject)
+    const handleReject = async () => {
+        if (!window.confirm(`${selectedIds.size}장을 거절하시겠습니까? 파일이 삭제됩니다.`)) return;
+        const ids = Array.from(selectedIds);
+        try {
+            await axios.post('/api/inbox/reject', { photo_ids: ids });
+            setSelectedIds(new Set());
+            fetchInbox();
+        } catch {
+            // silent
+        }
+    };
+
+    // 완전 삭제 (accepted/rejected 탭에서)
     const handleDelete = async () => {
-        if (!window.confirm(`${selectedIds.size}장을 삭제하시겠습니까?`)) return;
+        if (!window.confirm(`${selectedIds.size}장을 완전히 삭제하시겠습니까?`)) return;
         const ids = Array.from(selectedIds);
         try {
             await Promise.all(ids.map((id) => axios.delete(`/api/inbox/${id}`)));
@@ -164,6 +206,8 @@ export default function InboxPage() {
             // silent
         }
     };
+
+    const isPending = activeTab === 'pending';
 
     return (
         <div className="min-h-screen font-sans" style={{ background: '#FAFAF7' }}>
@@ -178,7 +222,7 @@ export default function InboxPage() {
                             <ArrowLeft size={18} style={{ color: '#5a5a4a' }} />
                         </button>
                         <h1 className="font-bold text-base" style={{ color: '#3a3a2a' }}>
-                            받은 사진함 ({photos.length}장)
+                            받은 사진함
                         </h1>
                     </div>
                     {photos.length > 0 && (
@@ -191,6 +235,29 @@ export default function InboxPage() {
                         </button>
                     )}
                 </div>
+
+                {/* 탭 */}
+                <div className="max-w-2xl mx-auto px-4 flex gap-1 pb-2">
+                    {TABS.map((tab) => {
+                        const isActive = activeTab === tab.key;
+                        const Icon = tab.icon;
+                        const count = counts[tab.key] || 0;
+                        return (
+                            <button
+                                key={tab.key}
+                                onClick={() => handleTabChange(tab.key)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all"
+                                style={{
+                                    background: isActive ? tab.color : '#f0ece4',
+                                    color: isActive ? '#fff' : '#7a7a6a',
+                                }}
+                            >
+                                <Icon size={12} />
+                                {tab.label} {count > 0 && <span>{count}</span>}
+                            </button>
+                        );
+                    })}
+                </div>
             </header>
 
             <main className="max-w-2xl mx-auto px-4 py-6 pb-24">
@@ -201,8 +268,11 @@ export default function InboxPage() {
                 ) : photos.length === 0 ? (
                     <div className="text-center py-20" style={{ color: '#9a9a8a' }}>
                         <ImageIcon size={48} className="mx-auto mb-3 opacity-25" />
-                        <p className="text-sm">받은 사진이 없습니다</p>
-                        <p className="text-xs mt-1">가족이 사진을 보내면 여기에 쌓입니다</p>
+                        <p className="text-sm">
+                            {activeTab === 'pending' && '대기 중인 사진이 없습니다'}
+                            {activeTab === 'accepted' && '승인한 사진이 없습니다'}
+                            {activeTab === 'rejected' && '거절한 사진이 없습니다'}
+                        </p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-3 gap-1.5">
@@ -231,15 +301,18 @@ export default function InboxPage() {
                                     >
                                         {isSelected && <Check size={12} style={{ color: '#fff' }} />}
                                     </div>
-                                    {/* 보낸 사람 */}
-                                    {photo.sender_name && (
-                                        <div
-                                            className="absolute bottom-0 left-0 right-0 px-2 py-1 text-xs font-semibold truncate"
-                                            style={{ background: 'rgba(0,0,0,0.5)', color: '#fff' }}
-                                        >
-                                            {photo.sender_name}
+                                    {/* 보낸 사람 + 시간 */}
+                                    <div
+                                        className="absolute bottom-0 left-0 right-0 px-2 py-1"
+                                        style={{ background: 'rgba(0,0,0,0.5)' }}
+                                    >
+                                        <div className="text-xs font-semibold truncate" style={{ color: '#fff' }}>
+                                            {photo.sender_name || '알 수 없음'}
                                         </div>
-                                    )}
+                                        <div className="text-[10px]" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                                            {timeAgo(photo.created_at)}
+                                        </div>
+                                    </div>
                                 </div>
                             );
                         })}
@@ -258,22 +331,36 @@ export default function InboxPage() {
                             {selectedIds.size}장 선택됨
                         </span>
                         <div className="flex gap-2">
-                            <button
-                                onClick={() => setShowMoveModal(true)}
-                                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold text-white"
-                                style={{ background: '#5a8a4a' }}
-                            >
-                                <FolderInput size={14} />
-                                이동하기
-                            </button>
-                            <button
-                                onClick={handleDelete}
-                                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold"
-                                style={{ background: '#fee2e2', color: '#dc2626' }}
-                            >
-                                <Trash2 size={14} />
-                                삭제
-                            </button>
+                            {isPending && (
+                                <>
+                                    <button
+                                        onClick={() => setShowMoveModal(true)}
+                                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold text-white"
+                                        style={{ background: '#5a8a4a' }}
+                                    >
+                                        <CheckCircle size={14} />
+                                        전시하기
+                                    </button>
+                                    <button
+                                        onClick={handleReject}
+                                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold"
+                                        style={{ background: '#fee2e2', color: '#dc2626' }}
+                                    >
+                                        <XCircle size={14} />
+                                        삭제
+                                    </button>
+                                </>
+                            )}
+                            {!isPending && (
+                                <button
+                                    onClick={handleDelete}
+                                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold"
+                                    style={{ background: '#fee2e2', color: '#dc2626' }}
+                                >
+                                    <Trash2 size={14} />
+                                    완전 삭제
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

@@ -2,17 +2,29 @@ const db = require('../config/db');
 const fs = require('fs');
 const path = require('path');
 
-// GET /api/inbox?site_id=X
+// GET /api/inbox?site_id=X&status=pending|accepted|rejected
 exports.listInbox = async (req, res) => {
     try {
-        const { site_id } = req.query;
+        const { site_id, status } = req.query;
         if (!site_id) return res.status(400).json({ success: false, message: 'site_id required' });
 
+        const validStatuses = ['pending', 'accepted', 'rejected'];
+        const filterStatus = validStatuses.includes(status) ? status : 'pending';
+
         const { rows } = await db.query(
-            `SELECT * FROM photo_inbox WHERE site_id = $1 AND status = 'pending' ORDER BY created_at DESC`,
+            `SELECT * FROM photo_inbox WHERE site_id = $1 AND status = $2 ORDER BY created_at DESC`,
+            [site_id, filterStatus]
+        );
+
+        // 각 status 카운트도 함께 반환
+        const { rows: countRows } = await db.query(
+            `SELECT status, COUNT(*)::int AS count FROM photo_inbox WHERE site_id = $1 GROUP BY status`,
             [site_id]
         );
-        res.json({ success: true, data: rows });
+        const counts = { pending: 0, accepted: 0, rejected: 0 };
+        countRows.forEach((r) => { counts[r.status] = r.count; });
+
+        res.json({ success: true, data: rows, counts });
     } catch (err) {
         console.error('listInbox error:', err);
         res.status(500).json({ success: false, message: 'Internal server error' });
@@ -91,6 +103,37 @@ exports.acceptPhotos = async (req, res) => {
         res.json({ success: true });
     } catch (err) {
         console.error('acceptPhotos error:', err);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
+
+// POST /api/inbox/reject  { photo_ids: [...] }
+exports.rejectPhotos = async (req, res) => {
+    try {
+        const { photo_ids } = req.body;
+        if (!photo_ids?.length) {
+            return res.status(400).json({ success: false, message: 'photo_ids required' });
+        }
+
+        for (const pid of photo_ids) {
+            const { rows } = await db.query(
+                `SELECT * FROM photo_inbox WHERE id = $1 AND status = 'pending'`,
+                [pid]
+            );
+            if (!rows.length) continue;
+            const photo = rows[0];
+
+            // 파일 삭제
+            const filePath = path.join(__dirname, '../../uploads/exhibitions', photo.filename);
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+            // 상태 변경
+            await db.query(`UPDATE photo_inbox SET status = 'rejected' WHERE id = $1`, [pid]);
+        }
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('rejectPhotos error:', err);
         res.status(500).json({ success: false, message: 'Internal server error' });
     }
 };
