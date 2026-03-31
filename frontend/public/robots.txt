@@ -2,6 +2,9 @@ User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /drive-callback
+Disallow: /onedrive-callback
+Disallow: /dropbox-callback
 Disallow: /auth/verify
+Disallow: /payment/
 
 Sitemap: https://orgcell.com/sitemap.xml

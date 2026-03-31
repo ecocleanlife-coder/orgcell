@@ -2,8 +2,10 @@ const db = require('../config/db');
 const {
     generateKeyPair,
     signFederationJWT,
+    signChainJWT,
     verifyFederationJWT,
     validateScope,
+    intersectScopes,
     encryptPrivateKey,
     decryptPrivateKey,
 } = require('../utils/federationJWT');
@@ -284,6 +286,19 @@ exports.resolveNode = async (req, res) => {
             return res.status(404).json({ success: false, message: '인물을 찾을 수 없습니다' });
         }
 
+        // ── 체인 탐색: 대상 사이트에서 나가는 다른 accepted federation 조회 ──
+        const visitedDomains = req.headers['x-chain-visited']
+            ? req.headers['x-chain-visited'].split(',').map(d => d.trim())
+            : [];
+        visitedDomains.push(fed.source_domain); // 현재 소스 도메인도 방문 처리
+
+        const outgoingWormholes = await getOutgoingWormholes(
+            fed.target_site_id,
+            fed.target_domain,
+            visitedDomains,
+            fed.agreed_scope
+        );
+
         res.json({
             success: true,
             data: {
@@ -295,6 +310,7 @@ exports.resolveNode = async (req, res) => {
                     targetDomain: fed.target_domain,
                     scope: fed.agreed_scope,
                 },
+                outgoingWormholes,
             },
         });
     } catch (err) {
@@ -438,6 +454,190 @@ exports.generateToken = async (req, res) => {
         res.status(500).json({ success: false, message: 'Failed to generate federation token' });
     }
 };
+
+// ════════════════════════════════════════
+// API 8: 체인 탐색 (청구항 6 — 다중 도메인 순차 탐색)
+// POST /api/federation/chain-resolve
+// ════════════════════════════════════════
+const MAX_CHAIN_HOPS = 5;
+
+exports.chainResolve = async (req, res) => {
+    try {
+        const { chain } = req.body;
+        const firstHopJWT = req.headers['x-federation-token'];
+
+        if (!firstHopJWT) {
+            return res.status(401).json({ success: false, message: 'X-Federation-Token header required' });
+        }
+
+        if (!Array.isArray(chain) || chain.length < 1) {
+            return res.status(400).json({ success: false, message: 'chain[] is required (array of {federationId, nodeId})' });
+        }
+
+        if (chain.length > MAX_CHAIN_HOPS) {
+            return res.status(400).json({ success: false, message: `최대 ${MAX_CHAIN_HOPS}홉까지 가능합니다` });
+        }
+
+        const visitedDomains = [];
+        let currentJWT = firstHopJWT;
+        let effectiveScope = null; // 첫 홉에서 설정됨
+        const results = [];
+
+        for (let i = 0; i < chain.length; i++) {
+            const hop = chain[i];
+            const { federationId, nodeId } = hop;
+
+            // 연합 관계 조회
+            const { rows: fedRows } = await db.query(
+                'SELECT * FROM federation_requests WHERE id = $1 AND status = $2',
+                [federationId, 'accepted']
+            );
+            if (!fedRows.length) {
+                return res.status(404).json({
+                    success: false,
+                    message: `홉 ${i + 1}: 승인된 연합 관계가 없습니다 (federation ${federationId})`,
+                });
+            }
+            const fed = fedRows[0];
+
+            // 사이클 방지
+            if (visitedDomains.includes(fed.target_domain)) {
+                return res.status(400).json({
+                    success: false,
+                    message: `사이클 감지: ${fed.target_domain}은 이미 방문한 도메인입니다`,
+                    visitedDomains,
+                });
+            }
+
+            // JWT 검증 — 각 홉마다 독립 검증
+            let decoded;
+            try {
+                const usedNonces = fed.nonce_cache || [];
+                decoded = verifyFederationJWT(currentJWT, fed.source_public_key, usedNonces);
+            } catch (err) {
+                return res.status(401).json({
+                    success: false,
+                    message: `홉 ${i + 1}: JWT 검증 실패 — ${err.message}`,
+                });
+            }
+
+            // iss 검증
+            if (decoded.iss !== fed.source_domain) {
+                return res.status(403).json({
+                    success: false,
+                    message: `홉 ${i + 1}: JWT 발행자(${decoded.iss})가 소스 도메인(${fed.source_domain})과 불일치`,
+                });
+            }
+
+            // scope 검증 + 교집합 축소
+            if (i === 0) {
+                effectiveScope = [...(fed.agreed_scope || [])];
+            } else {
+                effectiveScope = intersectScopes(effectiveScope, fed.agreed_scope || []);
+            }
+
+            if (effectiveScope.length === 0) {
+                return res.status(403).json({
+                    success: false,
+                    message: `홉 ${i + 1}: scope 교집합이 비어 접근 가능한 데이터가 없습니다`,
+                });
+            }
+
+            // nonce 저장
+            const updatedNonces = [...(fed.nonce_cache || []), decoded.nonce].slice(-100);
+            await db.query(
+                'UPDATE federation_requests SET nonce_cache = $1 WHERE id = $2',
+                [JSON.stringify(updatedNonces), federationId]
+            );
+
+            visitedDomains.push(fed.source_domain);
+
+            // 인물 데이터 조회 (effectiveScope 적용)
+            const person = await getPersonData(nodeId, fed.target_site_id, fed.relation_type, effectiveScope);
+            if (!person) {
+                return res.status(404).json({
+                    success: false,
+                    message: `홉 ${i + 1}: 인물(${nodeId})을 찾을 수 없습니다`,
+                });
+            }
+
+            // 다음 홉이 있으면 중간 도메인에서 새 JWT 발급
+            if (i < chain.length - 1) {
+                const nextHop = chain[i + 1];
+                const nextFedId = nextHop.federationId;
+
+                // 중간 도메인의 private key로 다음 홉 JWT 서명
+                const keys = await getOrCreateDomainKeys(fed.target_site_id, fed.target_domain);
+                const { token: nextJWT } = signChainJWT(
+                    {
+                        iss: fed.target_domain,
+                        sub: `federation:${nextFedId}`,
+                        scope: effectiveScope,
+                        targetDomain: chain[i + 1].targetDomain || '',
+                    },
+                    keys.privateKey,
+                    visitedDomains
+                );
+                currentJWT = nextJWT;
+            }
+
+            // outgoing wormholes (마지막 홉에서만)
+            const allVisited = [...visitedDomains, fed.target_domain];
+            const outgoing = i === chain.length - 1
+                ? await getOutgoingWormholes(fed.target_site_id, fed.target_domain, allVisited, effectiveScope)
+                : [];
+
+            results.push({
+                hop: i + 1,
+                person,
+                federation: {
+                    id: fed.id,
+                    relationType: fed.relation_type,
+                    sourceDomain: fed.source_domain,
+                    targetDomain: fed.target_domain,
+                },
+                effectiveScope,
+                outgoingWormholes: outgoing,
+            });
+        }
+
+        res.json({
+            success: true,
+            data: {
+                hops: results,
+                visitedDomains: [...visitedDomains, results[results.length - 1]?.federation.targetDomain],
+                totalHops: results.length,
+            },
+        });
+    } catch (err) {
+        console.error('federation chainResolve error:', err);
+        res.status(500).json({ success: false, message: 'Failed to resolve chain' });
+    }
+};
+
+// ════════════════════════════════════════
+// 헬퍼: 대상 사이트에서 나가는 다른 웜홀 목록 (체인 탐색용)
+// ════════════════════════════════════════
+async function getOutgoingWormholes(siteId, currentDomain, visitedDomains, currentScope) {
+    // 이 사이트가 source인 accepted federation 조회 (현재 도메인과 이미 방문한 도메인 제외)
+    const { rows: outgoing } = await db.query(
+        `SELECT id, target_domain, target_node_id, relation_type, agreed_scope
+         FROM federation_requests
+         WHERE source_site_id = $1 AND status = 'accepted'`,
+        [siteId]
+    );
+
+    return outgoing
+        .filter(f => !visitedDomains.includes(f.target_domain) && f.target_domain !== currentDomain)
+        .map(f => ({
+            federationId: f.id,
+            targetDomain: f.target_domain,
+            targetNodeId: f.target_node_id,
+            relationType: f.relation_type,
+            scope: intersectScopes(currentScope, f.agreed_scope || []),
+        }))
+        .filter(f => f.scope.length > 0); // scope 교집합이 빈 배열이면 제외
+}
 
 // ════════════════════════════════════════
 // 헬퍼: 관계 타입별 인물 데이터 조회

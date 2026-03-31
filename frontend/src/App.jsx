@@ -17,6 +17,7 @@ const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'))
 const FamilySetupPage = lazy(() => import('./pages/museum/FamilySetupPage'));
 const FamilyDomainDashboard = lazy(() => import('./pages/museum/FamilyDomainDashboard'));
 const MuseumPage = lazy(() => import('./pages/museum/MuseumPage'));
+const MuseumListPage = lazy(() => import('./pages/museum/MuseumListPage'));
 
 const SmartSortPage = lazy(() => import('./pages/smart-sort/SmartSortPage'));
 const FamilyWebsitePage = lazy(() => import('./pages/museum/FamilyWebsitePage'));
@@ -274,6 +275,16 @@ function App() {
         <Route
           path="/family-dashboard"
           element={<Navigate to="/museum" replace />}
+        />
+        <Route
+          path="/museums"
+          element={
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <MuseumListPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
         />
         <Route
           path="/home"

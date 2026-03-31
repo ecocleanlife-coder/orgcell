@@ -1,21 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const nodemailer = require('nodemailer');
+const { getGmailTransporter } = require('../services/emailService');
 
 // Rate limit: max 3 per IP per hour
 const rateLimitMap = new Map();
-
-function getTransporter() {
-    return nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: false,
-        auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-        },
-    });
-}
 
 // @desc    Submit app build inquiry
 // @route   POST /api/inquiry
@@ -44,7 +32,7 @@ router.post('/', async (req, res) => {
         const ownerEmail = process.env.ADMIN_EMAIL || 'itsconllc@gmail.com';
 
         // Send notification to owner
-        const transporter = getTransporter();
+        const transporter = await getGmailTransporter();
         await transporter.sendMail({
             from: `"Orgcell App Builder" <${ownerEmail}>`,
             to: ownerEmail,

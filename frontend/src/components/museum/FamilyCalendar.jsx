@@ -453,13 +453,21 @@ export default function FamilyCalendar({ siteId, role, t }) {
                                         <div className="flex items-center gap-2">
                                             <span className="text-[20px]">{c.emoji}</span>
                                             <h3 className="text-[16px] font-bold text-[#3D2008]">{eventDetail.title}</h3>
+                                            {eventDetail.is_lunar && (
+                                                <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-500 font-semibold">음력</span>
+                                            )}
                                         </div>
                                         <button onClick={() => setEventDetail(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X size={18} /></button>
                                     </div>
                                     <div className="space-y-2 text-[13px] text-slate-600">
                                         <div className="flex items-center gap-2">
                                             <span className="font-semibold w-12">{t.calendarDateLabel}</span>
-                                            <span>{String(d.getUTCMonth() + 1).padStart(2, '0')}/{String(d.getUTCDate()).padStart(2, '0')}/{d.getUTCFullYear()}</span>
+                                            <span>
+                                                {eventDetail.is_lunar && eventDetail.lunar_date
+                                                    ? `음력 ${eventDetail.lunar_date.replace('-', '월 ')}일 (양력 ${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCDate()).padStart(2, '0')})`
+                                                    : `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCDate()).padStart(2, '0')}/${d.getUTCFullYear()}`
+                                                }
+                                            </span>
                                             {eventDetail.end_date && (() => {
                                                 const ed = new Date(eventDetail.end_date);
                                                 return <span>~ {String(ed.getUTCMonth() + 1).padStart(2, '0')}/{String(ed.getUTCDate()).padStart(2, '0')}</span>;

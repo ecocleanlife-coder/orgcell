@@ -19,14 +19,17 @@ router.get('/list', protect, ctrl.listFederations);
 router.post('/token', protect, ctrl.generateToken);
 router.get('/resolve/:federationId/:nodeId', ctrl.resolveNode);
 router.post('/resolve/batch', ctrl.resolveBatch);
+router.post('/chain-resolve', ctrl.chainResolve);
 app.use('/api/federation', router);
 
 // federationJWT 유닛 테스트
 const {
     generateKeyPair,
     signFederationJWT,
+    signChainJWT,
     verifyFederationJWT,
     validateScope,
+    intersectScopes,
     generateNonce,
     encryptPrivateKey,
     decryptPrivateKey,
@@ -108,6 +111,29 @@ describe('Federation JWT Utils', () => {
         expect(encrypted).toContain(':');
         const decrypted = decryptPrivateKey(encrypted);
         expect(decrypted).toBe(keys.privateKey);
+    });
+
+    it('should intersect scopes correctly', () => {
+        expect(intersectScopes(
+            ['profile', 'photos.public', 'photos.family'],
+            ['profile', 'photos.public', 'exhibitions']
+        )).toEqual(['profile', 'photos.public']);
+
+        expect(intersectScopes(['profile'], ['exhibitions'])).toEqual([]);
+        expect(intersectScopes([], ['profile'])).toEqual([]);
+        expect(intersectScopes(null, ['profile'])).toEqual([]);
+    });
+
+    it('should sign and verify chain JWT with visited domains', () => {
+        const { token } = signChainJWT(
+            { iss: 'b-family', sub: 'federation:2', scope: ['profile'] },
+            keys.privateKey,
+            ['a-family']
+        );
+        const decoded = verifyFederationJWT(token, keys.publicKey, []);
+        expect(decoded.iss).toBe('b-family');
+        expect(decoded.chain).toEqual(['a-family']);
+        expect(decoded.nonce).toBeTruthy();
     });
 });
 
@@ -231,6 +257,94 @@ describe('Federation API', () => {
                 .get('/api/federation/resolve/1/1')
                 .set('X-Federation-Token', token);
             expect(res.status).toBe(401);
+        });
+    });
+
+    describe('POST /api/federation/chain-resolve', () => {
+        it('should require X-Federation-Token header', async () => {
+            const res = await request(app)
+                .post('/api/federation/chain-resolve')
+                .send({ chain: [{ federationId: 1, nodeId: 1 }] });
+            expect(res.status).toBe(401);
+        });
+
+        it('should require chain array', async () => {
+            const res = await request(app)
+                .post('/api/federation/chain-resolve')
+                .set('X-Federation-Token', 'some-token')
+                .send({});
+            expect(res.status).toBe(400);
+        });
+
+        it('should reject chain exceeding max hops', async () => {
+            const chain = Array.from({ length: 6 }, (_, i) => ({
+                federationId: i + 1,
+                nodeId: i + 100,
+            }));
+            const res = await request(app)
+                .post('/api/federation/chain-resolve')
+                .set('X-Federation-Token', 'some-token')
+                .send({ chain });
+            expect(res.status).toBe(400);
+            expect(res.body.message).toContain('5');
+        });
+
+        it('should detect cycle in chain', async () => {
+            const keysA = generateKeyPair();
+            const keysB = generateKeyPair();
+
+            // Hop 1: A→B
+            const { token: jwt1 } = signFederationJWT(
+                { iss: 'a-family', sub: 'federation:1', scope: ['profile'] },
+                keysA.privateKey
+            );
+
+            // federation 1: A→B (accepted)
+            mockQuery.mockResolvedValueOnce({
+                rows: [{
+                    id: 1, source_site_id: 1, target_site_id: 2,
+                    source_domain: 'a-family', target_domain: 'b-family',
+                    source_public_key: keysA.publicKey,
+                    relation_type: 'direct',
+                    agreed_scope: ['profile', 'photos.public'],
+                    nonce_cache: [],
+                }],
+            });
+            // nonce update
+            mockQuery.mockResolvedValueOnce({ rows: [] });
+            // getPersonData — base person query
+            mockQuery.mockResolvedValueOnce({
+                rows: [{ id: 100, site_id: 2, name: 'Person B', gender: 'M', generation: 1 }],
+            });
+            // getPersonData — photos.public query (scope includes 'photos.public')
+            mockQuery.mockResolvedValueOnce({ rows: [] });
+            // getOrCreateDomainKeys for B
+            mockQuery.mockResolvedValueOnce({ rows: [] }); // no existing key
+            mockQuery.mockResolvedValueOnce({ rows: [] }); // insert key
+
+            // federation 2: B→A (cycle!)
+            mockQuery.mockResolvedValueOnce({
+                rows: [{
+                    id: 2, source_site_id: 2, target_site_id: 1,
+                    source_domain: 'b-family', target_domain: 'a-family',
+                    source_public_key: keysB.publicKey,
+                    relation_type: 'collateral',
+                    agreed_scope: ['profile'],
+                    nonce_cache: [],
+                }],
+            });
+
+            const res = await request(app)
+                .post('/api/federation/chain-resolve')
+                .set('X-Federation-Token', jwt1)
+                .send({
+                    chain: [
+                        { federationId: 1, nodeId: 100 },
+                        { federationId: 2, nodeId: 50 },
+                    ],
+                });
+            expect(res.status).toBe(400);
+            expect(res.body.message).toContain('사이클');
         });
     });
 

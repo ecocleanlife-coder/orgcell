@@ -1,22 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
-const nodemailer = require('nodemailer');
+const { getGmailTransporter } = require('../services/emailService');
+const { getSecrets } = require('../config/secrets');
 
 // Rate limit: max 3 attempts per IP per hour
 const rateLimitMap = new Map();
-
-function getTransporter() {
-    return nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: false,
-        auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-        },
-    });
-}
 
 // @desc  Subscribe to newsletter
 // @route POST /api/newsletter
@@ -67,9 +56,10 @@ router.post('/', async (req, res) => {
         );
 
         // Send confirmation email (best-effort)
-        const ownerEmail = process.env.SMTP_USER;
+        const secrets = await getSecrets();
+        const ownerEmail = secrets.SMTP_USER;
         if (ownerEmail) {
-            const transporter = getTransporter();
+            const transporter = await getGmailTransporter();
             await transporter.sendMail({
                 from: `"Orgcell" <${ownerEmail}>`,
                 to: email,

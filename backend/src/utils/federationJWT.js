@@ -51,6 +51,28 @@ function validateScope(requestedScope, agreedScope) {
     return requestedScope.every(s => agreedScope.includes(s));
 }
 
+// 체인 탐색용: 두 scope 배열의 교집합 (각 홉마다 scope 축소)
+function intersectScopes(scopeA, scopeB) {
+    if (!Array.isArray(scopeA) || !Array.isArray(scopeB)) return [];
+    return scopeA.filter(s => scopeB.includes(s));
+}
+
+// 체인 탐색용 JWT 서명 — chain 경로 포함
+function signChainJWT(payload, privateKey, visitedDomains = []) {
+    const nonce = generateNonce();
+    const tokenPayload = {
+        ...payload,
+        nonce,
+        chain: visitedDomains,
+        iat: Math.floor(Date.now() / 1000),
+    };
+    const token = jwt.sign(tokenPayload, privateKey, {
+        algorithm: 'RS256',
+        expiresIn: '5m',
+    });
+    return { token, nonce };
+}
+
 // 1회용 난수 생성
 function generateNonce() {
     return crypto.randomBytes(16).toString('hex');
@@ -82,8 +104,10 @@ function decryptPrivateKey(encryptedKey) {
 module.exports = {
     generateKeyPair,
     signFederationJWT,
+    signChainJWT,
     verifyFederationJWT,
     validateScope,
+    intersectScopes,
     generateNonce,
     encryptPrivateKey,
     decryptPrivateKey,

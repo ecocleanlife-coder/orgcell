@@ -536,6 +536,12 @@ jobs:
                   MAX(mv.last_visited_at) AS last_visit_at
                 FROM museum_visitors mv JOIN family_sites fs ON fs.id = mv.site_id
                 GROUP BY mv.site_id, fs.subdomain, mv.source;"
+            # ── 027: family_sites 박물관 목록용 필드 추가 ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "ALTER TABLE family_sites ADD COLUMN IF NOT EXISTS title VARCHAR(255);" \
+              -c "ALTER TABLE family_sites ADD COLUMN IF NOT EXISTS description TEXT;" \
+              -c "ALTER TABLE family_sites ADD COLUMN IF NOT EXISTS thumbnail_url TEXT;" \
+              -c "UPDATE family_sites SET title = subdomain WHERE title IS NULL;"
             echo "Migrations done"
             # ─────────────────────────────────────────────────────────────
 

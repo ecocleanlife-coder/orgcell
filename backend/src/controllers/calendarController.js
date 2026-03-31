@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { lunarToSolar } = require('../utils/lunarConverter');
 
 // GET /api/calendar?site_id=X&year=Y&month=M
 // 월별 일정 조회 (반복 일정 포함)
@@ -29,9 +30,12 @@ exports.listEvents = async (req, res) => {
             [site_id, y, m, monthStart, monthEnd]
         );
 
-        // persons 테이블에서 생일/기일 자동 생성 (birth_date, death_date 컬럼)
+        // persons 테이블에서 생일/기일 자동 생성 (음력/양력 구분)
         const { rows: persons } = await db.query(
-            `SELECT id, name, birth_date, death_date FROM persons
+            `SELECT id, name, birth_date, death_date,
+                    COALESCE(birth_lunar, false) AS birth_lunar,
+                    COALESCE(death_lunar, false) AS death_lunar
+             FROM persons
              WHERE site_id = $1 AND (birth_date IS NOT NULL OR death_date IS NOT NULL)`,
             [site_id]
         );
@@ -40,34 +44,82 @@ exports.listEvents = async (req, res) => {
         for (const p of persons) {
             if (p.birth_date) {
                 const bd = new Date(p.birth_date);
-                if (bd.getUTCMonth() + 1 === m) {
-                    autoEvents.push({
-                        id: `auto-birth-${p.id}`,
-                        site_id: parseInt(site_id),
-                        title: `${p.name} 🎂`,
-                        event_date: p.birth_date,
-                        event_type: 'birthday',
-                        is_recurring: true,
-                        person_name: p.name,
-                        description: null,
-                        auto_generated: true,
-                    });
+                const lunarMonth = bd.getUTCMonth() + 1;
+                const lunarDay = bd.getUTCDate();
+
+                if (p.birth_lunar) {
+                    // 음력 → 양력 변환 (조회 연도 기준)
+                    const solar = lunarToSolar(y, lunarMonth, lunarDay);
+                    if (solar && solar.month === m) {
+                        autoEvents.push({
+                            id: `auto-birth-${p.id}`,
+                            site_id: parseInt(site_id),
+                            title: `🌙 ${p.name} 🎂`,
+                            event_date: solar.date,
+                            event_type: 'birthday',
+                            is_recurring: true,
+                            person_name: p.name,
+                            description: `음력 ${lunarMonth}월 ${lunarDay}일`,
+                            auto_generated: true,
+                            is_lunar: true,
+                            lunar_date: `${lunarMonth}-${lunarDay}`,
+                        });
+                    }
+                } else {
+                    // 양력 — 기존 로직
+                    if (lunarMonth === m) {
+                        autoEvents.push({
+                            id: `auto-birth-${p.id}`,
+                            site_id: parseInt(site_id),
+                            title: `${p.name} 🎂`,
+                            event_date: p.birth_date,
+                            event_type: 'birthday',
+                            is_recurring: true,
+                            person_name: p.name,
+                            description: null,
+                            auto_generated: true,
+                            is_lunar: false,
+                        });
+                    }
                 }
             }
             if (p.death_date) {
                 const dd = new Date(p.death_date);
-                if (dd.getUTCMonth() + 1 === m) {
-                    autoEvents.push({
-                        id: `auto-memorial-${p.id}`,
-                        site_id: parseInt(site_id),
-                        title: `${p.name} 🕯️`,
-                        event_date: p.death_date,
-                        event_type: 'memorial',
-                        is_recurring: true,
-                        person_name: p.name,
-                        description: null,
-                        auto_generated: true,
-                    });
+                const lunarMonth = dd.getUTCMonth() + 1;
+                const lunarDay = dd.getUTCDate();
+
+                if (p.death_lunar) {
+                    const solar = lunarToSolar(y, lunarMonth, lunarDay);
+                    if (solar && solar.month === m) {
+                        autoEvents.push({
+                            id: `auto-memorial-${p.id}`,
+                            site_id: parseInt(site_id),
+                            title: `🌙 ${p.name} 🕯️`,
+                            event_date: solar.date,
+                            event_type: 'memorial',
+                            is_recurring: true,
+                            person_name: p.name,
+                            description: `음력 ${lunarMonth}월 ${lunarDay}일`,
+                            auto_generated: true,
+                            is_lunar: true,
+                            lunar_date: `${lunarMonth}-${lunarDay}`,
+                        });
+                    }
+                } else {
+                    if (lunarMonth === m) {
+                        autoEvents.push({
+                            id: `auto-memorial-${p.id}`,
+                            site_id: parseInt(site_id),
+                            title: `${p.name} 🕯️`,
+                            event_date: p.death_date,
+                            event_type: 'memorial',
+                            is_recurring: true,
+                            person_name: p.name,
+                            description: null,
+                            auto_generated: true,
+                            is_lunar: false,
+                        });
+                    }
                 }
             }
         }

@@ -1,0 +1,403 @@
+/* src/pages/MuseumListPage.css */
+
+.museum-list-container {
+  background-color: #FAFAF7;
+  min-height: 100vh;
+  padding: 50px 20px;
+  font-family: 'Georgia', 'Noto Serif KR', serif;
+}
+
+/* ============ 헤더 ============ */
+.list-header {
+  max-width: 1100px;
+  margin: 0 auto 50px;
+  text-align: center;
+}
+
+.list-header h1 {
+  color: #3D2008;
+  font-size: 2.2rem;
+  margin-bottom: 40px;
+  font-weight: 400;
+  letter-spacing: -0.5px;
+}
+
+/* ============ 탭 버튼 ============ */
+.tab-bar {
+  display: flex;
+  justify-content: center;
+  gap: 50px;
+  border-bottom: 2px solid #D1D1CB;
+  padding-bottom: 0;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  padding: 15px 10px;
+  font-size: 1.05rem;
+  color: #999;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.3s ease;
+  font-family: 'Georgia', 'Noto Serif KR', serif;
+  font-weight: 400;
+}
+
+.tab-btn:hover {
+  color: #3D2008;
+}
+
+.tab-btn.active {
+  color: #3D2008;
+  font-weight: 500;
+}
+
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background-color: #3D2008;
+}
+
+/* ============ 컨텐츠 영역 ============ */
+.museum-content {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* ============ 박물관 그리드 ============ */
+.museum-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 30px;
+  margin-top: 40px;
+}
+
+.museum-card {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(61, 32, 8, 0.08);
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.museum-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 24px rgba(61, 32, 8, 0.15);
+}
+
+/* ✅ 카드 이미지 */
+.card-image {
+  width: 100%;
+  height: 200px;
+  background: linear-gradient(135deg, #F5E6D3 0%, #E8D4C0 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-placeholder {
+  font-size: 4rem;
+  opacity: 0.7;
+}
+
+/* ✅ 카드 콘텐츠 */
+.card-content {
+  padding: 25px;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-title {
+  font-size: 1.25rem;
+  color: #3D2008;
+  margin: 0 0 10px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.card-description {
+  font-size: 0.95rem;
+  color: #777;
+  margin: 0 0 15px;
+  line-height: 1.5;
+  flex-grow: 1;
+}
+
+.card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 15px;
+  border-top: 1px solid #E5E5E1;
+  font-size: 0.85rem;
+}
+
+.card-type {
+  background: #F0EBE5;
+  color: #3D2008;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.card-date {
+  color: #999;
+}
+
+/* ✅ 호버 오버레이 */
+.card-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(61, 32, 8, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.museum-card:hover .card-overlay {
+  opacity: 1;
+}
+
+.view-btn {
+  background: white;
+  color: #3D2008;
+  padding: 10px 25px;
+  border: none;
+  border-radius: 20px;
+  font-size: 0.95rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  font-family: 'Georgia', 'Noto Serif KR', serif;
+}
+
+.view-btn:hover {
+  transform: scale(1.05);
+}
+
+/* ============ Empty State ============ */
+.empty-museum-state {
+  background: white;
+  border: 1px solid #E5E5E1;
+  border-radius: 16px;
+  padding: 100px 40px;
+  text-align: center;
+  box-shadow: 0 8px 20px rgba(61, 32, 8, 0.08);
+  margin-top: 40px;
+}
+
+.icon-wrapper {
+  font-size: 5rem;
+  margin-bottom: 25px;
+  display: inline-block;
+  opacity: 0.8;
+}
+
+.empty-museum-state h2 {
+  color: #3D2008;
+  font-size: 1.8rem;
+  margin: 0 0 15px;
+  font-weight: 400;
+}
+
+.empty-museum-state .description {
+  color: #666;
+  font-size: 1.05rem;
+  margin: 0 0 10px;
+  line-height: 1.6;
+}
+
+.empty-museum-state .hint {
+  color: #999;
+  font-size: 0.95rem;
+  margin: 0 0 40px;
+  line-height: 1.5;
+}
+
+.main-create-btn {
+  background-color: #3D2008;
+  color: white;
+  padding: 14px 35px;
+  border: none;
+  border-radius: 25px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Georgia', 'Noto Serif KR', serif;
+  box-shadow: 0 4px 12px rgba(61, 32, 8, 0.15);
+}
+
+.main-create-btn:hover {
+  background-color: #5A3211;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(61, 32, 8, 0.25);
+}
+
+.plus-icon {
+  font-size: 1.3rem;
+  font-weight: bold;
+}
+
+/* ============ 로딩 상태 ============ */
+.loading {
+  text-align: center;
+  padding: 80px 20px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 20px;
+  border: 3px solid #E5E5E1;
+  border-top: 3px solid #3D2008;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading p {
+  color: #666;
+  font-size: 1rem;
+}
+
+/* ============ 에러 상태 ============ */
+.error-state {
+  background: white;
+  border: 1px solid #E5E5E1;
+  border-radius: 12px;
+  padding: 60px 40px;
+  text-align: center;
+  margin-top: 40px;
+}
+
+.error-state p {
+  color: #d9534f;
+  font-size: 1.1rem;
+  margin-bottom: 20px;
+}
+
+.retry-btn {
+  background: #3D2008;
+  color: white;
+  padding: 10px 25px;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: 0.3s;
+  font-family: 'Georgia', 'Noto Serif KR', serif;
+}
+
+.retry-btn:hover {
+  background: #5A3211;
+}
+
+/* ============ 반응형 ============ */
+@media (max-width: 768px) {
+  .museum-list-container {
+    padding: 30px 15px;
+  }
+
+  .list-header h1 {
+    font-size: 1.8rem;
+    margin-bottom: 30px;
+  }
+
+  .tab-bar {
+    gap: 20px;
+    padding-bottom: 10px;
+  }
+
+  .tab-btn {
+    font-size: 0.95rem;
+    padding: 12px 5px;
+  }
+
+  .museum-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .empty-museum-state {
+    padding: 60px 30px;
+  }
+
+  .icon-wrapper {
+    font-size: 3.5rem;
+  }
+
+  .empty-museum-state h2 {
+    font-size: 1.4rem;
+  }
+
+  .card-image {
+    height: 150px;
+  }
+
+  .museum-card:hover {
+    transform: none;
+  }
+
+  .card-overlay {
+    opacity: 1;
+    background: rgba(61, 32, 8, 0.9);
+  }
+}
+
+@media (max-width: 480px) {
+  .list-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .tab-bar {
+    gap: 15px;
+  }
+
+  .tab-btn {
+    font-size: 0.9rem;
+  }
+
+  .empty-museum-state {
+    padding: 40px 20px;
+  }
+
+  .icon-wrapper {
+    font-size: 3rem;
+  }
+
+  .main-create-btn {
+    padding: 12px 25px;
+    font-size: 0.95rem;
+  }
+}

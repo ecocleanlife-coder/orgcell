@@ -14,4 +14,7 @@ router.post('/token', protect, ctrl.generateToken);
 router.get('/resolve/:federationId/:nodeId', ctrl.resolveNode);
 router.post('/resolve/batch', ctrl.resolveBatch);
 
+// 체인 탐색 (청구항 6) — 다중 홉 순차 탐색
+router.post('/chain-resolve', ctrl.chainResolve);
+
 module.exports = router;
