@@ -2,60 +2,45 @@ import React from 'react';
 import useOnboardingStore from '../../store/onboardingStore';
 
 const STEPS = [
-    { id: 'start', label: '시작' },
-    { id: 'service', label: '서비스' },
-    { id: 'storage', label: '저장소' },
-    { id: 'photos', label: '사진' },
-    { id: 'face', label: '얼굴' },
-    { id: 'family', label: '가족' },
-    { id: 'privacy', label: '공개' },
-    { id: 'invite', label: '초대' },
+    { id: 'name', label: '이름 짓기' },
+    { id: 'invite', label: '초대하기' },
 ];
-
-const ACCENT_COLORS = {
-    museum: { done: '#7C5CFC', active: '#9B80FC', text: '#6B4FD6' },
-    ai: { done: '#5A9460', active: '#7AB880', text: '#4A8450' },
-    share: { done: '#4A7FB5', active: '#6A9FD5', text: '#3A6FA5' },
-};
 
 export default function OnboardingProgress({ current }) {
     const completedSteps = useOnboardingStore(s => s.completedSteps);
     const currentIdx = STEPS.findIndex(s => s.id === current);
-    const onboardingType = localStorage.getItem('onboarding_type') || 'museum';
-    const accent = ACCENT_COLORS[onboardingType] || ACCENT_COLORS.museum;
 
     return (
-        <div className="w-full px-5 pt-3 pb-1 max-w-md mx-auto">
-            <div className="flex items-center justify-between gap-1">
+        <div style={{ padding: '16px 24px 8px', maxWidth: 360, margin: '0 auto', width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
                 {STEPS.map((step, i) => {
                     const isDone = completedSteps.includes(step.id) || i < currentIdx;
                     const isActive = i === currentIdx;
                     return (
-                        <div key={step.id} className="flex-1 flex flex-col items-center">
-                            <div className="relative w-full">
-                                <div
-                                    className="w-full h-1.5 rounded-full transition-all"
-                                    style={{
-                                        background: isDone ? accent.done
-                                            : isActive ? accent.active
-                                            : '#E5E7EB',
-                                    }}
-                                />
-                                {isDone && !isActive && (
-                                    <span className="absolute -top-1 right-0 text-[8px]" style={{ color: accent.done }}>✓</span>
-                                )}
+                        <div key={step.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                                <div style={{
+                                    width: 10, height: 10, borderRadius: '50%',
+                                    background: isDone || isActive ? '#3D2008' : '#D4C5A0',
+                                    transition: 'all 0.3s',
+                                    boxShadow: isActive ? '0 0 0 3px rgba(61,32,8,0.15)' : 'none',
+                                }} />
+                                <span style={{
+                                    fontSize: 11, fontWeight: isActive ? 700 : 400,
+                                    color: isActive ? '#3D2008' : isDone ? '#7A6E5E' : '#A09882',
+                                    fontFamily: 'Georgia, serif',
+                                }}>
+                                    {step.label}
+                                </span>
                             </div>
-                            <span
-                                className="text-[11px] mt-1 transition-all"
-                                style={{
-                                    color: isActive ? accent.text
-                                        : isDone ? accent.active
-                                        : '#D1D5DB',
-                                    fontWeight: isActive ? '700' : '400',
-                                }}
-                            >
-                                {step.label}
-                            </span>
+                            {i < STEPS.length - 1 && (
+                                <div style={{
+                                    width: 40, height: 2, borderRadius: 1,
+                                    background: isDone ? '#3D2008' : '#E8E3D8',
+                                    transition: 'all 0.3s',
+                                    marginBottom: 18,
+                                }} />
+                            )}
                         </div>
                     );
                 })}

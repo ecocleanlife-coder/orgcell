@@ -1,27 +1,42 @@
-# 패밀리트리 시작 UI 개선 계획
+# 랜딩페이지 전면 재구성 — 가족박물관 피벗
 
-> 확정일: 2026-03-22
+> 확정: 2026-03-31
 
-## Phase 1: 빈 트리 기본 템플릿
-- root === null일 때 점선 플레이스홀더 3세대 구조 표시
-- 각 플레이스홀더 클릭 시 인물 추가 모달 오픈
+## 배경
+- 아이폰 사진 직접 연동 불가 (Apple 정책)
+- "AI 사진 정리" → "가족 박물관" 컨셉 피벗
+- 기존 기능 (가족트리, 달력, 게시판, 초대, 웜홀) 모두 유지
 
-## Phase 2: 인물 추가/수정/삭제 모달 (API 연동)
-- handleMemberSubmit → POST /api/persons/:siteId
-- 수정 모달: PUT /api/persons/:siteId/:personId
-- 삭제: DELETE /api/persons/:siteId/:personId
+## 1단계: 랜딩페이지 (✅ 완료)
 
-## Phase 3: 인물 카드 개선
-- 이니셜 표시, 생년월일, privacy_level 뱃지, hover 편집 버튼
+| 섹션 | 내용 | 애니메이션 |
+|------|------|-----------|
+| S0 히어로 | "자손들에게 물려줄 우리 가족만의 박물관" + CTA | 기본 |
+| S1 달력 | CalendarPreview — 샘플 가족행사 | 좌→우 슬라이드 |
+| S2 전시관 | HeroSlideshow + 사진 요청 문구 | 우→좌 슬라이드 |
+| S3 가족트리 | FamilyTreePreview — 폴더 카드 3세대 | 아래→위 페이드 |
+| S4 특징 | 저장공간/가족/보존 3카드 | 아래→위 페이드 |
+| S5 푸터 | 법률 + 특허 + 이메일 | 없음 |
 
-## Phase 4: 권한 구분
-- owner: 전체, member: 본인만, viewer: 읽기만
+파일: LandingPage.jsx, CalendarPreview.jsx, HeroSlideshow.jsx, FamilyTreePreview.jsx
 
-## 수정 파일
-1. frontend/src/components/museum/FamilyTreeView.jsx
-2. frontend/src/i18n/translations.js
-3. backend/src/controllers/personController.js
+## 2단계: 온보딩 간소화 (예정)
+- 박물관 이름 짓기 → 가족 초대 (선택)
+- 저장소 선택은 설정 메뉴로 이동
+
+## 3단계: 내 박물관 메인화면 재구성 (예정)
+- 상단: 가족행사 달력
+- 중간: 전시관 (슬라이드쇼)
+- 하단: 가족트리 폴더
+
+## 4단계: 사진 업로드 흐름 (예정)
+- 업로드 → 목적지 선택 (🟡부모님/🟢가족공개/🔵일반공개/🔒본인보관)
+- 임시 보관함 → 드래그/선택으로 이동
 
 ## 이전 계획
 
-### 가족 달력 & 조상전시관 (2026-03-19) — 완료
+### Chain Traversal 구현 (2026-03-25)
+A→B→C→... 무한 체인 웜홀 탐색. federationJWT, chain-resolve, WormholePortal.
+
+### 패밀리트리 시작 UI 개선 (2026-03-22)
+root === null일 때 점선 플레이스홀더 3세대 구조 표시.

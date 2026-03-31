@@ -31,15 +31,8 @@ const InvitePage = lazy(() => import('./pages/invite/InvitePage'));
 const OneDriveCallback = lazy(() => import('./components/settings/OneDriveCallback'));
 const DropboxCallback = lazy(() => import('./pages/DropboxCallback'));
 const HomePage = lazy(() => import('./pages/home/HomePage'));
-const ServiceSelectPage = lazy(() => import('./pages/onboarding/ServiceSelectPage'));
-const StorageSelectPage = lazy(() => import('./pages/onboarding/StorageSelectPage'));
-const PhotoImportPage = lazy(() => import('./pages/onboarding/PhotoImportPage'));
-const FaceRegisterPage = lazy(() => import('./pages/onboarding/FaceRegisterPage'));
-const FamilyTagPage = lazy(() => import('./pages/onboarding/FamilyTagPage'));
-const PrivacySetPage = lazy(() => import('./pages/onboarding/PrivacySetPage'));
-const InviteFamilyPage = lazy(() => import('./pages/onboarding/InviteFamilyPage'));
-const OnboardingWelcomePage = lazy(() => import('./pages/onboarding/OnboardingWelcomePage'));
-const OnboardingGuard = lazy(() => import('./components/onboarding/OnboardingGuard'));
+const OnboardingNamePage = lazy(() => import('./pages/onboarding/OnboardingNamePage'));
+const OnboardingInvitePage = lazy(() => import('./pages/onboarding/OnboardingInvitePage'));
 const FamilySearchCallback = lazy(() => import('./pages/auth/FamilySearchCallback'));
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'));
 const TermsOfServicePage = lazy(() => import('./pages/TermsOfServicePage'));
@@ -151,15 +144,10 @@ function App() {
         <Route path="/auth/login" element={<Suspense fallback={<PageLoader />}><LoginPage /></Suspense>} />
         <Route path="/auth/forgot-password" element={<Suspense fallback={<PageLoader />}><ForgotPasswordPage /></Suspense>} />
 
-        {/* ══════ 온보딩 (레이아웃 없음) ══════ */}
-        <Route path="/onboarding/start" element={<Suspense fallback={<PageLoader />}><OnboardingWelcomePage /></Suspense>} />
-        <Route path="/onboarding/service" element={<Suspense fallback={<PageLoader />}><ServiceSelectPage /></Suspense>} />
-        <Route path="/onboarding/storage" element={<Suspense fallback={<PageLoader />}><StorageSelectPage /></Suspense>} />
-        <Route path="/onboarding/photos" element={<Suspense fallback={<PageLoader />}><OnboardingGuard><PhotoImportPage /></OnboardingGuard></Suspense>} />
-        <Route path="/onboarding/face" element={<Suspense fallback={<PageLoader />}><OnboardingGuard><FaceRegisterPage /></OnboardingGuard></Suspense>} />
-        <Route path="/onboarding/family" element={<Suspense fallback={<PageLoader />}><OnboardingGuard><FamilyTagPage /></OnboardingGuard></Suspense>} />
-        <Route path="/onboarding/privacy" element={<Suspense fallback={<PageLoader />}><OnboardingGuard><PrivacySetPage /></OnboardingGuard></Suspense>} />
-        <Route path="/onboarding/invite" element={<Suspense fallback={<PageLoader />}><OnboardingGuard><InviteFamilyPage /></OnboardingGuard></Suspense>} />
+        {/* ══════ 온보딩 2단계 (레이아웃 없음) ══════ */}
+        <Route path="/onboarding/start" element={<Navigate to="/onboarding/name" replace />} />
+        <Route path="/onboarding/name" element={<Suspense fallback={<PageLoader />}><OnboardingNamePage /></Suspense>} />
+        <Route path="/onboarding/invite" element={<Suspense fallback={<PageLoader />}><OnboardingInvitePage /></Suspense>} />
 
         {/* ══════ MainLayout 적용 페이지 ══════ */}
         <Route path="/home" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><HomePage /></Suspense></ErrorBoundary>} />
