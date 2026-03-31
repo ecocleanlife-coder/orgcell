@@ -16,6 +16,7 @@ router.post('/:id/guestbook', ctrl.addGuestbook);
 // Photos
 router.get('/:id/photos', photoCtrl.listPhotos);
 router.post('/:id/photos', protect, upload.array('photos', 20), photoCtrl.uploadPhotos);
+router.post('/:id/photos/move', protect, photoCtrl.movePhotos);
 router.delete('/:id/photos/:photoId', protect, photoCtrl.deletePhoto);
 
 module.exports = router;

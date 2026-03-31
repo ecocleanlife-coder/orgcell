@@ -15,6 +15,7 @@ import FamilyCalendar from '../../components/museum/FamilyCalendar';
 import AncestorHallTab from '../../components/museum/AncestorHallTab';
 import PostDetailModal from '../../components/museum/PostDetailModal';
 import OnboardingGuide from '../../components/museum/OnboardingGuide';
+import UploadModal from '../../components/museum/UploadModal';
 import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
 import { getT } from '../../i18n/translations';
@@ -652,54 +653,14 @@ export default function MuseumPage({ initialTab }) {
                 </button>
             )}
 
-            {/* ════ 업로드 모달 ════ */}
+            {/* ════ 업로드 모달 (UploadModal 컴포넌트) ════ */}
             {showUploadModal && (
-                <div
-                    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-                    style={{ background: 'rgba(40,35,50,0.55)', backdropFilter: 'blur(4px)' }}
-                    onClick={() => setShowUploadModal(false)}
-                >
-                    <div
-                        className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-sm p-6 shadow-2xl"
-                        style={{ border: '1.5px solid #e8e0d0' }}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="flex items-center justify-between mb-5">
-                            <h3 className="text-lg font-bold" style={{ color: '#3a3a2a' }}>업로드</h3>
-                            <button
-                                onClick={() => setShowUploadModal(false)}
-                                className="w-7 h-7 flex items-center justify-center rounded-full"
-                                style={{ background: '#f0ece4' }}
-                            >
-                                <X size={14} style={{ color: '#7a7a6a' }} />
-                            </button>
-                        </div>
-                        <div className="space-y-3">
-                            <button
-                                onClick={() => { setShowUploadModal(false); navigate(`/${subdomain}/gallery/new`); }}
-                                className="w-full flex items-center gap-3 p-4 rounded-xl border transition-colors hover:bg-gray-50"
-                                style={{ borderColor: '#e8e0d0' }}
-                            >
-                                <Camera size={20} style={{ color: '#5a8a4a' }} />
-                                <div className="text-left">
-                                    <p className="text-sm font-bold" style={{ color: '#3a3a2a' }}>직접 올리기</p>
-                                    <p className="text-xs" style={{ color: '#9a9a8a' }}>새 전시관을 만들고 사진을 올려보세요</p>
-                                </div>
-                            </button>
-                            <button
-                                onClick={() => { setShowUploadModal(false); navigate('/museum'); }}
-                                className="w-full flex items-center gap-3 p-4 rounded-xl border transition-colors hover:bg-gray-50"
-                                style={{ borderColor: '#e8e0d0' }}
-                            >
-                                <Users size={20} style={{ color: '#3498db' }} />
-                                <div className="text-left">
-                                    <p className="text-sm font-bold" style={{ color: '#3a3a2a' }}>가족에게 요청하기</p>
-                                    <p className="text-xs" style={{ color: '#9a9a8a' }}>가족을 초대해서 사진을 받아보세요</p>
-                                </div>
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <UploadModal
+                    siteId={site?.id}
+                    subdomain={subdomain}
+                    onClose={() => setShowUploadModal(false)}
+                    onDone={() => { fetchExhibitions(); }}
+                />
             )}
 
             {/* ════ 게시글 상세 모달 ════ */}

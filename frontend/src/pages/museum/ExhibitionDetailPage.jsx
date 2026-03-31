@@ -4,7 +4,8 @@ import {
     ArrowLeft, Upload, Share2, Globe, Lock, User,
     X, Download, ChevronLeft, ChevronRight,
     Link2, Check, Image as ImageIcon, BookOpen,
-    Play, Pause, Grid, Maximize2,
+    Play, Pause, Grid, Maximize2, Settings, Trash2,
+    FolderInput, CheckSquare,
 } from 'lucide-react';
 import axios from 'axios';
 import useUiStore from '../../store/uiStore';
@@ -121,9 +122,19 @@ function PhotoViewer({ photos, startIndex, onClose, t }) {
 }
 
 // ─── Slideshow Panel ───
+const SPEED_OPTIONS = [
+    { key: 3000, label: '3초' },
+    { key: 5000, label: '5초' },
+    { key: 10000, label: '10초' },
+];
+
 function SlideshowPanel({ photos, t, onFullscreen }) {
     const [idx, setIdx] = useState(0);
     const [playing, setPlaying] = useState(true);
+    const [speed, setSpeed] = useState(() => {
+        try { return parseInt(localStorage.getItem('orgcell_slideshow_speed')) || 4000; } catch { return 4000; }
+    });
+    const [showSpeedMenu, setShowSpeedMenu] = useState(false);
     const intervalRef = useRef(null);
 
     useEffect(() => {
@@ -133,9 +144,15 @@ function SlideshowPanel({ photos, t, onFullscreen }) {
         }
         intervalRef.current = setInterval(() => {
             setIdx((i) => (i + 1) % photos.length);
-        }, 4000);
+        }, speed);
         return () => clearInterval(intervalRef.current);
-    }, [playing, photos.length]);
+    }, [playing, photos.length, speed]);
+
+    const changeSpeed = (ms) => {
+        setSpeed(ms);
+        setShowSpeedMenu(false);
+        try { localStorage.setItem('orgcell_slideshow_speed', String(ms)); } catch {}
+    };
 
     if (photos.length === 0) {
         return (
@@ -196,11 +213,37 @@ function SlideshowPanel({ photos, t, onFullscreen }) {
                     </button>
                 </div>
 
-                {/* Counter + Fullscreen */}
-                <div className="flex items-center gap-3">
+                {/* Counter + Speed + Fullscreen */}
+                <div className="flex items-center gap-2">
                     <span className="text-xs font-bold" style={{ color: 'rgba(255,255,255,0.8)' }}>
                         {idx + 1} / {photos.length}
                     </span>
+                    {/* Speed settings */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowSpeedMenu((v) => !v)}
+                            className="w-8 h-8 flex items-center justify-center rounded-full"
+                            style={{ background: 'rgba(255,255,255,0.15)' }}
+                            title="슬라이드쇼 속도"
+                        >
+                            <Settings size={13} style={{ color: '#fff' }} />
+                        </button>
+                        {showSpeedMenu && (
+                            <div className="absolute bottom-10 right-0 bg-white rounded-xl shadow-xl overflow-hidden" style={{ minWidth: 100, border: '1px solid #e8e0d0' }}>
+                                {SPEED_OPTIONS.map(({ key, label }) => (
+                                    <button
+                                        key={key}
+                                        onClick={() => changeSpeed(key)}
+                                        className="w-full px-3 py-2 text-xs font-semibold text-left hover:bg-gray-50 flex items-center justify-between"
+                                        style={{ color: speed === key ? '#5a8a4a' : '#3a3a2a' }}
+                                    >
+                                        {label}
+                                        {speed === key && <Check size={12} style={{ color: '#5a8a4a' }} />}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                     <button
                         onClick={() => onFullscreen(idx)}
                         className="w-8 h-8 flex items-center justify-center rounded-full"
@@ -547,6 +590,12 @@ export default function ExhibitionDetailPage() {
     const [gbMsg, setGbMsg] = useState('');
     const [gbSubmitting, setGbSubmitting] = useState(false);
 
+    // Multi-select mode
+    const [selectMode, setSelectMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const [showMoveModal, setShowMoveModal] = useState(false);
+    const [showVisSettings, setShowVisSettings] = useState(false);
+
     const fetchAll = useCallback(async () => {
         try {
             const [exhRes, photoRes, gbRes] = await Promise.all([
@@ -562,6 +611,65 @@ export default function ExhibitionDetailPage() {
     }, [id]);
 
     useEffect(() => { fetchAll(); }, [fetchAll]);
+
+    // Multi-select helpers
+    const togglePhotoSelect = (photoId) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(photoId)) next.delete(photoId);
+            else next.add(photoId);
+            return next;
+        });
+    };
+
+    const handleLongPress = (photoId) => {
+        if (!token) return;
+        setSelectMode(true);
+        setSelectedIds(new Set([photoId]));
+    };
+
+    const handleMovePhotos = async (targetExhId) => {
+        const ids = Array.from(selectedIds);
+        try {
+            await axios.post(`/api/exhibitions/${id}/photos/move`, {
+                photo_ids: ids,
+                target_exhibition_id: targetExhId,
+            });
+            setSelectedIds(new Set());
+            setSelectMode(false);
+            setShowMoveModal(false);
+            fetchAll();
+        } catch { /* silent */ }
+    };
+
+    const handleDeleteSelected = async () => {
+        if (!window.confirm(`${selectedIds.size}장을 삭제하시겠습니까?`)) return;
+        const ids = Array.from(selectedIds);
+        try {
+            await Promise.all(ids.map((pid) => axios.delete(`/api/exhibitions/${id}/photos/${pid}`)));
+            setSelectedIds(new Set());
+            setSelectMode(false);
+            fetchAll();
+        } catch { /* silent */ }
+    };
+
+    const handleDownloadSelected = () => {
+        const selected = photos.filter((p) => selectedIds.has(p.id));
+        selected.forEach((p) => {
+            const a = document.createElement('a');
+            a.href = p.url;
+            a.download = p.original_name || p.filename;
+            a.click();
+        });
+    };
+
+    const handleUpdateVisibility = async (vis) => {
+        try {
+            await axios.put(`/api/exhibitions/${id}`, { visibility: vis });
+            setExhibition((prev) => ({ ...prev, visibility: vis }));
+            setShowVisSettings(false);
+        } catch { /* silent */ }
+    };
 
     // Close share dropdown on outside click
     useEffect(() => {
@@ -727,9 +835,56 @@ export default function ExhibitionDetailPage() {
                     />
                 )}
 
-                {/* ── Panel: Gallery ── */}
+                {/* ── Panel: Gallery (멀티셀렉트 지원) ── */}
                 {activeTab === 'gallery' && (
                     <>
+                        {/* 멀티셀렉트 / 공개범위 설정 툴바 */}
+                        {token && photos.length > 0 && (
+                            <div className="flex items-center justify-between mb-3">
+                                <button
+                                    onClick={() => { setSelectMode((v) => !v); setSelectedIds(new Set()); }}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
+                                    style={{
+                                        background: selectMode ? '#3a3a2a' : '#e8e0d0',
+                                        color: selectMode ? '#fff' : '#5a5040',
+                                    }}
+                                >
+                                    <CheckSquare size={13} />
+                                    {selectMode ? '선택 취소' : '선택'}
+                                </button>
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setShowVisSettings((v) => !v)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
+                                        style={{ background: '#e8e0d0', color: '#5a5040' }}
+                                    >
+                                        <Settings size={13} />
+                                        공개 범위
+                                    </button>
+                                    {showVisSettings && (
+                                        <div className="absolute top-full right-0 mt-1 bg-white rounded-xl shadow-xl z-10 overflow-hidden" style={{ border: '1px solid #e8e0d0', minWidth: 160 }}>
+                                            {[
+                                                { key: 'family', label: '가족만', icon: Lock },
+                                                { key: 'public', label: '일반공개', icon: Globe },
+                                                { key: 'private', label: '나만', icon: User },
+                                            ].map(({ key, label, icon: Icon }) => (
+                                                <button
+                                                    key={key}
+                                                    onClick={() => handleUpdateVisibility(key)}
+                                                    className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-semibold text-left hover:bg-gray-50"
+                                                    style={{ color: exhibition.visibility === key ? '#5a8a4a' : '#3a3a2a' }}
+                                                >
+                                                    <Icon size={13} />
+                                                    {label}
+                                                    {exhibition.visibility === key && <Check size={12} className="ml-auto" style={{ color: '#5a8a4a' }} />}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
                         {photos.length === 0 ? (
                             <div
                                 className="rounded-2xl flex flex-col items-center justify-center py-24"
@@ -750,21 +905,42 @@ export default function ExhibitionDetailPage() {
                             </div>
                         ) : (
                             <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 gap-1.5">
-                                {photos.map((photo, i) => (
-                                    <div
-                                        key={photo.id}
-                                        className="aspect-square rounded-lg overflow-hidden cursor-pointer hover:brightness-90 transition-all"
-                                        style={{ background: '#e8e0d0' }}
-                                        onClick={() => setViewerIndex(i)}
-                                    >
-                                        <img
-                                            src={photo.url}
-                                            alt={photo.original_name || ''}
-                                            className="w-full h-full object-cover"
-                                            loading="lazy"
-                                        />
-                                    </div>
-                                ))}
+                                {photos.map((photo, i) => {
+                                    const isSelected = selectedIds.has(photo.id);
+                                    let longPressTimer = null;
+                                    return (
+                                        <div
+                                            key={photo.id}
+                                            className="aspect-square rounded-lg overflow-hidden cursor-pointer hover:brightness-90 transition-all relative"
+                                            style={{ background: '#e8e0d0' }}
+                                            onClick={() => {
+                                                if (selectMode) togglePhotoSelect(photo.id);
+                                                else setViewerIndex(i);
+                                            }}
+                                            onTouchStart={() => { longPressTimer = setTimeout(() => handleLongPress(photo.id), 500); }}
+                                            onTouchEnd={() => clearTimeout(longPressTimer)}
+                                            onTouchMove={() => clearTimeout(longPressTimer)}
+                                        >
+                                            <img
+                                                src={photo.url}
+                                                alt={photo.original_name || ''}
+                                                className="w-full h-full object-cover"
+                                                loading="lazy"
+                                            />
+                                            {selectMode && (
+                                                <div
+                                                    className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center border-2"
+                                                    style={{
+                                                        background: isSelected ? '#5a8a4a' : 'rgba(255,255,255,0.7)',
+                                                        borderColor: isSelected ? '#5a8a4a' : 'rgba(255,255,255,0.9)',
+                                                    }}
+                                                >
+                                                    {isSelected && <Check size={12} style={{ color: '#fff' }} />}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
                     </>
@@ -878,6 +1054,125 @@ export default function ExhibitionDetailPage() {
                     onDone={fetchAll}
                 />
             )}
+
+            {/* ── 멀티셀렉트 하단 액션바 ── */}
+            {selectMode && selectedIds.size > 0 && (
+                <div
+                    className="fixed bottom-0 left-0 right-0 z-40 border-t"
+                    style={{ background: 'rgba(255,255,255,0.97)', borderColor: '#e8e0d0', backdropFilter: 'blur(8px)' }}
+                >
+                    <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+                        <span className="text-sm font-bold" style={{ color: '#3a3a2a' }}>
+                            {selectedIds.size}장 선택
+                        </span>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setShowMoveModal(true)}
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white"
+                                style={{ background: '#5a8a4a' }}
+                            >
+                                <FolderInput size={13} />
+                                이동
+                            </button>
+                            <button
+                                onClick={handleDownloadSelected}
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold"
+                                style={{ background: '#e8e0d0', color: '#5a5040' }}
+                            >
+                                <Download size={13} />
+                                다운로드
+                            </button>
+                            <button
+                                onClick={handleDeleteSelected}
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold"
+                                style={{ background: '#fee2e2', color: '#dc2626' }}
+                            >
+                                <Trash2 size={13} />
+                                삭제
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── 사진 이동 모달 ── */}
+            {showMoveModal && (
+                <MoveToModal
+                    exhibitionId={id}
+                    siteId={exhibition?.site_id}
+                    onMove={handleMovePhotos}
+                    onClose={() => setShowMoveModal(false)}
+                />
+            )}
+        </div>
+    );
+}
+
+// ─── 이동 목적지 선택 모달 ───
+function MoveToModal({ exhibitionId, siteId, onMove, onClose }) {
+    const [exhibitions, setExhibitions] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!siteId) return;
+        axios.get('/api/exhibitions', { params: { site_id: siteId } })
+            .then((r) => {
+                if (r.data?.success) {
+                    setExhibitions(r.data.data.filter((e) => String(e.id) !== String(exhibitionId)));
+                }
+            })
+            .catch(() => {})
+            .finally(() => setLoading(false));
+    }, [siteId, exhibitionId]);
+
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+            style={{ background: 'rgba(40,35,50,0.55)', backdropFilter: 'blur(4px)' }}
+            onClick={onClose}
+        >
+            <div
+                className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-sm p-5 shadow-2xl max-h-[70vh] overflow-y-auto"
+                style={{ border: '1.5px solid #e8e0d0' }}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-base font-bold" style={{ color: '#3a3a2a' }}>어디로 이동할까요?</h3>
+                    <button onClick={onClose} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: '#f0ece4' }}>
+                        <X size={14} style={{ color: '#7a7a6a' }} />
+                    </button>
+                </div>
+                {loading ? (
+                    <div className="py-8 text-center">
+                        <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-600 rounded-full animate-spin mx-auto" />
+                    </div>
+                ) : exhibitions.length === 0 ? (
+                    <p className="text-sm text-center py-6" style={{ color: '#9a9a8a' }}>이동할 전시관이 없습니다.</p>
+                ) : (
+                    <div className="space-y-2">
+                        {exhibitions.map((exh) => (
+                            <button
+                                key={exh.id}
+                                onClick={() => onMove(exh.id)}
+                                className="w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all hover:bg-gray-50"
+                                style={{ borderColor: '#e8e0d0' }}
+                            >
+                                <div
+                                    className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                                    style={{ background: exh.cover_photo ? `url(${exh.cover_photo}) center/cover` : '#e8e0d0' }}
+                                >
+                                    {!exh.cover_photo && <ImageIcon size={16} style={{ color: '#9a9a8a' }} />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold truncate" style={{ color: '#3a3a2a' }}>{exh.title}</p>
+                                    <p className="text-xs" style={{ color: '#9a9a8a' }}>{exh.photo_count}장</p>
+                                </div>
+                                <ChevronRight size={14} style={{ color: '#ccc' }} />
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

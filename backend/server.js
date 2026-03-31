@@ -101,6 +101,7 @@ const ROUTE_MAP = {
     'friendRoutes': '/api/friends',
     'heritageRoutes': '/api/heritage',
     'familySearchRoutes': '/api/familysearch',
+    'inboxRoutes': '/api/inbox',
 };
 
 const routesDir = path.join(__dirname, 'src', 'routes');

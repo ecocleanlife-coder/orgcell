@@ -37,6 +37,7 @@ const FamilySearchCallback = lazy(() => import('./pages/auth/FamilySearchCallbac
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'));
 const TermsOfServicePage = lazy(() => import('./pages/TermsOfServicePage'));
 const InviteDashboard = lazy(() => import('./components/museum/InviteDashboard'));
+const InboxPage = lazy(() => import('./pages/museum/InboxPage'));
 
 const PageLoader = () => (
   <div className="flex h-64 w-full items-center justify-center">
@@ -161,6 +162,7 @@ function App() {
         <Route path="/family-tree" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><FamilyTreeView /></Suspense></ErrorBoundary>} />
         <Route path="/person/:id" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><PersonFolderView /></Suspense></ErrorBoundary>} />
         <Route path="/invite-dashboard" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><InviteDashboard /></Suspense></ErrorBoundary>} />
+        <Route path="/inbox" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><InboxPage /></Suspense></ErrorBoundary>} />
         <Route path="/redeem" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><RedeemPage /></Suspense></ErrorBoundary>} />
         <Route path="/payment/success" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><PaymentSuccessPage /></Suspense></ErrorBoundary>} />
         <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><PrivacyPolicyPage /></Suspense>} />

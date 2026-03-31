@@ -115,6 +115,45 @@ exports.uploadPhotos = async (req, res) => {
     }
 };
 
+// POST /api/exhibitions/:id/photos/move  { photo_ids: [...], target_exhibition_id: X }
+exports.movePhotos = async (req, res) => {
+    try {
+        const sourceId = req.params.id;
+        const { photo_ids, target_exhibition_id } = req.body;
+
+        if (!photo_ids?.length || !target_exhibition_id) {
+            return res.status(400).json({ success: false, message: 'photo_ids and target_exhibition_id required' });
+        }
+
+        // 대상 전시관 존재 확인
+        const { rows: targetRows } = await db.query(`SELECT id FROM exhibitions WHERE id = $1`, [target_exhibition_id]);
+        if (!targetRows.length) {
+            return res.status(404).json({ success: false, message: 'Target exhibition not found' });
+        }
+
+        // 사진 이동
+        await db.query(
+            `UPDATE exhibition_photos SET exhibition_id = $1, is_cover = FALSE WHERE id = ANY($2::int[]) AND exhibition_id = $3`,
+            [target_exhibition_id, photo_ids, sourceId]
+        );
+
+        // 양쪽 photo_count 업데이트
+        await db.query(
+            `UPDATE exhibitions SET photo_count = (SELECT COUNT(*) FROM exhibition_photos WHERE exhibition_id = $1), updated_at = NOW() WHERE id = $1`,
+            [sourceId]
+        );
+        await db.query(
+            `UPDATE exhibitions SET photo_count = (SELECT COUNT(*) FROM exhibition_photos WHERE exhibition_id = $1), updated_at = NOW() WHERE id = $1`,
+            [target_exhibition_id]
+        );
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('movePhotos error:', err);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
+
 // DELETE /api/exhibitions/:id/photos/:photoId
 exports.deletePhoto = async (req, res) => {
     try {
