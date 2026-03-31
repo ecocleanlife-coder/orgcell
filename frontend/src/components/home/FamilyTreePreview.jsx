@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import FamilySearchModal from '../common/FamilySearchModal';
 
 /* ══════════════════════════════════════
    Primitives
@@ -100,8 +101,10 @@ function ChildBranch({ count, width = 200 }) {
 
 export default function FamilyTreePreview() {
     const navigate = useNavigate();
+    const [showFsModal, setShowFsModal] = useState(false);
 
     return (
+        <>
         <div style={{
             background: '#FFFDF7', borderRadius: 20, padding: '24px 12px 20px',
             border: '1px solid #E8E3D8', width: '100%', maxWidth: '100%', margin: '0 auto',
@@ -241,7 +244,7 @@ export default function FamilyTreePreview() {
                     <span style={{ fontSize: 11, color: '#999' }}>전 세계 10억 건 이상의 족보 데이터베이스</span>
                 </p>
                 <button
-                    onClick={() => navigate('/onboarding/start')}
+                    onClick={() => setShowFsModal(true)}
                     style={{
                         background: 'transparent', border: '1.5px solid #4A8DB7',
                         borderRadius: 10, padding: '7px 18px', fontSize: 12,
@@ -263,5 +266,7 @@ export default function FamilyTreePreview() {
                 }
             `}</style>
         </div>
+        {showFsModal && <FamilySearchModal onClose={() => setShowFsModal(false)} />}
+        </>
     );
 }

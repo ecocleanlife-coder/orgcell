@@ -12,6 +12,7 @@ import {
 import axios from 'axios';
 import LanguageSwitcher from '../../components/common/LanguageSwitcher';
 import FamilyTreeView from '../../components/museum/FamilyTreeView';
+import FamilySearchModal from '../../components/common/FamilySearchModal';
 import FamilyCalendar from '../../components/museum/FamilyCalendar';
 import AncestorHallTab from '../../components/museum/AncestorHallTab';
 import PostDetailModal from '../../components/museum/PostDetailModal';
@@ -210,6 +211,7 @@ export default function MuseumPage({ initialTab }) {
 
     // 업로드 모달
     const [showUploadModal, setShowUploadModal] = useState(false);
+    const [showFsModal, setShowFsModal] = useState(false);
 
     // 친구 요청
     const [friendRequested, setFriendRequested] = useState(false);
@@ -554,6 +556,18 @@ export default function MuseumPage({ initialTab }) {
                     <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: '1px solid #e8e0d0' }}>
                         <FamilyTreeView siteId={site?.id} readOnly={role === 'public'} role={role} />
                     </div>
+                    {canEdit && (
+                        <button
+                            onClick={() => setShowFsModal(true)}
+                            className="w-full mt-3 py-3 rounded-xl text-center"
+                            style={{
+                                background: '#EBF4FB', border: '1.5px dashed #7EB8D4',
+                                fontSize: 13, fontWeight: 600, color: '#4A8DB7', cursor: 'pointer',
+                            }}
+                        >
+                            🌐 FamilySearch 연동으로 조상 기록 찾기
+                        </button>
+                    )}
                 </Section>
 
                 {/* ══ SECTION 4: 사진 요청 배너 ══ */}
@@ -662,6 +676,8 @@ export default function MuseumPage({ initialTab }) {
                     onDone={() => { fetchExhibitions(); }}
                 />
             )}
+
+            {showFsModal && <FamilySearchModal onClose={() => setShowFsModal(false)} />}
 
             {/* ════ 게시글 상세 모달 ════ */}
             {selectedPostId && (
