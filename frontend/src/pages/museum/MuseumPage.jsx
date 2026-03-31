@@ -5,7 +5,7 @@ import {
     Globe, Lock, Image as ImageIcon,
     GalleryThumbnails, ClipboardList, TreePine, Settings,
     LogIn, Bell, Star, Calendar, MessageSquare, ChevronRight, Download,
-    BookOpen, CalendarDays, Plus, X, Pencil,
+    BookOpen, CalendarDays, Plus, X, Pencil, UserPlus, Sparkles,
 } from 'lucide-react';
 import axios from 'axios';
 import LanguageSwitcher from '../../components/common/LanguageSwitcher';
@@ -147,6 +147,10 @@ export default function MuseumPage({ initialTab }) {
     const [newPost, setNewPost] = useState({ category: 'daily', title: '', content: '' });
     const [postingPost, setPostingPost] = useState(false);
 
+    // ── 친구 요청 + 방문 기록 ──
+    const [friendRequested, setFriendRequested] = useState(false);
+    const [friendRequesting, setFriendRequesting] = useState(false);
+
     // ── PWA install prompt ──
     const [installPrompt, setInstallPrompt] = useState(null);
     const [isInstalled, setIsInstalled] = useState(false);
@@ -194,6 +198,34 @@ export default function MuseumPage({ initialTab }) {
             }
         }
     }, [role, site]);
+
+    // ── 방문 기록 (로그인 유저, 남의 사이트) + ref 유입 추적 ──
+    useEffect(() => {
+        if (site && isAuthenticated && role === 'public') {
+            const params = new URLSearchParams(window.location.search);
+            const ref = params.get('ref');
+            const source = ref ? 'invite_link' : 'direct';
+            axios.post('/api/friends/visit', {
+                siteId: site.id,
+                source,
+                referralCode: ref || undefined,
+            }).catch(() => {});
+        }
+    }, [site, isAuthenticated, role]);
+
+    const handleFriendRequest = async () => {
+        if (!site || friendRequesting) return;
+        setFriendRequesting(true);
+        try {
+            await axios.post('/api/friends/request', { friendSiteId: site.id });
+            setFriendRequested(true);
+        } catch {
+            // 이미 친구이거나 이미 요청 중
+            setFriendRequested(true);
+        } finally {
+            setFriendRequesting(false);
+        }
+    };
 
     // ── Fetch exhibitions ──
     const fetchExhibitions = useCallback(async (vis) => {
@@ -608,6 +640,43 @@ export default function MuseumPage({ initialTab }) {
                     onClose={() => setShowOnboarding(false)}
                     t={t}
                 />
+            )}
+
+            {/* ════ 바이럴 배너 (방문자용) ════ */}
+            {role === 'public' && isAuthenticated && (
+                <div
+                    className="fixed bottom-0 left-0 right-0 z-40 border-t"
+                    style={{ background: 'rgba(255,255,255,0.97)', borderColor: '#e8e0d0', backdropFilter: 'blur(8px)' }}
+                >
+                    <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                            {/* 친구 추가 버튼 */}
+                            <button
+                                onClick={handleFriendRequest}
+                                disabled={friendRequested || friendRequesting}
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold shrink-0 transition-all"
+                                style={{
+                                    background: friendRequested ? '#e8f5e0' : '#f0eaf8',
+                                    color: friendRequested ? '#3a7a2a' : '#6a3a9a',
+                                }}
+                            >
+                                <UserPlus size={14} />
+                                {friendRequesting ? '...' : friendRequested ? '요청됨' : '친구 추가'}
+                            </button>
+                            <p className="text-sm font-medium truncate" style={{ color: '#3a3a2a' }}>
+                                나도 가족 박물관 만들기
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => navigate('/onboarding/service')}
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold shrink-0 text-white transition-all hover:brightness-110"
+                            style={{ background: 'linear-gradient(135deg, #5A9460, #4A8450)' }}
+                        >
+                            <Sparkles size={13} />
+                            무료로 시작하기
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     );

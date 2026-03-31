@@ -42,6 +42,7 @@ const OnboardingGuard = lazy(() => import('./components/onboarding/OnboardingGua
 const FamilySearchCallback = lazy(() => import('./pages/auth/FamilySearchCallback'));
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'));
 const TermsOfServicePage = lazy(() => import('./pages/TermsOfServicePage'));
+const InviteDashboard = lazy(() => import('./components/museum/InviteDashboard'));
 // DemoMuseumPage 제거 — /demo는 /:subdomain (MuseumPage)에서 처리
 
 const PageLoader = () => (
@@ -298,6 +299,16 @@ function App() {
             <Suspense fallback={<PageLoader />}>
               <TermsOfServicePage />
             </Suspense>
+          }
+        />
+        <Route
+          path="/invite-dashboard"
+          element={
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <InviteDashboard />
+              </Suspense>
+            </ErrorBoundary>
           }
         />
         <Route

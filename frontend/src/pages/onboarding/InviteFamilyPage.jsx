@@ -132,6 +132,44 @@ export default function InviteFamilyPage() {
         }
     };
 
+    // ── 초대 현황 ──
+    const [inviteList, setInviteList] = useState([]);
+    const [inviteListLoading, setInviteListLoading] = useState(false);
+    const [showInviteList, setShowInviteList] = useState(false);
+    const [resending, setResending] = useState(null);
+
+    const fetchInviteStatus = async () => {
+        setInviteListLoading(true);
+        try {
+            const res = await axios.get('/api/invite/status');
+            if (res.data?.success) setInviteList(res.data.data);
+        } catch { /* silent */ }
+        finally { setInviteListLoading(false); }
+    };
+
+    const handleResend = async (inviteId) => {
+        setResending(inviteId);
+        try {
+            await axios.post('/api/invite/resend', { invite_id: inviteId });
+            fetchInviteStatus();
+        } catch { /* silent */ }
+        finally { setResending(null); }
+    };
+
+    const copyShortCode = async (shortCode) => {
+        const url = `https://orgcell.com/invite?code=${shortCode}`;
+        try {
+            await navigator.clipboard.writeText(url);
+        } catch {
+            const input = document.createElement('input');
+            input.value = url;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            document.body.removeChild(input);
+        }
+    };
+
     const [creating, setCreating] = useState(false);
 
     const handleFinish = async () => {
@@ -329,6 +367,91 @@ export default function InviteFamilyPage() {
                                     <p className="text-xs text-red-600 mt-2">
                                         요청에 실패했습니다. 도메인을 확인해주세요.
                                     </p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* ── 초대 현황 섹션 ── */}
+                {isAuthenticated && (
+                    <div className="bg-white rounded-2xl border border-gray-200 mb-4 overflow-hidden">
+                        <button
+                            onClick={() => { setShowInviteList(!showInviteList); if (!showInviteList && inviteList.length === 0) fetchInviteStatus(); }}
+                            className="w-full flex items-center justify-between p-4"
+                        >
+                            <div className="text-left">
+                                <p className="text-sm font-bold text-gray-900">보낸 초대 현황</p>
+                                <p className="text-xs text-gray-500">초대 상태를 확인하고 재발송할 수 있어요</p>
+                            </div>
+                            <span className={`text-gray-400 transition-transform ${showInviteList ? 'rotate-90' : ''}`}>
+                                &rsaquo;
+                            </span>
+                        </button>
+
+                        {showInviteList && (
+                            <div className="border-t border-gray-100">
+                                {inviteListLoading ? (
+                                    <div className="p-6 text-center">
+                                        <div className="w-6 h-6 border-2 border-gray-200 border-t-emerald-500 rounded-full animate-spin mx-auto" />
+                                    </div>
+                                ) : inviteList.length === 0 ? (
+                                    <p className="p-4 text-center text-sm text-gray-400">아직 보낸 초대가 없습니다</p>
+                                ) : (
+                                    <div className="divide-y divide-gray-50">
+                                        {inviteList.map(inv => {
+                                            const now = new Date();
+                                            const isExpired = inv.is_expired;
+                                            const statusLabel = inv.status === 'accepted' ? '수락됨'
+                                                : isExpired ? '만료됨'
+                                                : '대기 중';
+                                            const statusColor = inv.status === 'accepted' ? '#2ecc71'
+                                                : isExpired ? '#e74c3c'
+                                                : '#f39c12';
+
+                                            return (
+                                                <div key={inv.id} className="px-4 py-3 flex items-center gap-3">
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-medium text-gray-800 truncate">
+                                                            {inv.email || '(이메일 없음)'}
+                                                        </p>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span
+                                                                className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                                                                style={{ background: statusColor + '20', color: statusColor }}
+                                                            >
+                                                                {statusLabel}
+                                                            </span>
+                                                            {inv.short_code && (
+                                                                <button
+                                                                    onClick={() => copyShortCode(inv.short_code)}
+                                                                    className="text-[10px] text-blue-500 font-mono hover:underline"
+                                                                >
+                                                                    {inv.short_code}
+                                                                </button>
+                                                            )}
+                                                            <span className="text-[10px] text-gray-400">
+                                                                {new Date(inv.created_at).toLocaleDateString('ko-KR')}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    {(isExpired || inv.status === 'pending') && inv.email && (
+                                                        <button
+                                                            onClick={() => handleResend(inv.id)}
+                                                            disabled={resending === inv.id}
+                                                            className="text-xs font-bold px-3 py-1.5 rounded-lg shrink-0 transition-all"
+                                                            style={{
+                                                                background: resending === inv.id ? '#f0f0f0' : '#EFF5FF',
+                                                                color: resending === inv.id ? '#999' : '#3478F6',
+                                                            }}
+                                                        >
+                                                            {resending === inv.id ? '...' : '재발송'}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 )}
                             </div>
                         )}
