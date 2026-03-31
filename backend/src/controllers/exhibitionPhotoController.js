@@ -62,7 +62,8 @@ exports.uploadPhotos = async (req, res) => {
         }
         */
 
-        const vis = ['public', 'family', 'private'].includes(visibility) ? visibility : 'private';
+        const { normalizeVisibility } = require('../middlewares/visibilityMiddleware');
+        const vis = normalizeVisibility(visibility, 'private');
         const isCover = set_cover === 'true';
         const userId = req.user?.id || null;
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-    ArrowLeft, Upload, Share2, Globe, Lock, User,
+    ArrowLeft, Upload, Share2,
     X, Download, ChevronLeft, ChevronRight,
     Link2, Check, Image as ImageIcon, BookOpen,
     Play, Pause, Grid, Maximize2, Settings, Trash2,
@@ -12,21 +12,16 @@ import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
 import { getT } from '../../i18n/translations';
 import LanguageSwitcher from '../../components/common/LanguageSwitcher';
+import { getVisibilityInfo } from '../../hooks/useVisibility';
 
 // ─── visibility badge ───
-const VIS_STYLE = {
-    public:  { bg: '#e8f5e0', color: '#3a7a2a', icon: Globe },
-    family:  { bg: '#f0eaf8', color: '#7a3a9a', icon: Lock },
-    private: { bg: '#f0f0f0', color: '#5a5a5a', icon: User },
-};
-
 function VisBadge({ vis, label }) {
-    const s = VIS_STYLE[vis] || VIS_STYLE.private;
-    const Icon = s.icon;
+    const info = getVisibilityInfo(vis);
+    const Icon = info.icon;
     return (
         <span
             className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full"
-            style={{ background: s.bg, color: s.color }}
+            style={{ background: info.bg, color: info.color }}
         >
             <Icon size={11} /> {label}
         </span>
@@ -863,11 +858,10 @@ export default function ExhibitionDetailPage() {
                                     </button>
                                     {showVisSettings && (
                                         <div className="absolute top-full right-0 mt-1 bg-white rounded-xl shadow-xl z-10 overflow-hidden" style={{ border: '1px solid #e8e0d0', minWidth: 160 }}>
-                                            {[
-                                                { key: 'family', label: '가족만', icon: Lock },
-                                                { key: 'public', label: '일반공개', icon: Globe },
-                                                { key: 'private', label: '나만', icon: User },
-                                            ].map(({ key, label, icon: Icon }) => (
+                                            {['family', 'public', 'private'].map((key) => {
+                                                const vInfo = getVisibilityInfo(key);
+                                                return { key, label: vInfo.shortLabel, icon: vInfo.icon };
+                                            }).map(({ key, label, icon: Icon }) => (
                                                 <button
                                                     key={key}
                                                     onClick={() => handleUpdateVisibility(key)}

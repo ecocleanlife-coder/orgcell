@@ -47,7 +47,8 @@ exports.createExhibition = async (req, res) => {
         } = req.body;
         if (!site_id || !title) return res.status(400).json({ success: false, message: 'site_id and title required' });
 
-        const vis = ['public', 'family'].includes(visibility) ? visibility : 'family';
+        const { normalizeVisibility } = require('../middlewares/visibilityMiddleware');
+        const vis = normalizeVisibility(visibility, 'family');
         const hType = ['general', 'ancestor'].includes(hall_type) ? hall_type : 'general';
         const photos = Array.isArray(featured_photos) ? JSON.stringify(featured_photos.slice(0, 3)) : '[]';
 

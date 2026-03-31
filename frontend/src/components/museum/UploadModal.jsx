@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-    X, ChevronRight, Camera, Users, Globe, Lock, User,
+    X, ChevronRight, Camera, Users,
     Image as ImageIcon, Check, ArrowLeft, Plus, Settings,
 } from 'lucide-react';
 import axios from 'axios';
+import { getVisibilityInfo } from '../../hooks/useVisibility';
 
 // ─── 목적지 카드 데이터 ───
 const DEST_PRESETS = [
@@ -41,11 +42,10 @@ const DEST_PRESETS = [
     },
 ];
 
-const VIS_OPTIONS = [
-    { key: 'family',  label: '가족만', icon: Lock },
-    { key: 'public',  label: '일반공개 (누구나)', icon: Globe },
-    { key: 'private', label: '나만', icon: User },
-];
+const VIS_OPTIONS = ['family', 'public', 'private'].map((key) => {
+    const info = getVisibilityInfo(key);
+    return { key, label: info.shortLabel, icon: info.icon };
+});
 
 // ─── UploadModal ───
 export default function UploadModal({ siteId, subdomain, onClose, onDone }) {

@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, Check, Trash2, FolderInput, Image as ImageIcon, X,
-    ChevronRight, Globe, Lock, User, Clock, CheckCircle, XCircle,
+    ChevronRight, Clock, CheckCircle, XCircle,
 } from 'lucide-react';
+import { getVisibilityInfo } from '../../hooks/useVisibility';
 import axios from 'axios';
 
 // ─── 이동 목적지 모달 ───
@@ -18,8 +19,6 @@ function MoveModal({ siteId, onMove, onClose }) {
             .catch(() => {})
             .finally(() => setLoading(false));
     }, [siteId]);
-
-    const VIS_ICON = { public: Globe, family: Lock, private: User };
 
     return (
         <div
@@ -48,7 +47,8 @@ function MoveModal({ siteId, onMove, onClose }) {
                 ) : (
                     <div className="space-y-2">
                         {exhibitions.map((exh) => {
-                            const Icon = VIS_ICON[exh.visibility] || Lock;
+                            const vInfo = getVisibilityInfo(exh.visibility);
+                            const Icon = vInfo.icon;
                             return (
                                 <button
                                     key={exh.id}

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
+import { getVisibilityInfo } from '../../hooks/useVisibility';
 import {
-    Globe, Lock, Image as ImageIcon,
+    Image as ImageIcon,
     GalleryThumbnails, ClipboardList, TreePine, Settings,
     LogIn, Bell, Star, Calendar, MessageSquare, ChevronRight, Download,
     BookOpen, CalendarDays, Plus, X, Pencil, UserPlus, Sparkles,
@@ -116,16 +117,15 @@ function ExhibitionCard({ exh, t, onClick }) {
                 }}
             >
                 {!exh.cover_photo && <ImageIcon size={36} style={{ color: 'rgba(255,255,255,0.7)' }} />}
+                {(() => { const vi = getVisibilityInfo(exh.visibility); const VIcon = vi.icon; return (
                 <span
                     className="absolute top-2 right-2 text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5"
-                    style={{
-                        background: exh.visibility === 'public' ? '#e8f5e0' : '#f0eaf8',
-                        color: exh.visibility === 'public' ? '#3a7a2a' : '#7a3a9a',
-                    }}
+                    style={{ background: vi.bg, color: vi.color }}
                 >
-                    {exh.visibility === 'public' ? <Globe size={10} /> : <Lock size={10} />}
+                    <VIcon size={10} />
                     {exh.visibility === 'public' ? t.subPublic : t.subFamily}
                 </span>
+                ); })()}
             </div>
             <div className="p-3">
                 <h3 className="font-bold text-sm truncate" style={{ color: '#3a3a2a' }}>{exh.title}</h3>
