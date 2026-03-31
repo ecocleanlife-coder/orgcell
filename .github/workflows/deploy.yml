@@ -90,7 +90,11 @@ jobs:
           for src_file in server.js src/controllers/*.js src/routes/*.js src/services/*.js src/config/*.js src/middlewares/*.js; do
             [ -f "$src_file" ] || continue
             # require('모듈명')에서 로컬 파일(./)이 아닌 npm 패키지만 추출
-            MODULES=$(grep -oP "require\(['\"]([^./][^'\"]*)['\"]" "$src_file" 2>/dev/null | sed "s/require(['\"]//;s/['\"]$//" | cut -d/ -f1 | sort -u)
+            # scoped 패키지(@scope/pkg)는 @scope/pkg까지, 일반은 첫 세그먼트만
+            MODULES=$(grep -oP "require\(['\"]([^./][^'\"]*)['\"]" "$src_file" 2>/dev/null \
+              | sed "s/require(['\"]//;s/['\"]$//" \
+              | sed 's|^\(@[^/]*/[^/]*\).*|\1|; t; s|/.*||' \
+              | sort -u)
             for mod in $MODULES; do
               # Node.js 내장 모듈 제외
               case "$mod" in
