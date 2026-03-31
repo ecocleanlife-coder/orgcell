@@ -148,7 +148,7 @@ function App() {
         <Route path="/auth/forgot-password" element={<Suspense fallback={<PageLoader />}><ForgotPasswordPage /></Suspense>} />
 
         {/* ══════ 온보딩 2단계 (레이아웃 없음) ══════ */}
-        <Route path="/onboarding/start" element={<Navigate to="/onboarding/name" replace />} />
+        <Route path="/onboarding/start" element={<Navigate to="/auth/login?next=onboarding/name" replace />} />
         <Route path="/onboarding/name" element={<Suspense fallback={<PageLoader />}><OnboardingNamePage /></Suspense>} />
         <Route path="/onboarding/invite" element={<Suspense fallback={<PageLoader />}><OnboardingInvitePage /></Suspense>} />
 

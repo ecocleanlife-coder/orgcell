@@ -81,7 +81,7 @@ function LandingPage() {
                 {/* CTA 버튼 */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, width: '100%', maxWidth: 320 }}>
                     <button
-                        onClick={() => navigate('/onboarding/start')}
+                        onClick={() => navigate('/auth/login?next=onboarding/name')}
                         className="active:scale-[0.98]"
                         style={{
                             width: '100%', height: 56, borderRadius: 16,
@@ -214,7 +214,7 @@ function LandingPage() {
                             그리고 자연스럽게 자신의 박물관도 만들게 됩니다 😊
                         </p>
                         <button
-                            onClick={() => navigate('/onboarding/start')}
+                            onClick={() => navigate('/auth/login?next=onboarding/name')}
                             style={{
                                 background: 'transparent',
                                 border: '1.5px solid #3D2008',
