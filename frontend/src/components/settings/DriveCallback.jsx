@@ -13,10 +13,13 @@ export default function DriveCallback() {
     useEffect(() => {
         const code = searchParams.get('code');
         const error = searchParams.get('error');
+        // 연결 완료 후 돌아갈 경로 (sessionStorage에 저장된 값 또는 /home)
+        const returnPath = sessionStorage.getItem('orgcell_drive_return') || '/home';
 
         if (error) {
             toast.error('Google Drive 연결이 거부되었습니다.');
-            navigate('/', { replace: true });
+            sessionStorage.removeItem('orgcell_drive_return');
+            navigate(returnPath, { replace: true });
             return;
         }
 
@@ -25,8 +28,9 @@ export default function DriveCallback() {
                 .then(res => {
                     if (res.data.success) {
                         toast.success('Google Drive가 성공적으로 연결되었습니다!');
-                        checkDriveStatus(); // Refresh global store
-                        navigate('/', { replace: true }); // Back to main layout (settings tab usually remembers state or defaults to gallery)
+                        checkDriveStatus();
+                        sessionStorage.removeItem('orgcell_drive_return');
+                        navigate(returnPath, { replace: true });
                     } else {
                         throw new Error(res.data.message || '연결 실패');
                     }
@@ -34,11 +38,15 @@ export default function DriveCallback() {
                 .catch(err => {
                     console.error('Drive callback error', err);
                     toast.error('Google Drive 연결 중 오류가 발생했습니다.');
-                    setStatus('연결 실패. 창을 닫고 다시 시도해주세요.');
-                    setTimeout(() => navigate('/', { replace: true }), 3000);
+                    setStatus('연결 실패. 잠시 후 다시 시도해주세요.');
+                    setTimeout(() => {
+                        sessionStorage.removeItem('orgcell_drive_return');
+                        navigate(returnPath, { replace: true });
+                    }, 3000);
                 });
         } else {
-            navigate('/', { replace: true });
+            sessionStorage.removeItem('orgcell_drive_return');
+            navigate(returnPath, { replace: true });
         }
     }, [searchParams, navigate, checkDriveStatus]);
 

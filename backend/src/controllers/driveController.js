@@ -56,6 +56,7 @@ exports.getDriveAuthUrl = async (req, res) => {
 
         const authUrl = oauth2Client.generateAuthUrl({
             access_type: 'offline',
+            prompt: 'consent', // 매번 동의 화면 → refresh_token 재발급 보장
             scope: [
                 'https://www.googleapis.com/auth/drive.file',
                 'https://www.googleapis.com/auth/drive.appdata',
