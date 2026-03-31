@@ -9,9 +9,10 @@ axios.defaults.withCredentials = true;
 axios.interceptors.response.use(
     response => response,
     error => {
+        const skip = error.config?._skipAuthToast;
         if (!error.response) {
             toast.error('서버와의 연결이 끊어졌습니다. 인터넷 상태를 확인해주세요.', { id: 'network-error' });
-        } else if (error.response.status === 401) {
+        } else if (error.response.status === 401 && !skip) {
             toast.error('세션이 만료되었습니다. 다시 로그인해주세요.', { id: 'auth-error' });
         } else if (error.response.status >= 500) {
             toast.error('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');

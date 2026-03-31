@@ -5,27 +5,61 @@ import useOnboardingStore from '../../store/onboardingStore';
 import useAuthStore from '../../store/authStore';
 import OnboardingProgress from '../../components/onboarding/OnboardingProgress';
 
+// 한글 → 영문 로마자 변환 (간이)
+const KOREAN_MAP = {
+    '이': 'lee', '김': 'kim', '박': 'park', '최': 'choi', '정': 'jung',
+    '조': 'cho', '강': 'kang', '윤': 'yoon', '장': 'jang', '임': 'lim',
+    '한': 'han', '오': 'oh', '서': 'seo', '신': 'shin', '권': 'kwon',
+    '황': 'hwang', '안': 'ahn', '송': 'song', '류': 'ryu', '전': 'jeon',
+    '홍': 'hong', '고': 'ko', '문': 'moon', '양': 'yang', '손': 'son',
+    '배': 'bae', '백': 'baek', '허': 'heo', '유': 'yoo', '남': 'nam',
+    '심': 'shim', '노': 'noh', '하': 'ha', '곽': 'kwak', '성': 'sung',
+    '차': 'cha', '주': 'joo', '우': 'woo', '구': 'koo', '민': 'min',
+    '탁': 'tak', '방': 'bang', '천': 'chun', '봉': 'bong', '옥': 'ok',
+    '가족': 'family', '박물관': 'museum', '의': '',
+};
+
+function toSlug(name) {
+    let result = name.trim().toLowerCase();
+
+    // 한글 단어 → 영문 변환
+    Object.entries(KOREAN_MAP).forEach(([kr, en]) => {
+        result = result.replace(new RegExp(kr, 'g'), en);
+    });
+
+    // 남은 한글 제거, 영문/숫자/하이픈만 유지
+    result = result
+        .replace(/[가-힣ㄱ-ㅎㅏ-ㅣ]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 20);
+
+    return result;
+}
+
 export default function OnboardingNamePage() {
     const navigate = useNavigate();
     const { startOnboarding, setCurrentStep, completeStep, setMuseumName } = useOnboardingStore();
     const { user, isAuthenticated } = useAuthStore();
 
     const [name, setName] = useState('');
-    const [subdomain, setSubdomain] = useState('');
-    const [isAvailable, setIsAvailable] = useState(null);
-    const [checking, setChecking] = useState(false);
+    const [slug, setSlug] = useState('');
+    const [slugEdited, setSlugEdited] = useState(false);
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState('');
+    const [slugError, setSlugError] = useState('');
 
     useEffect(() => {
         startOnboarding();
         setCurrentStep('name');
     }, []);
 
-    // 이미 사이트가 있으면 바로 초대 단계로
+    // 이미 사이트가 있으면 초대 단계로 (401 무시)
     useEffect(() => {
         if (!isAuthenticated) return;
-        axios.get('/api/sites/mine')
+        axios.get('/api/sites/mine', { _skipAuthToast: true })
             .then(({ data }) => {
                 if (data.data?.subdomain) {
                     completeStep('name');
@@ -35,63 +69,56 @@ export default function OnboardingNamePage() {
             .catch(() => {});
     }, [isAuthenticated]);
 
-    // 이름 → subdomain 자동 생성
+    // 이름 변경 → slug 자동 생성 (API 호출 없음)
     const handleNameChange = (val) => {
         setName(val);
         setError('');
-        setIsAvailable(null);
+        if (!slugEdited) {
+            setSlug(toSlug(val));
+            setSlugError('');
+        }
+    };
 
-        // 한글 이름에서 subdomain 후보 생성
-        const clean = val.trim().toLowerCase()
-            .replace(/[가-힣]+/g, (match) => match) // 한글 유지
-            .replace(/\s+/g, '-')
-            .replace(/[^a-z0-9가-힣-]/g, '');
-
-        // 영문 subdomain 자동 추출 (영문자/숫자만)
-        const sub = val.trim().toLowerCase()
-            .replace(/[^a-z0-9]/gi, '')
+    // slug 직접 편집
+    const handleSlugChange = (val) => {
+        const clean = val.toLowerCase()
+            .replace(/[^a-z0-9-]/g, '')
+            .replace(/-+/g, '-')
             .slice(0, 20);
-
-        if (sub.length >= 3) {
-            setSubdomain(sub);
-            checkSubdomain(sub);
-        } else {
-            setSubdomain('');
-        }
+        setSlug(clean);
+        setSlugEdited(true);
+        setSlugError('');
     };
 
-    const checkSubdomain = async (val) => {
-        if (val.length < 3) return;
-        setChecking(true);
-        try {
-            const res = await axios.get(`/api/domain/check?subdomain=${val}`);
-            if (res.data?.success) {
-                setIsAvailable(res.data.available);
-                if (!res.data.available) {
-                    setError('이미 사용 중인 이름이에요. 다른 이름을 시도해보세요.');
-                }
-            }
-        } catch {
-            // 체크 실패 시 그냥 진행 가능하게
-        } finally {
-            setChecking(false);
-        }
-    };
-
+    // [다음] 클릭 시에만 중복 체크 + 생성
     const handleNext = async () => {
         if (!name.trim() || creating) return;
 
+        const finalSlug = slug.length >= 3
+            ? slug
+            : (user?.name || 'family').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) || 'myfamily';
+
+        if (finalSlug.length < 3) {
+            setSlugError('주소는 3자 이상이어야 합니다');
+            return;
+        }
+
         setCreating(true);
         setError('');
+        setSlugError('');
 
         try {
-            // subdomain이 없거나 너무 짧으면 user name 기반 생성
-            const finalSubdomain = subdomain.length >= 3
-                ? subdomain
-                : (user?.name || 'family').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) || 'myfamily';
+            // 중복 체크
+            const checkRes = await axios.get(`/api/domain/check?subdomain=${finalSlug}`);
+            if (checkRes.data?.success && !checkRes.data.available) {
+                setSlugError('이미 사용 중인 주소예요. 다른 주소를 입력해주세요.');
+                setCreating(false);
+                return;
+            }
 
+            // 사이트 생성
             const res = await axios.post('/api/sites', {
-                subdomain: finalSubdomain,
+                subdomain: finalSlug,
                 title: name.trim(),
                 theme: 'modern',
             });
@@ -108,7 +135,7 @@ export default function OnboardingNamePage() {
         } catch (err) {
             const msg = err.response?.data?.message || '생성에 실패했어요.';
             if (msg.includes('taken') || msg.includes('exists')) {
-                setError('이미 사용 중인 이름이에요. 다른 이름을 시도해보세요.');
+                setSlugError('이미 사용 중인 주소예요. 다른 주소를 입력해주세요.');
             } else {
                 setError(msg);
             }
@@ -139,7 +166,10 @@ export default function OnboardingNamePage() {
                     나중에 언제든지 바꿀 수 있어요
                 </p>
 
-                {/* 입력창 */}
+                {/* 박물관 이름 입력 */}
+                <label className="block w-full mb-1.5" style={{ fontSize: 13, fontWeight: 600, color: '#5A5A4A' }}>
+                    박물관 이름
+                </label>
                 <input
                     type="text"
                     value={name}
@@ -159,21 +189,49 @@ export default function OnboardingNamePage() {
                     onKeyDown={(e) => { if (e.key === 'Enter') handleNext(); }}
                 />
 
-                {/* 주소 미리보기 */}
-                {subdomain && (
-                    <p style={{ fontSize: 12, color: '#A09882', marginTop: 8, textAlign: 'center' }}>
-                        주소: <strong style={{ color: '#5A9460' }}>{subdomain}.orgcell.com</strong>
-                        {checking && <span style={{ marginLeft: 6 }}>확인 중...</span>}
-                        {isAvailable === true && <span style={{ marginLeft: 6, color: '#27AE60' }}>사용 가능</span>}
-                    </p>
-                )}
-
-                {/* 에러 */}
                 {error && (
-                    <p style={{ fontSize: 13, color: '#E74C3C', marginTop: 8, textAlign: 'center' }}>
+                    <p style={{ fontSize: 13, color: '#E74C3C', marginTop: 6, textAlign: 'center' }}>
                         {error}
                     </p>
                 )}
+
+                {/* 박물관 주소 입력 */}
+                <label className="block w-full mt-5 mb-1.5" style={{ fontSize: 13, fontWeight: 600, color: '#5A5A4A' }}>
+                    박물관 주소
+                </label>
+                <div className="flex items-center w-full rounded-xl overflow-hidden"
+                    style={{ border: slugError ? '2px solid #E74C3C' : '2px solid #E8E3D8', background: '#fff' }}>
+                    <span className="shrink-0 px-3 py-3 text-sm" style={{ color: '#A09882', background: '#F5F3EE', borderRight: '1px solid #E8E3D8' }}>
+                        orgcell.com /
+                    </span>
+                    <input
+                        type="text"
+                        value={slug}
+                        onChange={(e) => handleSlugChange(e.target.value)}
+                        placeholder="my-family"
+                        maxLength={20}
+                        style={{
+                            flex: 1, height: 48, border: 'none', outline: 'none',
+                            padding: '0 12px', fontSize: 15, color: '#3D2008',
+                            background: 'transparent',
+                        }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleNext(); }}
+                    />
+                </div>
+
+                <p className="w-full mt-1.5" style={{ fontSize: 11, color: '#A09882' }}>
+                    영문 소문자, 숫자, 하이픈만 사용 (3~20자)
+                </p>
+
+                {slugError && (
+                    <p className="w-full" style={{ fontSize: 13, color: '#E74C3C', marginTop: 4 }}>
+                        {slugError}
+                    </p>
+                )}
+
+                <p className="w-full mt-1" style={{ fontSize: 11, color: '#D97706' }}>
+                    ⚠️ 주소는 한번 정하면 변경이 어렵습니다
+                </p>
 
                 {/* 다음 버튼 */}
                 <button
