@@ -7,6 +7,7 @@ import {
     Link2, Camera,
 } from 'lucide-react';
 import axios from 'axios';
+import { toast } from 'react-hot-toast';
 import * as f3 from 'family-chart';
 import 'family-chart/styles/family-chart.css';
 
@@ -178,12 +179,6 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     // ── 카드 HTML 생성 함수 (초기화/업데이트 공용) ──
     const createCardHtml = useCallback((d) => {
         const data = d.data.data || d.data;
-
-        // 가상 부모 노드는 투명하게 최소 렌더링
-        if (data._virtual) {
-            return '<div style="width:1px;height:1px;opacity:0;"></div>';
-        }
-
         const fn = data['first name'] || '';
         const ln = data['last name'] || '';
         const displayName = data.display_name || `${ln}${fn}`.trim() || '?';
@@ -278,7 +273,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 .setCardDim({ w: 130, h: 160 })
                 .setMiniTree(false)
                 .setOnCardClick((e, d) => {
-                    if (canEdit && !String(d.data.id).startsWith('_vp_')) {
+                    if (canEdit) {
                         const raw = persons.find(p => String(p.id) === String(d.data.id));
                         if (raw) openEditModal(raw);
                     }
@@ -309,6 +304,14 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             chartRef.current = chart;
         } catch (err) {
             console.error('family-chart init error:', err);
+            // 차트 생성 실패 시 빈 화면 방지 — 리로드 버튼 표시
+            if (chartContRef.current) {
+                chartContRef.current.innerHTML = `
+                    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:300px;color:#666;">
+                        <p style="font-size:14px;margin-bottom:12px;">트리 로딩 중 오류가 발생했습니다</p>
+                        <button onclick="location.reload()" style="padding:8px 20px;background:#4a7a3a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;">새로고침</button>
+                    </div>`;
+            }
         }
     }, [persons, relations, isLoading, canEdit, createCardHtml]);
 
@@ -476,6 +479,12 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                     parent1_id: siblingRaw.parent1_id,
                     parent2_id: siblingRaw.parent2_id || null,
                 });
+            } else {
+                // 부모 없는 인물의 형제 → 트리에 부모 먼저 추가 안내
+                toast(lang === 'ko'
+                    ? `💡 "${siblingRaw?.name}"의 부모를 먼저 추가하면 형제가 트리에 표시됩니다.`
+                    : `💡 Add parents to "${siblingRaw?.name}" first to show siblings in the tree.`,
+                    { duration: 5000 });
             }
             await apiCreateRelation({
                 person1_id: parseInt(modal.parentId),

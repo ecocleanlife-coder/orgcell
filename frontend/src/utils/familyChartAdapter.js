@@ -72,48 +72,26 @@ export function personsToFamilyChart(persons, relations = []) {
     }
 
     // sibling relations으로 부모 공유 처리
-    // 형제 중 한쪽에 부모가 있으면 다른 쪽에도 복사
-    // 둘 다 부모가 없으면 가상 부모 노드 생성
+    // 형제 중 한쪽에 부모가 있으면 다른 쪽에도 복사 (차트 데이터만, DB 미변경)
+    // 둘 다 부모 없으면 → 연결 불가 → filterConnectedNodes에서 제거됨
     const siblingRelations = relations.filter(r => r.relation_type === 'sibling');
-    const virtualParents = []; // 가상 부모 노드 (DB에 없고 차트 전용)
 
     for (const rel of siblingRelations) {
         const id1 = String(rel.person1_id);
         const id2 = String(rel.person2_id);
-        let p1 = byId[id1];
-        let p2 = byId[id2];
+        const p1 = byId[id1];
+        const p2 = byId[id2];
         if (!p1 || !p2) continue;
 
         if (p1.parent1_id && byId[String(p1.parent1_id)] && !p2.parent1_id) {
-            // p1에 부모 있고 p2에 없음 → p2에 p1의 부모 복사
             byId[id2] = { ...p2, parent1_id: p1.parent1_id, parent2_id: p1.parent2_id };
         } else if (p2.parent1_id && byId[String(p2.parent1_id)] && !p1.parent1_id) {
-            // p2에 부모 있고 p1에 없음 → p1에 p2의 부모 복사
             byId[id1] = { ...p1, parent1_id: p2.parent1_id, parent2_id: p2.parent2_id };
-        } else if (!p1.parent1_id && !p2.parent1_id) {
-            // 둘 다 부모 없음 → 가상 부모 노드 생성
-            const vpId = `_vp_${id1}_${id2}`;
-            if (!byId[vpId]) {
-                const gen = Math.max((p1.generation || 1), (p2.generation || 1)) + 1;
-                const virtualParent = {
-                    id: vpId, name: '', gender: null,
-                    parent1_id: null, parent2_id: null, spouse_id: null,
-                    generation: gen, privacy_level: 'family',
-                    _virtual: true,
-                };
-                byId[vpId] = virtualParent;
-                virtualParents.push(virtualParent);
-            }
-            byId[id1] = { ...byId[id1], parent1_id: vpId };
-            byId[id2] = { ...byId[id2], parent1_id: vpId };
         }
+        // 둘 다 부모 없으면 → 가상 부모 생성하지 않음 (spouse 트리 구조 깨짐 방지)
     }
 
-    // persons 배열도 업데이트된 byId로 재구성 + 가상 부모 추가
-    const effectivePersons = [
-        ...persons.map(p => byId[String(p.id)] || p),
-        ...virtualParents,
-    ];
+    const effectivePersons = persons.map(p => byId[String(p.id)] || p);
 
     // 자녀 역참조 맵 구성: parentId → [childId, ...]
     const childrenMap = {};
@@ -192,7 +170,7 @@ export function personsToFamilyChart(persons, relations = []) {
             data: {
                 'first name': firstName,
                 'last name': lastName,
-                'display_name': p._virtual ? '' : displayName,
+                'display_name': displayName,
                 gender: p.gender === 'male' ? 'M' : p.gender === 'female' ? 'F' : 'M',
                 birthday: p.birth_date || '',
                 avatar: p.photo_url || '',
@@ -203,9 +181,8 @@ export function personsToFamilyChart(persons, relations = []) {
                 death_lunar: p.death_lunar || false,
                 fs_person_id: p.fs_person_id || '',
                 privacy_level: p.privacy_level || 'family',
-                initials: p._virtual ? '' : getInitials(p.name),
+                initials: getInitials(p.name),
                 generation: p.generation || 0,
-                _virtual: !!p._virtual,
             },
             rels: {
                 parents,
