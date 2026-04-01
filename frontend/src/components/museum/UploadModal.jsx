@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
     X, ChevronRight, Camera, Users,
-    Image as ImageIcon, Check, ArrowLeft, Plus, Settings,
+    Image as ImageIcon, Check, ArrowLeft, Plus, Settings, Lightbulb, Sparkles,
 } from 'lucide-react';
 import axios from 'axios';
 import { getVisibilityInfo } from '../../hooks/useVisibility';
+import { findSimilarGroups } from '../../utils/hashUtils';
 
 // ─── 목적지 카드 데이터 ───
 const DEST_PRESETS = [
@@ -46,6 +47,24 @@ const VIS_OPTIONS = ['family', 'public', 'private'].map((key) => {
     const info = getVisibilityInfo(key);
     return { key, label: info.shortLabel, icon: info.icon };
 });
+
+// ─── 기기 감지 ───
+function detectDevice() {
+    const ua = navigator.userAgent || '';
+    if (/Samsung|SM-|Galaxy/i.test(ua)) return 'samsung';
+    if (/Android/i.test(ua)) return 'android';
+    if (/iPhone|iPad|iPod/i.test(ua)) return 'iphone';
+    if (/Macintosh|Mac OS/i.test(ua)) return 'mac';
+    return 'pc';
+}
+
+const DEVICE_GUIDES = {
+    samsung: { icon: '📱', label: '삼성 갤럭시', tip: '내 파일 앱 → DCIM/Camera 폴더에서 사진을 선택해주세요.' },
+    android: { icon: '🤖', label: 'Android', tip: '파일 앱 또는 갤러리 → DCIM/Camera 폴더에서 선택해주세요.' },
+    iphone: { icon: '🍎', label: 'iPhone / iPad', tip: '아래 "사진 보관함"에서 원하는 사진을 선택해주세요.' },
+    mac: { icon: '🍎', label: 'Mac', tip: '사진 앱 → 파일 → 내보내기, 또는 Finder에서 끌어다 놓으세요.' },
+    pc: { icon: '🖥️', label: 'PC', tip: '사진 폴더에서 파일을 끌어다 놓거나, 아래 버튼으로 선택하세요.' },
+};
 
 // ─── UploadModal ───
 export default function UploadModal({ siteId, subdomain, onClose, onDone, initialDest }) {
@@ -153,6 +172,15 @@ export default function UploadModal({ siteId, subdomain, onClose, onDone, initia
     const [dupCount, setDupCount] = useState(0);
     const hashCache = useRef(new Set());
 
+    // 유사 사진 그룹
+    const [similarGroups, setSimilarGroups] = useState([]); // [[idx, idx, ...], ...]
+    const [analyzingSimilar, setAnalyzingSimilar] = useState(false);
+    const [excludedIdxs, setExcludedIdxs] = useState(new Set()); // 사용자가 제외한 인덱스
+
+    // 기기 감지
+    const device = useMemo(() => detectDevice(), []);
+    const deviceGuide = DEVICE_GUIDES[device];
+
     const computeHash = async (file) => {
         const buffer = await file.arrayBuffer();
         const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
@@ -182,7 +210,45 @@ export default function UploadModal({ siteId, subdomain, onClose, onDone, initia
         }
     };
 
-    const removeFile = (idx) => setFiles((prev) => prev.filter((_, i) => i !== idx));
+    // 파일 변경 시 유사 사진 분석
+    useEffect(() => {
+        if (files.length < 2) { setSimilarGroups([]); return; }
+        let cancelled = false;
+        setAnalyzingSimilar(true);
+        findSimilarGroups(files).then((groups) => {
+            if (!cancelled) {
+                setSimilarGroups(groups);
+                setAnalyzingSimilar(false);
+            }
+        }).catch(() => { if (!cancelled) setAnalyzingSimilar(false); });
+        return () => { cancelled = true; };
+    }, [files]);
+
+    const removeFile = (idx) => {
+        setFiles((prev) => prev.filter((_, i) => i !== idx));
+        setExcludedIdxs((prev) => { const next = new Set(prev); next.delete(idx); return next; });
+    };
+
+    // 그룹에서 "이 한 장만 남기기" → 나머지 제외
+    const keepOnlyInGroup = (group, keepIdx) => {
+        setExcludedIdxs((prev) => {
+            const next = new Set(prev);
+            group.forEach((idx) => { if (idx !== keepIdx) next.add(idx); });
+            return next;
+        });
+    };
+
+    // 그룹 전체 유지
+    const keepAllInGroup = (group) => {
+        setExcludedIdxs((prev) => {
+            const next = new Set(prev);
+            group.forEach((idx) => next.delete(idx));
+            return next;
+        });
+    };
+
+    // 최종 업로드할 파일 (제외된 인덱스 빼기)
+    const finalFiles = files.filter((_, i) => !excludedIdxs.has(i));
 
     const handleDrop = (e) => {
         e.preventDefault();
@@ -192,15 +258,15 @@ export default function UploadModal({ siteId, subdomain, onClose, onDone, initia
 
     // 업로드 실행
     const handleUpload = async () => {
-        if (files.length === 0 || !targetExhId) return;
+        if (finalFiles.length === 0 || !targetExhId) return;
         setError('');
         setUploading(true);
         setProgress(0);
 
         const formData = new FormData();
-        files.forEach((f) => formData.append('photos', f));
+        finalFiles.forEach((f) => formData.append('photos', f));
         formData.append('visibility', selectedDest?.defaultVis === 'family' ? parentVis : (selectedDest?.defaultVis || 'private'));
-        formData.append('set_cover', files.length <= 3 ? 'true' : 'false');
+        formData.append('set_cover', finalFiles.length <= 3 ? 'true' : 'false');
 
         try {
             await axios.post(`/api/exhibitions/${targetExhId}/photos`, formData, {
@@ -240,7 +306,7 @@ export default function UploadModal({ siteId, subdomain, onClose, onDone, initia
                             </button>
                         )}
                         <h3 className="text-lg font-bold" style={{ color: '#3a3a2a' }}>
-                            {step === 1 ? '어디에 올릴까요?' : '사진 선택'}
+                            {step === 1 ? '어디에 올릴까요?' : '큐레이션 도우미'}
                         </h3>
                     </div>
                     <button
@@ -351,9 +417,67 @@ export default function UploadModal({ siteId, subdomain, onClose, onDone, initia
                         </div>
                     )}
 
-                    {/* ══ STEP 2: 파일 선택 + 업로드 ══ */}
+                    {/* ══ STEP 2: 큐레이션 도우미 ══ */}
                     {step === 2 && (
                         <div>
+                            {/* 큐레이션 메인 문구 */}
+                            <p className="text-sm leading-relaxed mb-1" style={{ color: '#5a5a4a' }}>
+                                장수를 제한하기보다, 먼저 우리 가족의 소중한 사진을 골라서 시작해 보세요.
+                            </p>
+                            <p className="text-xs mb-4" style={{ color: '#9a9a8a' }}>
+                                사진 찾기를 먼저 도와 드리겠습니다. 정확한 위치를 아시는 분은 바로 선택해 주세요.
+                            </p>
+
+                            {/* 기기별 자동 가이드 */}
+                            <div className="flex items-start gap-2.5 mb-4 p-3 rounded-xl" style={{ background: '#f0f7ec', border: '1px solid #d4e8cc' }}>
+                                <span className="text-lg shrink-0">{deviceGuide.icon}</span>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-bold" style={{ color: '#3a6a2a' }}>{deviceGuide.label} 감지됨</p>
+                                    <p className="text-xs mt-0.5" style={{ color: '#5a8a4a' }}>{deviceGuide.tip}</p>
+                                </div>
+                            </div>
+
+                            {/* 사진 찾기 팁 버튼 */}
+                            <button
+                                onClick={() => setShowPhotoGuide((v) => !v)}
+                                className="flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors hover:bg-amber-50"
+                                style={{ color: '#b8860b', background: '#fffbf0', border: '1px solid #f0e6c8' }}
+                            >
+                                <Lightbulb size={13} /> 사진 찾기 팁
+                            </button>
+
+                            {showPhotoGuide && (
+                                <div className="mb-4 rounded-xl p-4 space-y-3" style={{ background: '#f8f6f0', border: '1px solid #e8e0d0' }}>
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-sm font-bold" style={{ color: '#3a3a2a' }}>기기별 사진 저장 위치</h4>
+                                        <button onClick={() => setShowPhotoGuide(false)} className="text-slate-400"><X size={14} /></button>
+                                    </div>
+                                    <div className="space-y-2.5 text-xs" style={{ color: '#5a5a4a' }}>
+                                        <div>
+                                            <p className="font-bold mb-0.5">📱 삼성 갤럭시</p>
+                                            <p className="pl-4">내 파일 앱 → DCIM → Camera</p>
+                                            <p className="pl-4">갤러리 앱 → 앨범에서 선택</p>
+                                        </div>
+                                        <div>
+                                            <p className="font-bold mb-0.5">🍎 iPhone / iPad</p>
+                                            <p className="pl-4">사진 앱 → 앨범 → 선택 → 공유 → "파일에 저장"</p>
+                                            <p className="pl-4">또는 iCloud.com/photos 에서 다운로드</p>
+                                        </div>
+                                        <div>
+                                            <p className="font-bold mb-0.5">🖥️ PC (Windows / Mac)</p>
+                                            <p className="pl-4">사진 폴더에서 파일을 끌어다 놓으세요</p>
+                                            <p className="pl-4">Windows: 사진 폴더 또는 OneDrive\Pictures</p>
+                                            <p className="pl-4">Mac: ~/Pictures 또는 사진 앱 → 내보내기</p>
+                                        </div>
+                                        <div>
+                                            <p className="font-bold mb-0.5">☁️ 클라우드</p>
+                                            <p className="pl-4">Google Photos → 다운로드</p>
+                                            <p className="pl-4">Google Drive → 내 드라이브에서 다운로드</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* 드래그앤드롭 영역 */}
                             <div
                                 onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -382,20 +506,36 @@ export default function UploadModal({ siteId, subdomain, onClose, onDone, initia
                                 />
                             </div>
 
+                            {/* 중복 제거 알림 */}
+                            {dupCount > 0 && (
+                                <div className="mb-3 p-2.5 rounded-lg flex items-center gap-2 text-xs" style={{ background: '#fef9e7', border: '1px solid #f0e6c8', color: '#b8860b' }}>
+                                    <Sparkles size={14} />
+                                    <span>중복된 사진 <strong>{dupCount}장</strong>을 정리했습니다</span>
+                                </div>
+                            )}
+
                             {/* 미리보기 */}
                             {files.length > 0 && (
                                 <div className="mb-4">
                                     <p className="text-xs font-bold mb-2" style={{ color: '#5a8a4a' }}>
-                                        {files.length}장 선택됨
-                                        {dupCount > 0 && (
-                                            <span className="ml-2 font-normal" style={{ color: '#e67e22' }}>
-                                                ({dupCount}장 중복 제외)
+                                        {finalFiles.length}장 업로드 예정
+                                        {excludedIdxs.size > 0 && (
+                                            <span className="ml-2 font-normal" style={{ color: '#9a9a8a' }}>
+                                                ({excludedIdxs.size}장 큐레이션 제외)
                                             </span>
                                         )}
                                     </p>
                                     <div className="grid grid-cols-4 gap-2">
                                         {previews.map((f, i) => (
-                                            <div key={i} className="relative aspect-square rounded-lg overflow-hidden group" style={{ background: '#f0ece4' }}>
+                                            <div
+                                                key={i}
+                                                className="relative aspect-square rounded-lg overflow-hidden group"
+                                                style={{
+                                                    background: '#f0ece4',
+                                                    opacity: excludedIdxs.has(i) ? 0.35 : 1,
+                                                    transition: 'opacity 0.2s',
+                                                }}
+                                            >
                                                 <img
                                                     src={URL.createObjectURL(f)}
                                                     alt=""
@@ -415,6 +555,61 @@ export default function UploadModal({ siteId, subdomain, onClose, onDone, initia
                                             </div>
                                         )}
                                     </div>
+                                </div>
+                            )}
+
+                            {/* ── 유사 사진 그룹 제안 카드 ── */}
+                            {analyzingSimilar && files.length >= 2 && (
+                                <div className="mb-3 p-3 rounded-xl flex items-center gap-2 text-xs" style={{ background: '#f5f0ff', border: '1px solid #e0d5f5', color: '#7c5cbf' }}>
+                                    <div className="w-4 h-4 border-2 border-[#7c5cbf] border-t-transparent rounded-full animate-spin" />
+                                    비슷한 사진을 분석하고 있어요...
+                                </div>
+                            )}
+
+                            {similarGroups.length > 0 && !analyzingSimilar && (
+                                <div className="mb-4 space-y-3">
+                                    <p className="text-xs font-bold flex items-center gap-1" style={{ color: '#7c5cbf' }}>
+                                        <Sparkles size={13} /> 비슷한 사진이 {similarGroups.length}그룹 발견됐어요
+                                    </p>
+                                    {similarGroups.map((group, gi) => (
+                                        <div key={gi} className="rounded-xl p-3" style={{ background: '#faf8ff', border: '1px solid #e8e0f5' }}>
+                                            <p className="text-xs mb-2" style={{ color: '#5a5a4a' }}>
+                                                가장 잘 나온 한 장만 전시할까요?
+                                            </p>
+                                            <div className="flex gap-2 overflow-x-auto pb-1">
+                                                {group.map((idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => keepOnlyInGroup(group, idx)}
+                                                        className="shrink-0 relative rounded-lg overflow-hidden transition-all"
+                                                        style={{
+                                                            width: 64, height: 64,
+                                                            border: excludedIdxs.has(idx) ? '2px solid #ddd' : '2px solid #7c5cbf',
+                                                            opacity: excludedIdxs.has(idx) ? 0.4 : 1,
+                                                        }}
+                                                    >
+                                                        <img
+                                                            src={URL.createObjectURL(files[idx])}
+                                                            alt=""
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                        {!excludedIdxs.has(idx) && (
+                                                            <div className="absolute bottom-0 left-0 right-0 bg-[#7c5cbf]/80 text-white text-[9px] text-center py-0.5">
+                                                                선택
+                                                            </div>
+                                                        )}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <button
+                                                onClick={() => keepAllInGroup(group)}
+                                                className="mt-2 text-xs underline"
+                                                style={{ color: '#9a9a8a' }}
+                                            >
+                                                전부 유지하기
+                                            </button>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
 
@@ -445,56 +640,18 @@ export default function UploadModal({ siteId, subdomain, onClose, onDone, initia
                             {/* 업로드 버튼 */}
                             <button
                                 onClick={handleUpload}
-                                disabled={uploading || files.length === 0}
+                                disabled={uploading || finalFiles.length === 0}
                                 className="w-full py-3 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition-all hover:brightness-110"
                                 style={{ background: '#5a8a4a' }}
                             >
-                                {uploading ? '업로드 중...' : `업로드 (${files.length}장)`}
+                                {uploading ? '업로드 중...' : `업로드 (${finalFiles.length}장)`}
                             </button>
 
-                            {/* 사진 찾기 가이드 */}
-                            <button
-                                onClick={() => setShowPhotoGuide(true)}
-                                className="w-full mt-3 py-2 text-xs font-semibold text-center transition-colors hover:bg-gray-50 rounded-lg"
-                                style={{ color: '#9a9a8a' }}
-                            >
-                                📂 사진이 어디 있는지 모르겠어요
-                            </button>
-
-                            {showPhotoGuide && (
-                                <div className="mt-3 rounded-xl p-4 space-y-3" style={{ background: '#f8f6f0', border: '1px solid #e8e0d0' }}>
-                                    <div className="flex items-center justify-between">
-                                        <h4 className="text-sm font-bold" style={{ color: '#3a3a2a' }}>기기별 사진 저장 위치</h4>
-                                        <button onClick={() => setShowPhotoGuide(false)} className="text-slate-400"><X size={14} /></button>
-                                    </div>
-                                    <div className="space-y-2.5 text-xs" style={{ color: '#5a5a4a' }}>
-                                        <div>
-                                            <p className="font-bold mb-0.5">🪟 Windows</p>
-                                            <p className="pl-4">C:\Users\사용자명\Pictures</p>
-                                            <p className="pl-4">C:\Users\사용자명\OneDrive\Pictures</p>
-                                        </div>
-                                        <div>
-                                            <p className="font-bold mb-0.5">🍎 Mac</p>
-                                            <p className="pl-4">~/Pictures</p>
-                                            <p className="pl-4">사진 앱 → 파일 → 내보내기</p>
-                                        </div>
-                                        <div>
-                                            <p className="font-bold mb-0.5">📱 iPhone</p>
-                                            <p className="pl-4">사진 앱 → 앨범 → 선택 → 공유 → 파일에 저장</p>
-                                            <p className="pl-4">또는 iCloud.com/photos 에서 다운로드</p>
-                                        </div>
-                                        <div>
-                                            <p className="font-bold mb-0.5">🤖 Android</p>
-                                            <p className="pl-4">DCIM/Camera 폴더</p>
-                                            <p className="pl-4">Google Photos → 다운로드</p>
-                                        </div>
-                                        <div>
-                                            <p className="font-bold mb-0.5">☁️ Google Drive</p>
-                                            <p className="pl-4">drive.google.com → 내 드라이브에서 다운로드</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
+                            {/* 안심 멘트 */}
+                            <p className="mt-4 text-xs text-center leading-relaxed" style={{ color: '#b0a898' }}>
+                                지금은 가장 소중한 몇 장으로 가볍게 시작해 보세요.<br />
+                                나중에 가족에게 요청하거나 클라우드에서 천천히 추가하셔도 충분합니다.
+                            </p>
                         </div>
                     )}
                 </div>

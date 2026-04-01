@@ -14,9 +14,30 @@ export default function OnboardingInvitePage() {
     const [copied, setCopied] = useState(false);
     const [finishing, setFinishing] = useState(false);
 
+    // 온보딩 간소화: invite 페이지 접근 시 대시보드로 리다이렉트
+    useEffect(() => {
+        const setup = JSON.parse(localStorage.getItem('orgcell_family_setup') || '{}');
+        if (setup.subdomain) {
+            finishOnboarding();
+            navigate(`/${setup.subdomain}`, { replace: true });
+            return;
+        }
+        if (isAuthenticated) {
+            axios.get('/api/sites/mine', { _skipAuthToast: true })
+                .then(res => {
+                    const sub = res.data?.data?.subdomain;
+                    if (sub) {
+                        finishOnboarding();
+                        navigate(`/${sub}`, { replace: true });
+                    }
+                })
+                .catch(() => {});
+        }
+    }, [isAuthenticated]);
+
     useEffect(() => { setCurrentStep('invite'); }, []);
 
-    // 사이트 도메인 가져오기
+    // 사이트 도메인 가져오기 (리다이렉트 실패 시 폴백)
     useEffect(() => {
         const setup = JSON.parse(localStorage.getItem('orgcell_family_setup') || '{}');
         if (setup.subdomain) {

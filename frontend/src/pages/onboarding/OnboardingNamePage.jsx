@@ -9,7 +9,7 @@ const SLUG_REGEX = /^[a-z0-9-]*$/;
 
 export default function OnboardingNamePage() {
     const navigate = useNavigate();
-    const { startOnboarding, setCurrentStep, completeStep, setMuseumName } = useOnboardingStore();
+    const { startOnboarding, setCurrentStep, completeStep, finishOnboarding, setMuseumName } = useOnboardingStore();
     const { user, isAuthenticated, isLoading } = useAuthStore();
 
     const [name, setName] = useState('');
@@ -36,14 +36,15 @@ export default function OnboardingNamePage() {
         }
     }, [isLoading, isAuthenticated]);
 
-    // 이미 사이트가 있으면 초대 단계로
+    // 이미 사이트가 있으면 대시보드로 직행
     useEffect(() => {
         if (!isAuthenticated) return;
         axios.get('/api/sites/mine', { _skipAuthToast: true })
             .then(({ data }) => {
                 if (data.data?.subdomain) {
                     completeStep('name');
-                    navigate('/onboarding/invite', { replace: true });
+                    finishOnboarding();
+                    navigate(`/${data.data.subdomain}`, { replace: true });
                 }
             })
             .catch(() => {});
@@ -124,7 +125,8 @@ export default function OnboardingNamePage() {
                 localStorage.setItem('orgcell_family_setup', JSON.stringify({ subdomain: newSub }));
                 setMuseumName(name.trim());
                 completeStep('name');
-                navigate('/onboarding/invite');
+                finishOnboarding();
+                navigate(`/${newSub}`);
             } else {
                 setError(res.data?.message || '생성에 실패했어요. 다시 시도해주세요.');
             }

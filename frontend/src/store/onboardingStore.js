@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 const STORAGE_KEY = 'orgcell_onboarding';
 
-const STEPS = ['name', 'invite'];
+const STEPS = ['name'];
 
 function loadState() {
     try {

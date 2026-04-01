@@ -62,3 +62,66 @@ export async function computeDHash(imageDataUrl) {
         img.onerror = () => reject(new Error("Failed to load image for dHash computation"));
     });
 }
+
+/**
+ * Hamming distance: 두 dHash 간 비트 차이 수 계산
+ * 값이 작을수록 유사한 이미지 (0 = 동일, ≤10 = 유사)
+ */
+export function hammingDistance(hash1, hash2) {
+    if (hash1.length !== hash2.length) return 64;
+    let dist = 0;
+    for (let i = 0; i < hash1.length; i++) {
+        const xor = parseInt(hash1[i], 16) ^ parseInt(hash2[i], 16);
+        dist += [0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4][xor];
+    }
+    return dist;
+}
+
+/**
+ * File → dataURL로 변환 (dHash 계산용)
+ */
+export function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+/**
+ * 파일 배열에서 유사 사진 그룹 찾기
+ * 반환: [{ files: [idx1, idx2, ...], hashes: [...] }, ...]
+ */
+export async function findSimilarGroups(files, threshold = 10) {
+    const hashes = [];
+    for (const file of files) {
+        try {
+            const dataUrl = await fileToDataUrl(file);
+            const hash = await computeDHash(dataUrl);
+            hashes.push(hash);
+        } catch {
+            hashes.push(null);
+        }
+    }
+
+    const visited = new Set();
+    const groups = [];
+
+    for (let i = 0; i < hashes.length; i++) {
+        if (!hashes[i] || visited.has(i)) continue;
+        const group = [i];
+        for (let j = i + 1; j < hashes.length; j++) {
+            if (!hashes[j] || visited.has(j)) continue;
+            if (hammingDistance(hashes[i], hashes[j]) <= threshold) {
+                group.push(j);
+                visited.add(j);
+            }
+        }
+        if (group.length >= 2) {
+            visited.add(i);
+            groups.push(group);
+        }
+    }
+    return groups;
+}
