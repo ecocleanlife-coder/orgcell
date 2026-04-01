@@ -90,6 +90,7 @@ exports.getMySite = async (req, res) => {
             // site_folders table may not exist yet
         }
 
+        res.set({ 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0' });
         res.json({
             success: true,
             data: {

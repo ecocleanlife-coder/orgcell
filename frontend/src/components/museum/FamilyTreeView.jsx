@@ -72,10 +72,11 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         if (!siteId) { setIsLoading(false); return; }
         try {
             setIsLoading(true);
+            const noCache = { headers: { 'Cache-Control': 'no-cache' } };
             const [personsRes, relationsRes, fedRes] = await Promise.all([
-                axios.get(`/api/persons/${siteId}`),
-                axios.get(`/api/persons/${siteId}/relations`).catch(() => ({ data: { data: [] } })),
-                isAuthenticated ? axios.get('/api/federation/list').catch(() => ({ data: { data: [] } })) : Promise.resolve({ data: { data: [] } }),
+                axios.get(`/api/persons/${siteId}`, noCache),
+                axios.get(`/api/persons/${siteId}/relations`, noCache).catch(() => ({ data: { data: [] } })),
+                isAuthenticated ? axios.get('/api/federation/list', noCache).catch(() => ({ data: { data: [] } })) : Promise.resolve({ data: { data: [] } }),
             ]);
             const personsData = personsRes.data?.data || [];
             const relationsData = relationsRes.data?.data || [];
