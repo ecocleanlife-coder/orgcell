@@ -1,20 +1,18 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { getVisibilityInfo } from '../../hooks/useVisibility';
 import {
-    Image as ImageIcon,
-    GalleryThumbnails, ClipboardList, TreePine, Settings,
-    LogIn, Bell, Star, Calendar, MessageSquare, ChevronRight, Download,
-    BookOpen, CalendarDays, Plus, X, Pencil, UserPlus, Sparkles,
-    Upload, Camera, Users,
+    GalleryThumbnails, Settings,
+    LogIn, Bell, Star, Calendar, MessageSquare, Download,
+    Plus, X, Pencil, UserPlus, Sparkles,
+    Upload, Users,
 } from 'lucide-react';
 import axios from 'axios';
 import LanguageSwitcher from '../../components/common/LanguageSwitcher';
 import FamilyTreeView from '../../components/museum/FamilyTreeView';
 import FamilySearchModal from '../../components/common/FamilySearchModal';
-import FamilyCalendar from '../../components/museum/FamilyCalendar';
-import AncestorHallTab from '../../components/museum/AncestorHallTab';
+import DashboardCalendarWidget from '../../components/museum/DashboardCalendarWidget';
+import DashboardExhibitionWidget from '../../components/museum/DashboardExhibitionWidget';
 import PostDetailModal from '../../components/museum/PostDetailModal';
 import OnboardingGuide from '../../components/museum/OnboardingGuide';
 import UploadModal from '../../components/museum/UploadModal';
@@ -22,7 +20,7 @@ import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
 import { getT } from '../../i18n/translations';
 
-// ─── Category meta ───
+// ─── Category meta (글쓰기 모달용) ───
 const CATEGORY_META = {
     notice: { icon: Bell,          color: '#e67e22' },
     daily:  { icon: Star,          color: '#2ecc71' },
@@ -101,74 +99,6 @@ function EmptyState({ emoji, message, actionLabel, onAction }) {
     );
 }
 
-// ─── Exhibition Card ───
-function ExhibitionCard({ exh, t, onClick }) {
-    return (
-        <div
-            onClick={onClick}
-            className="rounded-2xl border bg-white overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-            style={{ borderColor: '#e8e0d0' }}
-        >
-            <div
-                className="h-28 flex items-center justify-center relative"
-                style={{
-                    background: exh.cover_photo
-                        ? `url(${exh.cover_photo}) center/cover`
-                        : 'linear-gradient(135deg, #d8cfe8, #c8e0c0)',
-                }}
-            >
-                {!exh.cover_photo && <ImageIcon size={36} style={{ color: 'rgba(255,255,255,0.7)' }} />}
-                {(() => { const vi = getVisibilityInfo(exh.visibility); const VIcon = vi.icon; return (
-                <span
-                    className="absolute top-2 right-2 text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5"
-                    style={{ background: vi.bg, color: vi.color }}
-                >
-                    <VIcon size={10} />
-                    {exh.visibility === 'public' ? t.subPublic : t.subFamily}
-                </span>
-                ); })()}
-            </div>
-            <div className="p-3">
-                <h3 className="font-bold text-sm truncate" style={{ color: '#3a3a2a' }}>{exh.title}</h3>
-                <p className="text-xs mt-1" style={{ color: '#8a8a7a' }}>
-                    {exh.photo_count} {t.exhPhotos} &bull; {exh.guestbook_count} {t.exhGuestbook}
-                </p>
-            </div>
-        </div>
-    );
-}
-
-// ─── Board Post Row ───
-function PostRow({ post, t, onClick }) {
-    const meta = CATEGORY_META[post.category] || CATEGORY_META.daily;
-    const Icon = meta.icon;
-    const date = new Date(post.created_at).toLocaleDateString();
-    return (
-        <div
-            onClick={onClick}
-            className="flex items-center gap-3 px-4 py-3 border-b last:border-b-0 hover:bg-gray-50 cursor-pointer transition-colors"
-            style={{ borderColor: '#f0ece4' }}
-        >
-            <span
-                className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
-                style={{ background: meta.color + '20' }}
-            >
-                <Icon size={14} style={{ color: meta.color }} />
-            </span>
-            <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate" style={{ color: '#3a3a2a' }}>{post.title}</p>
-                <p className="text-xs" style={{ color: '#9a9a8a' }}>{post.author_name} · {date}</p>
-            </div>
-            {post.comment_count > 0 && (
-                <span className="text-xs shrink-0" style={{ color: '#aaa' }}>
-                    {post.comment_count} {t.boardComments}
-                </span>
-            )}
-            <ChevronRight size={14} style={{ color: '#ccc' }} />
-        </div>
-    );
-}
-
 // ─── Page loader ───
 function PageLoader() {
     return (
@@ -221,9 +151,6 @@ export default function MuseumPage({ initialTab }) {
     // PWA
     const [installPrompt, setInstallPrompt] = useState(null);
     const [isInstalled, setIsInstalled] = useState(false);
-
-    // 섹션 refs (initialTab="board" 자동 스크롤용)
-    const boardRef = useRef(null);
 
     useEffect(() => {
         if (window.matchMedia('(display-mode: standalone)').matches) {
@@ -278,15 +205,6 @@ export default function MuseumPage({ initialTab }) {
             }).catch(() => {});
         }
     }, [site, isAuthenticated, role]);
-
-    // ── initialTab="board" → 자동 스크롤 ──
-    useEffect(() => {
-        if (initialTab === 'board' && boardRef.current && !loading) {
-            setTimeout(() => {
-                boardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 300);
-        }
-    }, [initialTab, loading]);
 
     const handleFriendRequest = async () => {
         if (!site || friendRequesting) return;
@@ -363,22 +281,6 @@ export default function MuseumPage({ initialTab }) {
         }
     };
 
-    // ── 전시관 그룹핑 ──
-    const exhibitionGroups = useMemo(() => {
-        const groups = [
-            { key: 'family', label: '가족공개 전시관', icon: '🟢', items: [] },
-            { key: 'public', label: '일반공개 전시관', icon: '🔵', items: [] },
-        ];
-        exhibitions.forEach((exh) => {
-            if (exh.visibility === 'public') {
-                groups[1].items.push(exh);
-            } else {
-                groups[0].items.push(exh);
-            }
-        });
-        return groups.filter((g) => g.items.length > 0);
-    }, [exhibitions]);
-
     const BOARD_CATS = [
         { key: 'all',    label: t.boardAll },
         { key: 'notice', label: t.boardNotice },
@@ -400,7 +302,6 @@ export default function MuseumPage({ initialTab }) {
 
     const museumName = site?.museum_name || `${subdomain} 가족 박물관`;
     const canEdit = role === 'owner' || role === 'member';
-    const recentPosts = posts.slice(0, 3);
 
     return (
         <div className="min-h-screen font-sans" style={{ background: '#FAFAF7' }}>
@@ -469,85 +370,33 @@ export default function MuseumPage({ initialTab }) {
             {/* ════ 메인 콘텐츠 (스크롤) ════ */}
             <main className="max-w-5xl mx-auto px-4 py-6 pb-28">
 
-                {/* ══ 2열 위젯 그리드: 달력 + 전시관 ══ */}
+                {/* ══ 2열 대시보드 위젯 (50:50 강제) ══ */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
-                    {/* 왼쪽: 가족 행사 미니 달력 */}
-                    <section id="section-calendar" className="min-w-0">
-                        <SectionHeader title="우리 가족 달력" icon={CalendarDays} />
-                        <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: '1px solid #e8e0d0' }}>
-                            <FamilyCalendar siteId={site?.id} role={role} t={t} />
-                        </div>
-                    </section>
-
-                    {/* 오른쪽: 전시관 위젯 */}
-                    <section id="section-exhibition" className="min-w-0">
-                        <SectionHeader
-                            title="우리 가족 전시관"
-                            actionLabel={canEdit ? '+ 새 전시관' : undefined}
-                            onAction={() => setShowUploadModal(true)}
-                            icon={Plus}
-                        />
-                        {exhLoading ? (
-                            <div className="grid grid-cols-2 gap-3">
-                                {[...Array(4)].map((_, i) => (
-                                    <div key={i} className="rounded-2xl border bg-white animate-pulse" style={{ borderColor: '#e8e0d0', height: 160 }}>
-                                        <div className="h-24 rounded-t-2xl bg-gray-200" />
-                                        <div className="p-3 space-y-2">
-                                            <div className="h-4 bg-gray-200 rounded w-2/3" />
-                                            <div className="h-3 bg-gray-100 rounded w-1/3" />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : exhibitions.length === 0 ? (
-                            <div className="bg-white rounded-2xl shadow-sm" style={{ border: '1px solid #e8e0d0' }}>
-                                <EmptyState
-                                    emoji="📷"
-                                    message="첫 사진을 올려보세요"
-                                    actionLabel={canEdit ? '업로드' : undefined}
-                                    onAction={() => setShowUploadModal(true)}
-                                />
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                {exhibitionGroups.map((group) => (
-                                    <div key={group.key}>
-                                        <p className="text-xs font-bold mb-2 flex items-center gap-1.5" style={{ color: '#7a7a6a' }}>
-                                            <span>{group.icon}</span> {group.label}
-                                        </p>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            {group.items.map((exh) => (
-                                                <ExhibitionCard
-                                                    key={exh.id}
-                                                    exh={exh}
-                                                    t={t}
-                                                    onClick={() => navigate(`/${subdomain}/gallery/${exh.id}`)}
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                        {/* 내 보관함 바로가기 */}
-                        {canEdit && (
-                            <button
-                                onClick={() => { setUploadInitialDest('private'); setShowUploadModal(true); }}
-                                className="w-full mt-3 flex items-center gap-3 p-4 rounded-xl border transition-all hover:bg-gray-50 text-left"
-                                style={{ borderColor: '#e8e0d0', background: '#faf8f4' }}
-                            >
-                                <span className="text-xl">🔒</span>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-bold" style={{ color: '#3a3a2a' }}>내 보관함</p>
-                                    <p className="text-xs" style={{ color: '#9a9a8a' }}>나만 볼 수 있는 사진 보관함</p>
-                                </div>
-                                <Camera size={16} style={{ color: '#9a9a8a' }} />
-                            </button>
-                        )}
-                    </section>
+                    <DashboardCalendarWidget
+                        siteId={site?.id}
+                        role={role}
+                        t={t}
+                        posts={posts}
+                        boardLoading={boardLoading}
+                        canEdit={canEdit}
+                        onPostClick={(id) => setSelectedPostId(id)}
+                        onWritePost={() => setShowCreatePost(true)}
+                    />
+                    <DashboardExhibitionWidget
+                        siteId={site?.id}
+                        role={role}
+                        t={t}
+                        subdomain={subdomain}
+                        exhibitions={exhibitions}
+                        exhLoading={exhLoading}
+                        canEdit={canEdit}
+                        onUpload={() => setShowUploadModal(true)}
+                        onPrivateUpload={() => { setUploadInitialDest('private'); setShowUploadModal(true); }}
+                        onNavigate={navigate}
+                    />
                 </div>
 
-                {/* ══ 가족트리 (풀 높이) ══ */}
+                {/* ══ 가족트리 (나머지 화면 채움) ══ */}
                 <Section id="section-tree">
                     <SectionHeader
                         title="우리 가족"
@@ -555,7 +404,7 @@ export default function MuseumPage({ initialTab }) {
                         onAction={() => {/* FamilyTreeView 내부에서 처리 */}}
                         icon={UserPlus}
                     />
-                    <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: '1px solid #e8e0d0', minHeight: '100vh' }}>
+                    <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: '1px solid #e8e0d0', minHeight: '70vh' }}>
                         <FamilyTreeView siteId={site?.id} readOnly={role === 'public'} role={role} />
                     </div>
                     {canEdit && (
@@ -572,7 +421,7 @@ export default function MuseumPage({ initialTab }) {
                     )}
                 </Section>
 
-                {/* ══ SECTION 4: 사진 요청 배너 ══ */}
+                {/* ══ 사진 요청 배너 ══ */}
                 {canEdit && (
                     <Section id="section-request">
                         <div
@@ -583,7 +432,7 @@ export default function MuseumPage({ initialTab }) {
                                 가족에게 사진을 요청해보세요
                             </p>
                             <p className="text-sm mb-4" style={{ color: '#4a8a4a' }}>
-                                박물관을 둘러보고 추억 사진을 올려줄 거예요 😊
+                                박물관을 둘러보고 추억 사진을 올려줄 거예요
                             </p>
                             <button
                                 onClick={() => navigate('/museum')}
@@ -596,64 +445,6 @@ export default function MuseumPage({ initialTab }) {
                         </div>
                     </Section>
                 )}
-
-                {/* ══ SECTION 5: 최근 게시판 ══ */}
-                <div ref={boardRef}>
-                    <Section id="section-board">
-                            <SectionHeader
-                                title="최근 게시판"
-                                actionLabel="게시판 전체보기"
-                                onAction={() => navigate(`/${subdomain}/board`)}
-                                icon={ClipboardList}
-                            />
-
-                            <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: '1px solid #e8e0d0' }}>
-                                {boardLoading ? (
-                                    <div className="p-8 text-center">
-                                        <div className="w-8 h-8 border-2 border-gray-200 border-t-gray-600 rounded-full animate-spin mx-auto" />
-                                    </div>
-                                ) : posts.length === 0 ? (
-                                    <EmptyState
-                                        emoji="✏️"
-                                        message="첫 글을 써보세요"
-                                        actionLabel={canEdit ? '글쓰기' : undefined}
-                                        onAction={() => setShowCreatePost(true)}
-                                    />
-                                ) : (
-                                    <>
-                                        {recentPosts.map((post) => (
-                                            <PostRow key={post.id} post={post} t={t} onClick={() => setSelectedPostId(post.id)} />
-                                        ))}
-                                        {posts.length > 3 && (
-                                            <div className="px-4 py-3 text-center border-t" style={{ borderColor: '#f0ece4' }}>
-                                                <button
-                                                    onClick={() => navigate(`/${subdomain}/board`)}
-                                                    className="text-sm font-bold transition-colors hover:underline"
-                                                    style={{ color: '#5a8a4a' }}
-                                                >
-                                                    게시판 전체보기 ({posts.length}개)
-                                                </button>
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-
-                            {/* 글쓰기 버튼 */}
-                            {canEdit && posts.length > 0 && (
-                                <div className="mt-3 text-right">
-                                    <button
-                                        onClick={() => setShowCreatePost(true)}
-                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold"
-                                        style={{ background: '#3a3a2a', color: '#fff' }}
-                                    >
-                                        <Pencil size={12} />
-                                        {t.boardWriteBtn}
-                                    </button>
-                                </div>
-                            )}
-                        </Section>
-                    </div>
             </main>
 
             {/* ════ 플로팅 업로드 버튼 (우측 하단) ════ */}
