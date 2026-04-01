@@ -83,6 +83,7 @@ const NO_LAYOUT_PATTERNS = [
   '/onedrive-callback',
   '/dropbox-callback',
   '/familysearch-callback',
+  '/familysearchcallback',
   '/invite',     // 초대 수락 페이지 (정확 일치)
 ];
 
@@ -142,6 +143,7 @@ function App() {
         <Route path="/drive-callback" element={<Suspense fallback={<PageLoader />}><DriveCallback /></Suspense>} />
         <Route path="/onedrive-callback" element={<Suspense fallback={<PageLoader />}><OneDriveCallback /></Suspense>} />
         <Route path="/familysearch-callback" element={<Suspense fallback={<PageLoader />}><FamilySearchCallback /></Suspense>} />
+        <Route path="/familysearchcallback" element={<Suspense fallback={<PageLoader />}><FamilySearchCallback /></Suspense>} />
         <Route path="/dropbox-callback" element={<Suspense fallback={<PageLoader />}><DropboxCallback /></Suspense>} />
         <Route path="/auth/verify" element={<Suspense fallback={<PageLoader />}><MagicLinkVerify /></Suspense>} />
         <Route path="/auth/login" element={<Suspense fallback={<PageLoader />}><LoginPage /></Suspense>} />
