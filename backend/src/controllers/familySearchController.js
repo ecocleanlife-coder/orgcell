@@ -3,7 +3,7 @@ const db = require('../config/db');
 
 const FS_APP_KEY = process.env.FS_APP_KEY || 'b00B25XDYH90S6W5RKFF';
 const FS_AUTH_BASE = process.env.FS_AUTH_BASE || 'https://identbeta.familysearch.org';
-const FS_API_BASE = process.env.FS_API_BASE || 'https://api.familysearch.org';
+const FS_API_BASE = process.env.FS_API_BASE || 'https://api-integ.familysearch.org';
 const REDIRECT_URI = `${process.env.FRONTEND_URL || 'https://orgcell.com'}/familysearch-callback`;
 
 // ── Helper: FS API 호출 ──
@@ -164,7 +164,7 @@ exports.getFsTree = async (req, res) => {
                     if (!parentRow) continue;
 
                     await db.query(
-                        `INSERT INTO person_relations (site_id, person_id, related_person_id, relation_type, fs_relationship_id)
+                        `INSERT INTO person_relations (site_id, person1_id, person2_id, relation_type, fs_relationship_id)
                          VALUES ($1, $2, $3, 'parent', $4)
                          ON CONFLICT DO NOTHING`,
                         [siteId, parentRow.id, childRow.id, rel.id || null]

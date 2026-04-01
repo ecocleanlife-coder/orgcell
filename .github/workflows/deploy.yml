@@ -215,7 +215,7 @@ jobs:
             # FamilySearch Beta API
             upsert_env FS_APP_KEY "b00B25XDYH90S6W5RKFF"
             upsert_env FS_AUTH_BASE "https://identbeta.familysearch.org"
-            upsert_env FS_API_BASE "https://api.familysearch.org"
+            upsert_env FS_API_BASE "https://api-integ.familysearch.org"
 
             echo "✅ /opt/orgcell/.env env keys:"
             grep -o "^[^=]*" "$ENV_FILE" | sort

@@ -76,12 +76,20 @@ export default function FamilySearchModal({ onClose }) {
         setTargetCount(match || (key.length > 0 ? DEFAULT_COUNT : 0));
     };
 
-    const handleAction = () => {
+    const handleAction = async () => {
         onClose();
         if (!isAuthenticated) {
             navigate('/onboarding/name');
         } else if (hasSite) {
-            navigate('/familysearch-callback');
+            // OAuth 인증 URL로 리다이렉트 (콜백에서 코드 수신)
+            try {
+                const { data } = await axios.get('/api/familysearch/auth');
+                if (data?.authUrl) {
+                    window.location.href = data.authUrl;
+                }
+            } catch (err) {
+                console.error('FamilySearch auth error:', err);
+            }
         } else {
             navigate('/onboarding/name');
         }

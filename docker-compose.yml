@@ -15,6 +15,9 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - FRONTEND_URL=${FRONTEND_URL}
+      - FS_APP_KEY=${FS_APP_KEY}
+      - FS_AUTH_BASE=${FS_AUTH_BASE}
+      - FS_API_BASE=${FS_API_BASE}
     volumes:
       - uploads:/app/uploads
     depends_on:
