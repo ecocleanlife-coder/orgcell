@@ -254,12 +254,12 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             try {
                 chartRef.current.updateData(safeData);
                 chartRef.current.updateTree({ tree_position: 'inherit' });
-                return;
             } catch (err) {
-                console.error('family-chart update error:', err, 'chartData:', safeData.length, 'mainId:', mainIdRef.current);
-                // 업데이트 실패 시 차트 전체 재생성
-                chartRef.current = null;
+                console.error('family-chart update error, keeping old chart:', err);
+                // 업데이트 실패해도 기존 차트 유지 (사라짐 방지)
+                // 다음 데이터 변경 시 재시도됨
             }
+            return;
         }
 
         // 차트 DOM 초기화 (첫 생성 시에만)
@@ -595,7 +595,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         setSubmitting(true);
 
         const childNode = persons.find(p => String(p.id) === String(modal.childId));
-        const parentGen = (childNode?.generation || 1) + 1;
+        const parentGen = Math.max((childNode?.generation || 1) - 1, 0);
 
         const p1 = await apiCreatePerson({
             name: parent1Name.trim(),

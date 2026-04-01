@@ -63,12 +63,20 @@ function getInitials(name) {
  * @param {Array} relations - DB person_relations 배열
  * @returns {Array} family-chart Data 형식
  */
+// DB gender ('M'/'F') → 내부 통일 형식 ('male'/'female')
+function normalizeGender(g) {
+    if (!g) return 'male';
+    const lower = String(g).toLowerCase();
+    if (lower === 'f' || lower === 'female') return 'female';
+    return 'male';
+}
+
 export function personsToFamilyChart(persons, relations = []) {
     if (!persons || persons.length === 0) return [];
 
     const byId = {};
     for (const p of persons) {
-        byId[String(p.id)] = p;
+        byId[String(p.id)] = { ...p, gender: normalizeGender(p.gender) };
     }
 
     // sibling relations으로 부모 공유 처리
