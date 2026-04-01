@@ -202,16 +202,33 @@ export function personsToFamilyChart(persons, relations = []) {
 export function filterConnectedNodes(data, mainId) {
     if (!data || data.length === 0 || !mainId) return data;
 
+    const mainStr = String(mainId);
+    // mainId가 데이터에 없으면 필터링 하지 않음 (전체 데이터 유지)
+    if (!data.find(d => d.id === mainStr)) return data;
+
+    // 양방향 adjacency 구성 (A→B가 있으면 B→A도 추가)
     const adjacency = {};
     for (const node of data) {
-        adjacency[node.id] = new Set();
-        for (const pid of (node.rels.parents || [])) adjacency[node.id].add(pid);
-        for (const sid of (node.rels.spouses || [])) adjacency[node.id].add(sid);
-        for (const cid of (node.rels.children || [])) adjacency[node.id].add(cid);
+        if (!adjacency[node.id]) adjacency[node.id] = new Set();
+        for (const pid of (node.rels.parents || [])) {
+            adjacency[node.id].add(pid);
+            if (!adjacency[pid]) adjacency[pid] = new Set();
+            adjacency[pid].add(node.id);
+        }
+        for (const sid of (node.rels.spouses || [])) {
+            adjacency[node.id].add(sid);
+            if (!adjacency[sid]) adjacency[sid] = new Set();
+            adjacency[sid].add(node.id);
+        }
+        for (const cid of (node.rels.children || [])) {
+            adjacency[node.id].add(cid);
+            if (!adjacency[cid]) adjacency[cid] = new Set();
+            adjacency[cid].add(node.id);
+        }
     }
 
     const connected = new Set();
-    const queue = [String(mainId)];
+    const queue = [mainStr];
     while (queue.length > 0) {
         const current = queue.shift();
         if (connected.has(current)) continue;
@@ -224,7 +241,9 @@ export function filterConnectedNodes(data, mainId) {
         }
     }
 
-    return data.filter(d => connected.has(d.id));
+    const filtered = data.filter(d => connected.has(d.id));
+    // 필터 결과가 비어있으면 원본 유지 (트리 사라짐 방지)
+    return filtered.length > 0 ? filtered : data;
 }
 
 /**

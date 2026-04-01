@@ -246,14 +246,18 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         const chartData = filterConnectedNodes(rawData, mainIdRef.current);
         if (chartData.length === 0) return;
 
+        // deep copy로 library 내부 mutation이 원본 데이터를 오염시키지 않도록 방지
+        const safeData = JSON.parse(JSON.stringify(chartData));
+
         // 기존 차트가 있으면 데이터만 업데이트
         if (chartRef.current) {
             try {
-                chartRef.current.updateData(chartData);
+                chartRef.current.updateData(safeData);
                 chartRef.current.updateTree({ tree_position: 'inherit' });
                 return;
             } catch (err) {
-                console.error('family-chart update error, recreating:', err);
+                console.error('family-chart update error:', err, 'chartData:', safeData.length, 'mainId:', mainIdRef.current);
+                // 업데이트 실패 시 차트 전체 재생성
                 chartRef.current = null;
             }
         }
@@ -262,7 +266,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         chartContRef.current.innerHTML = '';
 
         try {
-            const chart = f3.createChart(chartContRef.current, chartData);
+            // 재생성 시에도 deep copy 사용 (이전 시도에서 mutation 되었을 수 있음)
+            const freshData = JSON.parse(JSON.stringify(chartData));
+            const chart = f3.createChart(chartContRef.current, freshData);
 
             chart.setCardXSpacing(180);
             chart.setCardYSpacing(200);
@@ -443,59 +449,92 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         if (!newName.trim()) return;
         setSubmitting(true);
 
-        const parentNode = persons.find(p => String(p.id) === String(modal.parentId));
-        const parentGen = parentNode?.generation || 1;
-        let gen = parentGen;
-        if (modal.relation === 'child') gen = Math.max(parentGen - 1, 0);
-        if (modal.relation === 'spouse' || modal.relation === 'sibling') gen = parentGen;
+        try {
+            const parentNode = persons.find(p => String(p.id) === String(modal.parentId));
+            const parentGen = parentNode?.generation || 1;
+            let gen = parentGen;
+            if (modal.relation === 'child') gen = parentGen + 1;
+            if (modal.relation === 'spouse' || modal.relation === 'sibling') gen = parentGen;
 
-        const data = {
-            name: newName.trim(),
-            birth_date: newBirthDate || null,
-            birth_lunar: newBirthLunar,
-            is_deceased: newDeceased,
-            death_date: newDeceased ? (newDeathDate || null) : null,
-            death_lunar: newDeceased ? newDeathLunar : false,
-            gender: newGender || null,
-            privacy_level: newPrivacy,
-            generation: gen,
-        };
+            const data = {
+                name: newName.trim(),
+                birth_date: newBirthDate || null,
+                birth_lunar: newBirthLunar,
+                is_deceased: newDeceased,
+                death_date: newDeceased ? (newDeathDate || null) : null,
+                death_lunar: newDeceased ? newDeathLunar : false,
+                gender: newGender || null,
+                privacy_level: newPrivacy,
+                generation: gen,
+            };
 
-        if (modal.relation === 'child' && modal.parentId) {
-            data.parent1_id = parseInt(modal.parentId);
-        }
-
-        const created = await apiCreatePerson(data);
-
-        if (created && modal.relation === 'spouse' && modal.parentId) {
-            await apiUpdatePerson(modal.parentId, { spouse_id: created.id });
-            await apiUpdatePerson(created.id, { spouse_id: parseInt(modal.parentId) });
-        }
-
-        if (created && modal.relation === 'sibling' && modal.parentId) {
-            const siblingRaw = parentNode;
-            if (siblingRaw?.parent1_id) {
-                await apiUpdatePerson(created.id, {
-                    parent1_id: siblingRaw.parent1_id,
-                    parent2_id: siblingRaw.parent2_id || null,
-                });
-            } else {
-                // 부모 없는 인물의 형제 → 트리에 부모 먼저 추가 안내
-                toast(lang === 'ko'
-                    ? `💡 "${siblingRaw?.name}"의 부모를 먼저 추가하면 형제가 트리에 표시됩니다.`
-                    : `💡 Add parents to "${siblingRaw?.name}" first to show siblings in the tree.`,
-                    { duration: 5000 });
+            if (modal.relation === 'child' && modal.parentId) {
+                data.parent1_id = parseInt(modal.parentId);
             }
-            await apiCreateRelation({
-                person1_id: parseInt(modal.parentId),
-                person2_id: created.id,
-                relation_type: 'sibling',
-            });
-        }
 
-        await fetchPersons();
-        setSubmitting(false);
-        setModal(null);
+            const created = await apiCreatePerson(data);
+
+            if (created && modal.relation === 'spouse' && modal.parentId) {
+                await apiUpdatePerson(modal.parentId, { spouse_id: created.id });
+                await apiUpdatePerson(created.id, { spouse_id: parseInt(modal.parentId) });
+            }
+
+            if (created && modal.relation === 'sibling' && modal.parentId) {
+                if (parentNode?.parent1_id) {
+                    // 부모가 있으면 같은 부모 공유
+                    await apiUpdatePerson(created.id, {
+                        parent1_id: parentNode.parent1_id,
+                        parent2_id: parentNode.parent2_id || null,
+                    });
+                } else {
+                    // 부모가 없으면 임시 부모 자동 생성
+                    const tempParentGen = Math.max(parentGen - 1, 0);
+                    const personName = parentNode?.name || '?';
+                    const tempFather = await apiCreatePerson({
+                        name: lang === 'ko' ? `${personName}의 아버지` : `${personName}'s Father`,
+                        gender: 'male',
+                        generation: tempParentGen,
+                        privacy_level: 'family',
+                    });
+                    const tempMother = await apiCreatePerson({
+                        name: lang === 'ko' ? `${personName}의 어머니` : `${personName}'s Mother`,
+                        gender: 'female',
+                        generation: tempParentGen,
+                        privacy_level: 'family',
+                    });
+                    if (tempFather && tempMother) {
+                        await apiUpdatePerson(tempFather.id, { spouse_id: tempMother.id });
+                        await apiUpdatePerson(tempMother.id, { spouse_id: tempFather.id });
+                        // 기존 인물에 부모 연결
+                        await apiUpdatePerson(modal.parentId, {
+                            parent1_id: tempFather.id,
+                            parent2_id: tempMother.id,
+                        });
+                        // 새 형제에도 같은 부모 연결
+                        await apiUpdatePerson(created.id, {
+                            parent1_id: tempFather.id,
+                            parent2_id: tempMother.id,
+                        });
+                    }
+                    toast(lang === 'ko'
+                        ? `"${personName}의 아버지/어머니"가 임시로 생성되었습니다. 이름을 수정해주세요.`
+                        : `Temporary parents created for "${personName}". Please update their names.`,
+                        { icon: '📝', duration: 5000 });
+                }
+                await apiCreateRelation({
+                    person1_id: parseInt(modal.parentId),
+                    person2_id: created.id,
+                    relation_type: 'sibling',
+                });
+            }
+        } catch (err) {
+            console.error('handleMemberSubmit error:', err);
+            toast(lang === 'ko' ? '저장 중 오류가 발생했습니다.' : 'Error saving.', { icon: '❌' });
+        } finally {
+            await fetchPersons();
+            setSubmitting(false);
+            setModal(null);
+        }
     };
 
     const handleAddFirstSubmit = async () => {
