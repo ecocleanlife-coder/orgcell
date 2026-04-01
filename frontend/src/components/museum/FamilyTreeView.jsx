@@ -14,7 +14,7 @@ import WormholePortal from './WormholePortal';
 import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
 import { getT } from '../../i18n/translations';
-import { personsToFamilyChart, getMainPersonId } from '../../utils/familyChartAdapter';
+import { personsToFamilyChart, getMainPersonId, filterConnectedNodes } from '../../utils/familyChartAdapter';
 
 // ── Constants ──
 const GENDER_OPTIONS = [
@@ -235,7 +235,14 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     useEffect(() => {
         if (isLoading || persons.length === 0 || !chartContRef.current) return;
 
-        const chartData = personsToFamilyChart(persons, relations);
+        // mainId는 첫 로드 시에만 결정
+        if (!mainIdRef.current) {
+            mainIdRef.current = getMainPersonId(persons);
+        }
+
+        const rawData = personsToFamilyChart(persons, relations);
+        // 메인 인물에서 도달 불가능한 단절 노드 제거 (크래시 방지)
+        const chartData = filterConnectedNodes(rawData, mainIdRef.current);
         if (chartData.length === 0) return;
 
         // 기존 차트가 있으면 데이터만 업데이트
@@ -248,11 +255,6 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 console.error('family-chart update error, recreating:', err);
                 chartRef.current = null;
             }
-        }
-
-        // mainId는 첫 로드 시에만 결정
-        if (!mainIdRef.current) {
-            mainIdRef.current = getMainPersonId(persons);
         }
 
         // 차트 DOM 초기화 (첫 생성 시에만)

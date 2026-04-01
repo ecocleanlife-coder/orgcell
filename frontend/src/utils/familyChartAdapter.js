@@ -174,6 +174,38 @@ export function personsToFamilyChart(persons, relations = []) {
 }
 
 /**
+ * 메인 인물에서 도달 가능한 노드만 필터링 (BFS)
+ * 단절된 고아 노드는 family-chart 크래시를 유발하므로 제외
+ */
+export function filterConnectedNodes(data, mainId) {
+    if (!data || data.length === 0 || !mainId) return data;
+
+    const adjacency = {};
+    for (const node of data) {
+        adjacency[node.id] = new Set();
+        for (const pid of (node.rels.parents || [])) adjacency[node.id].add(pid);
+        for (const sid of (node.rels.spouses || [])) adjacency[node.id].add(sid);
+        for (const cid of (node.rels.children || [])) adjacency[node.id].add(cid);
+    }
+
+    const connected = new Set();
+    const queue = [String(mainId)];
+    while (queue.length > 0) {
+        const current = queue.shift();
+        if (connected.has(current)) continue;
+        connected.add(current);
+        const neighbors = adjacency[current];
+        if (neighbors) {
+            for (const n of neighbors) {
+                if (!connected.has(n)) queue.push(n);
+            }
+        }
+    }
+
+    return data.filter(d => connected.has(d.id));
+}
+
+/**
  * family-chart 메인 인물 ID 결정
  * gen 1 중 가장 낮은 id → 형제 추가해도 변경 없음
  */
