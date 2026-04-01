@@ -9,6 +9,8 @@ const app = express();
 
 // nginx 리버스 프록시 뒤에서 실행 — X-Forwarded-For 신뢰
 app.set('trust proxy', 1);
+// ETag 비활성화 — 304 캐시 응답 방지 (트리 데이터 갱신 보장)
+app.set('etag', false);
 
 // Middleware
 app.use(cors({
