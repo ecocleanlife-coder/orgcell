@@ -67,7 +67,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     };
 
     // ── Fetch persons + relations from API ──
-    const fetchPersons = useCallback(async () => {
+    const fetchPersons = useCallback(async (retry = 0) => {
         if (!siteId) { setIsLoading(false); return; }
         try {
             setIsLoading(true);
@@ -84,6 +84,10 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             return personsData;
         } catch (err) {
             console.error('Failed to load persons:', err);
+            // 첫 실패 시 1회 재시도 (incognito 등 초기 로딩 실패 대비)
+            if (retry < 1) {
+                return fetchPersons(retry + 1);
+            }
             return null;
         } finally {
             setIsLoading(false);
@@ -971,19 +975,19 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                 {/* 관계 추가 버튼 */}
                                 {canEdit && (
                                     <div className="flex gap-1.5 flex-wrap">
-                                        <button onClick={() => { const eid = editPerson.id; setModal(null); setTimeout(() => openParentsModal(eid), 100); }}
+                                        <button onClick={() => { const eid = editPerson.id; setEditPerson(null); setModal(null); setTimeout(() => openParentsModal(eid), 100); }}
                                             className="px-2 py-1 text-[10px] font-bold bg-indigo-100 text-indigo-600 rounded-lg hover:bg-indigo-200 transition-colors flex items-center gap-0.5">
                                             <ChevronUp size={10} /> {lang === 'ko' ? '부모' : 'Parent'}
                                         </button>
-                                        <button onClick={() => { const eid = editPerson.id; setModal(null); setTimeout(() => openMemberModal(eid, 'spouse', eid), 100); }}
+                                        <button onClick={() => { const eid = editPerson.id; setEditPerson(null); setModal(null); setTimeout(() => openMemberModal(eid, 'spouse', eid), 100); }}
                                             className="px-2 py-1 text-[10px] font-bold bg-rose-100 text-rose-600 rounded-lg hover:bg-rose-200 transition-colors flex items-center gap-0.5">
                                             <ChevronRight size={10} /> {lang === 'ko' ? '배우자' : 'Spouse'}
                                         </button>
-                                        <button onClick={() => { const eid = editPerson.id; setModal(null); setTimeout(() => openMemberModal(eid, 'child', eid), 100); }}
+                                        <button onClick={() => { const eid = editPerson.id; setEditPerson(null); setModal(null); setTimeout(() => openMemberModal(eid, 'child', eid), 100); }}
                                             className="px-2 py-1 text-[10px] font-bold bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-200 transition-colors flex items-center gap-0.5">
                                             <ChevronDown size={10} /> {lang === 'ko' ? '자녀' : 'Child'}
                                         </button>
-                                        <button onClick={() => { const eid = editPerson.id; setModal(null); setTimeout(() => openMemberModal(eid, 'sibling', eid), 100); }}
+                                        <button onClick={() => { const eid = editPerson.id; setEditPerson(null); setModal(null); setTimeout(() => openMemberModal(eid, 'sibling', eid), 100); }}
                                             className="px-2 py-1 text-[10px] font-bold bg-amber-100 text-amber-600 rounded-lg hover:bg-amber-200 transition-colors flex items-center gap-0.5">
                                             <ChevronLeft size={10} /> {lang === 'ko' ? '형제' : 'Sibling'}
                                         </button>
