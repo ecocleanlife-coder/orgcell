@@ -3,6 +3,7 @@ FROM node:20-alpine AS build
 WORKDIR /app
 
 COPY package*.json ./
+COPY patches/ ./patches/
 RUN npm ci --legacy-peer-deps
 
 COPY . .
