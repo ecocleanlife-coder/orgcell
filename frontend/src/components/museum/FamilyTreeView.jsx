@@ -178,6 +178,12 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     // ── 카드 HTML 생성 함수 (초기화/업데이트 공용) ──
     const createCardHtml = useCallback((d) => {
         const data = d.data.data || d.data;
+
+        // 가상 부모 노드는 투명하게 최소 렌더링
+        if (data._virtual) {
+            return '<div style="width:1px;height:1px;opacity:0;"></div>';
+        }
+
         const fn = data['first name'] || '';
         const ln = data['last name'] || '';
         const displayName = data.display_name || `${ln}${fn}`.trim() || '?';
@@ -272,7 +278,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 .setCardDim({ w: 130, h: 160 })
                 .setMiniTree(false)
                 .setOnCardClick((e, d) => {
-                    if (canEdit) {
+                    if (canEdit && !String(d.data.id).startsWith('_vp_')) {
                         const raw = persons.find(p => String(p.id) === String(d.data.id));
                         if (raw) openEditModal(raw);
                     }

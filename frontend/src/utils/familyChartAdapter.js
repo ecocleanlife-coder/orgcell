@@ -71,17 +71,61 @@ export function personsToFamilyChart(persons, relations = []) {
         byId[String(p.id)] = p;
     }
 
+    // sibling relations으로 부모 공유 처리
+    // 형제 중 한쪽에 부모가 있으면 다른 쪽에도 복사
+    // 둘 다 부모가 없으면 가상 부모 노드 생성
+    const siblingRelations = relations.filter(r => r.relation_type === 'sibling');
+    const virtualParents = []; // 가상 부모 노드 (DB에 없고 차트 전용)
+
+    for (const rel of siblingRelations) {
+        const id1 = String(rel.person1_id);
+        const id2 = String(rel.person2_id);
+        let p1 = byId[id1];
+        let p2 = byId[id2];
+        if (!p1 || !p2) continue;
+
+        if (p1.parent1_id && byId[String(p1.parent1_id)] && !p2.parent1_id) {
+            // p1에 부모 있고 p2에 없음 → p2에 p1의 부모 복사
+            byId[id2] = { ...p2, parent1_id: p1.parent1_id, parent2_id: p1.parent2_id };
+        } else if (p2.parent1_id && byId[String(p2.parent1_id)] && !p1.parent1_id) {
+            // p2에 부모 있고 p1에 없음 → p1에 p2의 부모 복사
+            byId[id1] = { ...p1, parent1_id: p2.parent1_id, parent2_id: p2.parent2_id };
+        } else if (!p1.parent1_id && !p2.parent1_id) {
+            // 둘 다 부모 없음 → 가상 부모 노드 생성
+            const vpId = `_vp_${id1}_${id2}`;
+            if (!byId[vpId]) {
+                const gen = Math.max((p1.generation || 1), (p2.generation || 1)) + 1;
+                const virtualParent = {
+                    id: vpId, name: '', gender: null,
+                    parent1_id: null, parent2_id: null, spouse_id: null,
+                    generation: gen, privacy_level: 'family',
+                    _virtual: true,
+                };
+                byId[vpId] = virtualParent;
+                virtualParents.push(virtualParent);
+            }
+            byId[id1] = { ...byId[id1], parent1_id: vpId };
+            byId[id2] = { ...byId[id2], parent1_id: vpId };
+        }
+    }
+
+    // persons 배열도 업데이트된 byId로 재구성 + 가상 부모 추가
+    const effectivePersons = [
+        ...persons.map(p => byId[String(p.id)] || p),
+        ...virtualParents,
+    ];
+
     // 자녀 역참조 맵 구성: parentId → [childId, ...]
     const childrenMap = {};
-    for (const p of persons) {
-        if (p.parent1_id) {
+    for (const p of effectivePersons) {
+        if (p.parent1_id && byId[String(p.parent1_id)]) {
             const pid = String(p.parent1_id);
             if (!childrenMap[pid]) childrenMap[pid] = [];
             if (!childrenMap[pid].includes(String(p.id))) {
                 childrenMap[pid].push(String(p.id));
             }
         }
-        if (p.parent2_id) {
+        if (p.parent2_id && byId[String(p.parent2_id)]) {
             const pid = String(p.parent2_id);
             if (!childrenMap[pid]) childrenMap[pid] = [];
             if (!childrenMap[pid].includes(String(p.id))) {
@@ -91,7 +135,7 @@ export function personsToFamilyChart(persons, relations = []) {
     }
 
     // family-chart 데이터 변환
-    const data = persons.map((p) => {
+    const data = effectivePersons.map((p) => {
         const id = String(p.id);
         const { displayName, firstName, lastName } = parseName(p.name);
 
@@ -148,7 +192,7 @@ export function personsToFamilyChart(persons, relations = []) {
             data: {
                 'first name': firstName,
                 'last name': lastName,
-                'display_name': displayName,
+                'display_name': p._virtual ? '' : displayName,
                 gender: p.gender === 'male' ? 'M' : p.gender === 'female' ? 'F' : 'M',
                 birthday: p.birth_date || '',
                 avatar: p.photo_url || '',
@@ -159,8 +203,9 @@ export function personsToFamilyChart(persons, relations = []) {
                 death_lunar: p.death_lunar || false,
                 fs_person_id: p.fs_person_id || '',
                 privacy_level: p.privacy_level || 'family',
-                initials: getInitials(p.name),
+                initials: p._virtual ? '' : getInitials(p.name),
                 generation: p.generation || 0,
+                _virtual: !!p._virtual,
             },
             rels: {
                 parents,
