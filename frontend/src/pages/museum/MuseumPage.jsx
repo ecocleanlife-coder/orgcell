@@ -211,6 +211,7 @@ export default function MuseumPage({ initialTab }) {
 
     // 업로드 모달
     const [showUploadModal, setShowUploadModal] = useState(false);
+    const [uploadInitialDest, setUploadInitialDest] = useState(null);
     const [showFsModal, setShowFsModal] = useState(false);
 
     // 친구 요청
@@ -466,86 +467,87 @@ export default function MuseumPage({ initialTab }) {
             </header>
 
             {/* ════ 메인 콘텐츠 (스크롤) ════ */}
-            <main className="max-w-2xl mx-auto px-4 py-6 pb-28">
+            <main className="max-w-5xl mx-auto px-4 py-6 pb-28">
 
-                {/* ══ SECTION 1: 가족 행사 달력 ══ */}
-                <Section id="section-calendar">
-                    <SectionHeader
-                        title="이번 달 우리 가족 행사"
-                        actionLabel="달력 전체보기"
-                        onAction={() => {
-                            const calEl = document.getElementById('section-calendar-full');
-                            if (calEl) calEl.scrollIntoView({ behavior: 'smooth' });
-                        }}
-                        icon={CalendarDays}
-                    />
-                    <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: '1px solid #e8e0d0' }}>
-                        {/* 다가오는 행사 미리보기 (UpcomingEventsWidget 인라인) */}
-                        <UpcomingEventsPreview siteId={site?.id} t={t} />
-                    </div>
-                </Section>
+                {/* ══ 2열 위젯 그리드: 달력 + 전시관 ══ */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+                    {/* 왼쪽: 가족 행사 미니 달력 */}
+                    <section id="section-calendar" className="min-w-0">
+                        <SectionHeader title="우리 가족 달력" icon={CalendarDays} />
+                        <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: '1px solid #e8e0d0' }}>
+                            <FamilyCalendar siteId={site?.id} role={role} t={t} />
+                        </div>
+                    </section>
 
-                {/* ══ SECTION 1-FULL: 전체 달력 (접이식) ══ */}
-                <Section id="section-calendar-full">
-                    <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: '1px solid #e8e0d0' }}>
-                        <FamilyCalendar siteId={site?.id} role={role} t={t} />
-                    </div>
-                </Section>
-
-                {/* ══ SECTION 2: 전시관 ══ */}
-                <Section id="section-exhibition">
-                    <SectionHeader
-                        title="우리 가족 전시관"
-                        actionLabel={canEdit ? '+ 새 전시관 만들기' : undefined}
-                        onAction={() => navigate(`/${subdomain}/gallery/new`)}
-                        icon={Plus}
-                    />
-
-                    {exhLoading ? (
-                        <div className="grid grid-cols-2 gap-4">
-                            {[...Array(4)].map((_, i) => (
-                                <div key={i} className="rounded-2xl border bg-white animate-pulse" style={{ borderColor: '#e8e0d0', height: 180 }}>
-                                    <div className="h-28 rounded-t-2xl bg-gray-200" />
-                                    <div className="p-3 space-y-2">
-                                        <div className="h-4 bg-gray-200 rounded w-2/3" />
-                                        <div className="h-3 bg-gray-100 rounded w-1/3" />
+                    {/* 오른쪽: 전시관 위젯 */}
+                    <section id="section-exhibition" className="min-w-0">
+                        <SectionHeader
+                            title="우리 가족 전시관"
+                            actionLabel={canEdit ? '+ 새 전시관' : undefined}
+                            onAction={() => setShowUploadModal(true)}
+                            icon={Plus}
+                        />
+                        {exhLoading ? (
+                            <div className="grid grid-cols-2 gap-3">
+                                {[...Array(4)].map((_, i) => (
+                                    <div key={i} className="rounded-2xl border bg-white animate-pulse" style={{ borderColor: '#e8e0d0', height: 160 }}>
+                                        <div className="h-24 rounded-t-2xl bg-gray-200" />
+                                        <div className="p-3 space-y-2">
+                                            <div className="h-4 bg-gray-200 rounded w-2/3" />
+                                            <div className="h-3 bg-gray-100 rounded w-1/3" />
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : exhibitions.length === 0 ? (
-                        <div className="bg-white rounded-2xl shadow-sm" style={{ border: '1px solid #e8e0d0' }}>
-                            <EmptyState
-                                emoji="📷"
-                                message="첫 사진을 올려보세요"
-                                actionLabel={canEdit ? '업로드' : undefined}
-                                onAction={() => setShowUploadModal(true)}
-                            />
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            {exhibitionGroups.map((group) => (
-                                <div key={group.key}>
-                                    <p className="text-xs font-bold mb-2 flex items-center gap-1.5" style={{ color: '#7a7a6a' }}>
-                                        <span>{group.icon}</span> {group.label}
-                                    </p>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                        {group.items.map((exh) => (
-                                            <ExhibitionCard
-                                                key={exh.id}
-                                                exh={exh}
-                                                t={t}
-                                                onClick={() => navigate(`/${subdomain}/gallery/${exh.id}`)}
-                                            />
-                                        ))}
+                                ))}
+                            </div>
+                        ) : exhibitions.length === 0 ? (
+                            <div className="bg-white rounded-2xl shadow-sm" style={{ border: '1px solid #e8e0d0' }}>
+                                <EmptyState
+                                    emoji="📷"
+                                    message="첫 사진을 올려보세요"
+                                    actionLabel={canEdit ? '업로드' : undefined}
+                                    onAction={() => setShowUploadModal(true)}
+                                />
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {exhibitionGroups.map((group) => (
+                                    <div key={group.key}>
+                                        <p className="text-xs font-bold mb-2 flex items-center gap-1.5" style={{ color: '#7a7a6a' }}>
+                                            <span>{group.icon}</span> {group.label}
+                                        </p>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {group.items.map((exh) => (
+                                                <ExhibitionCard
+                                                    key={exh.id}
+                                                    exh={exh}
+                                                    t={t}
+                                                    onClick={() => navigate(`/${subdomain}/gallery/${exh.id}`)}
+                                                />
+                                            ))}
+                                        </div>
                                     </div>
+                                ))}
+                            </div>
+                        )}
+                        {/* 내 보관함 바로가기 */}
+                        {canEdit && (
+                            <button
+                                onClick={() => { setUploadInitialDest('private'); setShowUploadModal(true); }}
+                                className="w-full mt-3 flex items-center gap-3 p-4 rounded-xl border transition-all hover:bg-gray-50 text-left"
+                                style={{ borderColor: '#e8e0d0', background: '#faf8f4' }}
+                            >
+                                <span className="text-xl">🔒</span>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-bold" style={{ color: '#3a3a2a' }}>내 보관함</p>
+                                    <p className="text-xs" style={{ color: '#9a9a8a' }}>나만 볼 수 있는 사진 보관함</p>
                                 </div>
-                            ))}
-                        </div>
-                    )}
-                </Section>
+                                <Camera size={16} style={{ color: '#9a9a8a' }} />
+                            </button>
+                        )}
+                    </section>
+                </div>
 
-                {/* ══ SECTION 3: 가족트리 ══ */}
+                {/* ══ 가족트리 (풀 높이) ══ */}
                 <Section id="section-tree">
                     <SectionHeader
                         title="우리 가족"
@@ -553,7 +555,7 @@ export default function MuseumPage({ initialTab }) {
                         onAction={() => {/* FamilyTreeView 내부에서 처리 */}}
                         icon={UserPlus}
                     />
-                    <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: '1px solid #e8e0d0' }}>
+                    <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: '1px solid #e8e0d0', minHeight: '100vh' }}>
                         <FamilyTreeView siteId={site?.id} readOnly={role === 'public'} role={role} />
                     </div>
                     {canEdit && (
@@ -670,7 +672,8 @@ export default function MuseumPage({ initialTab }) {
                 <UploadModal
                     siteId={site?.id}
                     subdomain={subdomain}
-                    onClose={() => setShowUploadModal(false)}
+                    initialDest={uploadInitialDest}
+                    onClose={() => { setShowUploadModal(false); setUploadInitialDest(null); }}
                     onDone={() => { fetchExhibitions(); }}
                 />
             )}
@@ -825,81 +828,3 @@ export default function MuseumPage({ initialTab }) {
     );
 }
 
-// ─── 다가오는 행사 미리보기 (인라인 컴포넌트) ───
-function UpcomingEventsPreview({ siteId, t }) {
-    const [events, setEvents] = useState([]);
-    const [loading, setLoading] = useState(true);
-
-    const TYPE_EMOJI = {
-        birthday: '🎂', anniversary: '💑', event: '🎉', memorial: '🕯️', trip: '✈️',
-    };
-
-    useEffect(() => {
-        if (!siteId) return;
-        const now = new Date();
-        const y = now.getFullYear();
-        const m = now.getMonth() + 1;
-
-        Promise.all([
-            axios.get('/api/calendar', { params: { site_id: siteId, year: y, month: m } }),
-            axios.get('/api/calendar', { params: { site_id: siteId, year: m === 12 ? y + 1 : y, month: m === 12 ? 1 : m + 1 } }),
-        ]).then(([r1, r2]) => {
-            const all = [...(r1.data?.data || []), ...(r2.data?.data || [])];
-            const today = new Date(y, m - 1, now.getDate());
-            const limit = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
-
-            const upcoming = all.filter(ev => {
-                const d = new Date(ev.event_date);
-                if (ev.is_recurring) {
-                    const thisYear = new Date(y, d.getUTCMonth(), d.getUTCDate());
-                    return thisYear >= today && thisYear <= limit;
-                }
-                return d >= today && d <= limit;
-            }).sort((a, b) => {
-                const da = new Date(a.event_date);
-                const db = new Date(b.event_date);
-                return da.getUTCDate() - db.getUTCDate();
-            });
-
-            setEvents(upcoming.slice(0, 3));
-        }).catch(() => {}).finally(() => setLoading(false));
-    }, [siteId]);
-
-    if (loading) {
-        return (
-            <div className="p-6 text-center">
-                <div className="w-6 h-6 border-2 border-green-300 border-t-transparent rounded-full animate-spin mx-auto" />
-            </div>
-        );
-    }
-
-    if (events.length === 0) {
-        return (
-            <div className="p-6 text-center" style={{ color: '#9a9a8a' }}>
-                <CalendarDays size={32} className="mx-auto mb-2 opacity-30" />
-                <p className="text-sm">이번 달 행사가 없습니다</p>
-            </div>
-        );
-    }
-
-    return (
-        <div className="p-4 space-y-2">
-            {events.map((ev) => {
-                const d = new Date(ev.event_date);
-                const emoji = TYPE_EMOJI[ev.event_type] || '📅';
-                return (
-                    <div key={ev.id} className="flex items-center gap-3 py-2">
-                        <span className="text-xl">{emoji}</span>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate" style={{ color: '#3a3a2a' }}>{ev.title}</p>
-                            <p className="text-xs" style={{ color: '#9a9a8a' }}>
-                                {String(d.getUTCMonth() + 1).padStart(2, '0')}/{String(d.getUTCDate()).padStart(2, '0')}
-                                {ev.person_name && ` · ${ev.person_name}`}
-                            </p>
-                        </div>
-                    </div>
-                );
-            })}
-        </div>
-    );
-}

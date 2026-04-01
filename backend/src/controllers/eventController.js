@@ -38,7 +38,7 @@ exports.createEvent = async (req, res) => {
                 ...rows[0],
                 qr_url: `/api/events/${code}/qr`,
                 share_link: subdomain
-                    ? `https://${subdomain}.orgcell.com`
+                    ? `https://orgcell.com/${subdomain}`
                     : `/event/${code}`,
             },
         });

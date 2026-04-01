@@ -48,8 +48,8 @@ const VIS_OPTIONS = ['family', 'public', 'private'].map((key) => {
 });
 
 // ─── UploadModal ───
-export default function UploadModal({ siteId, subdomain, onClose, onDone }) {
-    const [step, setStep] = useState(1); // 1: 목적지, 2: 파일 선택
+export default function UploadModal({ siteId, subdomain, onClose, onDone, initialDest }) {
+    const [step, setStep] = useState(initialDest ? 0 : 1); // 0: 초기화 대기, 1: 목적지, 2: 파일 선택
     const [selectedDest, setSelectedDest] = useState(null);
     const [parentVis, setParentVis] = useState('family');
     const [exhibitions, setExhibitions] = useState([]);
@@ -59,6 +59,7 @@ export default function UploadModal({ siteId, subdomain, onClose, onDone }) {
     // 파일 관련
     const [files, setFiles] = useState([]);
     const [dragging, setDragging] = useState(false);
+    const [showPhotoGuide, setShowPhotoGuide] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [progress, setProgress] = useState(0);
     const [done, setDone] = useState(false);
@@ -66,12 +67,22 @@ export default function UploadModal({ siteId, subdomain, onClose, onDone }) {
     const fileInputRef = useRef(null);
 
     // 기존 전시관 목록 fetch
+    const [exhLoaded, setExhLoaded] = useState(false);
     useEffect(() => {
         if (!siteId) return;
         axios.get('/api/exhibitions', { params: { site_id: siteId } })
             .then((r) => { if (r.data?.success) setExhibitions(r.data.data); })
-            .catch(() => {});
+            .catch(() => {})
+            .finally(() => setExhLoaded(true));
     }, [siteId]);
+
+    // initialDest로 바로 진입 (전시관 목록 로드 후)
+    useEffect(() => {
+        if (step !== 0 || !initialDest || !exhLoaded) return;
+        const dest = DEST_PRESETS.find((d) => d.key === initialDest);
+        if (!dest) { setStep(1); return; }
+        handleDestSelect(dest);
+    }, [step, initialDest, exhLoaded, handleDestSelect]);
 
     // 목적지 선택 → 전시관 찾거나 생성
     const handleDestSelect = useCallback(async (dest) => {
@@ -138,15 +149,37 @@ export default function UploadModal({ siteId, subdomain, onClose, onDone }) {
         }
     }, [exhibitions, parentVis, siteId]);
 
-    // 파일 추가
-    const addFiles = (newFiles) => {
-        const valid = Array.from(newFiles).filter((f) =>
-            f.type.startsWith('image/')
-        );
-        setFiles((prev) => {
-            const names = new Set(prev.map((f) => f.name + f.size));
-            return [...prev, ...valid.filter((f) => !names.has(f.name + f.size))];
-        });
+    // 파일 해시 계산 (중복 감지용)
+    const [dupCount, setDupCount] = useState(0);
+    const hashCache = useRef(new Set());
+
+    const computeHash = async (file) => {
+        const buffer = await file.arrayBuffer();
+        const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+    };
+
+    // 파일 추가 (SHA-256 해시 중복 제거)
+    const addFiles = async (newFiles) => {
+        const valid = Array.from(newFiles).filter((f) => f.type.startsWith('image/'));
+        const unique = [];
+        let dups = 0;
+
+        for (const file of valid) {
+            const hash = await computeHash(file);
+            if (hashCache.current.has(hash)) {
+                dups++;
+            } else {
+                hashCache.current.add(hash);
+                unique.push(file);
+            }
+        }
+
+        if (dups > 0) setDupCount((prev) => prev + dups);
+        if (unique.length > 0) {
+            setFiles((prev) => [...prev, ...unique]);
+        }
     };
 
     const removeFile = (idx) => setFiles((prev) => prev.filter((_, i) => i !== idx));
@@ -220,6 +253,13 @@ export default function UploadModal({ siteId, subdomain, onClose, onDone }) {
                 </div>
 
                 <div className="p-5">
+                    {/* ══ STEP 0: initialDest 로딩 ══ */}
+                    {step === 0 && (
+                        <div className="py-12 flex justify-center">
+                            <div className="w-6 h-6 border-2 border-[#5a8a4a] border-t-transparent rounded-full animate-spin" />
+                        </div>
+                    )}
+
                     {/* ══ STEP 1: 목적지 선택 ══ */}
                     {step === 1 && (
                         <div className="space-y-3">
@@ -347,6 +387,11 @@ export default function UploadModal({ siteId, subdomain, onClose, onDone }) {
                                 <div className="mb-4">
                                     <p className="text-xs font-bold mb-2" style={{ color: '#5a8a4a' }}>
                                         {files.length}장 선택됨
+                                        {dupCount > 0 && (
+                                            <span className="ml-2 font-normal" style={{ color: '#e67e22' }}>
+                                                ({dupCount}장 중복 제외)
+                                            </span>
+                                        )}
                                     </p>
                                     <div className="grid grid-cols-4 gap-2">
                                         {previews.map((f, i) => (
@@ -406,6 +451,50 @@ export default function UploadModal({ siteId, subdomain, onClose, onDone }) {
                             >
                                 {uploading ? '업로드 중...' : `업로드 (${files.length}장)`}
                             </button>
+
+                            {/* 사진 찾기 가이드 */}
+                            <button
+                                onClick={() => setShowPhotoGuide(true)}
+                                className="w-full mt-3 py-2 text-xs font-semibold text-center transition-colors hover:bg-gray-50 rounded-lg"
+                                style={{ color: '#9a9a8a' }}
+                            >
+                                📂 사진이 어디 있는지 모르겠어요
+                            </button>
+
+                            {showPhotoGuide && (
+                                <div className="mt-3 rounded-xl p-4 space-y-3" style={{ background: '#f8f6f0', border: '1px solid #e8e0d0' }}>
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-sm font-bold" style={{ color: '#3a3a2a' }}>기기별 사진 저장 위치</h4>
+                                        <button onClick={() => setShowPhotoGuide(false)} className="text-slate-400"><X size={14} /></button>
+                                    </div>
+                                    <div className="space-y-2.5 text-xs" style={{ color: '#5a5a4a' }}>
+                                        <div>
+                                            <p className="font-bold mb-0.5">🪟 Windows</p>
+                                            <p className="pl-4">C:\Users\사용자명\Pictures</p>
+                                            <p className="pl-4">C:\Users\사용자명\OneDrive\Pictures</p>
+                                        </div>
+                                        <div>
+                                            <p className="font-bold mb-0.5">🍎 Mac</p>
+                                            <p className="pl-4">~/Pictures</p>
+                                            <p className="pl-4">사진 앱 → 파일 → 내보내기</p>
+                                        </div>
+                                        <div>
+                                            <p className="font-bold mb-0.5">📱 iPhone</p>
+                                            <p className="pl-4">사진 앱 → 앨범 → 선택 → 공유 → 파일에 저장</p>
+                                            <p className="pl-4">또는 iCloud.com/photos 에서 다운로드</p>
+                                        </div>
+                                        <div>
+                                            <p className="font-bold mb-0.5">🤖 Android</p>
+                                            <p className="pl-4">DCIM/Camera 폴더</p>
+                                            <p className="pl-4">Google Photos → 다운로드</p>
+                                        </div>
+                                        <div>
+                                            <p className="font-bold mb-0.5">☁️ Google Drive</p>
+                                            <p className="pl-4">drive.google.com → 내 드라이브에서 다운로드</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

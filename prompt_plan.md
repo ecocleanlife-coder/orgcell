@@ -1,42 +1,50 @@
-# 랜딩페이지 전면 재구성 — 가족박물관 피벗
+# Orgcell 결함 수정 + 핵심 기능 고도화 — 실행 완료
 
-> 확정: 2026-03-31
+> 확정: 2026-03-31 | 상태: **완료**
 
-## 배경
-- 아이폰 사진 직접 연동 불가 (Apple 정책)
-- "AI 사진 정리" → "가족 박물관" 컨셉 피벗
-- 기존 기능 (가족트리, 달력, 게시판, 초대, 웜홀) 모두 유지
+## Phase 1: 긴급 결함 수정 ✅
 
-## 1단계: 랜딩페이지 (✅ 완료)
+### 1-A. Exhibition Not Found (`/gallery/new`) 수정
+- MuseumPage "새 전시관 만들기" → UploadModal 열기로 변경 (navigate 제거)
+- 수정: `MuseumPage.jsx`
 
-| 섹션 | 내용 | 애니메이션 |
-|------|------|-----------|
-| S0 히어로 | "자손들에게 물려줄 우리 가족만의 박물관" + CTA | 기본 |
-| S1 달력 | CalendarPreview — 샘플 가족행사 | 좌→우 슬라이드 |
-| S2 전시관 | HeroSlideshow + 사진 요청 문구 | 우→좌 슬라이드 |
-| S3 가족트리 | FamilyTreePreview — 폴더 카드 3세대 | 아래→위 페이드 |
-| S4 특징 | 저장공간/가족/보존 3카드 | 아래→위 페이드 |
-| S5 푸터 | 법률 + 특허 + 이메일 | 없음 |
+### 1-B. 내 보관함 활성화
+- UploadModal에 `initialDest` prop 추가 → private로 바로 진입
+- MuseumPage에 "내 보관함" 바로가기 버튼 추가 (owner만)
+- 수정: `UploadModal.jsx`, `MuseumPage.jsx`
 
-파일: LandingPage.jsx, CalendarPreview.jsx, HeroSlideshow.jsx, FamilyTreePreview.jsx
+## Phase 2: 주소 체계 전환 ✅
 
-## 2단계: 온보딩 간소화 (예정)
-- 박물관 이름 짓기 → 가족 초대 (선택)
-- 저장소 선택은 설정 메뉴로 이동
+### Subdomain → Subfolder URL
+- `${subdomain}.orgcell.com` → `orgcell.com/${subdomain}` 전면 전환
+- 와일드카드 DNS 미설정 확인 → nginx 리다이렉트 불필요
+- 수정: siteController.js (3곳), emailService.js (1곳), eventController.js (1곳)
+- 수정: FamilyDomainDashboard (4곳), InviteFamilyPage, InvitePage, FamilyWebsiteView (3곳)
+- 수정: PricingTable, ServiceSelectPage, FamilyWebsitePage
+- 수정: 5개 언어 locale JSON (ko/en/es/ja/zh-CN)
 
-## 3단계: 내 박물관 메인화면 재구성 (예정)
-- 상단: 가족행사 달력
-- 중간: 전시관 (슬라이드쇼)
-- 하단: 가족트리 폴더
+## Phase 3: 지능형 사진 업로드 ✅
 
-## 4단계: 사진 업로드 흐름 (예정)
-- 업로드 → 목적지 선택 (🟡부모님/🟢가족공개/🔵일반공개/🔒본인보관)
-- 임시 보관함 → 드래그/선택으로 이동
+### 3-A. SHA-256 해시 중복 제거
+- `crypto.subtle.digest('SHA-256')` 브라우저 네이티브 API 사용
+- 동일 파일 자동 제외 + "N장 중복 제외" 안내 표시
+- 수정: `UploadModal.jsx`
+
+### 3-B. 사진 찾기 가이드
+- "사진이 어디 있는지 모르겠어요" 버튼 추가
+- Windows/Mac/iPhone/Android/Google Drive 경로 안내 모달
+- 수정: `UploadModal.jsx`
+
+## Phase 4: FamilySearch 동적 프리뷰 — 기존 완료 (스킵)
+## Phase 5: Visibility 훅 통일 — 기존 완료 (스킵)
+
+## 검증 결과
+- `vite build`: 성공 (0 errors)
+- `playwright_evaluator --scenario all`: 4/4 PASS (landing, onboarding, api, museum)
+
+---
 
 ## 이전 계획
 
-### Chain Traversal 구현 (2026-03-25)
-A→B→C→... 무한 체인 웜홀 탐색. federationJWT, chain-resolve, WormholePortal.
-
-### 패밀리트리 시작 UI 개선 (2026-03-22)
-root === null일 때 점선 플레이스홀더 3세대 구조 표시.
+### 랜딩페이지 전면 재구성 — 가족박물관 피벗
+> 확정: 2026-03-31

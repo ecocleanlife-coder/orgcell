@@ -8,7 +8,7 @@ const services = [
         icon: '🏛️',
         title: '가족 박물관',
         desc: '가계도 · 사진 앨범 · 가족 채팅',
-        sub: 'yourfamily.orgcell.com 도메인 무료',
+        sub: 'orgcell.com/yourfamily 주소 무료',
         color: '#7C5CFC',
         bg: '#F3EFFF',
         type: 'museum',

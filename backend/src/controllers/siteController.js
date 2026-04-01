@@ -42,7 +42,7 @@ exports.createSite = async (req, res) => {
             success: true,
             data: {
                 ...rows[0],
-                url: `https://${subdomain.toLowerCase()}.orgcell.com`,
+                url: `https://orgcell.com/${subdomain.toLowerCase()}`,
             },
         });
     } catch (error) {
@@ -73,7 +73,7 @@ exports.getMySite = async (req, res) => {
             const joinedSite = joined.rows[0];
             return res.json({
                 success: true,
-                data: { ...joinedSite, url: `https://${joinedSite.subdomain}.orgcell.com`, folders: [], role: 'member' },
+                data: { ...joinedSite, url: `https://orgcell.com/${joinedSite.subdomain}`, folders: [], role: 'member' },
             });
         }
 
@@ -94,7 +94,7 @@ exports.getMySite = async (req, res) => {
             success: true,
             data: {
                 ...site,
-                url: `https://${site.subdomain}.orgcell.com`,
+                url: `https://orgcell.com/${site.subdomain}`,
                 folders,
             },
         });
@@ -409,7 +409,7 @@ exports.getPricing = async (req, res) => {
                 { name: 'Server Unlimited', photos: 'unlimited', price_per_year: 10, currency: 'USD', storage: 'Orgcell Server' },
             ],
             features: [
-                'yourfamily.orgcell.com subdomain',
+                'orgcell.com/yourfamily 주소',
                 'Family tree folder structure',
                 'Photo, video, audio, artwork storage',
                 'Private & shared folders with password',

@@ -768,7 +768,7 @@ export default function FamilyDomainDashboard() {
     // ── Copy share link ──
     const handleCopy = () => {
         const url = site?.subdomain
-            ? `https://${site.subdomain}.orgcell.com`
+            ? `https://orgcell.com/${site.subdomain}`
             : window.location.origin;
         navigator.clipboard.writeText(url).then(() => {
             setCopied(true);
@@ -806,7 +806,7 @@ export default function FamilyDomainDashboard() {
                     <div className="flex items-center gap-2">
                         <Globe size={16} style={{ color: '#5a8a4a' }} />
                         <span className="font-bold text-sm" style={{ color: '#3a3a2a' }}>
-                            {site?.subdomain ? `${site.subdomain}.orgcell.com` : 'orgcell.com'}
+                            {site?.subdomain ? `orgcell.com/${site.subdomain}` : 'orgcell.com'}
                         </span>
                     </div>
                     <LanguageSwitcher />
@@ -974,7 +974,7 @@ export default function FamilyDomainDashboard() {
                         >
                             <p className="text-xs font-bold mb-1" style={{ color: '#9a9a8a' }}>{t.settingsDomain}</p>
                             <p className="font-bold text-lg" style={{ color: '#3a3a2a' }}>
-                                {site?.subdomain ? `${site.subdomain}.orgcell.com` : '—'}
+                                {site?.subdomain ? `orgcell.com/${site.subdomain}` : '—'}
                             </p>
                         </div>
 
@@ -992,7 +992,7 @@ export default function FamilyDomainDashboard() {
                                     className="flex-1 text-sm px-3 py-2 rounded-lg truncate"
                                     style={{ background: '#f0ece4', color: '#5a5a4a' }}
                                 >
-                                    {site?.subdomain ? `https://${site.subdomain}.orgcell.com` : '—'}
+                                    {site?.subdomain ? `https://orgcell.com/${site.subdomain}` : '—'}
                                 </span>
                                 <button
                                     onClick={handleCopy}

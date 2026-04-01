@@ -32,7 +32,7 @@ export default function FamilyWebsiteView() {
         }
     }, []);
 
-    const shareUrl = `https://${subdomain || 'your-family'}.orgcell.com`;
+    const shareUrl = `https://orgcell.com/${subdomain || 'your-family'}`;
     const shareTitle = t.shareInviteTitle || 'You are invited to our Family Museum';
     const shareDesc = t.shareInviteDesc || 'Share precious family moments together on orgcell.com';
 
@@ -245,7 +245,7 @@ export default function FamilyWebsiteView() {
                             {isAvailable !== null && (
                                 <div className={`text-sm font-bold mb-3 ${isAvailable ? 'text-emerald-600' : 'text-red-500'}`}>
                                     {isAvailable
-                                        ? (t.domainAvailable || `${subdomain}.orgcell.com is available!`)
+                                        ? (t.domainAvailable || `orgcell.com/${subdomain} is available!`)
                                         : domainError === 'too_short'
                                             ? (t.domainTooShort || 'Subdomain must be at least 3 characters.')
                                             : domainError === 'error'
@@ -465,7 +465,7 @@ export default function FamilyWebsiteView() {
                                         </span>
                                     </p>
                                     <p className="text-xs mt-1" style={{ color: '#8a8a7a' }}>
-                                        {subdomain ? `${subdomain}.orgcell.com` : 'your-family.orgcell.com'}
+                                        {subdomain ? `orgcell.com/${subdomain}` : 'orgcell.com/your-family'}
                                     </p>
                                 </div>
 
@@ -517,7 +517,7 @@ export default function FamilyWebsiteView() {
                                 </div>
                                 <h3 className="text-2xl font-bold" style={{ color: '#3a3a2a' }}>{t.setupComplete}</h3>
                                 <p style={{ color: '#6a6a5a' }}>
-                                    <span className="font-bold" style={{ color: '#3a8a3a' }}>{subdomain || 'your-family'}.orgcell.com</span>
+                                    <span className="font-bold" style={{ color: '#3a8a3a' }}>orgcell.com/{subdomain || 'your-family'}</span>
                                 </p>
 
                                 <div className="rounded-xl p-4 text-center" style={{ background: '#f8f4e8', border: '1px solid #d8d0c0' }}>

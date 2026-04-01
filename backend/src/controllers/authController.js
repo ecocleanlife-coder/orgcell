@@ -197,8 +197,12 @@ exports.requestMagicLink = async (req, res) => {
 
         res.json({ success: true, message: 'Magic link sent to your email', exists, maskedEmail: masked });
     } catch (error) {
-        console.error('requestMagicLink Error:', error);
-        res.status(500).json({ success: false, message: '이메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.' });
+        console.error('requestMagicLink Error:', error.message, error.code);
+        const isRateLimit = error.statusCode === 429 || error.code === 'rate_limit_exceeded';
+        const message = isRateLimit
+            ? '이메일 발송 한도에 도달했습니다. 1분 후 다시 시도해주세요.'
+            : '이메일 발송에 실패했습니다. 스팸함을 확인하시거나, 잠시 후 다시 시도해주세요.';
+        res.status(isRateLimit ? 429 : 500).json({ success: false, message });
     }
 };
 

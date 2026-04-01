@@ -42,7 +42,7 @@ export default function InviteFamilyPage() {
         }
     }, [isAuthenticated]);
 
-    const museumUrl = `${subdomain}.orgcell.com`;
+    const museumUrl = `orgcell.com/${subdomain}`;
     const signupUrl = 'orgcell.com/onboarding/service';
 
     // 가족 초대 메시지
@@ -121,10 +121,10 @@ export default function InviteFamilyPage() {
                 return;
             }
 
-            const targetDomain = connectDomain.replace('.orgcell.com', '').trim();
+            const targetDomain = connectDomain.replace('.orgcell.com', '').replace('orgcell.com/', '').trim();
 
             await axios.post('/api/federation/request', {
-                targetDomain: `${targetDomain}.orgcell.com`,
+                targetDomain: `orgcell.com/${targetDomain}`,
                 relationType: 'family',
             });
 

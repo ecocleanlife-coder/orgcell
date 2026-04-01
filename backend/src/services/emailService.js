@@ -145,7 +145,7 @@ exports.sendAdminPaymentNotification = async ({ email, amountUsd, paidAt }) => {
 exports.sendInviteEmail = async ({ to, code, inviterName, subdomain }) => {
     const transporter = await getResendTransporter();
     const inviteUrl = `https://orgcell.com/invite?code=${code}`;
-    const museumLabel = subdomain ? `${subdomain}.orgcell.com` : 'Orgcell';
+    const museumLabel = subdomain ? `orgcell.com/${subdomain}` : 'Orgcell';
     const mailOptions = {
         from: '"Orgcell" <noreply@orgcell.com>',
         to,

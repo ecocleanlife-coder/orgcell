@@ -174,7 +174,7 @@ export default function InvitePage() {
 
                 {info?.subdomain && (
                     <p style={{ color: '#5a8a4a', fontWeight: 700, fontSize: 15, marginBottom: 8 }}>
-                        {info.subdomain}.orgcell.com
+                        orgcell.com/{info.subdomain}
                     </p>
                 )}
 

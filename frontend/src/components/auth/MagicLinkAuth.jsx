@@ -24,7 +24,13 @@ export default function MagicLinkAuth() {
             }
         } catch (err) {
             setStatus('error');
-            setErrorMessage(err.response?.data?.message || '로그인 링크 전송에 실패했습니다. 다시 시도해주세요.');
+            const serverMsg = err.response?.data?.message;
+            const is429 = err.response?.status === 429;
+            setErrorMessage(
+                serverMsg || (is429
+                    ? '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.'
+                    : '이메일 발송에 실패했습니다. 스팸함을 확인하시거나 잠시 후 다시 시도해주세요.')
+            );
         }
     };
 
@@ -44,7 +50,13 @@ export default function MagicLinkAuth() {
             setStatus('success');
         } catch (err) {
             setStatus('error');
-            setErrorMessage(err.response?.data?.message || '로그인 링크 전송에 실패했습니다. 다시 시도해주세요.');
+            const serverMsg = err.response?.data?.message;
+            const is429 = err.response?.status === 429;
+            setErrorMessage(
+                serverMsg || (is429
+                    ? '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.'
+                    : '이메일 발송에 실패했습니다. 스팸함을 확인하시거나 잠시 후 다시 시도해주세요.')
+            );
         }
     };
 

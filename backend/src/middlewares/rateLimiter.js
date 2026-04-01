@@ -1,9 +1,9 @@
 const rateLimit = require('express-rate-limit');
 
-// 일반 API: 15분에 100회
+// 일반 API: 15분에 200회
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 200,
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, error: 'Too many requests', retryAfter: '15분 후 다시 시도해주세요' },

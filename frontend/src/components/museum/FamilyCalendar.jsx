@@ -7,7 +7,7 @@ const TYPE_COLORS = {
     birthday:    { bg: '#d3e3fd', border: '#4285F4', dot: '#4285F4', emoji: '🎂' },
     anniversary: { bg: '#fce8e6', border: '#E67C73', dot: '#E67C73', emoji: '💑' },
     event:       { bg: '#d4edda', border: '#33B679', dot: '#33B679', emoji: '🎉' },
-    memorial:    { bg: '#f0f0f0', border: '#8E8E8E', dot: '#8E8E8E', emoji: '🕯️' },
+    memorial:    { bg: '#f5ebe0', border: '#6B4226', dot: '#6B4226', emoji: '🕯️' },
     trip:        { bg: '#fef3cd', border: '#F6BF26', dot: '#F6BF26', emoji: '✈️' },
 };
 
@@ -187,15 +187,6 @@ export default function FamilyCalendar({ siteId, role, t }) {
     const today = now.getFullYear() === year && now.getMonth() + 1 === month ? now.getDate() : null;
     const monthName = new Date(year, month - 1, 1).toLocaleString('default', { month: 'long' });
 
-    // 이번 달 전체 이벤트 (사이드바용)
-    const sortedEvents = useMemo(() => {
-        return [...events].sort((a, b) => {
-            const da = new Date(a.event_date).getUTCDate();
-            const db = new Date(b.event_date).getUTCDate();
-            return da - db;
-        });
-    }, [events]);
-
     const handleDayClick = (day) => {
         if (!day) return;
         if (isMobile) {
@@ -344,51 +335,6 @@ export default function FamilyCalendar({ siteId, role, t }) {
                             </div>
                         );
                     })}
-                </div>
-            )}
-
-            {/* 이번 달 행사 사이드바 (아래) */}
-            {sortedEvents.length > 0 && (
-                <div className="mt-6">
-                    <h3 className="text-[13px] font-bold text-slate-500 mb-2 uppercase tracking-wide">
-                        {t.calendarThisMonth || 'This Month'}
-                    </h3>
-                    <div className="space-y-2">
-                        {sortedEvents.map(ev => {
-                            const c = TYPE_COLORS[ev.event_type] || TYPE_COLORS.event;
-                            const d = new Date(ev.event_date);
-                            return (
-                                <div key={ev.id}
-                                    className="flex items-start gap-3 p-3 rounded-xl border cursor-pointer hover:shadow-sm transition-shadow"
-                                    style={{ borderColor: c.border, background: c.bg }}
-                                    onClick={() => setEventDetail(ev)}
-                                >
-                                    <div className="w-[3px] self-stretch rounded-full flex-shrink-0" style={{ background: c.dot }} />
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-[13px]">{c.emoji}</span>
-                                            <span className="text-[13px] font-semibold text-slate-800 truncate">{ev.title}</span>
-                                            {ev.is_recurring && <span className="text-[10px] bg-white/70 rounded px-1 border border-current" style={{ color: c.dot }}>↻</span>}
-                                        </div>
-                                        <div className="text-[11px] text-slate-500 mt-0.5">
-                                            {String(d.getUTCMonth() + 1).padStart(2, '0')}/{String(d.getUTCDate()).padStart(2, '0')}
-                                            {ev.end_date && (() => {
-                                                const ed = new Date(ev.end_date);
-                                                return ` ~ ${String(ed.getUTCMonth() + 1).padStart(2, '0')}/${String(ed.getUTCDate()).padStart(2, '0')}`;
-                                            })()}
-                                            {ev.person_name && <span className="ml-1">· {ev.person_name}</span>}
-                                        </div>
-                                        {ev.description && <p className="text-[11px] text-slate-500 mt-0.5 truncate">{ev.description}</p>}
-                                    </div>
-                                    {canEdit && !ev.auto_generated && (
-                                        <button onClick={(e) => { e.stopPropagation(); handleDelete(ev.id); }} className="text-slate-300 hover:text-red-400 cursor-pointer flex-shrink-0">
-                                            <Trash2 size={14} />
-                                        </button>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
                 </div>
             )}
 

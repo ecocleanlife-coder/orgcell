@@ -17,7 +17,7 @@ export default function PricingTable() {
             features: [
                 '본인 클라우드에 안전 보관',
                 '아이폰/안드로이드/위성폰 지원',
-                'yourfamily.orgcell.com 도메인',
+                'orgcell.com/yourfamily 주소',
                 '가계도·앨범·슬라이드쇼',
             ],
         },
@@ -30,7 +30,7 @@ export default function PricingTable() {
             recommended: false,
             features: [
                 '별도 클라우드 불필요',
-                'yourfamily.orgcell.com 도메인',
+                'orgcell.com/yourfamily 주소',
                 '가계도·앨범·슬라이드쇼',
                 '바로 시작 가능',
             ],
