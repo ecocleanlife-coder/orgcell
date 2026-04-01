@@ -472,17 +472,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             });
         }
 
-        const updatedPersons = await fetchPersons();
+        await fetchPersons();
         setSubmitting(false);
-
-        // 인물수정 모달에서 관계 추가한 경우, 원래 인물수정 모달로 복귀
-        if (modal.returnToEdit) {
-            const refreshed = (updatedPersons || persons).find(p => String(p.id) === String(modal.returnToEdit));
-            if (refreshed) {
-                setTimeout(() => openEditModal(refreshed), 100);
-                return;
-            }
-        }
         setModal(null);
     };
 

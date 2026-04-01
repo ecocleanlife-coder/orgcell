@@ -108,3 +108,6 @@ service → storage → photos → face → family → privacy → invite
 - i18n 다국어 반영은 모든 기능 완성 후 마지막에 일괄 처리
 - 개발 중에는 한국어만 사용
 - 영어/일본어/중국어/스페인어 번역은 기능 완성 후 별도 지시할 것
+- `.min.js`, `.min.css` 파일 직접 수정 절대 금지 — 소스 파일만 수정 후 `npm run build`로 자동 생성
+- `dist/` 폴더 내 파일 직접 수정 금지 — 빌드 결과물은 항상 빌드 명령으로 생성
+- `node_modules` 수정이 필요한 경우 `patch-package`를 사용하여 패치 파일로 관리

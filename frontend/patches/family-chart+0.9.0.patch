@@ -1,0 +1,28 @@
+diff --git a/node_modules/family-chart/dist/family-chart.esm.js b/node_modules/family-chart/dist/family-chart.esm.js
+index 3867be0..ccc0b31 100644
+--- a/node_modules/family-chart/dist/family-chart.esm.js
++++ b/node_modules/family-chart/dist/family-chart.esm.js
+@@ -126,8 +126,7 @@ function setupSiblings({ tree, data_stash, node_separation, sortChildrenFunction
+             return 0;
+         });
+         const main_x = main.x;
+-        const spouses_x = (main.spouses || []).map(d => d.x);
+-        const x_range = d3.extent([main_x, ...spouses_x]);
++        const x_range = [main_x, main_x];
+         const main_sorted_index = sorted_siblings.findIndex(d => d.data.id === main.data.id);
+         for (let i = 0; i < sorted_siblings.length; i++) {
+             if (i === main_sorted_index)
+diff --git a/node_modules/family-chart/dist/family-chart.js b/node_modules/family-chart/dist/family-chart.js
+index 1c750d4..388fb96 100644
+--- a/node_modules/family-chart/dist/family-chart.js
++++ b/node_modules/family-chart/dist/family-chart.js
+@@ -149,8 +149,7 @@
+                 return 0;
+             });
+             const main_x = main.x;
+-            const spouses_x = (main.spouses || []).map(d => d.x);
+-            const x_range = d3__namespace.extent([main_x, ...spouses_x]);
++            const x_range = [main_x, main_x];
+             const main_sorted_index = sorted_siblings.findIndex(d => d.data.id === main.data.id);
+             for (let i = 0; i < sorted_siblings.length; i++) {
+                 if (i === main_sorted_index)
