@@ -95,10 +95,18 @@ export function personsToFamilyChart(persons, relations = []) {
         const id = String(p.id);
         const { displayName, firstName, lastName } = parseName(p.name);
 
-        // parents 배열
-        const parents = [];
-        if (p.parent1_id && byId[String(p.parent1_id)]) parents.push(String(p.parent1_id));
-        if (p.parent2_id && byId[String(p.parent2_id)]) parents.push(String(p.parent2_id));
+        // parents 배열 — 남성 부모를 먼저, 여성 부모를 나중에 배치
+        // family-chart는 parents[0]이 왼쪽, parents[1]이 오른쪽에 배치됨
+        const rawParents = [];
+        if (p.parent1_id && byId[String(p.parent1_id)]) rawParents.push(byId[String(p.parent1_id)]);
+        if (p.parent2_id && byId[String(p.parent2_id)]) rawParents.push(byId[String(p.parent2_id)]);
+        // 남성 부모 먼저 (왼쪽), 여성 부모 나중 (오른쪽)
+        rawParents.sort((a, b) => {
+            if (a.gender === 'male' && b.gender !== 'male') return -1;
+            if (a.gender !== 'male' && b.gender === 'male') return 1;
+            return 0;
+        });
+        const parents = rawParents.map(pp => String(pp.id));
 
         // spouses 배열
         const spouses = [];
@@ -116,12 +124,15 @@ export function personsToFamilyChart(persons, relations = []) {
             : p.death_year || null;
 
         const birthPrefix = p.birth_lunar ? '음 ' : '';
+        const isDeceased = p.is_deceased || !!p.death_date;
         let dateLabel = '';
         if (birthYear && deathYear) {
             dateLabel = `${birthPrefix}${birthYear} ~ ${deathYear}`;
-        } else if (birthYear) {
-            dateLabel = `${birthPrefix}${birthYear}`;
+        } else if (birthYear && isDeceased) {
+            // 고인인데 사망일 미상
+            dateLabel = `${birthPrefix}${birthYear} ~`;
         }
+        // 살아있는 사람은 생년월일 표시하지 않음
 
         return {
             id,

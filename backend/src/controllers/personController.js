@@ -20,7 +20,7 @@ exports.listPersons = async (req, res) => {
                     privacy_level, parent1_id, parent2_id, spouse_id,
                     generation, photo_url, birth_date, death_date,
                     is_deceased, birth_lunar, death_lunar,
-                    fs_person_id, photo_position, created_at
+                    fs_person_id, photo_position, biography, created_at
              FROM persons WHERE site_id = $1
              ORDER BY generation ASC, id ASC`,
             [siteId]
@@ -75,7 +75,7 @@ exports.updatePerson = async (req, res) => {
             'name', 'birth_year', 'death_year', 'gender', 'privacy_level',
             'parent1_id', 'parent2_id', 'spouse_id', 'generation',
             'photo_url', 'birth_date', 'death_date',
-            'is_deceased', 'birth_lunar', 'death_lunar', 'photo_position',
+            'is_deceased', 'birth_lunar', 'death_lunar', 'photo_position', 'biography',
         ];
 
         const setClauses = [];
@@ -161,6 +161,37 @@ exports.deletePerson = async (req, res) => {
     } catch (err) {
         console.error('deletePerson error:', err);
         res.status(500).json({ success: false, message: 'Failed to delete person' });
+    }
+};
+
+// GET /api/persons/:siteId/:personId/photos — 인물 관련 사진 조회
+exports.listPersonPhotos = async (req, res) => {
+    try {
+        const { siteId, personId } = req.params;
+        // exhibitions에서 person_id로 연결된 전시관의 사진 + 인물 프로필 사진
+        const { rows } = await db.query(
+            `SELECT ep.id, ep.photo_url AS url, ep.caption, ep.created_at
+             FROM exhibition_photos ep
+             JOIN exhibitions e ON e.id = ep.exhibition_id
+             WHERE e.site_id = $1 AND e.person_id = $2
+             ORDER BY ep.created_at DESC`,
+            [siteId, personId]
+        );
+
+        // 프로필 사진도 포함
+        const { rows: personRows } = await db.query(
+            `SELECT photo_url FROM persons WHERE id = $1 AND site_id = $2 AND photo_url IS NOT NULL`,
+            [personId, siteId]
+        );
+        const photos = [...rows];
+        if (personRows.length > 0 && personRows[0].photo_url) {
+            photos.unshift({ id: 0, url: personRows[0].photo_url, caption: '프로필 사진', created_at: null });
+        }
+
+        res.json({ success: true, data: photos });
+    } catch (err) {
+        console.error('listPersonPhotos error:', err);
+        res.status(500).json({ success: false, data: [] });
     }
 };
 

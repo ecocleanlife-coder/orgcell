@@ -13,6 +13,9 @@ router.post('/:siteId', protect, ctrl.createPerson);
 router.put('/:siteId/:personId', protect, ctrl.updatePerson);
 router.delete('/:siteId/:personId', protect, ctrl.deletePerson);
 
+// 인물 사진 조회
+router.get('/:siteId/:personId/photos', optionalAuth, ctrl.listPersonPhotos);
+
 // 사진 업로드 (HEIC 자동 변환)
 router.post('/:siteId/:personId/photo', protect, uploadPerson.single('photo'), convertHeicIfNeeded, ctrl.uploadPhoto);
 

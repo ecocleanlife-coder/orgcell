@@ -9,7 +9,7 @@ import {
 import axios from 'axios';
 import * as f3 from 'family-chart';
 import 'family-chart/styles/family-chart.css';
-import FamilyBanner from '../common/FamilyBanner';
+
 import WormholePortal from './WormholePortal';
 import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
@@ -129,6 +129,16 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         }
     };
 
+    // ── 슬라이드쇼 & 개인사 편집 모달 상태 ──
+    const [slideshowPerson, setSlideshowPerson] = useState(null);
+    const [slideshowPhotos, setSlideshowPhotos] = useState([]);
+    const [slideshowIdx, setSlideshowIdx] = useState(0);
+    const [slideshowLoading, setSlideshowLoading] = useState(false);
+
+    const [bioPerson, setBioPerson] = useState(null);
+    const [bioText, setBioText] = useState('');
+    const [bioSaving, setBioSaving] = useState(false);
+
     // ── family-chart 카드 클릭 핸들러 (hover 버튼용) ──
     const handleCardAction = useCallback((personId, action) => {
         const raw = persons.find(p => String(p.id) === String(personId));
@@ -138,7 +148,20 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         else if (action === 'spouse') openMemberModal(raw.id, 'spouse');
         else if (action === 'child') openMemberModal(raw.id, 'child');
         else if (action === 'sibling') openMemberModal(raw.id, 'sibling');
-    }, [persons]);
+        else if (action === 'slideshow') {
+            setSlideshowPerson(raw);
+            setSlideshowIdx(0);
+            setSlideshowLoading(true);
+            axios.get(`/api/persons/${siteId}/${raw.id}/photos`)
+                .then(r => setSlideshowPhotos(r.data?.data || []))
+                .catch(() => setSlideshowPhotos([]))
+                .finally(() => setSlideshowLoading(false));
+        }
+        else if (action === 'bio') {
+            setBioPerson(raw);
+            setBioText(raw.biography || '');
+        }
+    }, [persons, siteId]);
 
     // 글로벌 핸들러 등록 (family-chart HTML에서 호출)
     useEffect(() => {
@@ -171,6 +194,15 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             </div>
         ` : '';
 
+        // 멀티미디어 아이콘 (TV 슬라이드쇼 + 펜 편집) — hover 시 표시
+        const mediaIconStyle = 'width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,0.85);backdrop-filter:blur(4px);border:1px solid rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;font-size:11px;transition:all 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.12);';
+        const mediaIcons = `
+            <div class="fc-media-icons" style="position:absolute;top:14px;right:4px;display:flex;flex-direction:column;gap:3px;opacity:0;transition:opacity 0.25s ease;pointer-events:none;z-index:5;">
+                <button onclick="event.stopPropagation();window.__fcAction('${personId}','slideshow')" style="${mediaIconStyle}" title="사진 슬라이드쇼">📺</button>
+                <button onclick="event.stopPropagation();window.__fcAction('${personId}','bio')" style="${mediaIconStyle}" title="개인사 편집">✏️</button>
+            </div>
+        `;
+
         return `
             <div class="fc-card-inner" style="position:relative;width:130px;cursor:pointer;">
                 <div style="position:absolute;top:0;left:8px;width:40px;height:14px;background:${gender === 'F' ? '#f9a8d4' : '#fcd34d'};border-radius:6px 6px 0 0;border:1px solid ${gender === 'F' ? '#f472b6' : '#fbbf24'};border-bottom:none;z-index:1;"></div>
@@ -186,6 +218,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                         ${isDeceased ? '🕯️ ' : ''}${displayName}
                     </div>
                     ${dateLabel ? `<div style="font-size:10px;color:#9E8A78;margin-top:2px;">${dateLabel}</div>` : ''}
+                    ${mediaIcons}
                 </div>
                 ${hoverBtns}
             </div>
@@ -662,7 +695,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
         return (
             <div className="w-full min-h-[70vh] bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-inner">
-                <FamilyBanner />
+                {/* FamilyBanner 제거됨 */}
                 <div className="p-6">
                     <div className="mb-6 text-center">
                         <h2 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 flex items-center justify-center gap-3">
@@ -706,7 +739,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     // ════════════════════════════════════════
     return (
         <div className="w-full min-h-[70vh] bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-inner overflow-hidden">
-            <FamilyBanner />
+            {/* FamilyBanner 제거됨 */}
 
             <div className="p-6 pb-0">
                 <div className="mb-4 text-center">
@@ -745,6 +778,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             {/* family-chart 커스텀 스타일 */}
             <style>{`
                 .fc-card-inner:hover .fc-hover-btns { opacity: 1 !important; }
+                .fc-card-inner:hover .fc-media-icons { opacity: 1 !important; pointer-events: auto !important; }
+                .fc-media-icons button:hover { background: #fff !important; transform: scale(1.15); box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important; }
                 svg.main_svg { width: 100% !important; height: 100% !important; display: block; }
                 .links_view path.link { stroke: #C4956A !important; stroke-width: 2 !important; stroke-opacity: 0.7 !important; }
                 .card { overflow: visible !important; background: none !important; border: none !important; box-shadow: none !important; }
@@ -1058,6 +1093,106 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                     </div>
                 )}
             </div>
+
+            {/* ── 슬라이드쇼 모달 (전체화면) ── */}
+            {slideshowPerson && (
+                <div
+                    className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90"
+                    onClick={() => setSlideshowPerson(null)}
+                >
+                    <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
+                        <h3 className="text-white text-lg font-bold drop-shadow">
+                            📺 {slideshowPerson.name}
+                        </h3>
+                        <button
+                            onClick={() => setSlideshowPerson(null)}
+                            className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white text-xl transition-colors"
+                        >
+                            ✕
+                        </button>
+                    </div>
+
+                    {slideshowLoading ? (
+                        <div className="h-8 w-8 animate-spin rounded-full border-4 border-white border-t-transparent" />
+                    ) : slideshowPhotos.length === 0 ? (
+                        <div className="text-center text-white/70">
+                            <p className="text-5xl mb-4">📷</p>
+                            <p className="text-lg">{lang === 'ko' ? '등록된 사진이 없습니다' : 'No photos yet'}</p>
+                        </div>
+                    ) : (
+                        <div className="relative w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                            <img
+                                src={slideshowPhotos[slideshowIdx]?.url || slideshowPhotos[slideshowIdx]?.photo_url}
+                                alt=""
+                                className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg shadow-2xl"
+                            />
+                            {slideshowPhotos.length > 1 && (
+                                <>
+                                    <button
+                                        onClick={() => setSlideshowIdx((i) => (i - 1 + slideshowPhotos.length) % slideshowPhotos.length)}
+                                        className="absolute left-4 w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white text-2xl transition-colors"
+                                    >
+                                        ‹
+                                    </button>
+                                    <button
+                                        onClick={() => setSlideshowIdx((i) => (i + 1) % slideshowPhotos.length)}
+                                        className="absolute right-4 w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white text-2xl transition-colors"
+                                    >
+                                        ›
+                                    </button>
+                                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/70 text-sm font-medium">
+                                        {slideshowIdx + 1} / {slideshowPhotos.length}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ── 개인사/업적 편집 모달 ── */}
+            {bioPerson && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl max-h-[90vh] overflow-y-auto">
+                        <h3 className="text-xl font-bold mb-4 flex items-center gap-2 dark:text-white">
+                            ✏️ {bioPerson.name} — {lang === 'ko' ? '개인사 / 업적' : 'Biography'}
+                        </h3>
+                        <textarea
+                            value={bioText}
+                            onChange={(e) => setBioText(e.target.value)}
+                            rows={12}
+                            className="w-full bg-gray-50 dark:bg-gray-700 px-4 py-3 rounded-xl outline-none border focus:border-amber-500 dark:text-white text-sm resize-none"
+                            placeholder={lang === 'ko'
+                                ? '이 분의 이야기, 업적, 추억 등을 기록해주세요...'
+                                : 'Write about this person\'s story, achievements, memories...'}
+                        />
+                        <div className="flex gap-2 mt-4">
+                            <button
+                                onClick={() => { setBioPerson(null); setBioText(''); }}
+                                className="flex-1 py-3 text-gray-500 font-bold bg-gray-100 dark:bg-gray-700 rounded-xl"
+                            >
+                                {t.cancel}
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    setBioSaving(true);
+                                    try {
+                                        await apiUpdatePerson(bioPerson.id, { biography: bioText });
+                                        await fetchPersons();
+                                    } catch { /* silent */ }
+                                    setBioSaving(false);
+                                    setBioPerson(null);
+                                    setBioText('');
+                                }}
+                                disabled={bioSaving}
+                                className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl shadow-lg transition-colors disabled:opacity-50"
+                            >
+                                {bioSaving ? '...' : (lang === 'ko' ? '저장' : 'Save')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* WormholePortal */}
             {portalFed && (
