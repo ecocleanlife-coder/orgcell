@@ -221,7 +221,7 @@ export default function DashboardExhibitionWidget({
                         {/* 탭 본문 */}
                         <div className="flex-1 overflow-y-auto p-5">
                             {activeTab === 'ancestor' && (
-                                <AncestorHallTab siteId={siteId} role={role} />
+                                <AncestorHallTab siteId={siteId} subdomain={subdomain} role={role} t={t} />
                             )}
                             {activeTab === 'family' && (
                                 <div>

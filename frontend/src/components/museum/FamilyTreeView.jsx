@@ -81,8 +81,10 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             setPersons(personsData);
             setRelations(relationsData);
             setFederations((fedRes.data?.data || []).filter(f => f.status === 'accepted'));
+            return personsData;
         } catch (err) {
             console.error('Failed to load persons:', err);
+            return null;
         } finally {
             setIsLoading(false);
         }
@@ -373,8 +375,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     };
 
     // ── Modal openers ──
-    const openMemberModal = (parentId, relation) => {
-        setModal({ mode: 'member', parentId, relation });
+    const openMemberModal = (parentId, relation, returnToEdit = null) => {
+        setModal({ mode: 'member', parentId, relation, returnToEdit });
         setNewName('');
         setNewRelation(relation);
         setNewBirthDate('');
@@ -470,8 +472,17 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             });
         }
 
-        await fetchPersons();
+        const updatedPersons = await fetchPersons();
         setSubmitting(false);
+
+        // 인물수정 모달에서 관계 추가한 경우, 원래 인물수정 모달로 복귀
+        if (modal.returnToEdit) {
+            const refreshed = (updatedPersons || persons).find(p => String(p.id) === String(modal.returnToEdit));
+            if (refreshed) {
+                setTimeout(() => openEditModal(refreshed), 100);
+                return;
+            }
+        }
         setModal(null);
     };
 
@@ -871,7 +882,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm">
                         <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl max-h-[90vh] overflow-y-auto">
                             <h3 className="text-xl font-bold mb-4 flex items-center gap-2 dark:text-white">
-                                <Edit3 className="text-amber-500" /> {lang === 'ko' ? '인물 수정' : 'Edit Person'}
+                                <Edit3 className="text-amber-500" /> {lang === 'ko' ? '인물 수정 및 추가' : 'Edit & Add Person'}
                             </h3>
                             <div className="space-y-3">
                                 {/* 사진 업로드 + 위치 조정 */}
@@ -969,19 +980,19 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                 {/* 관계 추가 버튼 */}
                                 {canEdit && (
                                     <div className="flex gap-1.5 flex-wrap">
-                                        <button onClick={() => { setModal(null); setTimeout(() => openParentsModal(editPerson.id), 100); }}
+                                        <button onClick={() => { const eid = editPerson.id; setModal(null); setTimeout(() => openParentsModal(eid), 100); }}
                                             className="px-2 py-1 text-[10px] font-bold bg-indigo-100 text-indigo-600 rounded-lg hover:bg-indigo-200 transition-colors flex items-center gap-0.5">
                                             <ChevronUp size={10} /> {lang === 'ko' ? '부모' : 'Parent'}
                                         </button>
-                                        <button onClick={() => { setModal(null); setTimeout(() => openMemberModal(editPerson.id, 'spouse'), 100); }}
+                                        <button onClick={() => { const eid = editPerson.id; setModal(null); setTimeout(() => openMemberModal(eid, 'spouse', eid), 100); }}
                                             className="px-2 py-1 text-[10px] font-bold bg-rose-100 text-rose-600 rounded-lg hover:bg-rose-200 transition-colors flex items-center gap-0.5">
                                             <ChevronRight size={10} /> {lang === 'ko' ? '배우자' : 'Spouse'}
                                         </button>
-                                        <button onClick={() => { setModal(null); setTimeout(() => openMemberModal(editPerson.id, 'child'), 100); }}
+                                        <button onClick={() => { const eid = editPerson.id; setModal(null); setTimeout(() => openMemberModal(eid, 'child', eid), 100); }}
                                             className="px-2 py-1 text-[10px] font-bold bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-200 transition-colors flex items-center gap-0.5">
                                             <ChevronDown size={10} /> {lang === 'ko' ? '자녀' : 'Child'}
                                         </button>
-                                        <button onClick={() => { setModal(null); setTimeout(() => openMemberModal(editPerson.id, 'sibling'), 100); }}
+                                        <button onClick={() => { const eid = editPerson.id; setModal(null); setTimeout(() => openMemberModal(eid, 'sibling', eid), 100); }}
                                             className="px-2 py-1 text-[10px] font-bold bg-amber-100 text-amber-600 rounded-lg hover:bg-amber-200 transition-colors flex items-center gap-0.5">
                                             <ChevronLeft size={10} /> {lang === 'ko' ? '형제' : 'Sibling'}
                                         </button>

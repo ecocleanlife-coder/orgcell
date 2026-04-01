@@ -136,15 +136,15 @@ export default function DashboardCalendarWidget({ siteId, role, t, posts, boardL
                             </button>
                         </div>
 
-                        {/* 본문: 데스크탑 2열, 모바일 세로 */}
-                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 overflow-hidden">
-                            {/* 좌: 달력 */}
-                            <div className="overflow-y-auto border-r" style={{ borderColor: '#f0ece4' }}>
+                        {/* 본문: 세로 배치 (달력 위, 게시판 아래), 전체 폭 */}
+                        <div className="flex-1 flex flex-col overflow-y-auto">
+                            {/* 상단: 가족 달력 */}
+                            <div className="border-b" style={{ borderColor: '#f0ece4' }}>
                                 <FamilyCalendar siteId={siteId} role={role} t={t} />
                             </div>
 
-                            {/* 우: 게시판 */}
-                            <div className="overflow-y-auto flex flex-col">
+                            {/* 하단: 가족 게시판 */}
+                            <div className="flex flex-col">
                                 <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: '#f0ece4' }}>
                                     <h3 className="text-sm font-bold" style={{ color: '#3a3a2a' }}>
                                         <ClipboardList size={14} className="inline mr-1.5 -mt-0.5" />
@@ -166,7 +166,7 @@ export default function DashboardCalendarWidget({ siteId, role, t, posts, boardL
                                         <div className="p-8 text-center">
                                             <div className="w-8 h-8 border-2 border-gray-200 border-t-gray-600 rounded-full animate-spin mx-auto" />
                                         </div>
-                                    ) : posts.length === 0 ? (
+                                    ) : !posts || posts.length === 0 ? (
                                         <div className="text-center py-12" style={{ color: '#9a9a8a' }}>
                                             <span className="text-4xl block mb-3">✏️</span>
                                             <p className="text-sm">첫 글을 써보세요</p>

@@ -112,12 +112,16 @@ export function personsToFamilyChart(persons, relations = []) {
         const spouses = [];
         if (p.spouse_id && byId[String(p.spouse_id)]) spouses.push(String(p.spouse_id));
 
-        // children 배열 (역참조) — 남자 자녀 먼저(아버지 쪽), 여자 자녀 나중(어머니 쪽)
+        // children 배열 (역참조) — 출생순 정렬 (관계 기반 배치)
         const rawChildren = childrenMap[id] || [];
         const children = [...rawChildren].sort((a, b) => {
-            const gA = byId[a]?.gender === 'male' ? 0 : 1;
-            const gB = byId[b]?.gender === 'male' ? 0 : 1;
-            return gA - gB;
+            const pA = byId[a];
+            const pB = byId[b];
+            // 출생일 기준 정렬, 없으면 ID 순
+            const dateA = pA?.birth_date ? new Date(pA.birth_date).getTime() : Infinity;
+            const dateB = pB?.birth_date ? new Date(pB.birth_date).getTime() : Infinity;
+            if (dateA !== dateB) return dateA - dateB;
+            return Number(a) - Number(b);
         });
 
         // 생년/사망년 문자열

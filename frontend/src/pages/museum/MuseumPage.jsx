@@ -407,18 +407,6 @@ export default function MuseumPage({ initialTab }) {
                     <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: '1px solid #e8e0d0', minHeight: '70vh' }}>
                         <FamilyTreeView siteId={site?.id} readOnly={role === 'public'} role={role} />
                     </div>
-                    {canEdit && (
-                        <button
-                            onClick={() => setShowFsModal(true)}
-                            className="w-full mt-3 py-3 rounded-xl text-center"
-                            style={{
-                                background: '#EBF4FB', border: '1.5px dashed #7EB8D4',
-                                fontSize: 13, fontWeight: 600, color: '#4A8DB7', cursor: 'pointer',
-                            }}
-                        >
-                            🌐 FamilySearch 연동으로 조상 기록 찾기
-                        </button>
-                    )}
                 </Section>
 
                 {/* ══ 사진 요청 배너 ══ */}

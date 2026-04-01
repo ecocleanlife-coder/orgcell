@@ -661,7 +661,7 @@ export default function FamilyDomainDashboard() {
     }, [site]);
 
     useEffect(() => {
-        if (activeTab === 'board' && site) fetchPosts(boardCategory);
+        if ((activeTab === 'board' || activeTab === 'calendar') && site) fetchPosts(boardCategory);
     }, [activeTab, boardCategory, site, fetchPosts]);
 
     // ── Create exhibition ──
@@ -781,8 +781,7 @@ export default function FamilyDomainDashboard() {
         { key: 'tree',       icon: TreePine,          label: t.tabTree },
         { key: 'exhibition', icon: GalleryThumbnails, label: t.tabExhibition },
         { key: 'ancestor',   icon: BookOpen,          label: t.tabAncestor },
-        { key: 'calendar',   icon: CalendarDays,      label: t.tabCalendar },
-        { key: 'board',      icon: ClipboardList,     label: t.tabBoard },
+        { key: 'calendar',   icon: CalendarDays,      label: t.tabCalendar || '일정표 및 게시판' },
         { key: 'settings',   icon: Settings,          label: t.tabSettings },
     ];
 
@@ -905,61 +904,62 @@ export default function FamilyDomainDashboard() {
                     </div>
                 )}
 
-                {/* ══════════ 가족 달력 ══════════ */}
+                {/* ══════════ 가족 달력 + 가족 게시판 (세로 배치, 전체 폭) ══════════ */}
                 {activeTab === 'calendar' && (
-                    <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: '1px solid #e8e0d0' }}>
-                        <FamilyCalendar siteId={site?.id} role="owner" t={t} />
-                    </div>
-                )}
-
-                {/* ══════════ 가족 게시판 ══════════ */}
-                {activeTab === 'board' && (
-                    <div>
-                        {/* Filter + write button */}
-                        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                            <div className="flex gap-1.5 flex-wrap">
-                                {BOARD_CATS.map(({ key, label }) => (
-                                    <button
-                                        key={key}
-                                        onClick={() => setBoardCategory(key)}
-                                        className="px-3 py-1 rounded-full text-xs font-bold transition-all"
-                                        style={{
-                                            background: boardCategory === key ? '#3a3a2a' : '#ffffff',
-                                            color: boardCategory === key ? '#ffffff' : '#5a5a4a',
-                                            border: '1.5px solid ' + (boardCategory === key ? '#3a3a2a' : '#d8d0c0'),
-                                        }}
-                                    >
-                                        {label}
-                                    </button>
-                                ))}
-                            </div>
-                            <button
-                                onClick={() => setShowCreatePost(true)}
-                                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold"
-                                style={{ background: '#3a3a2a', color: '#fff' }}
-                            >
-                                <Plus size={14} />
-                                {t.boardWriteBtn}
-                            </button>
+                    <div className="space-y-6">
+                        {/* 가족 달력 */}
+                        <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: '1px solid #e8e0d0' }}>
+                            <FamilyCalendar siteId={site?.id} role="owner" t={t} />
                         </div>
 
-                        {/* Post list */}
-                        <div
-                            className="bg-white rounded-2xl shadow-sm overflow-hidden"
-                            style={{ border: '1px solid #e8e0d0' }}
-                        >
-                            {boardLoading ? (
-                                <div className="p-8 text-center">
-                                    <div className="w-8 h-8 border-2 border-gray-200 border-t-gray-600 rounded-full animate-spin mx-auto" />
+                        {/* 가족 게시판 */}
+                        <div>
+                            {/* Filter + write button */}
+                            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                                <div className="flex gap-1.5 flex-wrap">
+                                    {BOARD_CATS.map(({ key, label }) => (
+                                        <button
+                                            key={key}
+                                            onClick={() => setBoardCategory(key)}
+                                            className="px-3 py-1 rounded-full text-xs font-bold transition-all"
+                                            style={{
+                                                background: boardCategory === key ? '#3a3a2a' : '#ffffff',
+                                                color: boardCategory === key ? '#ffffff' : '#5a5a4a',
+                                                border: '1.5px solid ' + (boardCategory === key ? '#3a3a2a' : '#d8d0c0'),
+                                            }}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
                                 </div>
-                            ) : posts.length === 0 ? (
-                                <div className="text-center py-20" style={{ color: '#9a9a8a' }}>
-                                    <ClipboardList size={40} className="mx-auto mb-3 opacity-30" />
-                                    <p className="text-sm">{t.boardEmpty}</p>
-                                </div>
-                            ) : (
-                                posts.map((post) => <PostRow key={post.id} post={post} t={t} onClick={() => setSelectedPostId(post.id)} />)
-                            )}
+                                <button
+                                    onClick={() => setShowCreatePost(true)}
+                                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold"
+                                    style={{ background: '#3a3a2a', color: '#fff' }}
+                                >
+                                    <Plus size={14} />
+                                    {t.boardWriteBtn}
+                                </button>
+                            </div>
+
+                            {/* Post list */}
+                            <div
+                                className="bg-white rounded-2xl shadow-sm overflow-hidden"
+                                style={{ border: '1px solid #e8e0d0' }}
+                            >
+                                {boardLoading ? (
+                                    <div className="p-8 text-center">
+                                        <div className="w-8 h-8 border-2 border-gray-200 border-t-gray-600 rounded-full animate-spin mx-auto" />
+                                    </div>
+                                ) : !posts || posts.length === 0 ? (
+                                    <div className="text-center py-20" style={{ color: '#9a9a8a' }}>
+                                        <ClipboardList size={40} className="mx-auto mb-3 opacity-30" />
+                                        <p className="text-sm">{t.boardEmpty || '아직 게시물이 없습니다'}</p>
+                                    </div>
+                                ) : (
+                                    posts.map((post) => <PostRow key={post.id} post={post} t={t} onClick={() => setSelectedPostId(post.id)} />)
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
