@@ -7,6 +7,9 @@ const path = require('path');
 
 const app = express();
 
+// nginx 리버스 프록시 뒤에서 실행 — X-Forwarded-For 신뢰
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(cors({
     origin: process.env.FRONTEND_URL || 'http://localhost:5173',
