@@ -120,67 +120,51 @@ export default function DashboardExhibitionWidget({
 
     return (
         <>
-            {/* ── 미니 위젯 ── */}
-            <section id="section-exhibition" className="min-w-0 flex flex-col">
-                <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-base font-bold" style={{ color: '#3a3a2a' }}>
-                        <ImageIcon size={16} className="inline mr-1.5 -mt-0.5" />
-                        우리 가족 전시관
-                    </h2>
-                    <div className="flex items-center gap-2">
-                        {canEdit && (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onUpload(); }}
-                                className="text-xs font-bold px-2.5 py-1 rounded-full transition-all hover:brightness-95"
-                                style={{ background: '#e8f5e0', color: '#3a7a2a' }}
-                            >
-                                <Plus size={11} className="inline -mt-0.5 mr-0.5" />
-                                새 전시관
-                            </button>
-                        )}
-                        <button
-                            onClick={() => setFullscreen(true)}
-                            className="text-xs font-bold px-2.5 py-1 rounded-full transition-all hover:brightness-95"
-                            style={{ background: '#f0eaf8', color: '#6a3a9a' }}
-                        >
-                            전체보기
-                        </button>
-                    </div>
-                </div>
-                <div
+            {/* ── 대형 카드 버튼 ── */}
+            <section id="section-exhibition" className="min-w-0">
+                <button
                     onClick={() => setFullscreen(true)}
-                    className="flex-1 bg-white rounded-2xl shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow relative"
-                    style={{ border: '1px solid #e8e0d0', minHeight: 320 }}
+                    className="w-full h-48 md:h-56 rounded-2xl overflow-hidden relative cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 text-left group"
+                    style={{ border: '1px solid #e8e0d0' }}
                 >
                     {/* 슬라이드쇼 배경 */}
                     <MiniSlideshow exhibitions={exhibitions} />
-                    {/* 오버레이 정보 */}
-                    <div className="absolute inset-0 flex flex-col justify-end p-4 z-10">
-                        <p className="text-white text-lg font-bold drop-shadow-md">
-                            {exhibitions.length > 0 ? `${exhibitions.length}개 전시관` : '전시관을 만들어보세요'}
-                        </p>
-                        <p className="text-white/80 text-xs mt-1 drop-shadow">
-                            {familyExhs.length > 0 && `가족공개 ${familyExhs.length}`}
-                            {familyExhs.length > 0 && publicExhs.length > 0 && ' · '}
-                            {publicExhs.length > 0 && `일반공개 ${publicExhs.length}`}
-                        </p>
-                    </div>
-                </div>
-                {/* 내 보관함 */}
-                {canEdit && (
-                    <button
-                        onClick={onPrivateUpload}
-                        className="w-full mt-3 flex items-center gap-3 p-3 rounded-xl border transition-all hover:bg-gray-50 text-left"
-                        style={{ borderColor: '#e8e0d0', background: '#faf8f4' }}
-                    >
-                        <span className="text-lg">🔒</span>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold" style={{ color: '#3a3a2a' }}>내 보관함</p>
-                            <p className="text-xs" style={{ color: '#9a9a8a' }}>나만 볼 수 있는 사진</p>
+
+                    {/* 반투명 오버레이 (가독성) */}
+                    <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.5) 100%)' }} />
+
+                    {/* 콘텐츠 */}
+                    <div className="absolute inset-0 flex flex-col justify-between p-5 z-10">
+                        {/* 상단: 제목 */}
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <ImageIcon size={18} style={{ color: '#fff' }} />
+                                    <h2 className="text-base font-bold text-white drop-shadow-md">
+                                        우리 가족 전시관
+                                    </h2>
+                                </div>
+                            </div>
+                            <ChevronRight size={20} className="opacity-0 group-hover:opacity-100 transition-opacity mt-1 text-white drop-shadow" />
                         </div>
-                        <Camera size={14} style={{ color: '#9a9a8a' }} />
-                    </button>
-                )}
+
+                        {/* 하단: 전시관 요약 */}
+                        <div>
+                            <p className="text-white text-2xl font-black drop-shadow-md leading-none">
+                                {exhibitions.length > 0 ? `${exhibitions.length}개` : '0개'}
+                            </p>
+                            <p className="text-white/80 text-xs mt-1 drop-shadow font-medium">
+                                {exhibitions.length > 0
+                                    ? [
+                                        familyExhs.length > 0 && `가족공개 ${familyExhs.length}`,
+                                        publicExhs.length > 0 && `일반공개 ${publicExhs.length}`,
+                                    ].filter(Boolean).join(' · ')
+                                    : '전시관을 만들어보세요'
+                                }
+                            </p>
+                        </div>
+                    </div>
+                </button>
             </section>
 
             {/* ── 전체화면 모달 ── */}

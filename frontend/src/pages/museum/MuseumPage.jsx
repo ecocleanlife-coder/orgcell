@@ -370,8 +370,8 @@ export default function MuseumPage({ initialTab }) {
             {/* ════ 메인 콘텐츠 (스크롤) ════ */}
             <main className="max-w-5xl mx-auto px-4 py-6 pb-28">
 
-                {/* ══ 2열 대시보드 위젯 (50:50 강제) ══ */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+                {/* ══ 2열 대시보드 위젯 (대형 카드 버튼) ══ */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-12">
                     <DashboardCalendarWidget
                         siteId={site?.id}
                         role={role}

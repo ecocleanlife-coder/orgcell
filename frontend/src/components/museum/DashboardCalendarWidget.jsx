@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { CalendarDays, ClipboardList, X, ChevronRight, Pencil, Bell, Star, Calendar, MessageSquare } from 'lucide-react';
 import FamilyCalendar from './FamilyCalendar';
 
@@ -37,35 +37,81 @@ function PostRow({ post, t, onClick }) {
 export default function DashboardCalendarWidget({ siteId, role, t, posts, boardLoading, onPostClick, onWritePost, canEdit }) {
     const [fullscreen, setFullscreen] = useState(false);
 
+    // 오늘 날짜 포맷
+    const today = useMemo(() => {
+        const d = new Date();
+        const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+        return {
+            month: d.getMonth() + 1,
+            day: d.getDate(),
+            weekday: weekdays[d.getDay()],
+            full: `${d.getMonth() + 1}월 ${d.getDate()}일 (${weekdays[d.getDay()]})`,
+        };
+    }, []);
+
+    // 다가오는 일정 1개 (event 카테고리 최신)
+    const nextEvent = useMemo(() => {
+        const events = posts.filter((p) => p.category === 'event' || p.category === 'notice');
+        return events.length > 0 ? events[0] : null;
+    }, [posts]);
+
     return (
         <>
-            {/* ── 미니 위젯 ── */}
-            <section id="section-calendar" className="min-w-0 flex flex-col">
-                <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-base font-bold" style={{ color: '#3a3a2a' }}>
-                        <CalendarDays size={16} className="inline mr-1.5 -mt-0.5" />
-                        일정표 및 가족 게시판
-                    </h2>
-                    <button
-                        onClick={() => setFullscreen(true)}
-                        className="text-xs font-bold px-2.5 py-1 rounded-full transition-all hover:brightness-95"
-                        style={{ background: '#e8f5e0', color: '#3a7a2a' }}
-                    >
-                        전체보기
-                    </button>
-                </div>
-                <div
+            {/* ── 대형 카드 버튼 ── */}
+            <section id="section-calendar" className="min-w-0">
+                <button
                     onClick={() => setFullscreen(true)}
-                    className="flex-1 bg-white rounded-2xl shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow relative"
-                    style={{ border: '1px solid #e8e0d0', minHeight: 320 }}
+                    className="w-full h-48 md:h-56 rounded-2xl overflow-hidden relative cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 text-left group"
+                    style={{ border: '1px solid #e8e0d0' }}
                 >
-                    {/* 달력 아이콘 패턴 배경 */}
-                    <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Ctext x='10' y='40' font-size='30' opacity='0.4'%3E📅%3C/text%3E%3C/svg%3E")`,
-                        backgroundSize: '60px 60px',
+                    {/* 달력 패턴 배경 */}
+                    <div className="absolute inset-0" style={{
+                        background: 'linear-gradient(135deg, #f0f7ed 0%, #e0eed8 50%, #d8e8d0 100%)',
                     }} />
-                    <FamilyCalendar siteId={siteId} role={role} t={t} />
-                </div>
+                    <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Ctext x='15' y='50' font-size='40' opacity='0.5'%3E%F0%9F%93%85%3C/text%3E%3C/svg%3E")`,
+                        backgroundSize: '80px 80px',
+                    }} />
+
+                    {/* 콘텐츠 */}
+                    <div className="absolute inset-0 flex flex-col justify-between p-5 z-10">
+                        {/* 상단: 제목 + 아이콘 */}
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <CalendarDays size={18} style={{ color: '#3a7a2a' }} />
+                                    <h2 className="text-base font-bold" style={{ color: '#2a5a1a' }}>
+                                        일정표 및 가족 게시판
+                                    </h2>
+                                </div>
+                                <p className="text-xs" style={{ color: '#6a8a5a' }}>
+                                    {posts.length > 0 ? `${posts.length}개 게시글` : '게시글을 써보세요'}
+                                </p>
+                            </div>
+                            <ChevronRight size={20} className="opacity-0 group-hover:opacity-100 transition-opacity mt-1" style={{ color: '#3a7a2a' }} />
+                        </div>
+
+                        {/* 하단: 오늘 날짜 + 다가오는 일정 */}
+                        <div>
+                            <div className="flex items-end gap-3">
+                                <div className="bg-white/80 rounded-xl px-3 py-2 backdrop-blur-sm" style={{ border: '1px solid rgba(58,122,42,0.15)' }}>
+                                    <p className="text-2xl font-black leading-none" style={{ color: '#2a5a1a' }}>{today.day}</p>
+                                    <p className="text-xs font-bold mt-0.5" style={{ color: '#5a8a4a' }}>{today.month}월 {today.weekday}요일</p>
+                                </div>
+                                {nextEvent && (
+                                    <div className="flex-1 min-w-0 mb-0.5">
+                                        <p className="text-xs font-bold truncate" style={{ color: '#3a6a2a' }}>
+                                            {nextEvent.title}
+                                        </p>
+                                        <p className="text-xs" style={{ color: '#7a9a6a' }}>
+                                            {new Date(nextEvent.created_at).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </button>
             </section>
 
             {/* ── 전체화면 모달 ── */}
