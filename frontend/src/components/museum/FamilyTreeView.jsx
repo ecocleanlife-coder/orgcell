@@ -247,20 +247,10 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         const chartData = filterConnectedNodes(rawData, mainIdRef.current);
         if (chartData.length === 0) return;
 
-        // deep copy로 library 내부 mutation이 원본 데이터를 오염시키지 않도록 방지
-        const safeData = JSON.parse(JSON.stringify(chartData));
-
-        // 기존 차트가 있으면 데이터만 업데이트
+        // 기존 차트가 있으면 파괴 후 재생성 (updateData는 내부 mutation으로 불안정)
         if (chartRef.current) {
-            try {
-                chartRef.current.updateData(safeData);
-                chartRef.current.updateTree({ tree_position: 'inherit' });
-            } catch (err) {
-                console.error('family-chart update error, keeping old chart:', err);
-                // 업데이트 실패해도 기존 차트 유지 (사라짐 방지)
-                // 다음 데이터 변경 시 재시도됨
-            }
-            return;
+            chartRef.current = null;
+            if (chartContRef.current) chartContRef.current.innerHTML = '';
         }
 
         // 차트 DOM 초기화 (첫 생성 시에만)
