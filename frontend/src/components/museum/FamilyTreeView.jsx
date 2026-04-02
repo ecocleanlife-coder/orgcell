@@ -246,15 +246,18 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         // 기존 배우자 조상 제거
         container.querySelectorAll('.spouse-ancestor-overlay').forEach(el => el.remove());
 
-        // 렌더링된 카드에서 이름→위치 맵 구성
-        const cardPositions = {};
+        // data-id 속성으로 렌더링된 카드 ID→위치 맵 구성
+        const renderedMap = {}; // id → { x, y }
+        const renderedIds = new Set();
         container.querySelectorAll('.card_cont').forEach(card => {
-            const nameEl = card.querySelector('.fc-card-inner');
+            const dataIdEl = card.querySelector('[data-id]');
+            const id = dataIdEl?.getAttribute('data-id');
+            if (!id) return;
+            renderedIds.add(id);
             const style = card.getAttribute('style') || '';
             const match = style.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
             if (match) {
-                // data-person-id 속성으로 식별 (family-chart 내부)
-                cardPositions[card] = { x: parseFloat(match[1]), y: parseFloat(match[2]), el: card };
+                renderedMap[id] = { x: parseFloat(match[1]), y: parseFloat(match[2]) };
             }
         });
 
@@ -262,42 +265,18 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         const mainNode = chartData.find(d => d.id === String(mainId));
         if (!mainNode || !mainNode.rels.spouses?.length) return;
 
-        // 렌더링된 카드 이름으로 ID 매핑 (카드에 data-id가 없으므로 이름으로 매칭)
-        const renderedCards = container.querySelectorAll('.card_cont');
-        const nameToCard = {};
-        renderedCards.forEach(card => {
-            const style = card.getAttribute('style') || '';
-            const match = style.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
-            if (!match) return;
-            const x = parseFloat(match[1]);
-            const y = parseFloat(match[2]);
-            // 카드 내부 텍스트에서 이름 추출
-            const inner = card.querySelector('.fc-card-inner');
-            const nameDiv = inner?.querySelector('div');
-            const name = nameDiv?.textContent?.trim();
-            if (name) nameToCard[name] = { x, y, el: card };
-        });
-
-        // chartData에서 ID→이름 맵
-        const idToName = {};
-        for (const d of chartData) {
-            idToName[d.id] = d.data?.display_name || '';
-        }
-
         // 배우자 카드 위치 찾기
         for (const spouseId of mainNode.rels.spouses) {
             const spouseNode = chartData.find(d => d.id === String(spouseId));
             if (!spouseNode) continue;
 
-            const spouseName = spouseNode.data?.display_name || '';
-            const spousePos = nameToCard[spouseName];
+            const spousePos = renderedMap[String(spouseId)];
             if (!spousePos) continue;
 
-            // 배우자의 부모 중 렌더링 안 된 것 찾기
+            // 배우자의 부모 중 렌더링되지 않은 노드 찾기
             const missingParents = [];
             for (const parentId of (spouseNode.rels.parents || [])) {
-                const parentName = idToName[parentId];
-                if (parentName && !nameToCard[parentName]) {
+                if (!renderedIds.has(String(parentId))) {
                     const parentNode = chartData.find(d => d.id === String(parentId));
                     if (parentNode) missingParents.push(parentNode);
                 }
@@ -459,21 +438,14 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         const { zoomBehavior, svg, chartInner } = zoomRef.current;
         if (!chartInner) return;
 
-        // mainId 이름으로 카드 찾기
+        // data-id로 메인 카드 찾기
         const mainId = mainIdRef.current;
         if (!mainId) return;
 
-        // 현재 persons에서 mainId의 이름
-        const mainPerson = persons.find(p => String(p.id) === String(mainId));
-        if (!mainPerson) return;
-
-        // 카드 위치 찾기 (CSS transform에서 추출)
         let mainX = 0, mainY = 0, found = false;
         chartInner.querySelectorAll('.card_cont').forEach(card => {
-            const inner = card.querySelector('.fc-card-inner');
-            const nameDiv = inner?.querySelector('div');
-            const name = nameDiv?.textContent?.trim();
-            if (name === mainPerson.name) {
+            const dataIdEl = card.querySelector(`[data-id="${mainId}"]`);
+            if (dataIdEl) {
                 const style = card.getAttribute('style') || '';
                 const match = style.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
                 if (match) {
