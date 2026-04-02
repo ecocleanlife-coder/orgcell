@@ -238,292 +238,263 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         `;
     }, [canEdit]);
 
-    // ── 배우자 조상 표시 (family-chart가 렌더링하지 않은 노드) ──
-    const renderSpouseAncestors = useCallback((svgEl, chartData) => {
-        const svg = d3Select(svgEl);
-        const viewGroup = svg.select('.zoom-group .view') || svg.select('.view');
-        if (viewGroup.empty()) return;
+    // ── 배우자 조상 표시 (family-chart가 렌더링하지 않은 노드를 HTML로 추가) ──
+    const renderSpouseAncestors = useCallback((chartData) => {
+        if (!chartContRef.current) return;
+        const container = chartContRef.current;
 
-        // family-chart가 실제 렌더링한 노드 ID 수집
-        const renderedIds = new Set();
-        svgEl.querySelectorAll('.card_cont').forEach(card => {
-            const d = card.__data__;
-            if (d?.data?.id) renderedIds.add(String(d.data.id));
+        // 기존 배우자 조상 제거
+        container.querySelectorAll('.spouse-ancestor-overlay').forEach(el => el.remove());
+
+        // 렌더링된 카드에서 이름→위치 맵 구성
+        const cardPositions = {};
+        container.querySelectorAll('.card_cont').forEach(card => {
+            const nameEl = card.querySelector('.fc-card-inner');
+            const style = card.getAttribute('style') || '';
+            const match = style.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+            if (match) {
+                // data-person-id 속성으로 식별 (family-chart 내부)
+                cardPositions[card] = { x: parseFloat(match[1]), y: parseFloat(match[2]), el: card };
+            }
         });
 
-        // mainPerson의 배우자 찾기
         const mainId = mainIdRef.current;
         const mainNode = chartData.find(d => d.id === String(mainId));
         if (!mainNode || !mainNode.rels.spouses?.length) return;
 
-        // 배우자의 부모 중 렌더링되지 않은 노드 찾기
-        const missingAncestors = [];
+        // 렌더링된 카드 이름으로 ID 매핑 (카드에 data-id가 없으므로 이름으로 매칭)
+        const renderedCards = container.querySelectorAll('.card_cont');
+        const nameToCard = {};
+        renderedCards.forEach(card => {
+            const style = card.getAttribute('style') || '';
+            const match = style.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+            if (!match) return;
+            const x = parseFloat(match[1]);
+            const y = parseFloat(match[2]);
+            // 카드 내부 텍스트에서 이름 추출
+            const inner = card.querySelector('.fc-card-inner');
+            const nameDiv = inner?.querySelector('div');
+            const name = nameDiv?.textContent?.trim();
+            if (name) nameToCard[name] = { x, y, el: card };
+        });
+
+        // chartData에서 ID→이름 맵
+        const idToName = {};
+        for (const d of chartData) {
+            idToName[d.id] = d.data?.display_name || '';
+        }
+
+        // 배우자 카드 위치 찾기
         for (const spouseId of mainNode.rels.spouses) {
             const spouseNode = chartData.find(d => d.id === String(spouseId));
             if (!spouseNode) continue;
 
+            const spouseName = spouseNode.data?.display_name || '';
+            const spousePos = nameToCard[spouseName];
+            if (!spousePos) continue;
+
+            // 배우자의 부모 중 렌더링 안 된 것 찾기
+            const missingParents = [];
             for (const parentId of (spouseNode.rels.parents || [])) {
-                if (!renderedIds.has(String(parentId))) {
+                const parentName = idToName[parentId];
+                if (parentName && !nameToCard[parentName]) {
                     const parentNode = chartData.find(d => d.id === String(parentId));
-                    if (parentNode) {
-                        missingAncestors.push({
-                            parent: parentNode,
-                            child: spouseNode,
-                            childId: spouseId,
-                        });
-                    }
+                    if (parentNode) missingParents.push(parentNode);
                 }
             }
-        }
 
-        if (missingAncestors.length === 0) return;
+            if (missingParents.length === 0) continue;
 
-        // 배우자 카드의 위치 찾기
-        let spouseCard = null;
-        svgEl.querySelectorAll('.card_cont').forEach(card => {
-            const d = card.__data__;
-            if (d && String(d.data?.id) === String(missingAncestors[0].childId)) {
-                spouseCard = card;
-            }
-        });
-        if (!spouseCard) return;
-
-        // 배우자 카드의 transform에서 x, y 추출
-        const spouseTransform = spouseCard.getAttribute('transform') || '';
-        const match = spouseTransform.match(/translate\(([-\d.]+)[,\s]+([-\d.]+)\)/);
-        if (!match) return;
-        const spouseX = parseFloat(match[1]);
-        const spouseY = parseFloat(match[2]);
-
-        // 배우자 조상 그룹 생성 (기존 것 제거 후)
-        viewGroup.selectAll('.spouse-ancestors').remove();
-        const ancestorGroup = viewGroup.append('g').attr('class', 'spouse-ancestors');
-
-        // 부모 노드 위치 계산 (배우자 위에 배치)
-        const cardW = 130;
-        const cardH = 160;
-        const yOffset = -220; // 배우자 위에 배치
-        const parentPairs = [];
-
-        // 부모 쌍 그룹화 (같은 자녀의 부모끼리)
-        const groupedByChild = {};
-        for (const item of missingAncestors) {
-            if (!groupedByChild[item.childId]) groupedByChild[item.childId] = [];
-            groupedByChild[item.childId].push(item.parent);
-        }
-
-        for (const [childId, parents] of Object.entries(groupedByChild)) {
             // 남성 먼저 정렬
-            parents.sort((a, b) => {
-                const aG = a.data?.gender || 'M';
-                const bG = b.data?.gender || 'M';
-                if (aG === 'M' && bG !== 'M') return -1;
-                if (aG !== 'M' && bG === 'M') return 1;
+            missingParents.sort((a, b) => {
+                if (a.data?.gender === 'M' && b.data?.gender !== 'M') return -1;
+                if (a.data?.gender !== 'M' && b.data?.gender === 'M') return 1;
                 return 0;
             });
 
-            const totalWidth = parents.length * (cardW + 20) - 20;
-            const startX = spouseX + cardW / 2 - totalWidth / 2;
+            // HTML overlay로 조상 카드 + 연결선 생성
+            const overlay = document.createElement('div');
+            overlay.className = 'spouse-ancestor-overlay';
+            overlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;';
 
-            parents.forEach((parent, i) => {
-                const px = startX + i * (cardW + 20);
-                const py = spouseY + yOffset;
+            const cardW = 130;
+            const cardH = 160;
+            const yOffset = -220;
+            const gap = 20;
+            const totalWidth = missingParents.length * (cardW + gap) - gap;
+            const startX = spousePos.x + cardW / 2 - totalWidth / 2;
+
+            missingParents.forEach((parent, i) => {
+                const px = startX + i * (cardW + gap);
+                const py = spousePos.y + yOffset;
                 const gender = parent.data?.gender || 'M';
                 const displayName = parent.data?.display_name || '?';
                 const initials = parent.data?.initials || '?';
-                const isDeceased = parent.data?.is_deceased || false;
                 const dateLabel = parent.data?.date_label || '';
                 const borderColor = gender === 'M' ? '#C4956A' : '#E8A0BF';
                 const bgColor = gender === 'M' ? '#D4A574' : '#F0B8D0';
+                const markerColor = gender === 'M' ? '#C4956A' : '#E8A0BF';
 
-                // 카드 렌더링
-                const card = ancestorGroup.append('g')
-                    .attr('class', 'card_cont spouse-ancestor-card')
-                    .attr('transform', `translate(${px}, ${py})`)
-                    .style('cursor', 'pointer')
-                    .on('click', () => {
-                        const raw = persons.find(p => String(p.id) === String(parent.id));
-                        if (raw && canEdit) openEditModal(raw);
-                    });
-
-                // 카드 배경 (점선 테두리로 배우자 쪽 구분)
-                card.append('rect')
-                    .attr('width', cardW)
-                    .attr('height', cardH)
-                    .attr('rx', 16)
-                    .attr('ry', 16)
-                    .attr('fill', '#FFF8F0')
-                    .attr('stroke', borderColor)
-                    .attr('stroke-width', 2)
-                    .attr('stroke-dasharray', '6,3');
-
-                // 성별 마커
-                card.append('rect')
-                    .attr('x', cardW / 2 - 8)
-                    .attr('y', -6)
-                    .attr('width', 16)
-                    .attr('height', 12)
-                    .attr('rx', 3)
-                    .attr('fill', borderColor);
-
-                // 아바타 원
-                card.append('circle')
-                    .attr('cx', cardW / 2)
-                    .attr('cy', 65)
-                    .attr('r', 35)
-                    .attr('fill', bgColor);
-
-                // 이니셜
-                card.append('text')
-                    .attr('x', cardW / 2)
-                    .attr('y', 72)
-                    .attr('text-anchor', 'middle')
-                    .attr('fill', 'white')
-                    .attr('font-size', '18px')
-                    .attr('font-weight', 'bold')
-                    .text(initials);
-
-                // 이름
-                card.append('text')
-                    .attr('x', cardW / 2)
-                    .attr('y', 118)
-                    .attr('text-anchor', 'middle')
-                    .attr('fill', '#333')
-                    .attr('font-size', '13px')
-                    .attr('font-weight', '600')
-                    .text(displayName.length > 8 ? displayName.slice(0, 7) + '…' : displayName);
-
-                // 날짜
-                if (dateLabel) {
-                    card.append('text')
-                        .attr('x', cardW / 2)
-                        .attr('y', 138)
-                        .attr('text-anchor', 'middle')
-                        .attr('fill', '#888')
-                        .attr('font-size', '10px')
-                        .text(dateLabel);
-                }
-
-                parentPairs.push({ px, py, gender });
+                const card = document.createElement('div');
+                card.style.cssText = `position:absolute;top:0;left:0;transform:translate(${px}px,${py}px);width:${cardW}px;height:${cardH}px;pointer-events:auto;cursor:pointer;`;
+                card.innerHTML = `
+                    <div style="width:100%;height:100%;border-radius:16px;border:2px dashed ${borderColor};background:#FFF8F0;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;">
+                        <div style="position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:16px;height:12px;border-radius:3px;background:${markerColor};"></div>
+                        <div style="width:70px;height:70px;border-radius:50%;background:${bgColor};display:flex;align-items:center;justify-content:center;margin-top:10px;">
+                            <span style="color:white;font-size:18px;font-weight:bold;">${initials}</span>
+                        </div>
+                        <div style="margin-top:8px;font-size:13px;font-weight:600;color:#333;text-align:center;">${displayName.length > 8 ? displayName.slice(0, 7) + '…' : displayName}</div>
+                        ${dateLabel ? `<div style="font-size:10px;color:#888;margin-top:2px;">${dateLabel}</div>` : ''}
+                    </div>
+                `;
+                card.addEventListener('click', () => {
+                    const raw = persons.find(p => String(p.id) === String(parent.id));
+                    if (raw && canEdit) openEditModal(raw);
+                });
+                overlay.appendChild(card);
             });
 
-            // 부모 사이 배우자 연결선 (점선)
-            if (parents.length === 2) {
+            // SVG 연결선 (점선) — 부모쌍 연결 + 자녀 연결
+            const svgNS = 'http://www.w3.org/2000/svg';
+            const lineSvg = document.createElementNS(svgNS, 'svg');
+            lineSvg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:visible;';
+
+            // 부모 사이 배우자 연결선
+            if (missingParents.length === 2) {
                 const x1 = startX + cardW;
-                const x2 = startX + cardW + 20;
-                const midY = spouseY + yOffset + cardH / 2;
-                ancestorGroup.append('line')
-                    .attr('x1', x1).attr('y1', midY)
-                    .attr('x2', x2).attr('y2', midY)
-                    .attr('stroke', '#C4956A')
-                    .attr('stroke-width', 2)
-                    .attr('stroke-dasharray', '4,3')
-                    .attr('stroke-opacity', 0.7);
+                const x2 = startX + cardW + gap;
+                const midY = spousePos.y + yOffset + cardH / 2;
+                const line = document.createElementNS(svgNS, 'line');
+                line.setAttribute('x1', x1); line.setAttribute('y1', midY);
+                line.setAttribute('x2', x2); line.setAttribute('y2', midY);
+                line.setAttribute('stroke', '#C4956A');
+                line.setAttribute('stroke-width', '2');
+                line.setAttribute('stroke-dasharray', '4,3');
+                line.setAttribute('stroke-opacity', '0.7');
+                lineSvg.appendChild(line);
             }
 
-            // 부모에서 자녀(배우자)로의 연결선 (점선)
+            // 부모 → 자녀(배우자) 연결선
             const midParentX = startX + totalWidth / 2;
-            const parentBottom = spouseY + yOffset + cardH;
-            const childTop = spouseY;
-            const childMidX = spouseX + cardW / 2;
-
-            // 세로선: 부모 중앙 아래로
+            const parentBottom = spousePos.y + yOffset + cardH;
+            const childTop = spousePos.y;
+            const childMidX = spousePos.x + cardW / 2;
             const midY = (parentBottom + childTop) / 2;
-            ancestorGroup.append('path')
-                .attr('d', `M${midParentX},${parentBottom} L${midParentX},${midY} L${childMidX},${midY} L${childMidX},${childTop}`)
-                .attr('fill', 'none')
-                .attr('stroke', '#C4956A')
-                .attr('stroke-width', 2)
-                .attr('stroke-dasharray', '6,3')
-                .attr('stroke-opacity', 0.7);
+
+            const path = document.createElementNS(svgNS, 'path');
+            path.setAttribute('d', `M${midParentX},${parentBottom} L${midParentX},${midY} L${childMidX},${midY} L${childMidX},${childTop}`);
+            path.setAttribute('fill', 'none');
+            path.setAttribute('stroke', '#C4956A');
+            path.setAttribute('stroke-width', '2');
+            path.setAttribute('stroke-dasharray', '6,3');
+            path.setAttribute('stroke-opacity', '0.7');
+            lineSvg.appendChild(path);
+
+            overlay.appendChild(lineSvg);
+
+            // family-chart 내부 컨테이너에 추가 (SVG 옆 DIV와 같은 레벨)
+            const chartInner = container.querySelector('svg.main_svg')?.parentElement;
+            if (chartInner) chartInner.appendChild(overlay);
         }
     }, [persons, canEdit]);
 
-    // ── d3-zoom 설정 ──
+    // ── d3-zoom 설정 (SVG + HTML 카드 동시 이동) ──
     const setupZoom = useCallback((svgEl, chartData) => {
+        const chartInner = svgEl.parentElement; // SVG + card overlay의 공통 부모
+        if (!chartInner) return;
+
         const svg = d3Select(svgEl);
-        // family-chart가 만든 내부 그룹 (모든 카드/링크 포함)
-        const innerGroup = svg.select('.view');
-        if (innerGroup.empty()) return;
 
-        // 기존 family-chart의 transform 보존
-        const existingTransform = innerGroup.attr('transform');
-
-        // 래퍼 그룹 생성: zoom은 이 그룹에 적용
-        // family-chart의 .view를 감싸는 .zoom-group 추가
-        let zoomGroup = svg.select('.zoom-group');
-        if (zoomGroup.empty()) {
-            zoomGroup = svg.insert('g', '.view').attr('class', 'zoom-group');
-            // .view를 zoom-group 안으로 이동
-            zoomGroup.node().appendChild(innerGroup.node());
+        // family-chart의 zoom-group 제거 (SVG 단독 zoom 대신 전체 컨테이너 zoom)
+        const existingZoomGroup = svg.select('.zoom-group');
+        if (!existingZoomGroup.empty()) {
+            const viewNode = existingZoomGroup.select('.view').node();
+            if (viewNode) svgEl.appendChild(viewNode);
+            existingZoomGroup.remove();
         }
 
         const zoomBehavior = d3Zoom()
             .scaleExtent([0.3, 2])
+            .filter((event) => {
+                // 카드 클릭은 줌 이벤트에서 제외
+                if (event.type === 'mousedown' || event.type === 'touchstart') {
+                    const target = event.target;
+                    if (target.closest?.('.card_cont') || target.closest?.('.spouse-ancestor-overlay [style*="pointer-events:auto"]')) {
+                        return false;
+                    }
+                }
+                return true;
+            })
             .on('zoom', (event) => {
-                zoomGroup.attr('transform', event.transform);
-                setZoomScale(event.transform.k);
+                const { x, y, k } = event.transform;
+                // SVG 내부와 HTML 카드 overlay 모두에 transform 적용
+                const allChildren = chartInner.children;
+                for (const child of allChildren) {
+                    if (child.tagName === 'svg') {
+                        // SVG: 내부 .view에 transform
+                        const view = child.querySelector('.view');
+                        if (view) view.setAttribute('transform', `translate(${x},${y}) scale(${k})`);
+                    } else {
+                        // HTML overlay: CSS transform
+                        child.style.transformOrigin = '0 0';
+                        child.style.transform = `translate(${x}px,${y}px) scale(${k})`;
+                    }
+                }
+                setZoomScale(k);
             });
 
+        // 줌 이벤트를 SVG에 바인딩 (전체 영역 커버)
         svg.call(zoomBehavior);
-        // 더블클릭 줌 비활성화 (카드 클릭과 충돌 방지)
         svg.on('dblclick.zoom', null);
 
-        zoomRef.current = { zoomBehavior, svg, zoomGroup };
+        zoomRef.current = { zoomBehavior, svg, chartInner };
 
         // 초기 위치: 본인 부부를 화면 중앙으로
-        setTimeout(() => centerOnMain(), 200);
+        setTimeout(() => centerOnMain(), 300);
     }, []);
 
     // 본인 부부를 화면 중앙으로 이동
     const centerOnMain = useCallback(() => {
         if (!zoomRef.current || !chartContRef.current) return;
-        const { zoomBehavior, svg } = zoomRef.current;
+        const { zoomBehavior, svg, chartInner } = zoomRef.current;
+        if (!chartInner) return;
 
-        const svgEl = chartContRef.current.querySelector('svg.main_svg');
-        if (!svgEl) return;
-
-        // mainId에 해당하는 카드 노드 찾기
+        // mainId 이름으로 카드 찾기
         const mainId = mainIdRef.current;
         if (!mainId) return;
 
-        const allCards = svgEl.querySelectorAll('.card_cont');
-        let targetCard = null;
-        for (const card of allCards) {
-            // family-chart는 카드에 data-id 또는 transform으로 위치 지정
-            const cardData = card.__data__;
-            if (cardData && String(cardData.data?.id) === String(mainId)) {
-                targetCard = card;
-                break;
+        // 현재 persons에서 mainId의 이름
+        const mainPerson = persons.find(p => String(p.id) === String(mainId));
+        if (!mainPerson) return;
+
+        // 카드 위치 찾기 (CSS transform에서 추출)
+        let mainX = 0, mainY = 0, found = false;
+        chartInner.querySelectorAll('.card_cont').forEach(card => {
+            const inner = card.querySelector('.fc-card-inner');
+            const nameDiv = inner?.querySelector('div');
+            const name = nameDiv?.textContent?.trim();
+            if (name === mainPerson.name) {
+                const style = card.getAttribute('style') || '';
+                const match = style.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+                if (match) {
+                    mainX = parseFloat(match[1]) + 65; // 카드 중심 (130/2)
+                    mainY = parseFloat(match[2]) + 80; // 카드 중심 (160/2)
+                    found = true;
+                }
             }
-        }
+        });
 
-        if (!targetCard) return;
+        if (!found) return;
 
-        // 카드의 실제 화면 위치 계산
-        const cardRect = targetCard.getBoundingClientRect();
-        const svgRect = svgEl.getBoundingClientRect();
-
-        // 현재 zoom transform 상태
-        const currentTransform = zoomRef.current.zoomGroup.node().getCTM();
-
-        // SVG 좌표계에서 카드 중심 계산
-        const cardCenterX = cardRect.left + cardRect.width / 2 - svgRect.left;
-        const cardCenterY = cardRect.top + cardRect.height / 2 - svgRect.top;
-
-        const containerW = svgRect.width;
-        const containerH = svgRect.height;
-
-        // 현재 스케일 유지하면서 중앙 이동
-        const scale = currentTransform ? currentTransform.a : 1;
-        const tx = containerW / 2 - cardCenterX;
-        const ty = containerH / 2 - cardCenterY;
+        const containerRect = chartContRef.current.getBoundingClientRect();
+        const tx = containerRect.width / 2 - mainX;
+        const ty = containerRect.height / 2 - mainY;
 
         svg.transition().duration(500).call(
             zoomBehavior.transform,
-            zoomIdentity.translate(tx, ty).scale(scale)
+            zoomIdentity.translate(tx, ty)
         );
-    }, []);
+    }, [persons]);
 
     const handleZoomIn = useCallback(() => {
         if (!zoomRef.current) return;
@@ -603,7 +574,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                     chart.updateTree({ tree_position: 'fit' });
 
                     // 배우자 조상 노드 렌더링 후 d3-zoom 설정
-                    renderSpouseAncestors(svgEl, chartData);
+                    setTimeout(() => renderSpouseAncestors(chartData), 200);
                     setupZoom(svgEl, chartData);
                 }, 100);
             }
