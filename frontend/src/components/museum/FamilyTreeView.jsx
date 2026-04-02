@@ -10,6 +10,9 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import * as f3 from 'family-chart';
 import 'family-chart/styles/family-chart.css';
+import { zoom as d3Zoom, zoomIdentity } from 'd3-zoom';
+import { select as d3Select } from 'd3-selection';
+import { Home, ZoomIn, ZoomOut } from 'lucide-react';
 
 import WormholePortal from './WormholePortal';
 import useUiStore from '../../store/uiStore';
@@ -60,6 +63,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     const chartContRef = useRef(null);
     const chartRef = useRef(null);
     const mainIdRef = useRef(null);
+    const zoomRef = useRef(null);
+    const [zoomScale, setZoomScale] = useState(1);
 
     const getFederationForPerson = (personId) => {
         return federations.find(f =>
@@ -233,6 +238,305 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         `;
     }, [canEdit]);
 
+    // ── 배우자 조상 표시 (family-chart가 렌더링하지 않은 노드) ──
+    const renderSpouseAncestors = useCallback((svgEl, chartData) => {
+        const svg = d3Select(svgEl);
+        const viewGroup = svg.select('.zoom-group .view') || svg.select('.view');
+        if (viewGroup.empty()) return;
+
+        // family-chart가 실제 렌더링한 노드 ID 수집
+        const renderedIds = new Set();
+        svgEl.querySelectorAll('.card_cont').forEach(card => {
+            const d = card.__data__;
+            if (d?.data?.id) renderedIds.add(String(d.data.id));
+        });
+
+        // mainPerson의 배우자 찾기
+        const mainId = mainIdRef.current;
+        const mainNode = chartData.find(d => d.id === String(mainId));
+        if (!mainNode || !mainNode.rels.spouses?.length) return;
+
+        // 배우자의 부모 중 렌더링되지 않은 노드 찾기
+        const missingAncestors = [];
+        for (const spouseId of mainNode.rels.spouses) {
+            const spouseNode = chartData.find(d => d.id === String(spouseId));
+            if (!spouseNode) continue;
+
+            for (const parentId of (spouseNode.rels.parents || [])) {
+                if (!renderedIds.has(String(parentId))) {
+                    const parentNode = chartData.find(d => d.id === String(parentId));
+                    if (parentNode) {
+                        missingAncestors.push({
+                            parent: parentNode,
+                            child: spouseNode,
+                            childId: spouseId,
+                        });
+                    }
+                }
+            }
+        }
+
+        if (missingAncestors.length === 0) return;
+
+        // 배우자 카드의 위치 찾기
+        let spouseCard = null;
+        svgEl.querySelectorAll('.card_cont').forEach(card => {
+            const d = card.__data__;
+            if (d && String(d.data?.id) === String(missingAncestors[0].childId)) {
+                spouseCard = card;
+            }
+        });
+        if (!spouseCard) return;
+
+        // 배우자 카드의 transform에서 x, y 추출
+        const spouseTransform = spouseCard.getAttribute('transform') || '';
+        const match = spouseTransform.match(/translate\(([-\d.]+)[,\s]+([-\d.]+)\)/);
+        if (!match) return;
+        const spouseX = parseFloat(match[1]);
+        const spouseY = parseFloat(match[2]);
+
+        // 배우자 조상 그룹 생성 (기존 것 제거 후)
+        viewGroup.selectAll('.spouse-ancestors').remove();
+        const ancestorGroup = viewGroup.append('g').attr('class', 'spouse-ancestors');
+
+        // 부모 노드 위치 계산 (배우자 위에 배치)
+        const cardW = 130;
+        const cardH = 160;
+        const yOffset = -220; // 배우자 위에 배치
+        const parentPairs = [];
+
+        // 부모 쌍 그룹화 (같은 자녀의 부모끼리)
+        const groupedByChild = {};
+        for (const item of missingAncestors) {
+            if (!groupedByChild[item.childId]) groupedByChild[item.childId] = [];
+            groupedByChild[item.childId].push(item.parent);
+        }
+
+        for (const [childId, parents] of Object.entries(groupedByChild)) {
+            // 남성 먼저 정렬
+            parents.sort((a, b) => {
+                const aG = a.data?.gender || 'M';
+                const bG = b.data?.gender || 'M';
+                if (aG === 'M' && bG !== 'M') return -1;
+                if (aG !== 'M' && bG === 'M') return 1;
+                return 0;
+            });
+
+            const totalWidth = parents.length * (cardW + 20) - 20;
+            const startX = spouseX + cardW / 2 - totalWidth / 2;
+
+            parents.forEach((parent, i) => {
+                const px = startX + i * (cardW + 20);
+                const py = spouseY + yOffset;
+                const gender = parent.data?.gender || 'M';
+                const displayName = parent.data?.display_name || '?';
+                const initials = parent.data?.initials || '?';
+                const isDeceased = parent.data?.is_deceased || false;
+                const dateLabel = parent.data?.date_label || '';
+                const borderColor = gender === 'M' ? '#C4956A' : '#E8A0BF';
+                const bgColor = gender === 'M' ? '#D4A574' : '#F0B8D0';
+
+                // 카드 렌더링
+                const card = ancestorGroup.append('g')
+                    .attr('class', 'card_cont spouse-ancestor-card')
+                    .attr('transform', `translate(${px}, ${py})`)
+                    .style('cursor', 'pointer')
+                    .on('click', () => {
+                        const raw = persons.find(p => String(p.id) === String(parent.id));
+                        if (raw && canEdit) openEditModal(raw);
+                    });
+
+                // 카드 배경 (점선 테두리로 배우자 쪽 구분)
+                card.append('rect')
+                    .attr('width', cardW)
+                    .attr('height', cardH)
+                    .attr('rx', 16)
+                    .attr('ry', 16)
+                    .attr('fill', '#FFF8F0')
+                    .attr('stroke', borderColor)
+                    .attr('stroke-width', 2)
+                    .attr('stroke-dasharray', '6,3');
+
+                // 성별 마커
+                card.append('rect')
+                    .attr('x', cardW / 2 - 8)
+                    .attr('y', -6)
+                    .attr('width', 16)
+                    .attr('height', 12)
+                    .attr('rx', 3)
+                    .attr('fill', borderColor);
+
+                // 아바타 원
+                card.append('circle')
+                    .attr('cx', cardW / 2)
+                    .attr('cy', 65)
+                    .attr('r', 35)
+                    .attr('fill', bgColor);
+
+                // 이니셜
+                card.append('text')
+                    .attr('x', cardW / 2)
+                    .attr('y', 72)
+                    .attr('text-anchor', 'middle')
+                    .attr('fill', 'white')
+                    .attr('font-size', '18px')
+                    .attr('font-weight', 'bold')
+                    .text(initials);
+
+                // 이름
+                card.append('text')
+                    .attr('x', cardW / 2)
+                    .attr('y', 118)
+                    .attr('text-anchor', 'middle')
+                    .attr('fill', '#333')
+                    .attr('font-size', '13px')
+                    .attr('font-weight', '600')
+                    .text(displayName.length > 8 ? displayName.slice(0, 7) + '…' : displayName);
+
+                // 날짜
+                if (dateLabel) {
+                    card.append('text')
+                        .attr('x', cardW / 2)
+                        .attr('y', 138)
+                        .attr('text-anchor', 'middle')
+                        .attr('fill', '#888')
+                        .attr('font-size', '10px')
+                        .text(dateLabel);
+                }
+
+                parentPairs.push({ px, py, gender });
+            });
+
+            // 부모 사이 배우자 연결선 (점선)
+            if (parents.length === 2) {
+                const x1 = startX + cardW;
+                const x2 = startX + cardW + 20;
+                const midY = spouseY + yOffset + cardH / 2;
+                ancestorGroup.append('line')
+                    .attr('x1', x1).attr('y1', midY)
+                    .attr('x2', x2).attr('y2', midY)
+                    .attr('stroke', '#C4956A')
+                    .attr('stroke-width', 2)
+                    .attr('stroke-dasharray', '4,3')
+                    .attr('stroke-opacity', 0.7);
+            }
+
+            // 부모에서 자녀(배우자)로의 연결선 (점선)
+            const midParentX = startX + totalWidth / 2;
+            const parentBottom = spouseY + yOffset + cardH;
+            const childTop = spouseY;
+            const childMidX = spouseX + cardW / 2;
+
+            // 세로선: 부모 중앙 아래로
+            const midY = (parentBottom + childTop) / 2;
+            ancestorGroup.append('path')
+                .attr('d', `M${midParentX},${parentBottom} L${midParentX},${midY} L${childMidX},${midY} L${childMidX},${childTop}`)
+                .attr('fill', 'none')
+                .attr('stroke', '#C4956A')
+                .attr('stroke-width', 2)
+                .attr('stroke-dasharray', '6,3')
+                .attr('stroke-opacity', 0.7);
+        }
+    }, [persons, canEdit]);
+
+    // ── d3-zoom 설정 ──
+    const setupZoom = useCallback((svgEl, chartData) => {
+        const svg = d3Select(svgEl);
+        // family-chart가 만든 내부 그룹 (모든 카드/링크 포함)
+        const innerGroup = svg.select('.view');
+        if (innerGroup.empty()) return;
+
+        // 기존 family-chart의 transform 보존
+        const existingTransform = innerGroup.attr('transform');
+
+        // 래퍼 그룹 생성: zoom은 이 그룹에 적용
+        // family-chart의 .view를 감싸는 .zoom-group 추가
+        let zoomGroup = svg.select('.zoom-group');
+        if (zoomGroup.empty()) {
+            zoomGroup = svg.insert('g', '.view').attr('class', 'zoom-group');
+            // .view를 zoom-group 안으로 이동
+            zoomGroup.node().appendChild(innerGroup.node());
+        }
+
+        const zoomBehavior = d3Zoom()
+            .scaleExtent([0.3, 2])
+            .on('zoom', (event) => {
+                zoomGroup.attr('transform', event.transform);
+                setZoomScale(event.transform.k);
+            });
+
+        svg.call(zoomBehavior);
+        // 더블클릭 줌 비활성화 (카드 클릭과 충돌 방지)
+        svg.on('dblclick.zoom', null);
+
+        zoomRef.current = { zoomBehavior, svg, zoomGroup };
+
+        // 초기 위치: 본인 부부를 화면 중앙으로
+        setTimeout(() => centerOnMain(), 200);
+    }, []);
+
+    // 본인 부부를 화면 중앙으로 이동
+    const centerOnMain = useCallback(() => {
+        if (!zoomRef.current || !chartContRef.current) return;
+        const { zoomBehavior, svg } = zoomRef.current;
+
+        const svgEl = chartContRef.current.querySelector('svg.main_svg');
+        if (!svgEl) return;
+
+        // mainId에 해당하는 카드 노드 찾기
+        const mainId = mainIdRef.current;
+        if (!mainId) return;
+
+        const allCards = svgEl.querySelectorAll('.card_cont');
+        let targetCard = null;
+        for (const card of allCards) {
+            // family-chart는 카드에 data-id 또는 transform으로 위치 지정
+            const cardData = card.__data__;
+            if (cardData && String(cardData.data?.id) === String(mainId)) {
+                targetCard = card;
+                break;
+            }
+        }
+
+        if (!targetCard) return;
+
+        // 카드의 실제 화면 위치 계산
+        const cardRect = targetCard.getBoundingClientRect();
+        const svgRect = svgEl.getBoundingClientRect();
+
+        // 현재 zoom transform 상태
+        const currentTransform = zoomRef.current.zoomGroup.node().getCTM();
+
+        // SVG 좌표계에서 카드 중심 계산
+        const cardCenterX = cardRect.left + cardRect.width / 2 - svgRect.left;
+        const cardCenterY = cardRect.top + cardRect.height / 2 - svgRect.top;
+
+        const containerW = svgRect.width;
+        const containerH = svgRect.height;
+
+        // 현재 스케일 유지하면서 중앙 이동
+        const scale = currentTransform ? currentTransform.a : 1;
+        const tx = containerW / 2 - cardCenterX;
+        const ty = containerH / 2 - cardCenterY;
+
+        svg.transition().duration(500).call(
+            zoomBehavior.transform,
+            zoomIdentity.translate(tx, ty).scale(scale)
+        );
+    }, []);
+
+    const handleZoomIn = useCallback(() => {
+        if (!zoomRef.current) return;
+        const { zoomBehavior, svg } = zoomRef.current;
+        svg.transition().duration(300).call(zoomBehavior.scaleBy, 1.3);
+    }, []);
+
+    const handleZoomOut = useCallback(() => {
+        if (!zoomRef.current) return;
+        const { zoomBehavior, svg } = zoomRef.current;
+        svg.transition().duration(300).call(zoomBehavior.scaleBy, 0.7);
+    }, []);
+
     // ── family-chart 초기화 및 업데이트 ──
     useEffect(() => {
         if (isLoading || persons.length === 0 || !chartContRef.current) return;
@@ -292,10 +596,16 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             if (svgEl) {
                 svgEl.style.width = '100%';
                 svgEl.style.height = '100%';
+
+                // family-chart가 트리 위치를 잡은 후 d3-zoom 적용
                 setTimeout(() => {
                     chart.setTransitionTime(500);
                     chart.updateTree({ tree_position: 'fit' });
-                }, 50);
+
+                    // 배우자 조상 노드 렌더링 후 d3-zoom 설정
+                    renderSpouseAncestors(svgEl, chartData);
+                    setupZoom(svgEl, chartData);
+                }, 100);
             }
 
             chartRef.current = chart;
@@ -850,7 +1160,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 .fc-card-inner:hover .fc-hover-btns { opacity: 1 !important; }
                 .fc-card-inner:hover .fc-media-icons { opacity: 1 !important; pointer-events: auto !important; }
                 .fc-media-icons button:hover { background: #fff !important; transform: scale(1.15); box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important; }
-                svg.main_svg { width: 100% !important; height: 100% !important; display: block; }
+                svg.main_svg { width: 100% !important; height: 100% !important; display: block; cursor: grab; }
+                svg.main_svg:active { cursor: grabbing; }
                 .links_view path.link { stroke: #C4956A !important; stroke-width: 2 !important; stroke-opacity: 0.7 !important; }
                 .card { overflow: visible !important; background: none !important; border: none !important; box-shadow: none !important; }
                 .card-body { overflow: visible !important; background: none !important; }
@@ -858,12 +1169,42 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 .card.card-male, .card.card-female, .card.card-genderless { background: none !important; border: none !important; box-shadow: none !important; }
             `}</style>
 
-            {/* family-chart 컨테이너 */}
-            <div
-                ref={chartContRef}
-                className="w-full"
-                style={{ height: 'calc(100vh - 300px)', minHeight: '500px' }}
-            />
+            {/* family-chart 컨테이너 + 줌 컨트롤 */}
+            <div className="relative w-full" style={{ height: 'calc(100vh - 300px)', minHeight: '500px' }}>
+                <div
+                    ref={chartContRef}
+                    className="w-full h-full"
+                    style={{ overflow: 'hidden', cursor: 'grab' }}
+                />
+
+                {/* 줌 컨트롤 버튼 */}
+                <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-10">
+                    <button
+                        onClick={centerOnMain}
+                        className="w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                        title={lang === 'ko' ? '본인 중심으로' : 'Center on me'}
+                    >
+                        <Home size={18} className="text-gray-700 dark:text-gray-200" />
+                    </button>
+                    <button
+                        onClick={handleZoomIn}
+                        className="w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                        title={lang === 'ko' ? '확대' : 'Zoom in'}
+                    >
+                        <ZoomIn size={18} className="text-gray-700 dark:text-gray-200" />
+                    </button>
+                    <button
+                        onClick={handleZoomOut}
+                        className="w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                        title={lang === 'ko' ? '축소' : 'Zoom out'}
+                    >
+                        <ZoomOut size={18} className="text-gray-700 dark:text-gray-200" />
+                    </button>
+                    <div className="text-center text-xs text-gray-400 dark:text-gray-500">
+                        {Math.round(zoomScale * 100)}%
+                    </div>
+                </div>
+            </div>
 
             {/* ── Modals ── */}
             <div>
