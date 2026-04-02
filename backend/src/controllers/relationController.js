@@ -16,7 +16,8 @@ exports.listRelations = async (req, res) => {
     try {
         const { siteId } = req.params;
         const { rows } = await db.query(
-            `SELECT id, site_id, person1_id, person2_id, relation_type, label, created_at
+            `SELECT id, site_id, person1_id, person2_id, relation_type, label,
+                    is_active, start_date, end_date, created_at
              FROM person_relations WHERE site_id = $1
              ORDER BY id ASC`,
             [siteId]
@@ -38,7 +39,7 @@ exports.createRelation = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Forbidden' });
         }
 
-        const { person1_id, person2_id, relation_type, label } = req.body;
+        const { person1_id, person2_id, relation_type, label, is_active, start_date, end_date } = req.body;
 
         if (!person1_id || !person2_id || !relation_type) {
             return res.status(400).json({ success: false, message: 'person1_id, person2_id, relation_type are required' });
@@ -50,11 +51,12 @@ exports.createRelation = async (req, res) => {
         }
 
         const { rows } = await db.query(
-            `INSERT INTO person_relations (site_id, person1_id, person2_id, relation_type, label)
-             VALUES ($1, $2, $3, $4, $5)
-             ON CONFLICT (site_id, person1_id, person2_id, relation_type) DO UPDATE SET label = $5
+            `INSERT INTO person_relations (site_id, person1_id, person2_id, relation_type, label, is_active, start_date, end_date)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             ON CONFLICT (site_id, person1_id, person2_id, relation_type) DO UPDATE
+               SET label = $5, is_active = $6, start_date = $7, end_date = $8
              RETURNING *`,
-            [siteId, person1_id, person2_id, relation_type, label || null]
+            [siteId, person1_id, person2_id, relation_type, label || null, is_active ?? true, start_date || null, end_date || null]
         );
 
         res.status(201).json({ success: true, data: rows[0] });

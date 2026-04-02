@@ -1,50 +1,45 @@
-# Orgcell 결함 수정 + 핵심 기능 고도화 — 실행 완료
+# 가족트리 DB 구조 재설계 — 관계 테이블 통합
 
-> 확정: 2026-03-31 | 상태: **완료**
+> 확정: 2026-04-01 | 상태: **Phase 1 진행중**
 
-## Phase 1: 긴급 결함 수정 ✅
+## 배경
+persons 테이블에 parent1_id, parent2_id, spouse_id 컬럼과 person_relations 테이블이 이중 관리되어 버그 반복 발생.
 
-### 1-A. Exhibition Not Found (`/gallery/new`) 수정
-- MuseumPage "새 전시관 만들기" → UploadModal 열기로 변경 (navigate 제거)
-- 수정: `MuseumPage.jsx`
+## 목표 구조
+- persons: 순수 인물 정보만 (관계 컬럼 제거)
+- person_relations: 모든 관계의 단일 소스 (parent, spouse, ex_spouse, adopted, step_parent, sibling, half_sibling)
 
-### 1-B. 내 보관함 활성화
-- UploadModal에 `initialDest` prop 추가 → private로 바로 진입
-- MuseumPage에 "내 보관함" 바로가기 버튼 추가 (owner만)
-- 수정: `UploadModal.jsx`, `MuseumPage.jsx`
+## Phase 1: EC2 DB 백업 + 현재 데이터 스냅샷 ← 진행중
+- [ ] EC2 PostgreSQL 전체 백업 (pg_dump)
+- [ ] persons 관계 컬럼 사용 현황 확인
+- [ ] person_relations 현황 확인
+- [ ] 백업 파일 로컬 다운로드
 
-## Phase 2: 주소 체계 전환 ✅
+## Phase 2: 마이그레이션 SQL 작성 (실행 안 함)
+- [ ] person_relations에 is_active, start_date, end_date 컬럼 추가 SQL
+- [ ] persons 관계 데이터 → person_relations 복사 SQL
+- [ ] 롤백 SQL
+- [ ] 파일: database/migrations/030_relationship_consolidation.sql
 
-### Subdomain → Subfolder URL
-- `${subdomain}.orgcell.com` → `orgcell.com/${subdomain}` 전면 전환
-- 와일드카드 DNS 미설정 확인 → nginx 리다이렉트 불필요
-- 수정: siteController.js (3곳), emailService.js (1곳), eventController.js (1곳)
-- 수정: FamilyDomainDashboard (4곳), InviteFamilyPage, InvitePage, FamilyWebsiteView (3곳)
-- 수정: PricingTable, ServiceSelectPage, FamilyWebsitePage
-- 수정: 5개 언어 locale JSON (ko/en/es/ja/zh-CN)
+## Phase 3: 백엔드 API 수정
+- [ ] personController.js — parent/spouse 로직을 person_relations 기반으로 변경
+- [ ] relationController.js — is_active/date 지원 추가
+- [ ] API 응답 형태 최대한 유지 (프론트엔드 호환)
 
-## Phase 3: 지능형 사진 업로드 ✅
+## Phase 4: 프론트엔드 어댑터 수정 ← 완료
+- [x] familyChartAdapter.js — person_relations만으로 트리 구성 (persons 컬럼 폴백 포함)
+- [x] FamilyTreeView.jsx — spouse 양방향 호출 제거 (백엔드 동기화 위임)
 
-### 3-A. SHA-256 해시 중복 제거
-- `crypto.subtle.digest('SHA-256')` 브라우저 네이티브 API 사용
-- 동일 파일 자동 제외 + "N장 중복 제외" 안내 표시
-- 수정: `UploadModal.jsx`
+## Phase 5: persons 컬럼 제거 (별도 승인)
+- [ ] 1주일 안정성 확인 후
+- [ ] parent1_id, parent2_id, spouse_id DROP
 
-### 3-B. 사진 찾기 가이드
-- "사진이 어디 있는지 모르겠어요" 버튼 추가
-- Windows/Mac/iPhone/Android/Google Drive 경로 안내 모달
-- 수정: `UploadModal.jsx`
-
-## Phase 4: FamilySearch 동적 프리뷰 — 기존 완료 (스킵)
-## Phase 5: Visibility 훅 통일 — 기존 완료 (스킵)
-
-## 검증 결과
-- `vite build`: 성공 (0 errors)
-- `playwright_evaluator --scenario all`: 4/4 PASS (landing, onboarding, api, museum)
+## 의존성
+Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 (순차)
 
 ---
 
 ## 이전 계획
 
-### 랜딩페이지 전면 재구성 — 가족박물관 피벗
-> 확정: 2026-03-31
+### Orgcell 결함 수정 + 핵심 기능 고도화 — 실행 완료
+> 확정: 2026-03-31 | 상태: **완료**

@@ -79,75 +79,104 @@ export function personsToFamilyChart(persons, relations = []) {
         byId[String(p.id)] = { ...p, gender: normalizeGender(p.gender) };
     }
 
-    // sibling relations으로 부모 공유 처리
-    // 형제 중 한쪽에 부모가 있으면 다른 쪽에도 복사 (차트 데이터만, DB 미변경)
-    // 둘 다 부모 없으면 → 연결 불가 → filterConnectedNodes에서 제거됨
-    const siblingRelations = relations.filter(r => r.relation_type === 'sibling');
-
-    for (const rel of siblingRelations) {
-        const id1 = String(rel.person1_id);
-        const id2 = String(rel.person2_id);
-        const p1 = byId[id1];
-        const p2 = byId[id2];
-        if (!p1 || !p2) continue;
-
-        if (p1.parent1_id && byId[String(p1.parent1_id)] && !p2.parent1_id) {
-            byId[id2] = { ...p2, parent1_id: p1.parent1_id, parent2_id: p1.parent2_id };
-        } else if (p2.parent1_id && byId[String(p2.parent1_id)] && !p1.parent1_id) {
-            byId[id1] = { ...p1, parent1_id: p2.parent1_id, parent2_id: p2.parent2_id };
-        }
-        // 둘 다 부모 없으면 → 가상 부모 생성하지 않음 (spouse 트리 구조 깨짐 방지)
-    }
-
-    const effectivePersons = persons.map(p => byId[String(p.id)] || p);
-
-    // 자녀 역참조 맵 구성: parentId → [childId, ...]
+    // person_relations에서 관계 맵 구성 (정본)
+    // parentMap: childId → [parentId, ...]
+    // spouseMap: personId → [spouseId, ...]
+    // childrenMap: parentId → [childId, ...]
+    const parentMap = {};
+    const spouseMap = {};
     const childrenMap = {};
-    for (const p of effectivePersons) {
-        if (p.parent1_id && byId[String(p.parent1_id)]) {
-            const pid = String(p.parent1_id);
-            if (!childrenMap[pid]) childrenMap[pid] = [];
-            if (!childrenMap[pid].includes(String(p.id))) {
-                childrenMap[pid].push(String(p.id));
+
+    for (const rel of relations) {
+        const p1 = String(rel.person1_id);
+        const p2 = String(rel.person2_id);
+
+        if (rel.relation_type === 'parent' && byId[p1] && byId[p2]) {
+            // person1=부모, person2=자녀
+            if (!parentMap[p2]) parentMap[p2] = [];
+            if (!parentMap[p2].includes(p1)) parentMap[p2].push(p1);
+            if (!childrenMap[p1]) childrenMap[p1] = [];
+            if (!childrenMap[p1].includes(p2)) childrenMap[p1].push(p2);
+        }
+
+        if (rel.relation_type === 'spouse' && byId[p1] && byId[p2]) {
+            if (!spouseMap[p1]) spouseMap[p1] = [];
+            if (!spouseMap[p1].includes(p2)) spouseMap[p1].push(p2);
+            if (!spouseMap[p2]) spouseMap[p2] = [];
+            if (!spouseMap[p2].includes(p1)) spouseMap[p2].push(p1);
+        }
+
+        if (rel.relation_type === 'sibling' && byId[p1] && byId[p2]) {
+            // 형제 중 한쪽에 부모가 있으면 다른 쪽에도 공유 (차트 데이터만)
+            const parents1 = parentMap[p1] || [];
+            const parents2 = parentMap[p2] || [];
+            if (parents1.length > 0 && parents2.length === 0) {
+                parentMap[p2] = [...parents1];
+                for (const pid of parents1) {
+                    if (!childrenMap[pid]) childrenMap[pid] = [];
+                    if (!childrenMap[pid].includes(p2)) childrenMap[pid].push(p2);
+                }
+            } else if (parents2.length > 0 && parents1.length === 0) {
+                parentMap[p1] = [...parents2];
+                for (const pid of parents2) {
+                    if (!childrenMap[pid]) childrenMap[pid] = [];
+                    if (!childrenMap[pid].includes(p1)) childrenMap[pid].push(p1);
+                }
             }
         }
-        if (p.parent2_id && byId[String(p.parent2_id)]) {
-            const pid = String(p.parent2_id);
-            if (!childrenMap[pid]) childrenMap[pid] = [];
-            if (!childrenMap[pid].includes(String(p.id))) {
-                childrenMap[pid].push(String(p.id));
+    }
+
+    // person_relations에 데이터가 없으면 persons 컬럼 폴백 (과도기)
+    const hasRelationData = relations.some(r => r.relation_type === 'parent' || r.relation_type === 'spouse');
+
+    if (!hasRelationData) {
+        for (const p of persons) {
+            const id = String(p.id);
+            if (p.parent1_id && byId[String(p.parent1_id)]) {
+                if (!parentMap[id]) parentMap[id] = [];
+                if (!parentMap[id].includes(String(p.parent1_id))) parentMap[id].push(String(p.parent1_id));
+                const pid = String(p.parent1_id);
+                if (!childrenMap[pid]) childrenMap[pid] = [];
+                if (!childrenMap[pid].includes(id)) childrenMap[pid].push(id);
+            }
+            if (p.parent2_id && byId[String(p.parent2_id)]) {
+                if (!parentMap[id]) parentMap[id] = [];
+                if (!parentMap[id].includes(String(p.parent2_id))) parentMap[id].push(String(p.parent2_id));
+                const pid = String(p.parent2_id);
+                if (!childrenMap[pid]) childrenMap[pid] = [];
+                if (!childrenMap[pid].includes(id)) childrenMap[pid].push(id);
+            }
+            if (p.spouse_id && byId[String(p.spouse_id)]) {
+                if (!spouseMap[id]) spouseMap[id] = [];
+                if (!spouseMap[id].includes(String(p.spouse_id))) spouseMap[id].push(String(p.spouse_id));
             }
         }
     }
 
     // family-chart 데이터 변환
-    const data = effectivePersons.map((p) => {
+    const data = persons.map((p) => {
         const id = String(p.id);
         const { displayName, firstName, lastName } = parseName(p.name);
 
-        // parents 배열 — 남성 부모를 먼저, 여성 부모를 나중에 배치
-        // family-chart는 parents[0]이 왼쪽, parents[1]이 오른쪽에 배치됨
-        const rawParents = [];
-        if (p.parent1_id && byId[String(p.parent1_id)]) rawParents.push(byId[String(p.parent1_id)]);
-        if (p.parent2_id && byId[String(p.parent2_id)]) rawParents.push(byId[String(p.parent2_id)]);
-        // 남성 부모 먼저 (왼쪽), 여성 부모 나중 (오른쪽)
+        // parents 배열 — 남성 부모를 먼저 (왼쪽), 여성 부모를 나중에 (오른쪽)
+        const rawParents = (parentMap[id] || [])
+            .filter(pid => byId[pid])
+            .map(pid => byId[pid]);
         rawParents.sort((a, b) => {
             if (a.gender === 'male' && b.gender !== 'male') return -1;
             if (a.gender !== 'male' && b.gender === 'male') return 1;
-            return 0;
+            return a.id - b.id;
         });
         const parents = rawParents.map(pp => String(pp.id));
 
         // spouses 배열
-        const spouses = [];
-        if (p.spouse_id && byId[String(p.spouse_id)]) spouses.push(String(p.spouse_id));
+        const spouses = (spouseMap[id] || []).filter(sid => byId[sid]);
 
-        // children 배열 (역참조) — 출생순 정렬 (관계 기반 배치)
+        // children 배열 — 출생순 정렬
         const rawChildren = childrenMap[id] || [];
         const children = [...rawChildren].sort((a, b) => {
             const pA = byId[a];
             const pB = byId[b];
-            // 출생일 기준 정렬, 없으면 ID 순
             const dateA = pA?.birth_date ? new Date(pA.birth_date).getTime() : Infinity;
             const dateB = pB?.birth_date ? new Date(pB.birth_date).getTime() : Infinity;
             if (dateA !== dateB) return dateA - dateB;
@@ -256,35 +285,23 @@ export function filterConnectedNodes(data, mainId) {
 
 /**
  * family-chart 메인 인물 ID 결정
- *
- * 최하위 세대(가장 낮은 generation)에서 양쪽 부모가 있는 인물 우선 선택.
- * family-chart는 mainId에서 위로만 조상을 추적하므로,
- * 최하위 세대를 main으로 해야 양가 부모/조부모가 모두 표시됨.
+ * gen 1 중 가장 낮은 id → 형제 추가해도 변경 없음
+ * gen 1을 main으로 해야 후손(아래) + 형제 + 본인 부모(위) 모두 표시됨.
+ * 배우자 부모는 setupSpouseAncestry 패치로 별도 처리.
  */
 export function getMainPersonId(persons) {
     if (!persons || persons.length === 0) return null;
 
-    // 양쪽 부모가 모두 있는 인물 중 가장 낮은 세대(generation) 선택
-    const withBothParents = persons
-        .filter(p => p.parent1_id && p.parent2_id)
-        .sort((a, b) => (a.generation - b.generation) || (a.id - b.id));
-
-    if (withBothParents.length > 0) {
-        return String(withBothParents[0].id);
+    const gen1 = persons.filter(p => p.generation === 1);
+    if (gen1.length > 0) {
+        gen1.sort((a, b) => a.id - b.id);
+        return String(gen1[0].id);
     }
 
-    // 부모가 한 명이라도 있는 인물
-    const withParent = persons
-        .filter(p => p.parent1_id)
-        .sort((a, b) => (a.generation - b.generation) || (a.id - b.id));
+    const roots = persons.filter(p => !p.parent1_id);
+    if (roots.length > 0) return String(roots[0].id);
 
-    if (withParent.length > 0) {
-        return String(withParent[0].id);
-    }
-
-    // 부모 없으면 가장 낮은 세대
-    const sorted = [...persons].sort((a, b) => (a.generation - b.generation) || (a.id - b.id));
-    return String(sorted[0].id);
+    return String(persons[0].id);
 }
 
 export { parseName, getInitials, isKoreanName };

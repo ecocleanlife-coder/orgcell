@@ -466,8 +466,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             const created = await apiCreatePerson(data);
 
             if (created && modal.relation === 'spouse' && modal.parentId) {
+                // 백엔드가 person_relations + 상대방 persons.spouse_id 동기화 처리
                 await apiUpdatePerson(modal.parentId, { spouse_id: created.id });
-                await apiUpdatePerson(created.id, { spouse_id: parseInt(modal.parentId) });
             }
 
             if (created && modal.relation === 'sibling' && modal.parentId) {
@@ -494,8 +494,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                         privacy_level: 'family',
                     });
                     if (tempFather && tempMother) {
+                        // 백엔드가 person_relations + 상대방 spouse_id 동기화 처리
                         await apiUpdatePerson(tempFather.id, { spouse_id: tempMother.id });
-                        await apiUpdatePerson(tempMother.id, { spouse_id: tempFather.id });
                         // 기존 인물에 부모 연결
                         await apiUpdatePerson(modal.parentId, {
                             parent1_id: tempFather.id,
@@ -617,8 +617,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             }
 
             if (p1 && p2) {
+                // 백엔드가 person_relations + 상대방 spouse_id 동기화 처리
                 await apiUpdatePerson(p1.id, { spouse_id: p2.id });
-                await apiUpdatePerson(p2.id, { spouse_id: p1.id });
             }
 
             if (modal.childId && p1) {
