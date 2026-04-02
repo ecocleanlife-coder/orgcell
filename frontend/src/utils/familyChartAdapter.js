@@ -256,21 +256,35 @@ export function filterConnectedNodes(data, mainId) {
 
 /**
  * family-chart 메인 인물 ID 결정
- * gen 1 중 가장 낮은 id → 형제 추가해도 변경 없음
+ *
+ * 최하위 세대(가장 낮은 generation)에서 양쪽 부모가 있는 인물 우선 선택.
+ * family-chart는 mainId에서 위로만 조상을 추적하므로,
+ * 최하위 세대를 main으로 해야 양가 부모/조부모가 모두 표시됨.
  */
 export function getMainPersonId(persons) {
     if (!persons || persons.length === 0) return null;
 
-    const gen1 = persons.filter(p => p.generation === 1);
-    if (gen1.length > 0) {
-        gen1.sort((a, b) => a.id - b.id);
-        return String(gen1[0].id);
+    // 양쪽 부모가 모두 있는 인물 중 가장 낮은 세대(generation) 선택
+    const withBothParents = persons
+        .filter(p => p.parent1_id && p.parent2_id)
+        .sort((a, b) => (a.generation - b.generation) || (a.id - b.id));
+
+    if (withBothParents.length > 0) {
+        return String(withBothParents[0].id);
     }
 
-    const roots = persons.filter(p => !p.parent1_id);
-    if (roots.length > 0) return String(roots[0].id);
+    // 부모가 한 명이라도 있는 인물
+    const withParent = persons
+        .filter(p => p.parent1_id)
+        .sort((a, b) => (a.generation - b.generation) || (a.id - b.id));
 
-    return String(persons[0].id);
+    if (withParent.length > 0) {
+        return String(withParent[0].id);
+    }
+
+    // 부모 없으면 가장 낮은 세대
+    const sorted = [...persons].sort((a, b) => (a.generation - b.generation) || (a.id - b.id));
+    return String(sorted[0].id);
 }
 
 export { parseName, getInitials, isKoreanName };
