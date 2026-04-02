@@ -479,7 +479,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                     });
                 } else {
                     // 부모가 없으면 임시 부모 자동 생성
-                    const tempParentGen = Math.max(parentGen - 1, 0);
+                    const tempParentGen = parentGen + 1;
                     const personName = parentNode?.name || '?';
                     const tempFather = await apiCreatePerson({
                         name: lang === 'ko' ? `${personName}의 아버지` : `${personName}'s Father`,
@@ -585,39 +585,56 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         if (!parent1Name.trim()) return;
         setSubmitting(true);
 
-        const childNode = persons.find(p => String(p.id) === String(modal.childId));
-        const parentGen = Math.max((childNode?.generation || 1) - 1, 0);
+        try {
+            const childNode = persons.find(p => String(p.id) === String(modal.childId));
 
-        const p1 = await apiCreatePerson({
-            name: parent1Name.trim(),
-            generation: parentGen,
-            privacy_level: 'family',
-        });
+            // 이미 부모가 있으면 중복 생성 방지
+            if (childNode?.parent1_id) {
+                toast(lang === 'ko' ? '이미 부모가 등록되어 있습니다.' : 'Parents already registered.', { icon: '⚠️' });
+                setSubmitting(false);
+                setModal(null);
+                return;
+            }
 
-        let p2 = null;
-        if (!singleParent && parent2Name.trim()) {
-            p2 = await apiCreatePerson({
-                name: parent2Name.trim(),
+            // 부모는 자녀보다 한 세대 위 (숫자가 큰 쪽이 윗세대)
+            const parentGen = (childNode?.generation || 0) + 1;
+
+            const p1 = await apiCreatePerson({
+                name: parent1Name.trim(),
+                gender: 'male',
                 generation: parentGen,
                 privacy_level: 'family',
             });
-        }
 
-        if (p1 && p2) {
-            await apiUpdatePerson(p1.id, { spouse_id: p2.id });
-            await apiUpdatePerson(p2.id, { spouse_id: p1.id });
-        }
+            let p2 = null;
+            if (!singleParent && parent2Name.trim()) {
+                p2 = await apiCreatePerson({
+                    name: parent2Name.trim(),
+                    gender: 'female',
+                    generation: parentGen,
+                    privacy_level: 'family',
+                });
+            }
 
-        if (modal.childId && p1) {
-            await apiUpdatePerson(modal.childId, {
-                parent1_id: p1.id,
-                parent2_id: p2?.id || null,
-            });
-        }
+            if (p1 && p2) {
+                await apiUpdatePerson(p1.id, { spouse_id: p2.id });
+                await apiUpdatePerson(p2.id, { spouse_id: p1.id });
+            }
 
-        await fetchPersons();
-        setSubmitting(false);
-        setModal(null);
+            if (modal.childId && p1) {
+                await apiUpdatePerson(modal.childId, {
+                    parent1_id: p1.id,
+                    parent2_id: p2?.id || null,
+                });
+            }
+        } catch (err) {
+            console.error('handleParentsSubmit error:', err);
+            toast(lang === 'ko' ? '부모 등록 중 오류가 발생했습니다.' : 'Error registering parents.', { icon: '❌' });
+        } finally {
+            await fetchPersons();
+            setSubmitting(false);
+            setModal(null);
+        }
     };
 
     // ── Person form modal ──
