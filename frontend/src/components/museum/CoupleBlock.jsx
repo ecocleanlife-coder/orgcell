@@ -35,6 +35,12 @@ function CoupleBlock({
     const totalW = containerW + padding * 2;
     const totalH = containerH + padding * 2 + 10; // +10 for tab
 
+    // Z-depth: 인척(사위/며느리 등) 감지 — 부부 중 하나라도 Z≥1이면 depth 효과
+    const maxZ = Math.max(husbandNode?.z ?? 0, wifeNode?.z ?? 0);
+    const hasDepth = maxZ >= 1;
+    const depthBlur = hasDepth ? (maxZ === 1 ? 2 : 5) : 0;
+    const depthOpacity = hasDepth ? (maxZ === 1 ? 0.55 : 0.3) : 1;
+
     // 박스 스타일: 주인공 부부 = 진한 금색, 일반 = 옅은 금색
     const borderColor = '#C4A84F';
     const containerBg = 'transparent';
@@ -51,8 +57,30 @@ function CoupleBlock({
             }}
             data-testid="couple-block"
             data-couple={isCouple ? 'true' : 'false'}
+            data-z-depth={maxZ}
         >
-            {/* 박스 테두리 2px */}
+            {/* Z-depth 안개 배경 레이어: 타 가문 인척만 표시 */}
+            {hasDepth && (
+                <div
+                    data-testid="z-depth-fog"
+                    style={{
+                        position: 'absolute',
+                        top: -8,
+                        left: -8,
+                        width: totalW + 16,
+                        height: totalH + 16,
+                        borderRadius: '12px',
+                        background: `radial-gradient(ellipse at center, rgba(30,26,20,${0.3 + maxZ * 0.15}) 0%, rgba(30,26,20,0.05) 80%, transparent 100%)`,
+                        backdropFilter: `blur(${depthBlur}px)`,
+                        WebkitBackdropFilter: `blur(${depthBlur}px)`,
+                        pointerEvents: 'none',
+                        zIndex: -1,
+                        transition: 'all 0.4s ease',
+                    }}
+                />
+            )}
+
+            {/* 박스 테두리 */}
             <div
                 style={{
                     position: 'absolute',
@@ -65,6 +93,8 @@ function CoupleBlock({
                     background: containerBg,
                     boxSizing: 'border-box',
                     pointerEvents: 'none',
+                    opacity: hasDepth ? depthOpacity : 1,
+                    transition: 'opacity 0.4s ease',
                 }}
                 data-testid="couple-container"
             />

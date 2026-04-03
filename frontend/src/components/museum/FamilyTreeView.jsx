@@ -11,6 +11,7 @@ import { toast } from 'react-hot-toast';
 
 import WormholePortal from './WormholePortal';
 import FamilyTreeCanvas from './FamilyTreeCanvas';
+import InvitationModal from './InvitationModal';
 import { buildTree } from '../../utils/buildTree';
 import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
@@ -57,8 +58,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
     // 가계도 중심 인물 (wormhole 전환 시 변경)
     const [mainPersonId, setMainPersonId] = useState(null);
-    // 가변 밀도 포커스 인물 (클릭 시 해당 인물 영역 표준 폭 복구)
-    const [centerId, setCenterId] = useState(null);
+
+    // 초대 모달 상태
+    const [inviteTarget, setInviteTarget] = useState(null);
 
     const getFederationForPerson = (personId) => {
         return federations.find(f =>
@@ -188,7 +190,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 // TODO: Phase 7에서 전시 모달 연결
                 break;
             case 'invite':
-                // TODO: Phase 7에서 초대 모달 연결
+                setInviteTarget(raw);
                 break;
             default:
                 break;
@@ -198,8 +200,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     // ── buildTree 계산 (persons + relations → nodes/links) ──
     const treeData = useMemo(() => {
         if (persons.length === 0) return { nodes: [], links: [], mainId: null };
-        return buildTree(persons, relations, mainPersonId, centerId);
-    }, [persons, relations, mainPersonId, centerId]);
+        return buildTree(persons, relations, mainPersonId);
+    }, [persons, relations, mainPersonId]);
 
     // ── Modal state ──
     const [modal, setModal] = useState(null);
@@ -734,8 +736,6 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                     nodes={treeData.nodes}
                     links={treeData.links}
                     mainId={treeData.mainId}
-                    centerId={centerId}
-                    onCenterChange={(personId) => setCenterId(personId)}
                     onCardClick={(personId) => {
                         if (canEdit) {
                             const raw = persons.find(p => String(p.id) === String(personId));
@@ -755,6 +755,18 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                     </button>
                 )}
             </div>
+
+            {/* ── 초대 모달 ── */}
+            {inviteTarget && (
+                <InvitationModal
+                    personName={inviteTarget.name}
+                    personId={inviteTarget.id}
+                    siteId={siteId}
+                    curatorName={persons.find(p => String(p.id) === String(treeData.mainId))?.name || ''}
+                    museumName=""
+                    onClose={() => setInviteTarget(null)}
+                />
+            )}
 
             {/* ── Modals ── */}
             <div>

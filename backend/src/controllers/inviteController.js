@@ -24,7 +24,7 @@ function normalizeEmail(email) {
 // ════════════════════════════════════════
 exports.createInvite = async (req, res) => {
     try {
-        const { site_id, email } = req.body;
+        const { site_id, email, person_id } = req.body;
         if (!site_id) return res.status(400).json({ success: false, message: 'site_id required' });
 
         const code = crypto.randomBytes(5).toString('hex').toUpperCase();
@@ -32,10 +32,10 @@ exports.createInvite = async (req, res) => {
         const normalizedEmail = email ? normalizeEmail(email) : null;
 
         const { rows } = await db.query(
-            `INSERT INTO family_invites (site_id, inviter_id, code, short_code, email, expires_at)
-             VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP + INTERVAL '30 days')
+            `INSERT INTO family_invites (site_id, inviter_id, code, short_code, email, person_id, expires_at)
+             VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP + INTERVAL '30 days')
              RETURNING code, short_code, expires_at`,
-            [site_id, req.user.id, code, shortCode, normalizedEmail]
+            [site_id, req.user.id, code, shortCode, normalizedEmail, person_id || null]
         );
 
         const invite = rows[0];
@@ -225,6 +225,116 @@ exports.getInviteStatus = async (req, res) => {
         res.json({ success: true, data });
     } catch (err) {
         console.error('getInviteStatus error:', err.message);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
+
+// ════════════════════════════════════════
+// GET /api/invite/:token/info
+// 토큰으로 초대 상세 정보 조회 (비로그인 접근 가능)
+// 박물관 이름, 초대자 이름, 대상 인물 이름 반환
+// ════════════════════════════════════════
+exports.getInviteInfoByToken = async (req, res) => {
+    try {
+        const rawCode = (req.params.token || '').trim().toUpperCase();
+        if (!rawCode) return res.status(400).json({ success: false, message: 'token required' });
+
+        const { rows } = await db.query(
+            `SELECT fi.id, fi.code, fi.short_code, fi.site_id, fi.person_id,
+                    fi.status, fi.expires_at,
+                    fs.subdomain, fs.display_name AS museum_name,
+                    u.name AS inviter_name,
+                    p.name AS person_name, p.relation_label
+             FROM family_invites fi
+             JOIN family_sites fs ON fs.id = fi.site_id
+             LEFT JOIN users u ON u.id = fi.inviter_id
+             LEFT JOIN persons p ON p.id = fi.person_id
+             WHERE (fi.code = $1 OR fi.short_code = $1)`,
+            [rawCode]
+        );
+
+        if (!rows.length) {
+            return res.status(404).json({ success: false, message: '존재하지 않는 초대 코드입니다' });
+        }
+
+        const invite = rows[0];
+
+        if (new Date(invite.expires_at) < new Date()) {
+            return res.status(410).json({ success: false, message: '초대 링크가 만료되었습니다', expired: true });
+        }
+
+        res.json({
+            success: true,
+            data: {
+                curator: { name: invite.inviter_name || '관장' },
+                person: { name: invite.person_name || '가족 구성원', relationLabel: invite.relation_label || '' },
+                museum: { name: invite.museum_name || '', subdomain: invite.subdomain },
+                status: invite.status,
+            },
+        });
+    } catch (err) {
+        console.error('getInviteInfoByToken error:', err.message);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
+
+// ════════════════════════════════════════
+// POST /api/invite/:token/privacy-choice
+// 초대받은 사람의 프라이버시 선택 저장
+// ════════════════════════════════════════
+exports.privacyChoice = async (req, res) => {
+    try {
+        const rawCode = (req.params.token || '').trim().toUpperCase();
+        const { accepted, privacy_variant, relation_label } = req.body;
+
+        if (!rawCode) return res.status(400).json({ success: false, message: 'token required' });
+
+        // 초대 조회
+        const { rows } = await db.query(
+            `SELECT fi.id, fi.person_id, fi.status, fi.expires_at
+             FROM family_invites fi
+             WHERE (fi.code = $1 OR fi.short_code = $1)`,
+            [rawCode]
+        );
+
+        if (!rows.length) {
+            return res.status(404).json({ success: false, message: '존재하지 않는 초대 코드입니다' });
+        }
+
+        const invite = rows[0];
+
+        if (new Date(invite.expires_at) < new Date()) {
+            return res.status(410).json({ success: false, message: '초대 링크가 만료되었습니다', expired: true });
+        }
+
+        if (!invite.person_id) {
+            return res.status(400).json({ success: false, message: '이 초대에 연결된 인물이 없습니다' });
+        }
+
+        // persons 테이블 업데이트
+        const variant = accepted ? 'full' : (privacy_variant || 'anonymous');
+        const isRefused = !accepted;
+
+        await db.query(
+            `UPDATE persons
+             SET privacy_variant = $1, is_refused = $2, relation_label = COALESCE($3, relation_label),
+                 privacy_level = $4
+             WHERE id = $5`,
+            [variant, isRefused, relation_label || null, isRefused ? 'private' : 'family', invite.person_id]
+        );
+
+        // 초대 상태 업데이트
+        await db.query(
+            `UPDATE family_invites SET status = 'responded' WHERE id = $1`,
+            [invite.id]
+        );
+
+        res.json({
+            success: true,
+            data: { privacy_variant: variant, is_refused: isRefused },
+        });
+    } catch (err) {
+        console.error('privacyChoice error:', err.message);
         res.status(500).json({ success: false, message: 'Internal server error' });
     }
 };

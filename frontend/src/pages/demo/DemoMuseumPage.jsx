@@ -34,8 +34,8 @@ const DEMO_PERSONS = [
     { id: '36', name: '이선미', gender: 'F', generation: 1 },
     { id: '24', name: '공인영', gender: 'M', generation: 1 },
     { id: '25', name: '공진영', gender: 'M', generation: 1 },
-    { id: '26', name: '공수자', gender: 'F', generation: 1 },
-    { id: '27', name: '공정영', gender: 'F', generation: 1 },
+    { id: '26', name: '공수자', gender: 'F', generation: 1, privacy_level: 'private', is_refused: true, privacy_variant: 'surname_only' },
+    { id: '27', name: '공정영', gender: 'F', generation: 1, privacy_level: 'private', is_refused: true, privacy_variant: 'anonymous', relation_label: '공우영의 동생' },
     // 자녀세대
     { id: '18', name: '이슬기', gender: 'F', is_deceased: true, generation: 0 },
     { id: '19', name: '이상훈', gender: 'M', generation: 0 },
@@ -192,12 +192,11 @@ export default function DemoMuseumPage() {
     const [activeTab, setActiveTab] = useState('tree');
     const [showCtaModal, setShowCtaModal] = useState(false);
     const [mainPersonId, setMainPersonId] = useState(null);
-    const [centerId, setCenterId] = useState(null);
 
-    // buildTree로 실제 트리 데이터 생성 (centerId → 가변 밀도 포커스)
+    // buildTree로 실제 트리 데이터 생성
     const treeData = useMemo(() => {
-        return buildTree(DEMO_PERSONS, DEMO_RELATIONS, mainPersonId || '16', centerId);
-    }, [mainPersonId, centerId]);
+        return buildTree(DEMO_PERSONS, DEMO_RELATIONS, mainPersonId || '16');
+    }, [mainPersonId]);
 
     const handleCardClick = () => {
         setShowCtaModal(true);
@@ -281,8 +280,6 @@ export default function DemoMuseumPage() {
                             nodes={treeData.nodes}
                             links={treeData.links}
                             mainId={treeData.mainId}
-                            centerId={centerId}
-                            onCenterChange={(personId) => setCenterId(personId)}
                             onCardClick={handleCardClick}
                             onWormhole={(personId) => setMainPersonId(String(personId))}
                             onAction={handleAction}

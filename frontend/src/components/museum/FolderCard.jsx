@@ -11,6 +11,7 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { maskName, maskInitials } from '../../utils/privacyMask';
+import RefusedPersonBox from './RefusedPersonBox';
 
 const CARD_SIZE = 180;
 const TAB_W = 40;
@@ -355,6 +356,24 @@ function FolderCard({
     const [touchLocked, setTouchLocked] = useState(false); // 터치 토글 고정
     const cardRef = useRef(null);
 
+    // ── 거절자 빈 레고 박스: privacyLevel=private + isRefused=true ──
+    const isRefused = data.privacyLevel === 'private' && data.isRefused;
+    if (isRefused) {
+        const refusedText = data.privacyVariant === 'surname_only'
+            ? maskName(data.displayName, 'private', { privacyVariant: 'surname_only' })
+            : data.privacyVariant === 'anonymous'
+                ? maskName(data.displayName, 'private', { privacyVariant: 'anonymous', relationLabel: data.relationLabel })
+                : data.displayName;
+        return (
+            <RefusedPersonBox
+                displayText={refusedText}
+                privacyVariant={data.privacyVariant || 'anonymous'}
+                gender={data.gender}
+                style={externalStyle}
+            />
+        );
+    }
+
     // 관계자 수 (부모+배우자+자녀)
     const relCount = (rels?.parents?.length || 0)
         + (rels?.spouses?.length || 0)
@@ -363,7 +382,7 @@ function FolderCard({
     // Privacy masking
     const isPrivate = data.privacyLevel === 'private';
     const maskedName = isPrivate
-        ? maskName(data.displayName, 'private', { relationLabel: data.relationLabel })
+        ? maskName(data.displayName, 'private', { relationLabel: data.relationLabel, privacyVariant: data.privacyVariant })
         : data.displayName;
     const maskedData = isPrivate
         ? { ...data, displayName: maskedName, avatar: '', initials: maskInitials(data.initials, 'private') }

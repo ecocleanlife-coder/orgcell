@@ -6,12 +6,13 @@
  * - SVG 커넥터: 부부 박스 하단 중심 → 수평 버스 → 자녀 박스 상단
  * - Pan/Zoom (react-zoom-pan-pinch)
  */
-import React, { useState, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import CoupleBlock from './CoupleBlock';
 import ConnectorLine from './ConnectorLine';
 import { useWormholeTransition, WormholeWrapper } from './WormholeTransition';
+import useTreeViewStore from '../../store/treeViewStore';
 
 const springTransition = { type: 'spring', stiffness: 200, damping: 25 };
 
@@ -96,48 +97,12 @@ function ZoomControls({ zoomIn, zoomOut, resetTransform }) {
 }
 
 // ── 메인 컴포넌트 ──
-// ── LOD 확장 버튼 ──
-function LodExpandButton({ count, label, onClick, screenX, screenY }) {
-    return (
-        <button
-            onClick={(e) => { e.stopPropagation(); onClick(); }}
-            className="lod-expand-btn"
-            style={{
-                position: 'absolute',
-                left: screenX - 70,
-                top: screenY - 18,
-                zIndex: 15,
-                width: 140,
-                height: 36,
-                border: '1.5px dashed #C4A84F',
-                borderRadius: '18px',
-                background: 'rgba(30,26,20,0.75)',
-                backdropFilter: 'blur(4px)',
-                color: '#C4A84F',
-                fontSize: '13px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 4,
-                transition: 'all 0.2s',
-            }}
-        >
-            <span style={{ fontSize: '16px' }}>+</span>
-            {count}명의 {label}
-        </button>
-    );
-}
-
 export default function FamilyTreeCanvas({
     nodes = [],
     links = [],
     mainId = null,
-    centerId = null,
     selectedId: externalSelectedId = null,
     onCardClick: externalOnClick,
-    onCenterChange,
     onWormhole,
     onContextMenu,
     onAction,
@@ -145,7 +110,7 @@ export default function FamilyTreeCanvas({
 }) {
     const [internalSelectedId, setInternalSelectedId] = useState(null);
     const selectedId = externalSelectedId ?? internalSelectedId;
-    const [expandedDepths, setExpandedDepths] = useState(new Set());
+    const transformRef = useRef(null);
 
     const nodesMap = useMemo(() => {
         const m = {};
@@ -163,59 +128,22 @@ export default function FamilyTreeCanvas({
         const node = nodesMap[nodeId];
         if (node && node.z >= 1 && onWormhole) {
             triggerWormhole(nodeId);
+        } else if (externalOnClick) {
+            externalOnClick(nodeId);
         } else {
-            // centerId 전환: 클릭한 인물을 포커스 중심으로
-            if (onCenterChange) onCenterChange(nodeId);
-            if (externalOnClick) {
-                externalOnClick(nodeId);
-            } else {
-                setInternalSelectedId(nodeId);
-            }
+            setInternalSelectedId(nodeId);
         }
-    }, [nodesMap, onWormhole, onCenterChange, externalOnClick, triggerWormhole]);
+    }, [nodesMap, onWormhole, externalOnClick, triggerWormhole]);
 
     // Z=0만 표시 (타가문은 웜홀 전환 전까지 숨김)
     const allZ0Nodes = useMemo(() => nodes.filter(n => n.z === 0), [nodes]);
     const allZ0Ids = useMemo(() => new Set(allZ0Nodes.map(n => n.id)), [allZ0Nodes]);
 
-    // LOD 필터: 위 1대(+1) 아래 2대(-2)까지 기본 표시, 나머지는 확장 버튼
-    const visibleNodes = useMemo(() => {
-        return allZ0Nodes.filter(n => {
-            // depth: 0=본인, +1=부모, -1=자녀, -2=손자
-            return (n.depth >= -2 && n.depth <= 1) || expandedDepths.has(n.depth);
-        });
-    }, [allZ0Nodes, expandedDepths]);
-    const visibleIds = useMemo(() => new Set(visibleNodes.map(n => n.id)), [visibleNodes]);
-    const visibleLinks = useMemo(() => links.filter(l => visibleIds.has(l.source) && visibleIds.has(l.target)), [links, visibleIds]);
+    // 모든 Z=0 노드 표시 (LOD 필터 없음 — 모든 세대 렌더링)
+    const visibleNodes = allZ0Nodes;
+    const visibleIds = allZ0Ids;
+    const visibleLinks = useMemo(() => links.filter(l => allZ0Ids.has(l.source) && allZ0Ids.has(l.target)), [links, allZ0Ids]);
 
-    // 접힌 세대 요약 (확장 버튼용) — 위 1대/아래 2대 밖
-    const collapsedSummaries = useMemo(() => {
-        const hidden = allZ0Nodes.filter(n => {
-            return (n.depth > 1 || n.depth < -2) && !expandedDepths.has(n.depth);
-        });
-        const byDepth = {};
-        for (const n of hidden) {
-            if (!byDepth[n.depth]) byDepth[n.depth] = [];
-            byDepth[n.depth].push(n);
-        }
-        return Object.entries(byDepth).map(([depth, dnodes]) => ({
-            depth: Number(depth),
-            count: dnodes.length,
-            centerX: dnodes.reduce((s, n) => s + n.x, 0) / dnodes.length,
-            y: dnodes[0].y,
-        }));
-    }, [allZ0Nodes, expandedDepths]);
-
-    const toggleDepth = useCallback((depth) => {
-        setExpandedDepths(prev => {
-            const next = new Set(prev);
-            if (next.has(depth)) next.delete(depth);
-            else next.add(depth);
-            return next;
-        });
-    }, []);
-
-    // 바운드는 전체 Z=0 노드 기준 (확장/축소 시 캔버스 크기 안정)
     const bounds = useMemo(() => calcBounds(allZ0Nodes), [allZ0Nodes]);
     const couples = useMemo(() => groupCouples(visibleNodes, visibleLinks), [visibleNodes, visibleLinks]);
 
@@ -242,6 +170,45 @@ export default function FamilyTreeCanvas({
 
     const toScreenX = (x) => x - bounds.minX;
     const toScreenY = (treeY) => -treeY - screenBounds.minY;
+
+    // ── 뷰포트 상태 유지 ──
+    const { viewport: savedViewport, setViewport, hasValidViewport } = useTreeViewStore();
+
+    // ── 관장 부부 중심 뷰: 초기 로드 시 main couple을 화면 중앙에 배치 ──
+    const mainScreenX = useMemo(() => toScreenX(0), [bounds]);
+    const mainScreenY = useMemo(() => toScreenY(0), [screenBounds]);
+
+    useEffect(() => {
+        if (!transformRef.current || allZ0Nodes.length === 0) return;
+
+        // 저장된 뷰포트가 있으면 복원 (인물 편집 후 돌아올 때)
+        if (hasValidViewport()) {
+            setTimeout(() => {
+                transformRef.current?.setTransform(
+                    savedViewport.positionX,
+                    savedViewport.positionY,
+                    savedViewport.scale,
+                );
+            }, 50);
+            return;
+        }
+
+        // 기본: 관장 부부 중심 배치
+        const scale = 0.55;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight - 130;
+        const tx = vw / 2 - mainScreenX * scale;
+        const ty = vh / 3 - mainScreenY * scale;
+        setTimeout(() => {
+            transformRef.current?.setTransform(tx, ty, scale);
+        }, 50);
+    }, [allZ0Nodes.length, mainScreenX, mainScreenY]);
+
+    // ── pan/zoom 변경 시 뷰포트 저장 ──
+    const handleTransformChange = useCallback((ref) => {
+        const { scale, positionX, positionY } = ref.state;
+        setViewport(scale, positionX, positionY);
+    }, [setViewport]);
 
     // ── 커플/솔로별 박스 위치 (screen coords) ──
     const couplePositions = useMemo(() => {
@@ -362,11 +329,12 @@ export default function FamilyTreeCanvas({
         >
             <WormholeWrapper phase={phase}>
             <TransformWrapper
-                initialScale={0.6}
-                minScale={0.2}
+                ref={transformRef}
+                initialScale={0.55}
+                minScale={0.15}
                 maxScale={2}
-                centerOnInit
                 limitToBounds={false}
+                onTransformed={handleTransformChange}
             >
                 {({ zoomIn, zoomOut, resetTransform }) => (
                     <>
@@ -413,13 +381,6 @@ export default function FamilyTreeCanvas({
                                     const soloNode = husband || wife;
                                     if (!soloNode) return null;
 
-                                    // LOD 애니메이션: ±2 밖 세대는 슬라이드다운
-                                    const nodeDepth = Math.abs(soloNode.depth);
-                                    const isExpanded = nodeDepth > 2 && expandedDepths.has(soloNode.depth);
-                                    const animStyle = isExpanded
-                                        ? { animation: 'lodSlideDown 0.4s ease-out' }
-                                        : {};
-
                                     if (isCouple) {
                                         const leftNode = husband.x < wife.x ? husband : wife;
                                         const coupleChildIds = [
@@ -439,7 +400,6 @@ export default function FamilyTreeCanvas({
                                                 style={{
                                                     position: 'absolute',
                                                     zIndex: 1,
-                                                    ...animStyle,
                                                 }}
                                             >
                                                 <CoupleBlock
@@ -469,7 +429,6 @@ export default function FamilyTreeCanvas({
                                             style={{
                                                 position: 'absolute',
                                                 zIndex: 1,
-                                                ...animStyle,
                                             }}
                                         >
                                             <CoupleBlock
@@ -486,17 +445,7 @@ export default function FamilyTreeCanvas({
                                     );
                                 })}
 
-                                {/* LOD 확장 버튼 (접힌 세대) */}
-                                {collapsedSummaries.map(summary => (
-                                    <LodExpandButton
-                                        key={`lod-${summary.depth}`}
-                                        count={summary.count}
-                                        label={summary.depth < 0 ? '후손' : '조상'}
-                                        onClick={() => toggleDepth(summary.depth)}
-                                        screenX={toScreenX(summary.centerX)}
-                                        screenY={toScreenY(summary.y)}
-                                    />
-                                ))}
+                                {/* 모든 세대 표시 — LOD 필터 없음 */}
                             </div>
                         </TransformComponent>
                     </>
@@ -504,17 +453,6 @@ export default function FamilyTreeCanvas({
             </TransformWrapper>
             </WormholeWrapper>
 
-            {/* LOD 슬라이드다운 애니메이션 CSS */}
-            <style>{`
-                @keyframes lodSlideDown {
-                    from { opacity: 0; transform: translateY(-30px); }
-                    to   { opacity: 1; transform: translateY(0); }
-                }
-                .lod-expand-btn:hover {
-                    background: rgba(196,168,79,0.25) !important;
-                    border-color: #C4A84F !important;
-                }
-            `}</style>
         </div>
     );
 }

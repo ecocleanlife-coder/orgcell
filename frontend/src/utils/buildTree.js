@@ -16,16 +16,6 @@ const SLOT_W = 220;     // 한 사람 = 180px + 40px 간격
 const Y_GAP = 270;      // 세대 간 수직 간격
 const CARD_W = 180;     // 카드 실제 폭
 const CARD_GAP = 40;    // 카드 사이 간격
-const MAX_CHILDREN_W = 880; // 자녀 그룹 폭 상한 (4슬롯)
-
-/**
- * 가변 밀도: 자녀 그룹 전체 폭 계산
- * N ≤ 3 → N × 220 (표준), N ≥ 4 → 880 (고정 상한)
- */
-function calcChildrenWidth(N) {
-    if (N <= 3) return N * SLOT_W;
-    return MAX_CHILDREN_W;
-}
 
 // ── 유틸 ──────────────────────────────────────────
 
@@ -335,6 +325,9 @@ function buildNodeData(person) {
         deathLunar: person.death_lunar || false,
         fsPersonId: person.fs_person_id || '',
         privacyLevel: person.privacy_level || 'family',
+        privacyVariant: person.privacy_variant || null,
+        isRefused: person.is_refused || false,
+        relationLabel: person.relation_label || '',
     };
 }
 
@@ -375,7 +368,7 @@ function getSiblings(personId, maps, byId) {
  * 4. 형제는 자녀 영역 바깥에 배치
  * 5. 조상은 자손 범위 중심에 배치
  */
-function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds, centerId = null) {
+function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
     const positions = {};
     const connSet = new Set(connectedIds);
     const { spousesOf, parentOf, childrenOf } = maps;
@@ -465,71 +458,13 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds, centerId 
             }
         }
 
-        // ── 가변 밀도 레이아웃 ──
-        // N = 자녀 + 배우자 합산 인원수
-        let N = 0;
+        const totalW = slots.reduce((s, sl) => s + sl.width, 0);
+        let startX = centerX - (totalW * SLOT_W) / 2;
+
         for (const slot of slots) {
-            const cSp = getSpouse(slot.id);
-            N += cSp ? 2 : 1;
-        }
-
-        const standardW = N * SLOT_W;
-        const cappedW = calcChildrenWidth(N);
-
-        // centerId 포커스: centerId의 부모이면 centerId 슬롯만 표준 폭 복구
-        const centeredSlotIdx = centerId
-            ? slots.findIndex(s => s.id === centerId || getSpouse(s.id) === centerId)
-            : -1;
-        const hasCenteredChild = centeredSlotIdx >= 0 && N >= 4;
-
-        if (hasCenteredChild) {
-            // centerId 슬롯 → 표준 폭, 나머지 → 남은 폭 균등 배분
-            const cSlot = slots[centeredSlotIdx];
-            const cSp = getSpouse(cSlot.id);
-            const centeredPersons = cSp ? 2 : 1;
-            const centeredW = centeredPersons * SLOT_W;
-
-            // 시각적 폭 ≤ MAX_CHILDREN_W: 분배 폭 = cap - CARD_W
-            const distCap = cappedW - CARD_W;
-            const remainingN = N - centeredPersons;
-            const remainingW = Math.max(distCap - centeredW, remainingN * CARD_GAP);
-            const remainingSlotW = remainingN > 0 ? remainingW / remainingN : 0;
-
-            const totalW = centeredW + remainingW;
-            let startX = centerX - totalW / 2;
-
-            for (let i = 0; i < slots.length; i++) {
-                const slot = slots[i];
-                const sp = getSpouse(slot.id);
-                const persons = sp ? 2 : 1;
-
-                let unitW;
-                if (i === centeredSlotIdx) {
-                    unitW = centeredW;
-                } else {
-                    unitW = remainingSlotW * persons;
-                }
-
-                const slotCenter = startX + unitW / 2;
-                placeDescTree(slot.id, slotCenter, y - Y_GAP);
-                startX += unitW;
-            }
-        } else {
-            // 표준 or 균등 압축
-            // N ≥ 4: 시각적 폭(카드 엣지 포함) ≤ MAX_CHILDREN_W
-            //   분배 폭 = cap - CARD_W (양쪽 카드 절반이 밖으로 나오므로)
-            const W = N >= 4 ? (cappedW - CARD_W) : standardW;
-            const slotW = W / N; // 1인당 폭
-
-            let startX = centerX - W / 2;
-            for (const slot of slots) {
-                const sp = getSpouse(slot.id);
-                const persons = sp ? 2 : 1;
-                const unitW = slotW * persons;
-                const slotCenter = startX + unitW / 2;
-                placeDescTree(slot.id, slotCenter, y - Y_GAP);
-                startX += unitW;
-            }
+            const slotCenter = startX + (slot.width * SLOT_W) / 2;
+            placeDescTree(slot.id, slotCenter, y - Y_GAP);
+            startX += slot.width * SLOT_W;
         }
     }
 
@@ -728,6 +663,68 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds, centerId 
 
     placeAncestorSiblings(mainId);
 
+    // ── 5단계: 겹침 해소 (같은 Y에서 X 간격 < MIN_GAP 시 밀어내기) ──
+    const MIN_GAP = CARD_W + 20; // 180 + 20 = 200px 최소 간격
+
+    // 부모-자손 관계를 따라 서브트리 전체를 deltaX만큼 이동
+    function shiftSubtree(personId, deltaX, visited) {
+        if (visited.has(personId)) return;
+        visited.add(personId);
+        if (!positions[personId]) return;
+        positions[personId].x += deltaX;
+
+        // 배우자도 이동
+        const sp = (spousesOf[personId] || []).find(s => connSet.has(s) && positions[s]);
+        if (sp && !visited.has(sp)) {
+            visited.add(sp);
+            positions[sp].x += deltaX;
+        }
+
+        // 자녀 + 자녀의 서브트리 재귀 이동
+        const coupleIds = sp ? [personId, sp] : [personId];
+        for (const pid of coupleIds) {
+            for (const cid of (childrenOf[pid] || [])) {
+                if (connSet.has(cid)) shiftSubtree(cid, deltaX, visited);
+            }
+        }
+    }
+
+    // 최대 10회 반복 (수렴할 때까지)
+    for (let pass = 0; pass < 10; pass++) {
+        let anyShifted = false;
+
+        // Y 그룹별로 노드 수집
+        const byY = {};
+        for (const [id, pos] of Object.entries(positions)) {
+            const yKey = Math.round(pos.y);
+            if (!byY[yKey]) byY[yKey] = [];
+            byY[yKey].push({ id, x: pos.x });
+        }
+
+        for (const yKey of Object.keys(byY)) {
+            const row = byY[yKey];
+            if (row.length < 2) continue;
+            row.sort((a, b) => a.x - b.x);
+
+            for (let i = 0; i < row.length - 1; i++) {
+                const gap = row[i + 1].x - row[i].x;
+                if (gap < MIN_GAP) {
+                    const pushAmount = MIN_GAP - gap;
+                    // 오른쪽 노드 + 그 서브트리 전체를 밀어내기
+                    const visited = new Set();
+                    shiftSubtree(row[i + 1].id, pushAmount, visited);
+                    anyShifted = true;
+                    // 이 row의 나머지도 갱신
+                    for (let j = i + 1; j < row.length; j++) {
+                        row[j].x = positions[row[j].id].x;
+                    }
+                }
+            }
+        }
+
+        if (!anyShifted) break;
+    }
+
     return positions;
 }
 
@@ -770,7 +767,7 @@ function buildLinks(connectedIds, maps) {
  * @param {string|number|null} overrideMainId - mainId 강제 지정
  * @returns {{ nodes, links, mainId, constants }}
  */
-export function buildTree(persons, relations, overrideMainId = null, centerId = null) {
+export function buildTree(persons, relations, overrideMainId = null) {
     if (!persons || persons.length === 0) {
         return { nodes: [], links: [], mainId: null, constants: { SLOT_W, Y_GAP, CARD_W, CARD_GAP } };
     }
@@ -793,8 +790,8 @@ export function buildTree(persons, relations, overrideMainId = null, centerId = 
     // Z축 분류
     const zMap = classifyZ(mainId, maps, depthMap, byId);
 
-    // CoupleBlock 레이아웃 (centerId → 가변 밀도 포커스)
-    const positions = layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds, centerId ? String(centerId) : null);
+    // CoupleBlock 레이아웃
+    const positions = layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds);
 
     // 노드 조립
     const nodes = connectedIds.map(id => {
@@ -845,10 +842,8 @@ export {
     zScale,
     buildNodeData,
     getSiblings,
-    calcChildrenWidth,
     SLOT_W,
     Y_GAP,
     CARD_W,
     CARD_GAP,
-    MAX_CHILDREN_W,
 };

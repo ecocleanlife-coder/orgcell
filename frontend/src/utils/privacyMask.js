@@ -13,12 +13,22 @@
  * @returns {string} 마스킹된 이름
  */
 export function maskName(displayName, privacyLevel, options = {}) {
-    const { relationLabel, isCurrentUserFamily = false } = options;
+    const { relationLabel, isCurrentUserFamily = false, privacyVariant } = options;
 
     // public 또는 family(가족 멤버)면 원본 표시
     if (privacyLevel === 'public') return displayName;
     if (privacyLevel === 'family' && isCurrentUserFamily) return displayName;
     if (privacyLevel !== 'private' && privacyLevel !== 'family') return displayName;
+
+    // 프라이버시 변형 처리 (초대 선택 결과)
+    if (privacyVariant === 'surname_only') {
+        return getSurnameOnly(displayName);
+    }
+    if (privacyVariant === 'anonymous') {
+        return relationLabel || '가족';
+    }
+    // privacyVariant === 'full' 이면 원본 표시 (private이어도)
+    if (privacyVariant === 'full') return displayName;
 
     // family인데 가족 아닌 경우 or private → 마스킹
     // 관계 라벨이 있으면 우선 사용
@@ -37,6 +47,24 @@ export function maskName(displayName, privacyLevel, options = {}) {
 
     // 영문 이름: 첫 글자 + ***
     return `${firstChar}***`;
+}
+
+/**
+ * 성만 추출 ("이지섭" → "이씨", "John Lambert" → "Lambert")
+ */
+function getSurnameOnly(displayName) {
+    if (!displayName) return '○씨';
+    const firstChar = displayName.charAt(0);
+    const isKorean = /[\uAC00-\uD7AF]/.test(firstChar);
+    if (isKorean) {
+        return `${firstChar}씨`;
+    }
+    // 영문: 마지막 단어가 성
+    const parts = displayName.trim().split(/\s+/);
+    if (parts.length >= 2) {
+        return parts[parts.length - 1];
+    }
+    return displayName;
 }
 
 /**
