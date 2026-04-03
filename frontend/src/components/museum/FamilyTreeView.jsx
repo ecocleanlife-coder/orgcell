@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Network, Plus, UserPlus, ExternalLink,
@@ -8,17 +8,13 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import * as f3 from 'family-chart';
-import 'family-chart/styles/family-chart.css';
-import { zoom as d3Zoom, zoomIdentity } from 'd3-zoom';
-import { select as d3Select } from 'd3-selection';
-import { Home, ZoomIn, ZoomOut } from 'lucide-react';
 
 import WormholePortal from './WormholePortal';
+import FamilyTreeCanvas from './FamilyTreeCanvas';
+import { buildTree } from '../../utils/buildTree';
 import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
 import { getT } from '../../i18n/translations';
-import { personsToFamilyChart, getMainPersonId, filterConnectedNodes } from '../../utils/familyChartAdapter';
 
 // ── Constants ──
 const GENDER_OPTIONS = [
@@ -59,12 +55,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
     const canEdit = !readOnly && (role === 'owner' || role === 'member');
 
-    // family-chart refs
-    const chartContRef = useRef(null);
-    const chartRef = useRef(null);
-    const mainIdRef = useRef(null);
-    const zoomRef = useRef(null);
-    const [zoomScale, setZoomScale] = useState(1);
+    // 가계도 중심 인물 (wormhole 전환 시 변경)
+    const [mainPersonId, setMainPersonId] = useState(null);
 
     const getFederationForPerson = (personId) => {
         return federations.find(f =>
@@ -152,418 +144,42 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     const [bioText, setBioText] = useState('');
     const [bioSaving, setBioSaving] = useState(false);
 
-    // ── family-chart 카드 클릭 핸들러 (hover 버튼용) ──
+    // ── FolderCard hover 액션 핸들러 ──
     const handleCardAction = useCallback((personId, action) => {
         const raw = persons.find(p => String(p.id) === String(personId));
         if (!raw) return;
-        if (action === 'edit') openEditModal(raw);
-        else if (action === 'parent') openParentsModal(raw.id);
-        else if (action === 'spouse') openMemberModal(raw.id, 'spouse');
-        else if (action === 'child') openMemberModal(raw.id, 'child');
-        else if (action === 'sibling') openMemberModal(raw.id, 'sibling');
-        else if (action === 'slideshow') {
-            setSlideshowPerson(raw);
-            setSlideshowIdx(0);
-            setSlideshowLoading(true);
-            axios.get(`/api/persons/${siteId}/${raw.id}/photos`)
-                .then(r => setSlideshowPhotos(r.data?.data || []))
-                .catch(() => setSlideshowPhotos([]))
-                .finally(() => setSlideshowLoading(false));
-        }
-        else if (action === 'bio') {
-            setBioPerson(raw);
-            setBioText(raw.biography || '');
+        switch (action) {
+            case 'edit':
+                openEditModal(raw);
+                break;
+            case 'wormhole':
+                setMainPersonId(String(raw.id));
+                break;
+            case 'photo':
+                setSlideshowPerson(raw);
+                setSlideshowIdx(0);
+                setSlideshowLoading(true);
+                axios.get(`/api/persons/${siteId}/${raw.id}/photos`)
+                    .then(r => setSlideshowPhotos(r.data?.data || []))
+                    .catch(() => setSlideshowPhotos([]))
+                    .finally(() => setSlideshowLoading(false));
+                break;
+            case 'exhibit':
+                // TODO: Phase 7에서 전시 모달 연결
+                break;
+            case 'invite':
+                // TODO: Phase 7에서 초대 모달 연결
+                break;
+            default:
+                break;
         }
     }, [persons, siteId]);
 
-    // 글로벌 핸들러 등록 (family-chart HTML에서 호출)
-    useEffect(() => {
-        window.__fcAction = handleCardAction;
-        return () => { delete window.__fcAction; };
-    }, [handleCardAction]);
-
-    // ── 카드 HTML 생성 함수 (초기화/업데이트 공용) ──
-    const createCardHtml = useCallback((d) => {
-        const data = d.data.data || d.data;
-        const fn = data['first name'] || '';
-        const ln = data['last name'] || '';
-        const displayName = data.display_name || `${ln}${fn}`.trim() || '?';
-        const isDeceased = data.is_deceased;
-        const dateLabel = data.date_label || '';
-        const photoUrl = data.avatar;
-        const initials = data.initials || '?';
-        const fsId = data.fs_person_id;
-        const pos = data.photo_position || { x: 50, y: 50 };
-        const personId = d.data.id;
-        const gender = data.gender;
-
-        const btnStyle = 'width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid #93c5fd;display:flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;box-shadow:0 1px 3px rgba(0,0,0,0.15);font-size:12px;color:#3b82f6;';
-        const hoverBtns = canEdit ? `
-            <div class="fc-hover-btns" style="position:absolute;inset:-14px;pointer-events:none;opacity:0;transition:opacity 0.2s;">
-                <button onclick="event.stopPropagation();window.__fcAction('${personId}','parent')" style="position:absolute;top:0;left:50%;transform:translateX(-50%);${btnStyle}" title="부모 추가">▲</button>
-                <button onclick="event.stopPropagation();window.__fcAction('${personId}','child')" style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);${btnStyle}" title="자녀 추가">▼</button>
-                <button onclick="event.stopPropagation();window.__fcAction('${personId}','sibling')" style="position:absolute;left:0;top:50%;transform:translateY(-50%);${btnStyle}" title="형제 추가">◀</button>
-                <button onclick="event.stopPropagation();window.__fcAction('${personId}','spouse')" style="position:absolute;right:0;top:50%;transform:translateY(-50%);${btnStyle}" title="배우자 추가">▶</button>
-            </div>
-        ` : '';
-
-        // 멀티미디어 아이콘 (TV 슬라이드쇼 + 펜 편집) — hover 시 표시
-        const mediaIconStyle = 'width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,0.85);backdrop-filter:blur(4px);border:1px solid rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;font-size:11px;transition:all 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.12);';
-        const mediaIcons = `
-            <div class="fc-media-icons" style="position:absolute;top:14px;right:4px;display:flex;flex-direction:column;gap:3px;opacity:0;transition:opacity 0.25s ease;pointer-events:none;z-index:5;">
-                <button onclick="event.stopPropagation();window.__fcAction('${personId}','slideshow')" style="${mediaIconStyle}" title="사진 슬라이드쇼">📺</button>
-                <button onclick="event.stopPropagation();window.__fcAction('${personId}','bio')" style="${mediaIconStyle}" title="개인사 편집">✏️</button>
-            </div>
-        `;
-
-        return `
-            <div class="fc-card-inner" style="position:relative;width:130px;cursor:pointer;">
-                <div style="position:absolute;top:0;left:8px;width:40px;height:14px;background:${gender === 'F' ? '#f9a8d4' : '#fcd34d'};border-radius:6px 6px 0 0;border:1px solid ${gender === 'F' ? '#f472b6' : '#fbbf24'};border-bottom:none;z-index:1;"></div>
-                <div style="position:relative;top:10px;background:#FFFBF0;border:2px solid ${gender === 'F' ? '#f9a8d4' : '#fbbf24'};border-radius:12px;padding:12px 8px 8px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-                    ${fsId ? `<a href="https://www.familysearch.org/tree/person/${fsId}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="position:absolute;top:4px;left:4px;width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,0.9);border:1px solid #4a8c3f;display:flex;align-items:center;justify-content:center;z-index:2;text-decoration:none;"><span style="font-size:7px;font-weight:900;color:#4a8c3f;">FS</span></a>` : ''}
-                    <div style="width:64px;height:64px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.15);overflow:hidden;background:${photoUrl ? '#e8e0d0' : '#d4a574'};display:flex;align-items:center;justify-content:center;margin:0 auto 6px;">
-                        ${photoUrl
-                            ? `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;object-position:${pos.x}% ${pos.y}%;" />`
-                            : `<span style="color:#fff;font-weight:700;font-size:18px;">${initials}</span>`
-                        }
-                    </div>
-                    <div style="font-size:13px;font-weight:600;color:#5C4033;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0 auto;line-height:1.3;">
-                        ${isDeceased ? '🕯️ ' : ''}${displayName}
-                    </div>
-                    ${dateLabel ? `<div style="font-size:10px;color:#9E8A78;margin-top:2px;">${dateLabel}</div>` : ''}
-                    ${mediaIcons}
-                </div>
-                ${hoverBtns}
-            </div>
-        `;
-    }, [canEdit]);
-
-    // ── 배우자 조상 표시 (family-chart가 렌더링하지 않은 노드를 HTML로 추가) ──
-    const renderSpouseAncestors = useCallback((chartData) => {
-        if (!chartContRef.current) return;
-        const container = chartContRef.current;
-
-        // 기존 배우자 조상 제거
-        container.querySelectorAll('.spouse-ancestor-overlay').forEach(el => el.remove());
-
-        // data-id 속성으로 렌더링된 카드 ID→위치 맵 구성
-        const renderedMap = {}; // id → { x, y }
-        const renderedIds = new Set();
-        container.querySelectorAll('.card_cont').forEach(card => {
-            const dataIdEl = card.querySelector('[data-id]');
-            const id = dataIdEl?.getAttribute('data-id');
-            if (!id) return;
-            renderedIds.add(id);
-            const style = card.getAttribute('style') || '';
-            const match = style.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
-            if (match) {
-                renderedMap[id] = { x: parseFloat(match[1]), y: parseFloat(match[2]) };
-            }
-        });
-
-        const mainId = mainIdRef.current;
-        const mainNode = chartData.find(d => d.id === String(mainId));
-        if (!mainNode || !mainNode.rels.spouses?.length) return;
-
-        // 배우자 카드 위치 찾기
-        for (const spouseId of mainNode.rels.spouses) {
-            const spouseNode = chartData.find(d => d.id === String(spouseId));
-            if (!spouseNode) continue;
-
-            const spousePos = renderedMap[String(spouseId)];
-            if (!spousePos) continue;
-
-            // 배우자의 부모 중 렌더링되지 않은 노드 찾기
-            const missingParents = [];
-            for (const parentId of (spouseNode.rels.parents || [])) {
-                if (!renderedIds.has(String(parentId))) {
-                    const parentNode = chartData.find(d => d.id === String(parentId));
-                    if (parentNode) missingParents.push(parentNode);
-                }
-            }
-
-            if (missingParents.length === 0) continue;
-
-            // 남성 먼저 정렬
-            missingParents.sort((a, b) => {
-                if (a.data?.gender === 'M' && b.data?.gender !== 'M') return -1;
-                if (a.data?.gender !== 'M' && b.data?.gender === 'M') return 1;
-                return 0;
-            });
-
-            // HTML overlay로 조상 카드 + 연결선 생성
-            const overlay = document.createElement('div');
-            overlay.className = 'spouse-ancestor-overlay';
-            overlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;';
-
-            const cardW = 130;
-            const cardH = 160;
-            const yOffset = -220;
-            const gap = 20;
-            const totalWidth = missingParents.length * (cardW + gap) - gap;
-            const startX = spousePos.x + cardW / 2 - totalWidth / 2;
-
-            missingParents.forEach((parent, i) => {
-                const px = startX + i * (cardW + gap);
-                const py = spousePos.y + yOffset;
-                const gender = parent.data?.gender || 'M';
-                const displayName = parent.data?.display_name || '?';
-                const initials = parent.data?.initials || '?';
-                const dateLabel = parent.data?.date_label || '';
-                const borderColor = gender === 'M' ? '#C4956A' : '#E8A0BF';
-                const bgColor = gender === 'M' ? '#D4A574' : '#F0B8D0';
-                const markerColor = gender === 'M' ? '#C4956A' : '#E8A0BF';
-
-                const card = document.createElement('div');
-                card.style.cssText = `position:absolute;top:0;left:0;transform:translate(${px}px,${py}px);width:${cardW}px;height:${cardH}px;pointer-events:auto;cursor:pointer;`;
-                card.innerHTML = `
-                    <div style="width:100%;height:100%;border-radius:16px;border:2px dashed ${borderColor};background:#FFF8F0;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;">
-                        <div style="position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:16px;height:12px;border-radius:3px;background:${markerColor};"></div>
-                        <div style="width:70px;height:70px;border-radius:50%;background:${bgColor};display:flex;align-items:center;justify-content:center;margin-top:10px;">
-                            <span style="color:white;font-size:18px;font-weight:bold;">${initials}</span>
-                        </div>
-                        <div style="margin-top:8px;font-size:13px;font-weight:600;color:#333;text-align:center;">${displayName.length > 8 ? displayName.slice(0, 7) + '…' : displayName}</div>
-                        ${dateLabel ? `<div style="font-size:10px;color:#888;margin-top:2px;">${dateLabel}</div>` : ''}
-                    </div>
-                `;
-                card.addEventListener('click', () => {
-                    const raw = persons.find(p => String(p.id) === String(parent.id));
-                    if (raw && canEdit) openEditModal(raw);
-                });
-                overlay.appendChild(card);
-            });
-
-            // SVG 연결선 (점선) — 부모쌍 연결 + 자녀 연결
-            const svgNS = 'http://www.w3.org/2000/svg';
-            const lineSvg = document.createElementNS(svgNS, 'svg');
-            lineSvg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:visible;';
-
-            // 부모 사이 배우자 연결선
-            if (missingParents.length === 2) {
-                const x1 = startX + cardW;
-                const x2 = startX + cardW + gap;
-                const midY = spousePos.y + yOffset + cardH / 2;
-                const line = document.createElementNS(svgNS, 'line');
-                line.setAttribute('x1', x1); line.setAttribute('y1', midY);
-                line.setAttribute('x2', x2); line.setAttribute('y2', midY);
-                line.setAttribute('stroke', '#C4956A');
-                line.setAttribute('stroke-width', '2');
-                line.setAttribute('stroke-dasharray', '4,3');
-                line.setAttribute('stroke-opacity', '0.7');
-                lineSvg.appendChild(line);
-            }
-
-            // 부모 → 자녀(배우자) 연결선
-            const midParentX = startX + totalWidth / 2;
-            const parentBottom = spousePos.y + yOffset + cardH;
-            const childTop = spousePos.y;
-            const childMidX = spousePos.x + cardW / 2;
-            const midY = (parentBottom + childTop) / 2;
-
-            const path = document.createElementNS(svgNS, 'path');
-            path.setAttribute('d', `M${midParentX},${parentBottom} L${midParentX},${midY} L${childMidX},${midY} L${childMidX},${childTop}`);
-            path.setAttribute('fill', 'none');
-            path.setAttribute('stroke', '#C4956A');
-            path.setAttribute('stroke-width', '2');
-            path.setAttribute('stroke-dasharray', '6,3');
-            path.setAttribute('stroke-opacity', '0.7');
-            lineSvg.appendChild(path);
-
-            overlay.appendChild(lineSvg);
-
-            // family-chart 내부 컨테이너에 추가 (SVG 옆 DIV와 같은 레벨)
-            const chartInner = container.querySelector('svg.main_svg')?.parentElement;
-            if (chartInner) chartInner.appendChild(overlay);
-        }
-    }, [persons, canEdit]);
-
-    // ── d3-zoom 설정 (SVG + HTML 카드 동시 이동) ──
-    const setupZoom = useCallback((svgEl, chartData) => {
-        const chartInner = svgEl.parentElement; // SVG + card overlay의 공통 부모
-        if (!chartInner) return;
-
-        const svg = d3Select(svgEl);
-
-        // family-chart의 zoom-group 제거 (SVG 단독 zoom 대신 전체 컨테이너 zoom)
-        const existingZoomGroup = svg.select('.zoom-group');
-        if (!existingZoomGroup.empty()) {
-            const viewNode = existingZoomGroup.select('.view').node();
-            if (viewNode) svgEl.appendChild(viewNode);
-            existingZoomGroup.remove();
-        }
-
-        const zoomBehavior = d3Zoom()
-            .scaleExtent([0.3, 2])
-            .filter((event) => {
-                // 카드 클릭은 줌 이벤트에서 제외
-                if (event.type === 'mousedown' || event.type === 'touchstart') {
-                    const target = event.target;
-                    if (target.closest?.('.card_cont') || target.closest?.('.spouse-ancestor-overlay [style*="pointer-events:auto"]')) {
-                        return false;
-                    }
-                }
-                return true;
-            })
-            .on('zoom', (event) => {
-                const { x, y, k } = event.transform;
-                // SVG 내부와 HTML 카드 overlay 모두에 transform 적용
-                const allChildren = chartInner.children;
-                for (const child of allChildren) {
-                    if (child.tagName === 'svg') {
-                        // SVG: 내부 .view에 transform
-                        const view = child.querySelector('.view');
-                        if (view) view.setAttribute('transform', `translate(${x},${y}) scale(${k})`);
-                    } else {
-                        // HTML overlay: CSS transform
-                        child.style.transformOrigin = '0 0';
-                        child.style.transform = `translate(${x}px,${y}px) scale(${k})`;
-                    }
-                }
-                setZoomScale(k);
-            });
-
-        // 줌 이벤트를 SVG에 바인딩 (전체 영역 커버)
-        svg.call(zoomBehavior);
-        svg.on('dblclick.zoom', null);
-
-        zoomRef.current = { zoomBehavior, svg, chartInner };
-
-        // 초기 위치: 본인 부부를 화면 중앙으로
-        setTimeout(() => centerOnMain(), 300);
-    }, []);
-
-    // 본인 부부를 화면 중앙으로 이동
-    const centerOnMain = useCallback(() => {
-        if (!zoomRef.current || !chartContRef.current) return;
-        const { zoomBehavior, svg, chartInner } = zoomRef.current;
-        if (!chartInner) return;
-
-        // data-id로 메인 카드 찾기
-        const mainId = mainIdRef.current;
-        if (!mainId) return;
-
-        let mainX = 0, mainY = 0, found = false;
-        chartInner.querySelectorAll('.card_cont').forEach(card => {
-            const dataIdEl = card.querySelector(`[data-id="${mainId}"]`);
-            if (dataIdEl) {
-                const style = card.getAttribute('style') || '';
-                const match = style.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
-                if (match) {
-                    mainX = parseFloat(match[1]) + 65; // 카드 중심 (130/2)
-                    mainY = parseFloat(match[2]) + 80; // 카드 중심 (160/2)
-                    found = true;
-                }
-            }
-        });
-
-        if (!found) return;
-
-        const containerRect = chartContRef.current.getBoundingClientRect();
-        const tx = containerRect.width / 2 - mainX;
-        const ty = containerRect.height / 2 - mainY;
-
-        svg.transition().duration(500).call(
-            zoomBehavior.transform,
-            zoomIdentity.translate(tx, ty)
-        );
-    }, [persons]);
-
-    const handleZoomIn = useCallback(() => {
-        if (!zoomRef.current) return;
-        const { zoomBehavior, svg } = zoomRef.current;
-        svg.transition().duration(300).call(zoomBehavior.scaleBy, 1.3);
-    }, []);
-
-    const handleZoomOut = useCallback(() => {
-        if (!zoomRef.current) return;
-        const { zoomBehavior, svg } = zoomRef.current;
-        svg.transition().duration(300).call(zoomBehavior.scaleBy, 0.7);
-    }, []);
-
-    // ── family-chart 초기화 및 업데이트 ──
-    useEffect(() => {
-        if (isLoading || persons.length === 0 || !chartContRef.current) return;
-
-        // mainId는 첫 로드 시에만 결정
-        if (!mainIdRef.current) {
-            mainIdRef.current = getMainPersonId(persons);
-        }
-
-        const rawData = personsToFamilyChart(persons, relations);
-        // 메인 인물에서 도달 불가능한 단절 노드 제거 (크래시 방지)
-        const chartData = filterConnectedNodes(rawData, mainIdRef.current);
-        if (chartData.length === 0) return;
-
-        // 기존 차트가 있으면 파괴 후 재생성 (updateData는 내부 mutation으로 불안정)
-        if (chartRef.current) {
-            chartRef.current = null;
-            if (chartContRef.current) chartContRef.current.innerHTML = '';
-        }
-
-        // 차트 DOM 초기화 (첫 생성 시에만)
-        chartContRef.current.innerHTML = '';
-
-        try {
-            // 재생성 시에도 deep copy 사용 (이전 시도에서 mutation 되었을 수 있음)
-            const freshData = JSON.parse(JSON.stringify(chartData));
-            const chart = f3.createChart(chartContRef.current, freshData);
-
-            chart.setCardXSpacing(180);
-            chart.setCardYSpacing(200);
-
-            chart.setCardHtml()
-                .setCardDisplay([['display_name'], ['date_label']])
-                .setStyle('rect')
-                .setCardDim({ w: 130, h: 160 })
-                .setMiniTree(false)
-                .setOnCardClick((e, d) => {
-                    if (canEdit) {
-                        const raw = persons.find(p => String(p.id) === String(d.data.id));
-                        if (raw) openEditModal(raw);
-                    }
-                })
-                .setCardInnerHtmlCreator(createCardHtml);
-
-            chart.setShowSiblingsOfMain(true);
-            chart.setLinkSpouseText(() => '💑');
-
-            if (mainIdRef.current) {
-                chart.updateMainId(mainIdRef.current);
-            }
-
-            chart.setTransitionTime(0);
-            chart.updateTree({ initial: true, tree_position: 'fit' });
-
-            // SVG 크기를 컨테이너에 맞게 강제 설정
-            const svgEl = chartContRef.current.querySelector('svg.main_svg');
-            if (svgEl) {
-                svgEl.style.width = '100%';
-                svgEl.style.height = '100%';
-
-                // family-chart가 트리 위치를 잡은 후 d3-zoom 적용
-                setTimeout(() => {
-                    chart.setTransitionTime(500);
-                    chart.updateTree({ tree_position: 'fit' });
-
-                    // 배우자 조상 노드 렌더링 후 d3-zoom 설정
-                    setTimeout(() => renderSpouseAncestors(chartData), 200);
-                    setupZoom(svgEl, chartData);
-                }, 100);
-            }
-
-            chartRef.current = chart;
-        } catch (err) {
-            console.error('family-chart init error:', err);
-            // 차트 생성 실패 시 빈 화면 방지 — 리로드 버튼 표시
-            if (chartContRef.current) {
-                chartContRef.current.innerHTML = `
-                    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:300px;color:#666;">
-                        <p style="font-size:14px;margin-bottom:12px;">트리 로딩 중 오류가 발생했습니다</p>
-                        <button onclick="location.reload()" style="padding:8px 20px;background:#4a7a3a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;">새로고침</button>
-                    </div>`;
-            }
-        }
-    }, [persons, relations, isLoading, canEdit, createCardHtml]);
+    // ── buildTree 계산 (persons + relations → nodes/links) ──
+    const treeData = useMemo(() => {
+        if (persons.length === 0) return { nodes: [], links: [], mainId: null };
+        return buildTree(persons, relations, mainPersonId);
+    }, [persons, relations, mainPersonId]);
 
     // ── Modal state ──
     const [modal, setModal] = useState(null);
@@ -1058,7 +674,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     }
 
     // ════════════════════════════════════════
-    // Existing tree — family-chart 렌더링
+    // Existing tree — FamilyTreeCanvas 렌더링
     // ════════════════════════════════════════
     return (
         <div className="w-full min-h-[70vh] bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-inner overflow-hidden">
@@ -1098,55 +714,30 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 </div>
             </div>
 
-            {/* family-chart 커스텀 스타일 */}
-            <style>{`
-                .fc-card-inner:hover .fc-hover-btns { opacity: 1 !important; }
-                .fc-card-inner:hover .fc-media-icons { opacity: 1 !important; pointer-events: auto !important; }
-                .fc-media-icons button:hover { background: #fff !important; transform: scale(1.15); box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important; }
-                svg.main_svg { width: 100% !important; height: 100% !important; display: block; cursor: grab; }
-                svg.main_svg:active { cursor: grabbing; }
-                .links_view path.link { stroke: #C4956A !important; stroke-width: 2 !important; stroke-opacity: 0.7 !important; }
-                .card { overflow: visible !important; background: none !important; border: none !important; box-shadow: none !important; }
-                .card-body { overflow: visible !important; background: none !important; }
-                .card-inner { overflow: visible !important; }
-                .card.card-male, .card.card-female, .card.card-genderless { background: none !important; border: none !important; box-shadow: none !important; }
-            `}</style>
-
-            {/* family-chart 컨테이너 + 줌 컨트롤 */}
+            {/* FamilyTreeCanvas 렌더링 */}
             <div className="relative w-full" style={{ height: 'calc(100vh - 300px)', minHeight: '500px' }}>
-                <div
-                    ref={chartContRef}
-                    className="w-full h-full"
-                    style={{ overflow: 'hidden', cursor: 'grab' }}
+                <FamilyTreeCanvas
+                    nodes={treeData.nodes}
+                    links={treeData.links}
+                    mainId={treeData.mainId}
+                    onCardClick={(personId) => {
+                        if (canEdit) {
+                            const raw = persons.find(p => String(p.id) === String(personId));
+                            if (raw) openEditModal(raw);
+                        }
+                    }}
+                    onWormhole={(personId) => setMainPersonId(String(personId))}
+                    onAction={handleCardAction}
+                    style={{ width: '100%', height: '100%' }}
                 />
-
-                {/* 줌 컨트롤 버튼 */}
-                <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-10">
+                {mainPersonId && (
                     <button
-                        onClick={centerOnMain}
-                        className="w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-                        title={lang === 'ko' ? '본인 중심으로' : 'Center on me'}
+                        onClick={() => setMainPersonId(null)}
+                        className="absolute top-4 left-4 z-10 px-4 py-2 bg-white/90 dark:bg-gray-800/90 rounded-xl shadow-lg border border-gray-200 dark:border-gray-600 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-white transition-colors"
                     >
-                        <Home size={18} className="text-gray-700 dark:text-gray-200" />
+                        {lang === 'ko' ? '원래 가문으로 돌아가기' : 'Back to main family'}
                     </button>
-                    <button
-                        onClick={handleZoomIn}
-                        className="w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-                        title={lang === 'ko' ? '확대' : 'Zoom in'}
-                    >
-                        <ZoomIn size={18} className="text-gray-700 dark:text-gray-200" />
-                    </button>
-                    <button
-                        onClick={handleZoomOut}
-                        className="w-10 h-10 bg-white dark:bg-gray-700 rounded-full shadow-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-                        title={lang === 'ko' ? '축소' : 'Zoom out'}
-                    >
-                        <ZoomOut size={18} className="text-gray-700 dark:text-gray-200" />
-                    </button>
-                    <div className="text-center text-xs text-gray-400 dark:text-gray-500">
-                        {Math.round(zoomScale * 100)}%
-                    </div>
-                </div>
+                )}
             </div>
 
             {/* ── Modals ── */}

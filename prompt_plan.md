@@ -1,41 +1,66 @@
-# 가족트리 DB 구조 재설계 — 관계 테이블 통합
+# d3.js 가족트리 완전 재구현
 
-> 확정: 2026-04-01 | 상태: **Phase 1 진행중**
+> 확정: 2026-04-02 | 상태: **Phase 1 진행중**
 
-## 배경
-persons 테이블에 parent1_id, parent2_id, spouse_id 컬럼과 person_relations 테이블이 이중 관리되어 버그 반복 발생.
+## 목표
+- family-chart 라이브러리 완전 제거
+- d3.js 기반 커스텀 가족트리
+- familyChartAdapter.js 제거 → buildTree.js 대체
+- LOD (Level of Detail) 세대별 가시성
 
-## 목표 구조
-- persons: 순수 인물 정보만 (관계 컬럼 제거)
-- person_relations: 모든 관계의 단일 소스 (parent, spouse, ex_spouse, adopted, step_parent, sibling, half_sibling)
+## LOD 규칙
+| 나 기준 거리 | 레벨 | opacity |
+|-------------|-------|---------|
+| ±2세대 | clear | 1.0 |
+| ±3~4세대 | dim | 0.4 |
+| ±5세대+ | fog | 0.15 |
+흐릿/안개 클릭 시 펼쳐짐
 
-## Phase 1: EC2 DB 백업 + 현재 데이터 스냅샷 ← 진행중
-- [ ] EC2 PostgreSQL 전체 백업 (pg_dump)
-- [ ] persons 관계 컬럼 사용 현황 확인
-- [ ] person_relations 현황 확인
-- [ ] 백업 파일 로컬 다운로드
+## Phase 1: buildTree.js (데이터 변환) ← 진행중
+- [ ] persons + relations → 트리 노드/링크 데이터
+- [ ] LOD 레벨 계산
+- [ ] 레이아웃 좌표 (x, y)
+- [ ] 단위 테스트 통과
 
-## Phase 2: 마이그레이션 SQL 작성 (실행 안 함)
-- [ ] person_relations에 is_active, start_date, end_date 컬럼 추가 SQL
-- [ ] persons 관계 데이터 → person_relations 복사 SQL
-- [ ] 롤백 SQL
-- [ ] 파일: database/migrations/030_relationship_consolidation.sql
+## Phase 2: FolderCard.jsx (카드 하나)
+- [ ] 기존 폴더 카드 디자인 React 컴포넌트화
+- [ ] 성별 색상, 사진, 이름, 생몰년
+- [ ] 화면 확인 후 승인
 
-## Phase 3: 백엔드 API 수정
-- [ ] personController.js — parent/spouse 로직을 person_relations 기반으로 변경
-- [ ] relationController.js — is_active/date 지원 추가
-- [ ] API 응답 형태 최대한 유지 (프론트엔드 호환)
+## Phase 3: CoupleBlock.jsx (부부 단위)
+- [ ] 부부 카드 나란히 배치
+- [ ] 화면 확인 후 승인
 
-## Phase 4: 프론트엔드 어댑터 수정 ← 완료
-- [x] familyChartAdapter.js — person_relations만으로 트리 구성 (persons 컬럼 폴백 포함)
-- [x] FamilyTreeView.jsx — spouse 양방향 호출 제거 (백엔드 동기화 위임)
+## Phase 4: 연결선 + LOD
+- [ ] 부모→자녀 실선, 부부 수평선
+- [ ] 배우자 부모 점선
+- [ ] LOD opacity 적용
+- [ ] 화면 확인 후 승인
 
-## Phase 5: persons 컬럼 제거 (별도 승인)
-- [ ] 1주일 안정성 확인 후
-- [ ] parent1_id, parent2_id, spouse_id DROP
+## Phase 5: 모달 통합
+- [ ] member, addFirst, edit, parents, slideshow, bio
+- [ ] 카드 클릭/편집 인터랙션
+- [ ] 화면 확인 후 승인
+
+## Phase 6: family-chart 제거
+- [ ] import 교체 (MuseumPage, FamilyDomainDashboard, FamilyWebsiteView)
+- [ ] FamilyTreeView.jsx 삭제
+- [ ] familyChartAdapter.js 삭제
+- [ ] npm uninstall family-chart
+- [ ] 최종 확인 후 승인
 
 ## 의존성
-Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 (순차)
+Phase 1 → 2 → 3 → 4 → 5 → 6 (순차, 각 단계 승인 후 진행)
+
+## 신규 파일
+- `frontend/src/utils/buildTree.js` — 데이터 변환 + 레이아웃
+- `frontend/src/components/museum/FamilyTreeD3.jsx` — 메인 컴포넌트
+- `frontend/src/components/museum/FolderCard.jsx` — 카드 컴포넌트
+- `frontend/src/components/museum/CoupleBlock.jsx` — 부부 단위
+
+## 유지 파일
+- 모든 모달 컴포넌트 (PersonDetailModal 등)
+- personController.js, relationController.js (변경 없음)
 
 ---
 

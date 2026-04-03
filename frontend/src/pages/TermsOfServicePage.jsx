@@ -34,8 +34,13 @@ export default function TermsOfServicePage() {
                     body: `다음 행위는 금지됩니다:\n\n• 타인의 사진을 무단으로 업로드하는 행위\n• 불법 콘텐츠 업로드\n• 서비스 인프라에 대한 공격 시도\n• 자동화된 대량 데이터 수집\n\n면책 사항:\n• Orgcell은 사용자 클라우드(Google Drive 등)의 장애에 대해 책임지지 않습니다\n• 사용자의 클라우드 계정 분실로 인한 데이터 손실은 사용자 책임입니다\n• 서비스 점검 시 사전 공지 후 일시 중단될 수 있습니다`,
                 },
                 {
+                    icon: <AlertTriangle size={20} />,
+                    title: '5. 박물관 콘텐츠 책임',
+                    body: `가족 디지털 박물관(가계도, 전시관, 사진 갤러리 등)에 등록되는 모든 콘텐츠의 등록 및 공개 책임은 전적으로 해당 박물관의 관장(사이트 소유자)에게 있습니다.\n\n• 박물관에 게시된 사진, 텍스트, 가계도 정보의 정확성과 적법성은 관장이 보증합니다\n• 타인의 초상권, 개인정보를 침해하는 콘텐츠 게시에 대한 법적 책임은 관장에게 있습니다\n• Orgcell은 플랫폼 제공자로서 사용자가 등록한 콘텐츠의 내용에 대해 책임을 지지 않습니다\n• 부적절한 콘텐츠 신고 시 Orgcell은 해당 콘텐츠를 검토 후 삭제할 수 있습니다`,
+                },
+                {
                     icon: <FileText size={20} />,
-                    title: '5. 약관 변경',
+                    title: '6. 약관 변경',
                     body: `본 약관은 서비스 개선에 따라 변경될 수 있습니다.\n\n• 중요 변경 시 이메일로 30일 전 사전 고지\n• 변경 후 서비스 계속 이용 시 변경에 동의한 것으로 간주\n• 동의하지 않을 경우 계정 삭제를 통해 서비스 이용 중단 가능\n\n문의: ecocleanlife@gmail.com`,
                 },
             ],
@@ -67,8 +72,13 @@ export default function TermsOfServicePage() {
                     body: `The following activities are prohibited:\n\n• Uploading others' photos without permission\n• Uploading illegal content\n• Attempting attacks on service infrastructure\n• Automated mass data collection\n\nDisclaimers:\n• Orgcell is not responsible for outages in user cloud services (Google Drive, etc.)\n• Data loss due to user cloud account issues is the user's responsibility\n• Service may be temporarily suspended for maintenance with prior notice`,
                 },
                 {
+                    icon: <AlertTriangle size={20} />,
+                    title: '5. Museum Content Responsibility',
+                    body: `The registration and publication of all content in the Family Digital Museum (family tree, exhibitions, photo galleries, etc.) is solely the responsibility of the museum curator (site owner).\n\n• The curator guarantees the accuracy and legality of photos, text, and family tree information posted in the museum\n• Legal responsibility for content that infringes on others' portrait rights or personal information lies with the curator\n• As a platform provider, Orgcell is not responsible for the content registered by users\n• Upon receiving reports of inappropriate content, Orgcell may review and remove such content`,
+                },
+                {
                     icon: <FileText size={20} />,
-                    title: '5. Changes to Terms',
+                    title: '6. Changes to Terms',
                     body: `These terms may be updated as the service evolves.\n\n• Major changes will be notified by email 30 days in advance\n• Continued use after changes constitutes agreement\n• If you disagree, you may stop using the service by deleting your account\n\nContact: ecocleanlife@gmail.com`,
                 },
             ],

@@ -9,6 +9,7 @@ import MainLayout from './components/layout/MainLayout';
 
 // Lazy loading
 const LandingPage = lazy(() => import('./components/home/LandingPage'));
+const DevCardPreview = lazy(() => import('./pages/DevCardPreview'));
 const DriveCallback = lazy(() => import('./components/settings/DriveCallback'));
 const MagicLinkVerify = lazy(() => import('./pages/auth/MagicLinkVerify'));
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
@@ -125,6 +126,9 @@ function App() {
     <BrowserRouter>
       <ConditionalLayout>
       <Routes>
+        {/* ══════ 개발자 프리뷰 (인증 불필요) ══════ */}
+        <Route path="/dev/cards" element={<Suspense fallback={<PageLoader />}><DevCardPreview /></Suspense>} />
+
         {/* ══════ 레이아웃 없는 페이지 ══════ */}
         <Route
           path="/"

@@ -12,6 +12,7 @@ export default function LoginPage() {
     const next = searchParams.get('next') || '/';
     const isAuthenticated = useAuthStore(s => s.isAuthenticated);
     const user = useAuthStore(s => s.user);
+    const [termsAgreed, setTermsAgreed] = React.useState(false);
 
     // Store next param so MagicLinkVerify can pick it up after email link click
     useEffect(() => {
@@ -72,20 +73,44 @@ export default function LoginPage() {
                     </p>
                 </div>
 
+                {/* Terms consent checkbox */}
+                <label style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 8,
+                    marginBottom: 20, cursor: 'pointer', fontSize: 13, color: '#5A5A4A', lineHeight: 1.5,
+                }}>
+                    <input
+                        type="checkbox"
+                        checked={termsAgreed}
+                        onChange={(e) => setTermsAgreed(e.target.checked)}
+                        style={{ marginTop: 3, accentColor: '#5A9460', width: 16, height: 16 }}
+                    />
+                    <span>
+                        <a href="/terms" style={{ color: '#3D2008', textDecoration: 'underline', fontWeight: 600 }}>이용약관</a>
+                        {' '}및{' '}
+                        <a href="/privacy" style={{ color: '#3D2008', textDecoration: 'underline', fontWeight: 600 }}>개인정보처리방침</a>
+                        에 동의합니다.
+                        <br />
+                        <span style={{ fontSize: 11, color: '#8A8070' }}>
+                            박물관 콘텐츠의 등록 및 공개 책임은 관장에게 있음을 이해합니다.
+                        </span>
+                    </span>
+                </label>
+
                 {/* Google Login */}
-                <LoginButton />
+                <div style={{ opacity: termsAgreed ? 1 : 0.4, pointerEvents: termsAgreed ? 'auto' : 'none' }}>
+                    <LoginButton />
+                </div>
 
                 {/* Magic Link */}
-                <MagicLinkAuth />
+                <div style={{ opacity: termsAgreed ? 1 : 0.4, pointerEvents: termsAgreed ? 'auto' : 'none' }}>
+                    <MagicLinkAuth />
+                </div>
 
-                {/* Terms agreement notice */}
-                <p style={{ marginTop: 20, textAlign: 'center', fontSize: 12, color: '#888', lineHeight: 1.6 }}>
-                    계속하면{' '}
-                    <a href="/terms" style={{ color: '#888', textDecoration: 'underline' }}>이용약관</a>
-                    {' '}및{' '}
-                    <a href="/privacy" style={{ color: '#888', textDecoration: 'underline' }}>개인정보처리방침</a>
-                    에 동의하는 것으로 간주됩니다.
-                </p>
+                {!termsAgreed && (
+                    <p style={{ marginTop: 12, textAlign: 'center', fontSize: 12, color: '#C4956A' }}>
+                        로그인하려면 위 약관에 동의해 주세요.
+                    </p>
+                )}
 
                 {/* Back */}
                 <p style={{ marginTop: 16, textAlign: 'center', fontSize: 14, color: '#A09882' }}>
