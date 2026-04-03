@@ -9,7 +9,7 @@
  * - 20px 시각적 3D 두께 (box-shadow 블록)
  * - preserve-3d + translateZ (웜홀 대비)
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { maskName, maskInitials } from '../../utils/privacyMask';
 
 const CARD_SIZE = 180;
@@ -313,6 +313,7 @@ function HoverActions({ onAction }) {
                 <button
                     key={a.key}
                     onClick={(e) => { e.stopPropagation(); onAction(a.key); }}
+                    onPointerUp={(e) => { e.stopPropagation(); }}
                     title={a.label}
                     style={{
                         width: 28,
@@ -351,6 +352,8 @@ function FolderCard({
     const isDeceased = data.isDeceased;
     const [photoFailed, setPhotoFailed] = useState(false);
     const [hovered, setHovered] = useState(false);
+    const [touchLocked, setTouchLocked] = useState(false); // 터치 토글 고정
+    const cardRef = useRef(null);
 
     // 관계자 수 (부모+배우자+자녀)
     const relCount = (rels?.parents?.length || 0)
@@ -368,9 +371,43 @@ function FolderCard({
 
     const hasPhoto = !!(maskedData.avatar && !photoFailed);
 
+    // Click-Outside-Close: 터치 메뉴 열린 상태에서 외부 터치 시 닫기
+    useEffect(() => {
+        if (!touchLocked) return;
+        const handleOutside = (e) => {
+            if (cardRef.current && !cardRef.current.contains(e.target)) {
+                setTouchLocked(false);
+                setHovered(false);
+            }
+        };
+        document.addEventListener('pointerdown', handleOutside, true);
+        return () => document.removeEventListener('pointerdown', handleOutside, true);
+    }, [touchLocked]);
+
     const handleClick = () => {
         if (onClick) onClick(node.id);
     };
+
+    // Touch Toggle: 첫 터치 → 메뉴 열기, 메뉴 열린 상태 터치 → 편집 모달
+    const handleTouchEnd = useCallback((e) => {
+        // 터치 디바이스에서만 동작 (mouse 이벤트 무시)
+        if (!e.nativeEvent || e.nativeEvent.pointerType === 'mouse') return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!touchLocked) {
+            // 첫 터치: 메뉴 열기 + haptic
+            setTouchLocked(true);
+            setHovered(true);
+            if (navigator.vibrate) navigator.vibrate(10);
+        } else {
+            // 메뉴 열린 상태에서 카드 본체 터치: 상세보기 모달
+            setTouchLocked(false);
+            setHovered(false);
+            if (onAction) onAction(node.id, 'edit');
+        }
+    }, [touchLocked, node.id, onAction]);
 
     const handleContextMenu = (e) => {
         if (onContextMenu) {
@@ -403,17 +440,20 @@ function FolderCard({
 
     return (
         <div
+            ref={cardRef}
             style={{
                 ...externalStyle,
                 position: externalStyle?.position || 'relative',
                 paddingTop: TAB_H,
                 transformStyle: 'preserve-3d',
+                touchAction: 'manipulation',
             }}
             data-person-id={node.id}
             data-z={node.z}
             data-testid="folder-card"
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
+            onMouseEnter={() => { if (!touchLocked) setHovered(true); }}
+            onMouseLeave={() => { if (!touchLocked) setHovered(false); }}
+            onPointerUp={handleTouchEnd}
         >
             {/* 폴더 쌓임 효과: 관계자 2명+ → 그림자 2장 */}
             {relCount >= 2 && (
@@ -456,7 +496,7 @@ function FolderCard({
             <FolderTab gender={maskedData.gender} isDeceased={isDeceased} />
             <div
                 style={{ ...cardStyle, ...deceasedFilter, ...stateOverride }}
-                onClick={handleClick}
+                onClick={(e) => { if (!touchLocked) handleClick(); }}
                 onContextMenu={handleContextMenu}
                 role="button"
                 tabIndex={0}
@@ -479,8 +519,8 @@ function FolderCard({
                     <CanvasFront data={maskedData} isDeceased={isDeceased} />
                 )}
 
-                {/* Hover 액션 버튼 */}
-                {hovered && <HoverActions onAction={handleAction} />}
+                {/* Hover/Touch 액션 버튼 */}
+                {(hovered || touchLocked) && <HoverActions onAction={handleAction} />}
 
                 {/* Z축 안개 오버레이 */}
                 {blurPx > 0 && (

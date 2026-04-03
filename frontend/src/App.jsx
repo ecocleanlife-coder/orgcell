@@ -40,6 +40,7 @@ const TermsOfServicePage = lazy(() => import('./pages/TermsOfServicePage'));
 const InviteDashboard = lazy(() => import('./components/museum/InviteDashboard'));
 const InboxPage = lazy(() => import('./pages/museum/InboxPage'));
 const RequestViewPage = lazy(() => import('./pages/request/RequestViewPage'));
+const DemoMuseumPage = lazy(() => import('./pages/demo/DemoMuseumPage'));
 
 const PageLoader = () => (
   <div className="flex h-64 w-full items-center justify-center">
@@ -95,6 +96,7 @@ function ConditionalLayout({ children }) {
 
   const skipLayout =
     (path === '/') ||
+    (path === '/demo') ||
     (path === '/invite') ||
     path.startsWith('/auth/') ||
     path.startsWith('/onboarding/') ||
@@ -128,6 +130,7 @@ function App() {
       <Routes>
         {/* ══════ 개발자 프리뷰 (인증 불필요) ══════ */}
         <Route path="/dev/cards" element={<Suspense fallback={<PageLoader />}><DevCardPreview /></Suspense>} />
+        <Route path="/demo" element={<Suspense fallback={<PageLoader />}><DemoMuseumPage /></Suspense>} />
 
         {/* ══════ 레이아웃 없는 페이지 ══════ */}
         <Route

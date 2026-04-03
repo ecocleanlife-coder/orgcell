@@ -81,28 +81,28 @@ function LandingPage() {
                 {/* CTA 버튼 */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, width: '100%', maxWidth: 320 }}>
                     <button
-                        onClick={() => navigate('/auth/login?next=onboarding/name')}
+                        onClick={() => navigate('/demo')}
                         className="active:scale-[0.98]"
                         style={{
                             width: '100%', height: 56, borderRadius: 16,
-                            background: 'linear-gradient(135deg, #4CAF50, #3D9B42)',
+                            background: 'linear-gradient(135deg, #C4A84F, #A88E3A)',
                             color: '#fff', fontSize: 18, fontWeight: 700,
                             border: 'none', cursor: 'pointer',
-                            boxShadow: '0 4px 16px rgba(76,175,80,0.3)',
+                            boxShadow: '0 4px 16px rgba(196,168,79,0.35)',
                             transition: 'all 0.2s',
                         }}
                     >
-                        무료로 시작하기
+                        박물관 둘러보기
                     </button>
                     <button
                         onClick={() => navigate('/auth/login')}
                         style={{
                             background: 'none', border: 'none', cursor: 'pointer',
-                            fontSize: 15, color: '#7A6E5E', fontWeight: 500,
-                            padding: '8px 0',
+                            fontSize: 14, color: '#7A6E5E', fontWeight: 500,
+                            padding: '6px 0',
                         }}
                     >
-                        이미 계정이 있으신가요? <span style={{ color: '#3D2008', fontWeight: 700 }}>로그인</span>
+                        로그인
                     </button>
                 </div>
 

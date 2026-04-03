@@ -400,11 +400,8 @@ export default function MuseumPage({ initialTab }) {
                 <Section id="section-tree">
                     <SectionHeader
                         title="우리 가족"
-                        actionLabel={canEdit ? '+ 가족 추가' : undefined}
-                        onAction={() => {/* FamilyTreeView 내부에서 처리 */}}
-                        icon={UserPlus}
                     />
-                    <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: '1px solid #e8e0d0', minHeight: '70vh' }}>
+                    <div className="overflow-hidden" style={{ minHeight: '70vh' }}>
                         <FamilyTreeView siteId={site?.id} readOnly={role === 'public'} role={role} />
                     </div>
                 </Section>

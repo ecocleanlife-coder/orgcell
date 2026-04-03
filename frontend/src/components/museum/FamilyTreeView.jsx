@@ -633,9 +633,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         const VLine = () => <div className="w-0.5 h-6 bg-gray-300 mx-auto" style={{ borderLeft: '2px dashed #9ca3af' }} />;
 
         return (
-            <div className="w-full min-h-[70vh] bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-inner">
+            <div className="w-full min-h-[70vh]">
                 {/* FamilyBanner 제거됨 */}
-                <div className="p-6">
+                <div className="p-4">
                     <div className="mb-6 text-center">
                         <h2 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 flex items-center justify-center gap-3">
                             <Network className="text-emerald-500" size={28} />
@@ -677,10 +677,10 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     // Existing tree — FamilyTreeCanvas 렌더링
     // ════════════════════════════════════════
     return (
-        <div className="w-full min-h-[70vh] bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-inner overflow-hidden">
+        <div className="w-full min-h-[70vh] overflow-hidden">
             {/* FamilyBanner 제거됨 */}
 
-            <div className="p-6 pb-0">
+            <div className="p-4 pb-0">
                 <div className="mb-4 text-center">
                     <h2 className="text-2xl md:text-3xl font-extrabold text-slate-800 dark:text-slate-100 flex items-center justify-center gap-3">
                         <Network className="text-emerald-500" size={28} />
@@ -709,7 +709,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             </div>
 
             {/* FamilyTreeCanvas 렌더링 */}
-            <div className="relative w-full" style={{ height: 'calc(100vh - 300px)', minHeight: '500px' }}>
+            <div className="relative w-full" style={{ height: 'calc(100vh - 220px)', minHeight: '500px' }}>
                 <FamilyTreeCanvas
                     nodes={treeData.nodes}
                     links={treeData.links}
@@ -904,6 +904,28 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                         )}
                                     </div>
                                 </div>
+
+                                {/* 관계 추가 버튼 */}
+                                {canEdit && (
+                                    <div className="flex gap-1.5 flex-wrap">
+                                        <button onClick={() => { const eid = editPerson.id; setEditPerson(null); setModal(null); setTimeout(() => openParentsModal(eid), 100); }}
+                                            className="px-2 py-1 text-[10px] font-bold bg-indigo-100 text-indigo-600 rounded-lg hover:bg-indigo-200 transition-colors flex items-center gap-0.5">
+                                            <ChevronUp size={10} /> {lang === 'ko' ? '부모' : 'Parent'}
+                                        </button>
+                                        <button onClick={() => { const eid = editPerson.id; setEditPerson(null); setModal(null); setTimeout(() => openMemberModal(eid, 'spouse', eid), 100); }}
+                                            className="px-2 py-1 text-[10px] font-bold bg-rose-100 text-rose-600 rounded-lg hover:bg-rose-200 transition-colors flex items-center gap-0.5">
+                                            <ChevronRight size={10} /> {lang === 'ko' ? '배우자' : 'Spouse'}
+                                        </button>
+                                        <button onClick={() => { const eid = editPerson.id; setEditPerson(null); setModal(null); setTimeout(() => openMemberModal(eid, 'child', eid), 100); }}
+                                            className="px-2 py-1 text-[10px] font-bold bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-200 transition-colors flex items-center gap-0.5">
+                                            <ChevronDown size={10} /> {lang === 'ko' ? '자녀' : 'Child'}
+                                        </button>
+                                        <button onClick={() => { const eid = editPerson.id; setEditPerson(null); setModal(null); setTimeout(() => openMemberModal(eid, 'sibling', eid), 100); }}
+                                            className="px-2 py-1 text-[10px] font-bold bg-amber-100 text-amber-600 rounded-lg hover:bg-amber-200 transition-colors flex items-center gap-0.5">
+                                            <ChevronLeft size={10} /> {lang === 'ko' ? '형제' : 'Sibling'}
+                                        </button>
+                                    </div>
+                                )}
 
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.nameLabel} *</label>
