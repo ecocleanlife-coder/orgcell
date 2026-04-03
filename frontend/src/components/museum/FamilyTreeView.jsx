@@ -57,6 +57,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
     // 가계도 중심 인물 (wormhole 전환 시 변경)
     const [mainPersonId, setMainPersonId] = useState(null);
+    // 가변 밀도 포커스 인물 (클릭 시 해당 인물 영역 표준 폭 복구)
+    const [centerId, setCenterId] = useState(null);
 
     const getFederationForPerson = (personId) => {
         return federations.find(f =>
@@ -155,15 +157,33 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             case 'wormhole':
                 setMainPersonId(String(raw.id));
                 break;
-            case 'photo':
-                setSlideshowPerson(raw);
-                setSlideshowIdx(0);
-                setSlideshowLoading(true);
-                axios.get(`/api/persons/${siteId}/${raw.id}/photos`)
-                    .then(r => setSlideshowPhotos(r.data?.data || []))
-                    .catch(() => setSlideshowPhotos([]))
-                    .finally(() => setSlideshowLoading(false));
+            case 'photo': {
+                // 카메라 아이콘 → 사진 불러오기 (file input 트리거)
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = 'image/*,.heic,.heif,.HEIC,.HEIF';
+                fileInput.onchange = async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file || !siteId) return;
+                    const fd = new FormData();
+                    fd.append('photo', file);
+                    try {
+                        const res = await axios.post(
+                            `/api/persons/${siteId}/${raw.id}/photo`,
+                            fd
+                        );
+                        if (res.data?.data?.photo_url) {
+                            toast.success(lang === 'ko' ? '사진이 등록되었습니다' : 'Photo uploaded');
+                            fetchPersons();
+                        }
+                    } catch (err) {
+                        console.error('Photo upload error:', err);
+                        toast.error(lang === 'ko' ? '사진 업로드 실패' : 'Photo upload failed');
+                    }
+                };
+                fileInput.click();
                 break;
+            }
             case 'exhibit':
                 // TODO: Phase 7에서 전시 모달 연결
                 break;
@@ -173,13 +193,13 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             default:
                 break;
         }
-    }, [persons, siteId]);
+    }, [persons, siteId, lang, fetchPersons]);
 
     // ── buildTree 계산 (persons + relations → nodes/links) ──
     const treeData = useMemo(() => {
         if (persons.length === 0) return { nodes: [], links: [], mainId: null };
-        return buildTree(persons, relations, mainPersonId);
-    }, [persons, relations, mainPersonId]);
+        return buildTree(persons, relations, mainPersonId, centerId);
+    }, [persons, relations, mainPersonId, centerId]);
 
     // ── Modal state ──
     const [modal, setModal] = useState(null);
@@ -714,6 +734,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                     nodes={treeData.nodes}
                     links={treeData.links}
                     mainId={treeData.mainId}
+                    centerId={centerId}
+                    onCenterChange={(personId) => setCenterId(personId)}
                     onCardClick={(personId) => {
                         if (canEdit) {
                             const raw = persons.find(p => String(p.id) === String(personId));

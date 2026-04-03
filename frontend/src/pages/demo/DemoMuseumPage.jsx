@@ -18,108 +18,128 @@ import FamilyTreeCanvas from '../../components/museum/FamilyTreeCanvas';
 import { buildTree } from '../../utils/buildTree';
 
 // ════════════════════════════════════════
-// 샘플 데이터: 이한봉 가족 21명
+// 실제 데이터: 이한봉 가족 (DB site_id=2 기반)
 // ════════════════════════════════════════
 const DEMO_PERSONS = [
-    // 조부모 (부계)
-    { id: '1', name: '이종수', gender: 'M', birth_date: '1925-03-15', death_date: '1998-11-20', generation: -2 },
-    { id: '2', name: '김순이', gender: 'F', birth_date: '1928-07-22', death_date: '2005-04-10', generation: -2 },
-    // 조부모 (모계)
-    { id: '3', name: '박영호', gender: 'M', birth_date: '1927-01-05', death_date: '2001-08-30', generation: -2 },
-    { id: '4', name: '최옥순', gender: 'F', birth_date: '1930-12-18', death_date: '2010-06-15', generation: -2 },
-    // 부모
-    { id: '5', name: '이광호', gender: 'M', birth_date: '1955-06-10', generation: -1 },
-    { id: '6', name: '박미영', gender: 'F', birth_date: '1958-09-25', generation: -1 },
-    // 본인 (이한봉) + 배우자
-    { id: '7', name: '이한봉', gender: 'M', birth_date: '1982-04-12', generation: 0 },
-    { id: '8', name: '김지은', gender: 'F', birth_date: '1985-11-03', generation: 0 },
-    // 형제자매
-    { id: '9', name: '이선미', gender: 'F', birth_date: '1980-02-14', generation: 0 },
-    { id: '10', name: '정홍교', gender: 'M', birth_date: '1979-08-20', generation: 0 },
-    { id: '11', name: '이은미', gender: 'F', birth_date: '1984-07-30', generation: 0 },
-    { id: '12', name: '배상기', gender: 'M', birth_date: '1983-03-17', generation: 0 },
-    { id: '13', name: '이동수', gender: 'M', birth_date: '1987-12-05', generation: 0 },
-    // 자녀
-    { id: '14', name: '이서준', gender: 'M', birth_date: '2010-05-20', generation: 1 },
-    { id: '15', name: '이서윤', gender: 'F', birth_date: '2012-09-15', generation: 1 },
-    // 선미+홍교 자녀
-    { id: '16', name: '정민서', gender: 'F', birth_date: '2005-03-12', generation: 1 },
-    { id: '17', name: '정민준', gender: 'M', birth_date: '2008-11-28', generation: 1 },
-    // 은미+상기 자녀
-    { id: '18', name: '배수아', gender: 'F', birth_date: '2009-06-07', generation: 1 },
-    { id: '19', name: '배준우', gender: 'M', birth_date: '2011-12-25', generation: 1 },
-    // 외삼촌
-    { id: '20', name: '박진호', gender: 'M', birth_date: '1960-04-15', generation: -1 },
-    // 외삼촌 자녀
-    { id: '21', name: '박하은', gender: 'F', birth_date: '1990-08-22', generation: 0 },
+    // 조부모 (부계: 이순호+임윤님)
+    { id: '33', name: '이순호', gender: 'M', generation: 2 },
+    { id: '34', name: '임윤님', gender: 'F', generation: 2 },
+    // 조부모 (모계: 공석환+민임분)
+    { id: '37', name: '공석환', gender: 'M', generation: 2 },
+    { id: '38', name: '민임분', gender: 'F', generation: 2 },
+    // 부모세대
+    { id: '16', name: '이한봉', gender: 'M', generation: 1 },
+    { id: '17', name: '공우영', gender: 'F', generation: 1 },
+    { id: '35', name: '이은미', gender: 'F', generation: 1 },
+    { id: '36', name: '이선미', gender: 'F', generation: 1 },
+    { id: '24', name: '공인영', gender: 'M', generation: 1 },
+    { id: '25', name: '공진영', gender: 'M', generation: 1 },
+    { id: '26', name: '공수자', gender: 'F', generation: 1 },
+    { id: '27', name: '공정영', gender: 'F', generation: 1 },
+    // 자녀세대
+    { id: '18', name: '이슬기', gender: 'F', is_deceased: true, generation: 0 },
+    { id: '19', name: '이상훈', gender: 'M', generation: 0 },
+    { id: '22', name: '신세라', gender: 'F', generation: 0 },
+    { id: '20', name: '이하영', gender: 'F', generation: 0 },
+    { id: '23', name: 'John Lambert', gender: 'M', generation: 0 },
+    { id: '21', name: '이유경', gender: 'F', generation: 0 },
+    { id: '28', name: '이지섭', gender: 'M', generation: 0 },
+    { id: '29', name: '이은섭', gender: 'M', generation: 0 },
+    // 이은미 남편
+    { id: '40', name: '배상기', gender: 'M', generation: 1 },
+    // 이선미 남편
+    { id: '41', name: '정홍교', gender: 'M', generation: 1 },
+    // 배상기+이은미 자녀
+    { id: '42', name: '배정일', gender: 'M', generation: 0 },
+    { id: '43', name: '배창일', gender: 'M', generation: 0 },
+    // 정홍교+이선미 자녀
+    { id: '44', name: '정애현', gender: 'F', generation: 0 },
+    { id: '45', name: '정의건', gender: 'M', generation: 0 },
+    { id: '46', name: '정의준', gender: 'M', generation: 0 },
+    // 손자
+    { id: '32', name: 'Daniel Lee Lambert', gender: 'M', generation: -1 },
 ];
 
 const DEMO_RELATIONS = [
-    // 부계 조부모 → 아버지
-    { person1_id: '1', person2_id: '5', relation_type: 'parent_child' },
-    { person1_id: '2', person2_id: '5', relation_type: 'parent_child' },
-    // 조부모 부부
-    { person1_id: '1', person2_id: '2', relation_type: 'spouse' },
-    // 모계 조부모 → 어머니
-    { person1_id: '3', person2_id: '6', relation_type: 'parent_child' },
-    { person1_id: '4', person2_id: '6', relation_type: 'parent_child' },
-    // 모계 조부모 부부
-    { person1_id: '3', person2_id: '4', relation_type: 'spouse' },
-    // 모계 조부모 → 외삼촌
-    { person1_id: '3', person2_id: '20', relation_type: 'parent_child' },
-    { person1_id: '4', person2_id: '20', relation_type: 'parent_child' },
-    // 부모 부부
-    { person1_id: '5', person2_id: '6', relation_type: 'spouse' },
-    // 부모 → 자녀들
-    { person1_id: '5', person2_id: '7', relation_type: 'parent_child' },
-    { person1_id: '6', person2_id: '7', relation_type: 'parent_child' },
-    { person1_id: '5', person2_id: '9', relation_type: 'parent_child' },
-    { person1_id: '6', person2_id: '9', relation_type: 'parent_child' },
-    { person1_id: '5', person2_id: '11', relation_type: 'parent_child' },
-    { person1_id: '6', person2_id: '11', relation_type: 'parent_child' },
-    { person1_id: '5', person2_id: '13', relation_type: 'parent_child' },
-    { person1_id: '6', person2_id: '13', relation_type: 'parent_child' },
-    // 한봉+지은 부부
-    { person1_id: '7', person2_id: '8', relation_type: 'spouse' },
-    // 한봉+지은 → 자녀
-    { person1_id: '7', person2_id: '14', relation_type: 'parent_child' },
-    { person1_id: '8', person2_id: '14', relation_type: 'parent_child' },
-    { person1_id: '7', person2_id: '15', relation_type: 'parent_child' },
-    { person1_id: '8', person2_id: '15', relation_type: 'parent_child' },
-    // 선미+홍교 부부
-    { person1_id: '9', person2_id: '10', relation_type: 'spouse' },
-    // 선미+홍교 → 자녀
-    { person1_id: '9', person2_id: '16', relation_type: 'parent_child' },
-    { person1_id: '10', person2_id: '16', relation_type: 'parent_child' },
-    { person1_id: '9', person2_id: '17', relation_type: 'parent_child' },
-    { person1_id: '10', person2_id: '17', relation_type: 'parent_child' },
-    // 은미+상기 부부
-    { person1_id: '11', person2_id: '12', relation_type: 'spouse' },
-    // 은미+상기 → 자녀
-    { person1_id: '11', person2_id: '18', relation_type: 'parent_child' },
-    { person1_id: '12', person2_id: '18', relation_type: 'parent_child' },
-    { person1_id: '11', person2_id: '19', relation_type: 'parent_child' },
-    { person1_id: '12', person2_id: '19', relation_type: 'parent_child' },
-    // 외삼촌 → 하은
-    { person1_id: '20', person2_id: '21', relation_type: 'parent_child' },
+    // ── 부계 조부모 부부 ──
+    { person1_id: '33', person2_id: '34', relation_type: 'spouse' },
+    // 이순호+임윤님 → 이한봉, 이은미, 이선미
+    { person1_id: '33', person2_id: '16', relation_type: 'parent' },
+    { person1_id: '34', person2_id: '16', relation_type: 'parent' },
+    { person1_id: '33', person2_id: '35', relation_type: 'parent' },
+    { person1_id: '34', person2_id: '35', relation_type: 'parent' },
+    { person1_id: '33', person2_id: '36', relation_type: 'parent' },
+    { person1_id: '34', person2_id: '36', relation_type: 'parent' },
+    // ── 모계 조부모 부부 ──
+    { person1_id: '37', person2_id: '38', relation_type: 'spouse' },
+    // 공석환+민임분 → 공우영, 공인영, 공진영, 공수자, 공정영
+    { person1_id: '37', person2_id: '17', relation_type: 'parent' },
+    { person1_id: '38', person2_id: '17', relation_type: 'parent' },
+    { person1_id: '37', person2_id: '24', relation_type: 'parent' },
+    { person1_id: '38', person2_id: '24', relation_type: 'parent' },
+    { person1_id: '37', person2_id: '25', relation_type: 'parent' },
+    { person1_id: '38', person2_id: '25', relation_type: 'parent' },
+    { person1_id: '37', person2_id: '26', relation_type: 'parent' },
+    { person1_id: '38', person2_id: '26', relation_type: 'parent' },
+    { person1_id: '37', person2_id: '27', relation_type: 'parent' },
+    { person1_id: '38', person2_id: '27', relation_type: 'parent' },
+    // ── 이한봉+공우영 부부 ──
+    { person1_id: '16', person2_id: '17', relation_type: 'spouse' },
+    // 이한봉+공우영 → 자녀: 이슬기, 이상훈, 이하영, 이유경
+    { person1_id: '16', person2_id: '18', relation_type: 'parent' },
+    { person1_id: '17', person2_id: '18', relation_type: 'parent' },
+    { person1_id: '16', person2_id: '19', relation_type: 'parent' },
+    { person1_id: '17', person2_id: '19', relation_type: 'parent' },
+    { person1_id: '16', person2_id: '20', relation_type: 'parent' },
+    { person1_id: '17', person2_id: '20', relation_type: 'parent' },
+    { person1_id: '16', person2_id: '21', relation_type: 'parent' },
+    { person1_id: '17', person2_id: '21', relation_type: 'parent' },
+    // ── 이상훈+신세라 부부 ──
+    { person1_id: '19', person2_id: '22', relation_type: 'spouse' },
+    // 이상훈+신세라 → 이지섭, 이은섭
+    { person1_id: '19', person2_id: '28', relation_type: 'parent' },
+    { person1_id: '22', person2_id: '28', relation_type: 'parent' },
+    { person1_id: '19', person2_id: '29', relation_type: 'parent' },
+    { person1_id: '22', person2_id: '29', relation_type: 'parent' },
+    // ── 이하영+John Lambert 부부 ──
+    { person1_id: '20', person2_id: '23', relation_type: 'spouse' },
+    // 이하영+John Lambert → Daniel Lee Lambert
+    { person1_id: '23', person2_id: '32', relation_type: 'parent' },
+    { person1_id: '20', person2_id: '32', relation_type: 'parent' },
+    // ── 배상기+이은미 부부 ──
+    { person1_id: '35', person2_id: '40', relation_type: 'spouse' },
+    // 배상기+이은미 → 배정일, 배창일
+    { person1_id: '35', person2_id: '42', relation_type: 'parent' },
+    { person1_id: '40', person2_id: '42', relation_type: 'parent' },
+    { person1_id: '35', person2_id: '43', relation_type: 'parent' },
+    { person1_id: '40', person2_id: '43', relation_type: 'parent' },
+    // ── 정홍교+이선미 부부 ──
+    { person1_id: '36', person2_id: '41', relation_type: 'spouse' },
+    // 정홍교+이선미 → 정애현, 정의건, 정의준
+    { person1_id: '36', person2_id: '44', relation_type: 'parent' },
+    { person1_id: '41', person2_id: '44', relation_type: 'parent' },
+    { person1_id: '36', person2_id: '45', relation_type: 'parent' },
+    { person1_id: '41', person2_id: '45', relation_type: 'parent' },
+    { person1_id: '36', person2_id: '46', relation_type: 'parent' },
+    { person1_id: '41', person2_id: '46', relation_type: 'parent' },
 ];
 
 // ── 샘플 행사 데이터 ──
 const DEMO_EVENTS = [
-    { id: 1, title: '이서준 생일', date: '2026-05-20', type: 'birthday', person: '이서준' },
-    { id: 2, title: '이서윤 생일', date: '2026-09-15', type: 'birthday', person: '이서윤' },
-    { id: 3, title: '부모님 결혼기념일', date: '2026-06-10', type: 'anniversary', person: '이광호 & 박미영' },
-    { id: 4, title: '할아버지 제사', date: '2026-11-20', type: 'memorial', person: '이종수' },
-    { id: 5, title: '가족 여름 여행', date: '2026-07-25', type: 'event', person: '전체 가족' },
-    { id: 6, title: '정민서 대학 입학', date: '2026-03-02', type: 'event', person: '정민서' },
+    { id: 1, title: '이슬기 추모일', date: '2026-04-15', type: 'memorial', person: '이슬기' },
+    { id: 2, title: '이한봉·공우영 결혼기념일', date: '2026-06-10', type: 'anniversary', person: '이한봉 & 공우영' },
+    { id: 3, title: 'Daniel 생일', date: '2026-08-12', type: 'birthday', person: 'Daniel Lee Lambert' },
+    { id: 4, title: '이지섭 생일', date: '2026-05-20', type: 'birthday', person: '이지섭' },
+    { id: 5, title: '가족 여름 모임', date: '2026-07-25', type: 'event', person: '전체 가족' },
+    { id: 6, title: '이은섭 졸업식', date: '2026-03-02', type: 'event', person: '이은섭' },
 ];
 
 // ── 샘플 전시 데이터 ──
 const DEMO_EXHIBITIONS = [
     { id: 1, title: '2025 추석 가족 모임', desc: '온 가족이 모인 추석 명절', count: 24, cover: '🏠' },
-    { id: 2, title: '이서준 초등학교 졸업식', desc: '자랑스러운 졸업의 순간', count: 15, cover: '🎓' },
-    { id: 3, title: '부모님 금혼식', desc: '50년 함께한 여정', count: 42, cover: '💍' },
-    { id: 4, title: '2024 여름 가족 여행', desc: '제주도에서의 행복한 시간', count: 38, cover: '✈️' },
+    { id: 2, title: '이슬기 추모 앨범', desc: '슬기의 아름다운 기억들', count: 18, cover: '🕊️' },
+    { id: 3, title: '이한봉·공우영 결혼식', desc: '두 가족이 하나가 된 날', count: 42, cover: '💍' },
+    { id: 4, title: '2024 가족 여행', desc: '함께한 행복한 시간', count: 38, cover: '✈️' },
 ];
 
 // ── 탭 정의 ──
@@ -172,11 +192,12 @@ export default function DemoMuseumPage() {
     const [activeTab, setActiveTab] = useState('tree');
     const [showCtaModal, setShowCtaModal] = useState(false);
     const [mainPersonId, setMainPersonId] = useState(null);
+    const [centerId, setCenterId] = useState(null);
 
-    // buildTree로 실제 트리 데이터 생성
+    // buildTree로 실제 트리 데이터 생성 (centerId → 가변 밀도 포커스)
     const treeData = useMemo(() => {
-        return buildTree(DEMO_PERSONS, DEMO_RELATIONS, mainPersonId || '7');
-    }, [mainPersonId]);
+        return buildTree(DEMO_PERSONS, DEMO_RELATIONS, mainPersonId || '16', centerId);
+    }, [mainPersonId, centerId]);
 
     const handleCardClick = () => {
         setShowCtaModal(true);
@@ -260,6 +281,8 @@ export default function DemoMuseumPage() {
                             nodes={treeData.nodes}
                             links={treeData.links}
                             mainId={treeData.mainId}
+                            centerId={centerId}
+                            onCenterChange={(personId) => setCenterId(personId)}
                             onCardClick={handleCardClick}
                             onWormhole={(personId) => setMainPersonId(String(personId))}
                             onAction={handleAction}

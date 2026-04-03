@@ -7,10 +7,13 @@
  * - Pan/Zoom (react-zoom-pan-pinch)
  */
 import React, { useState, useMemo, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import CoupleBlock from './CoupleBlock';
 import ConnectorLine from './ConnectorLine';
 import { useWormholeTransition, WormholeWrapper } from './WormholeTransition';
+
+const springTransition = { type: 'spring', stiffness: 200, damping: 25 };
 
 const CARD_SIZE = 180;
 const CARD_HALF = 90;
@@ -131,8 +134,10 @@ export default function FamilyTreeCanvas({
     nodes = [],
     links = [],
     mainId = null,
+    centerId = null,
     selectedId: externalSelectedId = null,
     onCardClick: externalOnClick,
+    onCenterChange,
     onWormhole,
     onContextMenu,
     onAction,
@@ -158,32 +163,35 @@ export default function FamilyTreeCanvas({
         const node = nodesMap[nodeId];
         if (node && node.z >= 1 && onWormhole) {
             triggerWormhole(nodeId);
-        } else if (externalOnClick) {
-            externalOnClick(nodeId);
         } else {
-            setInternalSelectedId(nodeId);
+            // centerId 전환: 클릭한 인물을 포커스 중심으로
+            if (onCenterChange) onCenterChange(nodeId);
+            if (externalOnClick) {
+                externalOnClick(nodeId);
+            } else {
+                setInternalSelectedId(nodeId);
+            }
         }
-    }, [nodesMap, onWormhole, externalOnClick, triggerWormhole]);
+    }, [nodesMap, onWormhole, onCenterChange, externalOnClick, triggerWormhole]);
 
     // Z=0만 표시 (타가문은 웜홀 전환 전까지 숨김)
     const allZ0Nodes = useMemo(() => nodes.filter(n => n.z === 0), [nodes]);
     const allZ0Ids = useMemo(() => new Set(allZ0Nodes.map(n => n.id)), [allZ0Nodes]);
 
-    // LOD 필터: ±2세대 선명, 그 외는 expandedDepths에 포함된 경우만
+    // LOD 필터: 위 1대(+1) 아래 2대(-2)까지 기본 표시, 나머지는 확장 버튼
     const visibleNodes = useMemo(() => {
         return allZ0Nodes.filter(n => {
-            const absDepth = Math.abs(n.depth);
-            return absDepth <= 2 || expandedDepths.has(n.depth);
+            // depth: 0=본인, +1=부모, -1=자녀, -2=손자
+            return (n.depth >= -2 && n.depth <= 1) || expandedDepths.has(n.depth);
         });
     }, [allZ0Nodes, expandedDepths]);
     const visibleIds = useMemo(() => new Set(visibleNodes.map(n => n.id)), [visibleNodes]);
     const visibleLinks = useMemo(() => links.filter(l => visibleIds.has(l.source) && visibleIds.has(l.target)), [links, visibleIds]);
 
-    // 접힌 세대 요약 (확장 버튼용)
+    // 접힌 세대 요약 (확장 버튼용) — 위 1대/아래 2대 밖
     const collapsedSummaries = useMemo(() => {
         const hidden = allZ0Nodes.filter(n => {
-            const absDepth = Math.abs(n.depth);
-            return absDepth > 2 && !expandedDepths.has(n.depth);
+            return (n.depth > 1 || n.depth < -2) && !expandedDepths.has(n.depth);
         });
         const byDepth = {};
         for (const n of hidden) {
@@ -421,12 +429,15 @@ export default function FamilyTreeCanvas({
                                         const isMain = husband.id === mainId || wife.id === mainId;
 
                                         return (
-                                            <div
+                                            <motion.div
                                                 key={`couple-${husband.id}-${wife.id}`}
-                                                style={{
-                                                    position: 'absolute',
+                                                animate={{
                                                     left: toScreenX(leftNode.x) - CARD_HALF - BOX_PAD,
                                                     top: toScreenY(leftNode.y) - CARD_HALF - TAB_H - BOX_PAD,
+                                                }}
+                                                transition={springTransition}
+                                                style={{
+                                                    position: 'absolute',
                                                     zIndex: 1,
                                                     ...animStyle,
                                                 }}
@@ -441,19 +452,22 @@ export default function FamilyTreeCanvas({
                                                     onContextMenu={onContextMenu}
                                                     onAction={onAction}
                                                 />
-                                            </div>
+                                            </motion.div>
                                         );
                                     }
 
                                     // 솔로 → CoupleBlock (홀부모도 박스 표시)
                                     const soloChildIds = [...(childrenMap[soloNode.id] || [])];
                                     return (
-                                        <div
+                                        <motion.div
                                             key={soloNode.id}
-                                            style={{
-                                                position: 'absolute',
+                                            animate={{
                                                 left: toScreenX(soloNode.x) - CARD_HALF - BOX_PAD,
                                                 top: toScreenY(soloNode.y) - CARD_HALF - TAB_H - BOX_PAD,
+                                            }}
+                                            transition={springTransition}
+                                            style={{
+                                                position: 'absolute',
                                                 zIndex: 1,
                                                 ...animStyle,
                                             }}
@@ -468,7 +482,7 @@ export default function FamilyTreeCanvas({
                                                 onContextMenu={onContextMenu}
                                                 onAction={onAction}
                                             />
-                                        </div>
+                                        </motion.div>
                                     );
                                 })}
 
