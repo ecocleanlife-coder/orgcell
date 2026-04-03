@@ -12,9 +12,12 @@ import { toast } from 'react-hot-toast';
 import WormholePortal from './WormholePortal';
 import FamilyTreeCanvas from './FamilyTreeCanvas';
 import InvitationModal from './InvitationModal';
+import PhotoEditor from './PhotoEditor';
+import AccessDeniedModal from './AccessDeniedModal';
 import { buildTree } from '../../utils/buildTree';
 import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
+import useAccessCheck from '../../hooks/useAccessCheck';
 import { getT } from '../../i18n/translations';
 
 // ── Constants ──
@@ -61,6 +64,10 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
     // 초대 모달 상태
     const [inviteTarget, setInviteTarget] = useState(null);
+
+    // 접근 제어
+    const { checking: accessChecking, accessResult, checkAccess, requestAccess, clearAccess } = useAccessCheck(siteId);
+    const [accessTarget, setAccessTarget] = useState(null); // 접근 거부 대상 인물
 
     const getFederationForPerson = (personId) => {
         return federations.find(f =>
@@ -149,7 +156,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     const [bioSaving, setBioSaving] = useState(false);
 
     // ── FolderCard hover 액션 핸들러 ──
-    const handleCardAction = useCallback((personId, action) => {
+    const handleCardAction = useCallback(async (personId, action) => {
         const raw = persons.find(p => String(p.id) === String(personId));
         if (!raw) return;
         switch (action) {
@@ -186,9 +193,17 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 fileInput.click();
                 break;
             }
-            case 'exhibit':
-                // TODO: Phase 7에서 전시 모달 연결
+            case 'exhibit': {
+                // 접근 권한 확인 후 전시관 이동 또는 거부 모달 표시
+                const result = await checkAccess(raw.id);
+                if (result?.access === 'granted') {
+                    // TODO: 전시관 페이지로 이동
+                    toast.success(lang === 'ko' ? '전시관 접근 허용' : 'Access granted');
+                } else {
+                    setAccessTarget(raw);
+                }
                 break;
+            }
             case 'invite':
                 setInviteTarget(raw);
                 break;
@@ -768,6 +783,25 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 />
             )}
 
+            {/* ── 접근 거부 모달 ── */}
+            {accessTarget && (
+                <AccessDeniedModal
+                    visible
+                    accessLevel={accessResult?.level || 'denied'}
+                    personName={accessTarget.name}
+                    requesting={accessChecking}
+                    onRequestAccess={async (msg) => {
+                        const result = await requestAccess(accessTarget.id, msg);
+                        if (result) {
+                            toast.success(lang === 'ko' ? '접근 요청이 전송되었습니다' : 'Access request sent');
+                        } else {
+                            toast.error(lang === 'ko' ? '요청 실패' : 'Request failed');
+                        }
+                    }}
+                    onClose={() => { setAccessTarget(null); clearAccess(); }}
+                />
+            )}
+
             {/* ── Modals ── */}
             <div>
                 {modal?.mode === 'member' && renderPersonFormModal(
@@ -847,96 +881,75 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                 <Edit3 className="text-amber-500" /> {lang === 'ko' ? '인물 수정 및 추가' : 'Edit & Add Person'}
                             </h3>
                             <div className="space-y-3">
-                                {/* 사진 업로드 + 위치 조정 */}
-                                <div className="flex items-center gap-3">
-                                    <div
-                                        className="w-16 h-16 rounded-full border-2 border-amber-300 overflow-hidden flex-shrink-0 flex items-center justify-center relative select-none"
-                                        style={{ background: editPerson?.photo_url ? '#e8e0d0' : '#d4a574', cursor: editPerson?.photo_url ? 'move' : 'default' }}
-                                        onMouseDown={(e) => {
-                                            if (!editPerson?.photo_url) return;
-                                            e.preventDefault();
-                                            const startX = e.clientX;
-                                            const startY = e.clientY;
-                                            const pos = editPerson.photo_position || { x: 50, y: 50 };
-                                            const startPosX = pos.x;
-                                            const startPosY = pos.y;
-                                            const onMove = (me) => {
-                                                const dx = (me.clientX - startX) * -0.5;
-                                                const dy = (me.clientY - startY) * -0.5;
-                                                const nx = Math.max(0, Math.min(100, startPosX + dx));
-                                                const ny = Math.max(0, Math.min(100, startPosY + dy));
-                                                setEditPerson(p => ({ ...p, photo_position: { x: Math.round(nx), y: Math.round(ny) } }));
-                                            };
-                                            const onUp = () => {
-                                                document.removeEventListener('mousemove', onMove);
-                                                document.removeEventListener('mouseup', onUp);
-                                            };
-                                            document.addEventListener('mousemove', onMove);
-                                            document.addEventListener('mouseup', onUp);
-                                        }}
-                                        onTouchStart={(e) => {
-                                            if (!editPerson?.photo_url) return;
-                                            const touch = e.touches[0];
-                                            const startX = touch.clientX;
-                                            const startY = touch.clientY;
-                                            const pos = editPerson.photo_position || { x: 50, y: 50 };
-                                            const startPosX = pos.x;
-                                            const startPosY = pos.y;
-                                            const onMove = (te) => {
-                                                const t2 = te.touches[0];
-                                                const dx = (t2.clientX - startX) * -0.5;
-                                                const dy = (t2.clientY - startY) * -0.5;
-                                                const nx = Math.max(0, Math.min(100, startPosX + dx));
-                                                const ny = Math.max(0, Math.min(100, startPosY + dy));
-                                                setEditPerson(p => ({ ...p, photo_position: { x: Math.round(nx), y: Math.round(ny) } }));
-                                            };
-                                            const onEnd = () => {
-                                                document.removeEventListener('touchmove', onMove);
-                                                document.removeEventListener('touchend', onEnd);
-                                            };
-                                            document.addEventListener('touchmove', onMove, { passive: true });
-                                            document.addEventListener('touchend', onEnd);
-                                        }}
-                                    >
-                                        {editPerson?.photo_url ? (
-                                            <img src={editPerson.photo_url} alt="" className="w-full h-full object-cover pointer-events-none"
-                                                style={{ objectPosition: `${editPerson.photo_position?.x ?? 50}% ${editPerson.photo_position?.y ?? 50}%` }} />
-                                        ) : (
-                                            <Camera size={24} className="text-white/70" />
-                                        )}
-                                    </div>
-                                    <div className="flex flex-col gap-1">
+                                {/* 사진 업로드 + 편집 도구 */}
+                                <div className="flex flex-col items-center gap-2">
+                                    {editPerson?.photo_url ? (
+                                        <PhotoEditor
+                                            src={editPerson.photo_url}
+                                            initialPosition={editPerson.photo_position || { x: 50, y: 50 }}
+                                            onSave={async (blob, position) => {
+                                                if (!editPerson || !siteId) return;
+                                                setEditPerson(prev => ({ ...prev, photo_position: position }));
+                                                const fd = new FormData();
+                                                fd.append('photo', blob, 'edited.jpg');
+                                                try {
+                                                    const res = await axios.post(
+                                                        `/api/persons/${siteId}/${editPerson.id}/photo`,
+                                                        fd
+                                                    );
+                                                    if (res.data?.data?.photo_url) {
+                                                        setEditPerson(prev => ({ ...prev, photo_url: res.data.data.photo_url, photo_position: position }));
+                                                        fetchPersons();
+                                                        toast.success(lang === 'ko' ? '사진이 저장되었습니다' : 'Photo saved');
+                                                    }
+                                                } catch (err) {
+                                                    console.error('Photo save error:', err);
+                                                    toast.error(lang === 'ko' ? '사진 저장 실패' : 'Photo save failed');
+                                                }
+                                            }}
+                                            onCancel={() => {
+                                                setEditPerson(prev => ({ ...prev, photo_url: '' }));
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className="flex items-center gap-3">
+                                            <div
+                                                className="w-16 h-16 rounded-full border-2 border-amber-300 overflow-hidden flex-shrink-0 flex items-center justify-center"
+                                                style={{ background: '#d4a574' }}
+                                            >
+                                                <Camera size={24} className="text-white/70" />
+                                            </div>
+                                            <label className="cursor-pointer">
+                                                <span className="px-3 py-1.5 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs font-bold rounded-lg hover:bg-amber-200 transition-colors">
+                                                    {lang === 'ko' ? '사진 추가' : 'Add Photo'}
+                                                </span>
+                                                <input type="file" accept="image/*,.heic,.heif,.HEIC,.HEIF" className="hidden"
+                                                    onChange={(e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (!file) return;
+                                                        const localPreview = URL.createObjectURL(file);
+                                                        setEditPerson(prev => ({ ...prev, photo_url: localPreview }));
+                                                    }}
+                                                />
+                                            </label>
+                                        </div>
+                                    )}
+                                    {/* 사진이 있을 때 변경 버튼 */}
+                                    {editPerson?.photo_url && (
                                         <label className="cursor-pointer">
-                                            <span className="px-3 py-1.5 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs font-bold rounded-lg hover:bg-amber-200 transition-colors">
-                                                {lang === 'ko' ? '사진 변경' : 'Change Photo'}
+                                            <span className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[10px] font-bold rounded-lg hover:bg-gray-200 transition-colors">
+                                                {lang === 'ko' ? '다른 사진 선택' : 'Choose Another'}
                                             </span>
                                             <input type="file" accept="image/*,.heic,.heif,.HEIC,.HEIF" className="hidden"
-                                                onChange={async (e) => {
+                                                onChange={(e) => {
                                                     const file = e.target.files?.[0];
-                                                    if (!file || !editPerson || !siteId) return;
-                                                    const fd = new FormData();
-                                                    fd.append('photo', file);
-                                                    try {
-                                                        const res = await axios.post(
-                                                            `/api/persons/${siteId}/${editPerson.id}/photo`,
-                                                            fd
-                                                        );
-                                                        if (res.data?.data?.photo_url) {
-                                                            setEditPerson({ ...editPerson, photo_url: res.data.data.photo_url });
-                                                            fetchPersons();
-                                                        }
-                                                    } catch (err) {
-                                                        console.error('Photo upload error:', err);
-                                                    }
+                                                    if (!file) return;
+                                                    const localPreview = URL.createObjectURL(file);
+                                                    setEditPerson(prev => ({ ...prev, photo_url: localPreview }));
                                                 }}
                                             />
                                         </label>
-                                        {editPerson?.photo_url && (
-                                            <span className="text-[9px] text-gray-400 dark:text-gray-500">
-                                                {lang === 'ko' ? '사진 드래그로 위치 조정' : 'Drag photo to adjust'}
-                                            </span>
-                                        )}
-                                    </div>
+                                    )}
                                 </div>
 
                                 {/* 관계 추가 버튼 */}

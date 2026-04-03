@@ -16,7 +16,7 @@ import useTreeViewStore from '../../store/treeViewStore';
 
 const springTransition = { type: 'spring', stiffness: 200, damping: 25 };
 
-const CARD_SIZE = 180;
+const CARD_SIZE = 180;  // 3D 큐브 정면 너비
 const CARD_HALF = 90;
 const TAB_H = 10;
 const BOX_PAD = 10;  // CoupleBlock 내부 패딩

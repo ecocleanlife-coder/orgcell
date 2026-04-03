@@ -9,7 +9,7 @@
 import React from 'react';
 import FolderCard from './FolderCard';
 
-const CARD_SIZE = 180;
+const CARD_SIZE = 180;  // 3D 큐브 정면 너비 (Cube3D.FRONT_W)
 const GAP = 40;
 const FRAME_COLOR = '#C4A84F';
 

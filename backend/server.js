@@ -108,6 +108,7 @@ const ROUTE_MAP = {
     'familySearchRoutes': '/api/familysearch',
     'inboxRoutes': '/api/inbox',
     'requestRoutes': '/api/request',
+    'accessRoutes': '/api/access',
 };
 
 const routesDir = path.join(__dirname, 'src', 'routes');

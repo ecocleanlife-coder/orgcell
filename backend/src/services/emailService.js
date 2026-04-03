@@ -241,4 +241,45 @@ exports.sendMagicLinkEmail = async (to, magicLink) => {
     }
 };
 
+/**
+ * Send access request notification to museum owner
+ */
+exports.sendAccessRequestEmail = async ({ to, requesterName, personName, message }) => {
+    const transporter = await getResendTransporter();
+    const mailOptions = {
+        from: '"Orgcell" <noreply@orgcell.com>',
+        to,
+        subject: `[Orgcell] ${requesterName}님이 전시관 접근을 요청했습니다`,
+        html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 20px;">
+                <h1 style="font-size: 26px; font-weight: 800; color: #111; margin-bottom: 4px;">Orgcell</h1>
+                <p style="color: #888; font-size: 13px; margin-top: 0; margin-bottom: 32px;">디지털 가족 박물관</p>
+
+                <h2 style="font-size: 20px; color: #3a3a2a; margin-bottom: 8px;">전시관 접근 요청</h2>
+                <p style="color: #555; font-size: 15px; line-height: 1.7; margin-bottom: 20px;">
+                    <strong>${requesterName}</strong>님이 <strong>${personName}</strong>의 전시관 접근을 요청했습니다.
+                </p>
+
+                ${message ? `
+                <div style="padding: 16px; background: #f8f4ec; border-radius: 12px; border: 1px solid #e8e0d0; margin-bottom: 20px;">
+                    <p style="margin: 0; font-size: 13px; color: #5a4a2a; line-height: 1.7;">
+                        💬 <strong>요청 메시지:</strong><br/>${message}
+                    </p>
+                </div>
+                ` : ''}
+
+                <a href="https://orgcell.com"
+                   style="display: inline-block; padding: 14px 36px; background: linear-gradient(135deg, #C4A84F, #A88E3A); color: #fff; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 15px;">
+                    박물관에서 확인하기 →
+                </a>
+
+                <p style="color: #9ca3af; font-size: 12px; margin-top: 24px; line-height: 1.8;">
+                    박물관 관리 페이지에서 승인 또는 거절할 수 있습니다.
+                </p>
+            </div>
+        `,
+    };
+    return transporter.sendMail(mailOptions);
+};
+
 exports.getGmailTransporter = getGmailTransporter;
