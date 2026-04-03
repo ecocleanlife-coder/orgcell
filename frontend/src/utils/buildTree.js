@@ -72,7 +72,7 @@ function buildMaps(persons, relations) {
         const p2 = String(rel.person2_id);
         if (!idSet.has(p1) || !idSet.has(p2)) continue;
 
-        if (rel.relation_type === 'parent') {
+        if (rel.relation_type === 'parent' || rel.relation_type === 'parent_child') {
             if (!parentOf[p2]) parentOf[p2] = [];
             if (!parentOf[p2].includes(p1)) parentOf[p2].push(p1);
             if (!childrenOf[p1]) childrenOf[p1] = [];
@@ -357,254 +357,308 @@ function getSiblings(personId, maps, byId) {
 // ── CoupleBlock 레이아웃 ────────────────────────
 
 /**
- * 메인 부부를 중심으로 200px 그리드 X 배치
- * - 남편 형제 → 왼쪽 확장
- * - 아내 형제 → 오른쪽 확장
- * - 형제 배우자 → 커플블록화 (자동 밀림)
+ * 중심축 대칭 + 재귀 서브트리 압축 레이아웃
+ *
+ * 1. mainId 부부를 X=0 중앙에 고정
+ * 2. 서브트리 너비를 재귀 계산하여 겹침 방지
+ * 3. 자녀를 부모 중심에 대칭 배치
+ * 4. 형제는 자녀 영역 바깥에 배치
+ * 5. 조상은 자손 범위 중심에 배치
  */
 function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
-    const positions = {};  // id → { x, y }
+    const positions = {};
     const connSet = new Set(connectedIds);
     const { spousesOf, parentOf, childrenOf } = maps;
+    const HALF = SLOT_W / 2;
 
-    // 메인 커플
-    const mainSpouse = (spousesOf[mainId] || []).find(s => connSet.has(s)) || null;
-
-    // 메인 부부 배치: 남편 x=-HALF, 아내 x=+HALF
-    const HALF = SLOT_W / 2;  // 커플 오프셋 (110px)
-    const husbandId = byId[mainId]?.gender === 'M' ? mainId : mainSpouse;
-    const wifeId = byId[mainId]?.gender === 'M' ? mainSpouse : mainId;
-
-    if (husbandId) positions[husbandId] = { x: -HALF, y: 0 };
-    if (wifeId) positions[wifeId] = { x: HALF, y: 0 };
-
-    // ── 형제 배치 함수: 서브트리 너비 기반 배치 ──
-    function placeSiblings(personId, direction, childXBound) {
-        // direction: -1=왼쪽(남편측), +1=오른쪽(아내측)
-        if (!personId) return;
-        const sibs = getSiblings(personId, maps, byId).filter(s => connSet.has(s));
-        if (sibs.length === 0) return;
-
-        // 형제의 서브트리 슬롯 수 = max(부모슬롯, 자녀슬롯)
-        function subtreeSlots(sibId) {
-            const sp = (spousesOf[sibId] || []).find(s => connSet.has(s)) || null;
-            const pSlots = sp ? 2 : 1;
-            const couple = sp ? [sibId, sp] : [sibId];
-            const kids = new Set();
-            for (const p of couple) {
-                for (const c of (childrenOf[p] || [])) {
-                    if (connSet.has(c)) kids.add(c);
-                }
-            }
-            let kSlots = 0;
-            for (const k of kids) {
-                const kSp = (spousesOf[k] || []).find(s => connSet.has(s)) || null;
-                kSlots += kSp ? 2 : 1;
-            }
-            return Math.max(pSlots, kSlots);
-        }
-
-        // edge = 가장 가까운 사용 가능 센터 좌표
-        const defaultEdge = direction === -1 ? -(HALF + SLOT_W) : (HALF + SLOT_W);
-        let edge;
-        if (childXBound !== null) {
-            edge = direction === -1
-                ? Math.min(childXBound - SLOT_W, defaultEdge)
-                : Math.max(childXBound + SLOT_W, defaultEdge);
-        } else {
-            edge = defaultEdge;
-        }
-
-        for (const sibId of sibs) {
-            if (positions[sibId]) continue;
-
-            const sp = (spousesOf[sibId] || []).find(s => connSet.has(s) && !positions[s]) || null;
-            const treeW = subtreeSlots(sibId);
-
-            // 부모 중심: 서브트리 너비만큼 할당된 공간의 중심
-            const parentCenter = edge + direction * (treeW - 1) * SLOT_W / 2;
-
-            if (sp) {
-                const sibM = byId[sibId]?.gender === 'M' ? sibId : sp;
-                const sibF = byId[sibId]?.gender === 'M' ? sp : sibId;
-                positions[sibM] = { x: parentCenter - HALF, y: 0 };
-                positions[sibF] = { x: parentCenter + HALF, y: 0 };
-            } else {
-                positions[sibId] = { x: parentCenter, y: 0 };
-            }
-
-            // 다음 형제를 위해 edge 이동 (서브트리 너비만큼)
-            edge += direction * treeW * SLOT_W;
-        }
+    // ── 유틸 ──
+    function getSpouse(id) {
+        return (spousesOf[id] || []).find(s => connSet.has(s)) || null;
     }
 
-    // ── 자녀 먼저 배치 (형제보다 선행) ──
-    // placeChildren은 아래에서 정의
-
-    // ── 부모 세대 (depth +1) ──
-    function placeParents(personId, side) {
-        // side: 'left' or 'right' — 남편측/아내측 중심에 배치
-        if (!personId) return;
-        const parents = (parentOf[personId] || []).filter(p => connSet.has(p));
-        if (parents.length === 0) return;
-
-        // 해당 측 전체 x 범위 계산 (본인 + 형제)
-        const sibs = getSiblings(personId, maps, byId).filter(s => connSet.has(s) && positions[s]);
-        const sideIds = [personId, ...sibs];
-        const sideXs = sideIds.map(id => positions[id]?.x).filter(x => x !== undefined);
-        if (sideXs.length === 0) return;
-
-        // 형제가 없으면 본인 x에서 바깥쪽으로 100px 오프셋 (양가 부모 겹침 방지)
-        // 있으면 형제 전체 범위의 중앙
-        const centerX = sibs.length === 0
-            ? positions[personId].x + (side === 'left' ? -HALF : HALF)
-            : (Math.min(...sideXs) + Math.max(...sideXs)) / 2;
-        const y = Y_GAP;
-
-        // 부모 중 남성/여성 분리
-        const father = parents.find(p => byId[p]?.gender === 'M');
-        const mother = parents.find(p => byId[p]?.gender === 'F');
-
-        if (father && mother) {
-            positions[father] = { x: centerX - HALF, y };
-            positions[mother] = { x: centerX + HALF, y };
-        } else if (parents.length === 1) {
-            positions[parents[0]] = { x: centerX, y };
-        } else {
-            // 성별 불명이면 순서대로
-            positions[parents[0]] = { x: centerX - HALF, y };
-            if (parents[1]) positions[parents[1]] = { x: centerX + HALF, y };
-        }
-    }
-
-    // placeParents는 형제 배치 후 호출 (형제 위치를 참조하므로)
-
-    // ── 자녀 세대 (depth -1) ──
-    function placeChildren(coupleIds) {
+    function getChildrenSorted(coupleIds) {
         const childSet = new Set();
         for (const pid of coupleIds) {
             for (const cid of (childrenOf[pid] || [])) {
                 if (connSet.has(cid)) childSet.add(cid);
             }
         }
-        const children = [...childSet];
-        // 출생순
-        children.sort((a, b) => {
-            const pA = byId[a];
-            const pB = byId[b];
-            const dA = pA?.birth_date ? new Date(pA.birth_date).getTime() : Infinity;
-            const dB = pB?.birth_date ? new Date(pB.birth_date).getTime() : Infinity;
-            if (dA !== dB) return dA - dB;
-            return Number(a) - Number(b);
+        return [...childSet].sort((a, b) => {
+            const dA = byId[a]?.birth_date ? new Date(byId[a].birth_date).getTime() : Infinity;
+            const dB = byId[b]?.birth_date ? new Date(byId[b].birth_date).getTime() : Infinity;
+            return dA !== dB ? dA - dB : Number(a) - Number(b);
         });
+    }
 
-        if (children.length === 0) return;
+    // ── 재귀 서브트리 너비 (슬롯 단위) ──
+    const stCache = {};
+    function subtreeSlots(personId) {
+        if (stCache[personId] !== undefined) return stCache[personId];
+        const sp = getSpouse(personId);
+        const selfSlots = sp ? 2 : 1;
+        const coupleIds = sp ? [personId, sp] : [personId];
+        const children = getChildrenSorted(coupleIds);
 
-        // 자녀를 슬롯 단위로 배열 (배우자 있으면 2슬롯)
-        const slots = [];
         const placed = new Set();
-
+        let childTotal = 0;
         for (const cid of children) {
             if (placed.has(cid)) continue;
-            const cSpouse = (spousesOf[cid] || []).find(s => connSet.has(s) && !placed.has(s)) || null;
-            if (cSpouse) {
-                const m = byId[cid]?.gender === 'M' ? cid : cSpouse;
-                const f = byId[cid]?.gender === 'M' ? cSpouse : cid;
-                slots.push({ ids: [m, f], type: 'couple' });
+            const cSp = getSpouse(cid);
+            if (cSp && !placed.has(cSp)) {
+                childTotal += subtreeSlots(cid);
                 placed.add(cid);
-                placed.add(cSpouse);
+                placed.add(cSp);
             } else {
-                slots.push({ ids: [cid], type: 'solo' });
+                childTotal += subtreeSlots(cid);
                 placed.add(cid);
             }
         }
 
-        // 부모 중심 x
-        const parentXs = coupleIds.map(id => positions[id]?.x).filter(x => x !== undefined);
-        const parentCenter = parentXs.length > 0
-            ? (Math.min(...parentXs) + Math.max(...parentXs)) / 2
-            : 0;
+        const result = Math.max(selfSlots, childTotal);
+        stCache[personId] = result;
+        if (sp) stCache[sp] = result;
+        return result;
+    }
 
-        // 총 슬롯 수
-        let totalSlots = 0;
-        for (const s of slots) totalSlots += s.ids.length;
-        const totalWidth = totalSlots * SLOT_W;
+    // ── 재귀 하향 배치 (본인 + 모든 후손) ──
+    function placeDescTree(personId, centerX, y) {
+        if (positions[personId]) return;
+        const sp = getSpouse(personId);
 
-        let curX = parentCenter - totalWidth / 2 + HALF; // 첫 슬롯 중심
+        // 자신 + 배우자 배치
+        if (sp && !positions[sp]) {
+            const m = byId[personId]?.gender === 'M' ? personId : sp;
+            const f = byId[personId]?.gender === 'M' ? sp : personId;
+            positions[m] = { x: centerX - HALF, y };
+            positions[f] = { x: centerX + HALF, y };
+        } else {
+            positions[personId] = { x: centerX, y };
+        }
 
-        const y = (depthMap[coupleIds[0]] || 0) * Y_GAP - Y_GAP;
+        // 자녀 슬롯 계산 + 배치
+        const coupleIds = sp ? [personId, sp] : [personId];
+        const children = getChildrenSorted(coupleIds);
+        if (children.length === 0) return;
 
-        for (const slot of slots) {
-            if (slot.type === 'couple') {
-                positions[slot.ids[0]] = { x: curX, y };
-                curX += SLOT_W;
-                positions[slot.ids[1]] = { x: curX, y };
-                curX += SLOT_W;
+        const slots = [];
+        const placed = new Set();
+        for (const cid of children) {
+            if (placed.has(cid)) continue;
+            const cSp = getSpouse(cid);
+            if (cSp && !placed.has(cSp)) {
+                slots.push({ id: cid, width: subtreeSlots(cid) });
+                placed.add(cid);
+                placed.add(cSp);
             } else {
-                positions[slot.ids[0]] = { x: curX, y };
-                curX += SLOT_W;
+                slots.push({ id: cid, width: subtreeSlots(cid) });
+                placed.add(cid);
             }
         }
 
-        // 재귀: 자녀 커플의 자녀도 배치
+        const totalW = slots.reduce((s, sl) => s + sl.width, 0);
+        let startX = centerX - (totalW * SLOT_W) / 2;
+
         for (const slot of slots) {
-            const subCoupleIds = slot.ids.filter(id => connSet.has(id));
-            placeChildren(subCoupleIds);
+            const slotCenter = startX + (slot.width * SLOT_W) / 2;
+            placeDescTree(slot.id, slotCenter, y - Y_GAP);
+            startX += slot.width * SLOT_W;
         }
     }
 
-    const mainCouple = [husbandId, wifeId].filter(Boolean);
+    // ── 1단계: 메인 부부 + 후손 배치 (X=0 중심) ──
+    placeDescTree(mainId, 0, 0);
 
-    // 1단계: 메인 부부의 자녀 먼저 배치
-    placeChildren(mainCouple);
+    // ── 2단계: 형제 배치 (자손 영역 밖에) ──
+    const husbandId = byId[mainId]?.gender === 'M' ? mainId : getSpouse(mainId);
+    const wifeId = byId[mainId]?.gender === 'M' ? getSpouse(mainId) : mainId;
 
-    // 2단계: 자녀들의 X 범위 계산 (재귀 자녀 포함)
-    function getDescendantXRange(coupleIds) {
-        const allDescXs = [];
-        function collectChildXs(parents) {
-            for (const pid of parents) {
-                for (const cid of (childrenOf[pid] || [])) {
-                    if (positions[cid]) {
-                        allDescXs.push(positions[cid].x);
-                        const cSpouse = (spousesOf[cid] || []).find(s => positions[s]);
-                        const subCouple = cSpouse ? [cid, cSpouse] : [cid];
-                        collectChildXs(subCouple);
-                    }
+    function placeSiblingsOf(personId, direction) {
+        if (!personId) return;
+        const sibs = getSiblings(personId, maps, byId).filter(s => connSet.has(s) && !positions[s]);
+        if (sibs.length === 0) return;
+
+        for (const sibId of sibs) {
+            if (positions[sibId]) continue;
+            const width = subtreeSlots(sibId);
+
+            // 현재 배치된 전체 노드의 최외곽 x 기준
+            const allXs = Object.values(positions).map(p => p.x);
+            const edge = direction === -1
+                ? Math.min(...allXs) - SLOT_W
+                : Math.max(...allXs) + SLOT_W;
+
+            const sibCenter = direction === -1
+                ? edge - ((width - 1) * SLOT_W) / 2
+                : edge + ((width - 1) * SLOT_W) / 2;
+
+            placeDescTree(sibId, sibCenter, 0);
+        }
+    }
+
+    placeSiblingsOf(husbandId, -1);
+    placeSiblingsOf(wifeId, 1);
+
+    // ── 3단계: 조상 배치 (양가 분리, 자손 범위 중심 기준) ──
+    function placeAncestorsUp(personId, side) {
+        // side: 'left' or 'right' — 양가 겹침 방지용
+        if (!personId || !positions[personId]) return;
+
+        const allParents = (parentOf[personId] || []).filter(p => connSet.has(p));
+        const unplacedParents = allParents.filter(p => !positions[p]);
+
+        if (unplacedParents.length > 0) {
+            // 본인 + 형제의 X 범위
+            const sibs = getSiblings(personId, maps, byId).filter(s => connSet.has(s) && positions[s]);
+            const groupIds = [personId, ...sibs].filter(id => positions[id]);
+            const groupXs = groupIds.map(id => positions[id].x);
+
+            let centerX;
+            if (sibs.length > 0) {
+                centerX = (Math.min(...groupXs) + Math.max(...groupXs)) / 2;
+            } else {
+                centerX = positions[personId].x + (side === 'left' ? -HALF : HALF);
+            }
+
+            const depth = (depthMap[personId] || 0) + 1;
+            const y = depth * Y_GAP;
+
+            // 같은 y에 배치된 노드와 겹침 방지
+            const sameYXs = Object.values(positions).filter(p => p.y === y).map(p => p.x);
+            if (sameYXs.length > 0) {
+                const wouldOverlap = sameYXs.some(ox =>
+                    Math.abs(ox - (centerX - HALF)) < SLOT_W * 0.8 ||
+                    Math.abs(ox - (centerX + HALF)) < SLOT_W * 0.8
+                );
+                if (wouldOverlap) {
+                    const edge = side === 'left'
+                        ? Math.min(...sameYXs) - SLOT_W
+                        : Math.max(...sameYXs) + SLOT_W;
+                    centerX = side === 'left' ? edge - HALF : edge + HALF;
                 }
             }
+
+            const father = unplacedParents.find(p => byId[p]?.gender === 'M');
+            const mother = unplacedParents.find(p => byId[p]?.gender === 'F');
+
+            if (father && mother) {
+                positions[father] = { x: centerX - HALF, y };
+                positions[mother] = { x: centerX + HALF, y };
+            } else {
+                positions[unplacedParents[0]] = { x: centerX, y };
+            }
         }
-        collectChildXs(coupleIds);
-        if (allDescXs.length === 0) return { minX: null, maxX: null };
-        return { minX: Math.min(...allDescXs), maxX: Math.max(...allDescXs) };
-    }
 
-    const childRange = getDescendantXRange(mainCouple);
-
-    // 3단계: 형제를 자녀 X 범위 밖에 배치
-    placeSiblings(husbandId, -1, childRange.minX);
-    placeSiblings(wifeId, 1, childRange.maxX);
-
-    // 3.5단계: 부모 배치 (형제 위치 참조 필요하므로 형제 배치 후)
-    placeParents(husbandId, 'left');
-    placeParents(wifeId, 'right');
-
-    // 4단계: 형제 커플의 자녀도 배치
-    if (husbandId) {
-        const hSibs = getSiblings(husbandId, maps, byId).filter(s => connSet.has(s));
-        for (const sibId of hSibs) {
-            const sibSpouse = (spousesOf[sibId] || []).find(s => connSet.has(s)) || null;
-            const sibCouple = sibSpouse ? [sibId, sibSpouse] : [sibId];
-            placeChildren(sibCouple);
+        // 재귀: 배치된 부모를 통해 위로 계속
+        for (const pid of allParents) {
+            if (positions[pid]) placeAncestorsUp(pid, side);
         }
     }
-    if (wifeId) {
-        const wSibs = getSiblings(wifeId, maps, byId).filter(s => connSet.has(s));
-        for (const sibId of wSibs) {
-            const sibSpouse = (spousesOf[sibId] || []).find(s => connSet.has(s)) || null;
-            const sibCouple = sibSpouse ? [sibId, sibSpouse] : [sibId];
-            placeChildren(sibCouple);
+
+    // 메인 부부의 부모를 먼저 배치
+    // 남편측 부모 → 왼쪽, 아내측 부모 → 오른쪽
+    function placeDirectParents(personId, side) {
+        if (!personId) return;
+        const parents = (parentOf[personId] || []).filter(p => connSet.has(p) && !positions[p]);
+        if (parents.length === 0) return;
+
+        // 본인 + 형제 범위
+        const sibs = getSiblings(personId, maps, byId).filter(s => connSet.has(s) && positions[s]);
+        const groupIds = [personId, ...sibs].filter(id => positions[id]);
+        const groupXs = groupIds.map(id => positions[id].x);
+
+        let centerX;
+        if (sibs.length > 0) {
+            centerX = (Math.min(...groupXs) + Math.max(...groupXs)) / 2;
+        } else {
+            centerX = positions[personId].x + (side === 'left' ? -HALF : HALF);
+        }
+
+        const depth = (depthMap[personId] || 0) + 1;
+        const y = depth * Y_GAP;
+
+        // 겹침 방지
+        const sameYXs = Object.values(positions).filter(p => p.y === y).map(p => p.x);
+        if (sameYXs.length > 0) {
+            const wouldOverlap = sameYXs.some(ox =>
+                Math.abs(ox - (centerX - HALF)) < SLOT_W * 0.8 ||
+                Math.abs(ox - (centerX + HALF)) < SLOT_W * 0.8
+            );
+            if (wouldOverlap) {
+                const edge = side === 'left'
+                    ? Math.min(...sameYXs) - SLOT_W
+                    : Math.max(...sameYXs) + SLOT_W;
+                centerX = side === 'left' ? edge - HALF : edge + HALF;
+            }
+        }
+
+        const father = parents.find(p => byId[p]?.gender === 'M');
+        const mother = parents.find(p => byId[p]?.gender === 'F');
+
+        if (father && mother) {
+            positions[father] = { x: centerX - HALF, y };
+            positions[mother] = { x: centerX + HALF, y };
+        } else {
+            positions[parents[0]] = { x: centerX, y };
         }
     }
+
+    // 메인 부부의 부모 배치
+    if (husbandId) placeDirectParents(husbandId, 'left');
+    if (wifeId) placeDirectParents(wifeId, 'right');
+
+    // 메인 부모를 경유해서 조부모까지 올라감
+    const mainParents = (parentOf[mainId] || []).filter(p => connSet.has(p));
+    for (const pid of mainParents) {
+        if (!positions[pid]) continue;
+        const pGender = byId[pid]?.gender;
+        const side = pGender === 'M' ? 'left' : 'right';
+        placeAncestorsUp(pid, side);
+    }
+
+    // 배우자의 부모도 경유
+    const spouseId = getSpouse(mainId);
+    if (spouseId) {
+        const spouseParents = (parentOf[spouseId] || []).filter(p => connSet.has(p));
+        for (const pid of spouseParents) {
+            if (!positions[pid]) continue;
+            const side = byId[spouseId]?.gender === 'M' ? 'left' : 'right';
+            placeAncestorsUp(pid, side);
+        }
+    }
+
+    // ── 4단계: 조상의 형제(삼촌 등) + 그 후손 ──
+    function placeAncestorSiblings(personId) {
+        if (!personId) return;
+        const parents = (parentOf[personId] || []).filter(p => connSet.has(p) && positions[p]);
+
+        for (const pid of parents) {
+            const pSibs = getSiblings(pid, maps, byId).filter(s => connSet.has(s) && !positions[s]);
+            if (pSibs.length > 0) {
+                const parentX = positions[pid].x;
+                const direction = parentX <= 0 ? -1 : 1;
+                const parentY = positions[pid].y;
+
+                for (const sibId of pSibs) {
+                    if (positions[sibId]) continue;
+                    const width = subtreeSlots(sibId);
+
+                    const allXs = Object.values(positions).map(p => p.x);
+                    const edge = direction === -1
+                        ? Math.min(...allXs) - SLOT_W
+                        : Math.max(...allXs) + SLOT_W;
+
+                    const sibCenter = direction === -1
+                        ? edge - ((width - 1) * SLOT_W) / 2
+                        : edge + ((width - 1) * SLOT_W) / 2;
+
+                    placeDescTree(sibId, sibCenter, parentY);
+                }
+            }
+            placeAncestorSiblings(pid);
+        }
+    }
+
+    placeAncestorSiblings(mainId);
 
     return positions;
 }

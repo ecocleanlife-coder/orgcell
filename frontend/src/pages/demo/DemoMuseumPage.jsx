@@ -22,36 +22,36 @@ import { buildTree } from '../../utils/buildTree';
 // ════════════════════════════════════════
 const DEMO_PERSONS = [
     // 조부모 (부계)
-    { id: '1', first_name: '이종수', gender: 'M', birth_date: '1925-03-15', death_date: '1998-11-20', generation: -2 },
-    { id: '2', first_name: '김순이', gender: 'F', birth_date: '1928-07-22', death_date: '2005-04-10', generation: -2 },
+    { id: '1', name: '이종수', gender: 'M', birth_date: '1925-03-15', death_date: '1998-11-20', generation: -2 },
+    { id: '2', name: '김순이', gender: 'F', birth_date: '1928-07-22', death_date: '2005-04-10', generation: -2 },
     // 조부모 (모계)
-    { id: '3', first_name: '박영호', gender: 'M', birth_date: '1927-01-05', death_date: '2001-08-30', generation: -2 },
-    { id: '4', first_name: '최옥순', gender: 'F', birth_date: '1930-12-18', death_date: '2010-06-15', generation: -2 },
+    { id: '3', name: '박영호', gender: 'M', birth_date: '1927-01-05', death_date: '2001-08-30', generation: -2 },
+    { id: '4', name: '최옥순', gender: 'F', birth_date: '1930-12-18', death_date: '2010-06-15', generation: -2 },
     // 부모
-    { id: '5', first_name: '이광호', gender: 'M', birth_date: '1955-06-10', generation: -1 },
-    { id: '6', first_name: '박미영', gender: 'F', birth_date: '1958-09-25', generation: -1 },
+    { id: '5', name: '이광호', gender: 'M', birth_date: '1955-06-10', generation: -1 },
+    { id: '6', name: '박미영', gender: 'F', birth_date: '1958-09-25', generation: -1 },
     // 본인 (이한봉) + 배우자
-    { id: '7', first_name: '이한봉', gender: 'M', birth_date: '1982-04-12', generation: 0 },
-    { id: '8', first_name: '김지은', gender: 'F', birth_date: '1985-11-03', generation: 0 },
+    { id: '7', name: '이한봉', gender: 'M', birth_date: '1982-04-12', generation: 0 },
+    { id: '8', name: '김지은', gender: 'F', birth_date: '1985-11-03', generation: 0 },
     // 형제자매
-    { id: '9', first_name: '이선미', gender: 'F', birth_date: '1980-02-14', generation: 0 },
-    { id: '10', first_name: '정홍교', gender: 'M', birth_date: '1979-08-20', generation: 0 },
-    { id: '11', first_name: '이은미', gender: 'F', birth_date: '1984-07-30', generation: 0 },
-    { id: '12', first_name: '배상기', gender: 'M', birth_date: '1983-03-17', generation: 0 },
-    { id: '13', first_name: '이동수', gender: 'M', birth_date: '1987-12-05', generation: 0 },
+    { id: '9', name: '이선미', gender: 'F', birth_date: '1980-02-14', generation: 0 },
+    { id: '10', name: '정홍교', gender: 'M', birth_date: '1979-08-20', generation: 0 },
+    { id: '11', name: '이은미', gender: 'F', birth_date: '1984-07-30', generation: 0 },
+    { id: '12', name: '배상기', gender: 'M', birth_date: '1983-03-17', generation: 0 },
+    { id: '13', name: '이동수', gender: 'M', birth_date: '1987-12-05', generation: 0 },
     // 자녀
-    { id: '14', first_name: '이서준', gender: 'M', birth_date: '2010-05-20', generation: 1 },
-    { id: '15', first_name: '이서윤', gender: 'F', birth_date: '2012-09-15', generation: 1 },
+    { id: '14', name: '이서준', gender: 'M', birth_date: '2010-05-20', generation: 1 },
+    { id: '15', name: '이서윤', gender: 'F', birth_date: '2012-09-15', generation: 1 },
     // 선미+홍교 자녀
-    { id: '16', first_name: '정민서', gender: 'F', birth_date: '2005-03-12', generation: 1 },
-    { id: '17', first_name: '정민준', gender: 'M', birth_date: '2008-11-28', generation: 1 },
+    { id: '16', name: '정민서', gender: 'F', birth_date: '2005-03-12', generation: 1 },
+    { id: '17', name: '정민준', gender: 'M', birth_date: '2008-11-28', generation: 1 },
     // 은미+상기 자녀
-    { id: '18', first_name: '배수아', gender: 'F', birth_date: '2009-06-07', generation: 1 },
-    { id: '19', first_name: '배준우', gender: 'M', birth_date: '2011-12-25', generation: 1 },
+    { id: '18', name: '배수아', gender: 'F', birth_date: '2009-06-07', generation: 1 },
+    { id: '19', name: '배준우', gender: 'M', birth_date: '2011-12-25', generation: 1 },
     // 외삼촌
-    { id: '20', first_name: '박진호', gender: 'M', birth_date: '1960-04-15', generation: -1 },
+    { id: '20', name: '박진호', gender: 'M', birth_date: '1960-04-15', generation: -1 },
     // 외삼촌 자녀
-    { id: '21', first_name: '박하은', gender: 'F', birth_date: '1990-08-22', generation: 0 },
+    { id: '21', name: '박하은', gender: 'F', birth_date: '1990-08-22', generation: 0 },
 ];
 
 const DEMO_RELATIONS = [

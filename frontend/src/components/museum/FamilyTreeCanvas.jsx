@@ -93,6 +93,40 @@ function ZoomControls({ zoomIn, zoomOut, resetTransform }) {
 }
 
 // ── 메인 컴포넌트 ──
+// ── LOD 확장 버튼 ──
+function LodExpandButton({ count, label, onClick, screenX, screenY }) {
+    return (
+        <button
+            onClick={(e) => { e.stopPropagation(); onClick(); }}
+            className="lod-expand-btn"
+            style={{
+                position: 'absolute',
+                left: screenX - 70,
+                top: screenY - 18,
+                zIndex: 15,
+                width: 140,
+                height: 36,
+                border: '1.5px dashed #C4A84F',
+                borderRadius: '18px',
+                background: 'rgba(30,26,20,0.75)',
+                backdropFilter: 'blur(4px)',
+                color: '#C4A84F',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 4,
+                transition: 'all 0.2s',
+            }}
+        >
+            <span style={{ fontSize: '16px' }}>+</span>
+            {count}명의 {label}
+        </button>
+    );
+}
+
 export default function FamilyTreeCanvas({
     nodes = [],
     links = [],
@@ -106,6 +140,7 @@ export default function FamilyTreeCanvas({
 }) {
     const [internalSelectedId, setInternalSelectedId] = useState(null);
     const selectedId = externalSelectedId ?? internalSelectedId;
+    const [expandedDepths, setExpandedDepths] = useState(new Set());
 
     const nodesMap = useMemo(() => {
         const m = {};
@@ -131,11 +166,49 @@ export default function FamilyTreeCanvas({
     }, [nodesMap, onWormhole, externalOnClick, triggerWormhole]);
 
     // Z=0만 표시 (타가문은 웜홀 전환 전까지 숨김)
-    const visibleNodes = useMemo(() => nodes.filter(n => n.z === 0), [nodes]);
+    const allZ0Nodes = useMemo(() => nodes.filter(n => n.z === 0), [nodes]);
+    const allZ0Ids = useMemo(() => new Set(allZ0Nodes.map(n => n.id)), [allZ0Nodes]);
+
+    // LOD 필터: ±2세대 선명, 그 외는 expandedDepths에 포함된 경우만
+    const visibleNodes = useMemo(() => {
+        return allZ0Nodes.filter(n => {
+            const absDepth = Math.abs(n.depth);
+            return absDepth <= 2 || expandedDepths.has(n.depth);
+        });
+    }, [allZ0Nodes, expandedDepths]);
     const visibleIds = useMemo(() => new Set(visibleNodes.map(n => n.id)), [visibleNodes]);
     const visibleLinks = useMemo(() => links.filter(l => visibleIds.has(l.source) && visibleIds.has(l.target)), [links, visibleIds]);
 
-    const bounds = useMemo(() => calcBounds(visibleNodes), [visibleNodes]);
+    // 접힌 세대 요약 (확장 버튼용)
+    const collapsedSummaries = useMemo(() => {
+        const hidden = allZ0Nodes.filter(n => {
+            const absDepth = Math.abs(n.depth);
+            return absDepth > 2 && !expandedDepths.has(n.depth);
+        });
+        const byDepth = {};
+        for (const n of hidden) {
+            if (!byDepth[n.depth]) byDepth[n.depth] = [];
+            byDepth[n.depth].push(n);
+        }
+        return Object.entries(byDepth).map(([depth, dnodes]) => ({
+            depth: Number(depth),
+            count: dnodes.length,
+            centerX: dnodes.reduce((s, n) => s + n.x, 0) / dnodes.length,
+            y: dnodes[0].y,
+        }));
+    }, [allZ0Nodes, expandedDepths]);
+
+    const toggleDepth = useCallback((depth) => {
+        setExpandedDepths(prev => {
+            const next = new Set(prev);
+            if (next.has(depth)) next.delete(depth);
+            else next.add(depth);
+            return next;
+        });
+    }, []);
+
+    // 바운드는 전체 Z=0 노드 기준 (확장/축소 시 캔버스 크기 안정)
+    const bounds = useMemo(() => calcBounds(allZ0Nodes), [allZ0Nodes]);
     const couples = useMemo(() => groupCouples(visibleNodes, visibleLinks), [visibleNodes, visibleLinks]);
 
     // 자녀 ID 맵
@@ -149,12 +222,12 @@ export default function FamilyTreeCanvas({
         return map;
     }, [visibleLinks]);
 
-    // ── 스크린 좌표 변환 ──
-    const screenYs = visibleNodes.map(n => -n.y);
+    // ── 스크린 좌표 변환 (전체 Z=0 기준 — 캔버스 크기 안정) ──
+    const screenYs = allZ0Nodes.map(n => -n.y);
     const screenBounds = useMemo(() => ({
-        minY: visibleNodes.length > 0 ? Math.min(...screenYs) - CARD_HALF - 140 - TAB_H : 0,
-        maxY: visibleNodes.length > 0 ? Math.max(...screenYs) + CARD_HALF + 140 + 30 : 400,
-    }), [visibleNodes, screenYs]);
+        minY: allZ0Nodes.length > 0 ? Math.min(...screenYs) - CARD_HALF - 140 - TAB_H : 0,
+        maxY: allZ0Nodes.length > 0 ? Math.max(...screenYs) + CARD_HALF + 140 + 30 : 400,
+    }), [allZ0Nodes, screenYs]);
 
     const canvasW = bounds.maxX - bounds.minX;
     const realCanvasH = screenBounds.maxY - screenBounds.minY;
@@ -332,6 +405,13 @@ export default function FamilyTreeCanvas({
                                     const soloNode = husband || wife;
                                     if (!soloNode) return null;
 
+                                    // LOD 애니메이션: ±2 밖 세대는 슬라이드다운
+                                    const nodeDepth = Math.abs(soloNode.depth);
+                                    const isExpanded = nodeDepth > 2 && expandedDepths.has(soloNode.depth);
+                                    const animStyle = isExpanded
+                                        ? { animation: 'lodSlideDown 0.4s ease-out' }
+                                        : {};
+
                                     if (isCouple) {
                                         const leftNode = husband.x < wife.x ? husband : wife;
                                         const coupleChildIds = [
@@ -348,6 +428,7 @@ export default function FamilyTreeCanvas({
                                                     left: toScreenX(leftNode.x) - CARD_HALF - BOX_PAD,
                                                     top: toScreenY(leftNode.y) - CARD_HALF - TAB_H - BOX_PAD,
                                                     zIndex: 1,
+                                                    ...animStyle,
                                                 }}
                                             >
                                                 <CoupleBlock
@@ -374,6 +455,7 @@ export default function FamilyTreeCanvas({
                                                 left: toScreenX(soloNode.x) - CARD_HALF - BOX_PAD,
                                                 top: toScreenY(soloNode.y) - CARD_HALF - TAB_H - BOX_PAD,
                                                 zIndex: 1,
+                                                ...animStyle,
                                             }}
                                         >
                                             <CoupleBlock
@@ -389,12 +471,36 @@ export default function FamilyTreeCanvas({
                                         </div>
                                     );
                                 })}
+
+                                {/* LOD 확장 버튼 (접힌 세대) */}
+                                {collapsedSummaries.map(summary => (
+                                    <LodExpandButton
+                                        key={`lod-${summary.depth}`}
+                                        count={summary.count}
+                                        label={summary.depth < 0 ? '후손' : '조상'}
+                                        onClick={() => toggleDepth(summary.depth)}
+                                        screenX={toScreenX(summary.centerX)}
+                                        screenY={toScreenY(summary.y)}
+                                    />
+                                ))}
                             </div>
                         </TransformComponent>
                     </>
                 )}
             </TransformWrapper>
             </WormholeWrapper>
+
+            {/* LOD 슬라이드다운 애니메이션 CSS */}
+            <style>{`
+                @keyframes lodSlideDown {
+                    from { opacity: 0; transform: translateY(-30px); }
+                    to   { opacity: 1; transform: translateY(0); }
+                }
+                .lod-expand-btn:hover {
+                    background: rgba(196,168,79,0.25) !important;
+                    border-color: #C4A84F !important;
+                }
+            `}</style>
         </div>
     );
 }
