@@ -398,7 +398,7 @@ function FolderCard({
     const blurPx = Z_BLUR[node.z] ?? 0;
 
     const handleAction = (actionKey) => {
-        if (onAction) onAction(actionKey, node.id);
+        if (onAction) onAction(node.id, actionKey);
     };
 
     return (

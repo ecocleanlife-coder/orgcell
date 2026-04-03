@@ -104,6 +104,7 @@ function CoupleBlock({
                         isMainPerson={isMainCouple}
                         onClick={onCardClick}
                         onContextMenu={onContextMenu}
+                        onAction={onAction}
                     />
                 </div>
             )}

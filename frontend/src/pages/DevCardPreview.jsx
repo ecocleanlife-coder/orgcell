@@ -251,7 +251,7 @@ export default function DevCardPreview() {
         return buildTree(persons, relations, mainPersonId);
     }, [persons, relations, mainPersonId]);
 
-    const handleAction = useCallback((actionKey, personId) => {
+    const handleAction = useCallback((personId, actionKey) => {
         const person = persons.find(p => String(p.id) === String(personId));
         switch (actionKey) {
             case 'wormhole':
