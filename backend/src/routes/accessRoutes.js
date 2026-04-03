@@ -15,7 +15,7 @@ let optionalAuth, requireAuth;
 try {
     const authMiddleware = require('../middlewares/authMiddleware');
     optionalAuth = authMiddleware.optionalAuth || ((req, res, next) => next());
-    requireAuth = authMiddleware.requireAuth || authMiddleware;
+    requireAuth = authMiddleware.protect || ((req, res, next) => next());
 } catch {
     optionalAuth = (req, res, next) => next();
     requireAuth = (req, res, next) => next();
