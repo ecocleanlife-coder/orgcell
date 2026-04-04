@@ -26,8 +26,13 @@ app.use(express.json({ limit: '10mb' }));
 app.use('/api', require('./src/middlewares/csrfProtection'));
 
 // Rate limiting (CWE-770)
-const { generalLimiter, authLimiter, uploadLimiter } = require('./src/middlewares/rateLimiter');
-app.use('/api/auth', authLimiter);
+const { generalLimiter, loginLimiter, authMeLimiter, uploadLimiter } = require('./src/middlewares/rateLimiter');
+// 로그인 시도만 strict 제한 (10 req/15min)
+app.use('/api/auth/google', loginLimiter);
+app.use('/api/auth/dev-login', loginLimiter);
+app.use('/api/auth/magic-link', loginLimiter);
+// /api/auth/me는 별도 (30 req/1min) — 페이지 로드마다 호출됨
+app.use('/api/auth/me', authMeLimiter);
 app.use('/api/photos', uploadLimiter);
 app.use('/api/drive/upload', uploadLimiter);
 app.use('/api/sharing/upload', uploadLimiter);
