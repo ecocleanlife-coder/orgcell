@@ -542,6 +542,62 @@ jobs:
               -c "ALTER TABLE family_sites ADD COLUMN IF NOT EXISTS description TEXT;" \
               -c "ALTER TABLE family_sites ADD COLUMN IF NOT EXISTS thumbnail_url TEXT;" \
               -c "UPDATE family_sites SET title = subdomain WHERE title IS NULL;"
+            # ── 028: photo_requests ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "CREATE TABLE IF NOT EXISTS photo_requests (
+                id SERIAL PRIMARY KEY,
+                site_id INTEGER NOT NULL REFERENCES family_sites(id) ON DELETE CASCADE,
+                token VARCHAR(64) UNIQUE NOT NULL,
+                requester_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                requester_name VARCHAR(100) NOT NULL,
+                message TEXT,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMPTZ DEFAULT (CURRENT_TIMESTAMP + INTERVAL '30 days')
+              );" \
+              -c "CREATE INDEX IF NOT EXISTS idx_photo_requests_token ON photo_requests(token);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_photo_requests_site ON photo_requests(site_id);"
+            # ── 031: privacy_choice (persons 컬럼 + family_invites person_id) ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS privacy_variant VARCHAR(20) DEFAULT 'full';" \
+              -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS is_refused BOOLEAN DEFAULT false;" \
+              -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS relation_label VARCHAR(50);" \
+              -c "ALTER TABLE family_invites ADD COLUMN IF NOT EXISTS person_id INTEGER REFERENCES persons(id) ON DELETE SET NULL;"
+            # ── 032: access_requests ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "CREATE TABLE IF NOT EXISTS access_requests (
+                id SERIAL PRIMARY KEY,
+                site_id INTEGER NOT NULL REFERENCES family_sites(id) ON DELETE CASCADE,
+                person_id INTEGER NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
+                requester_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                request_type VARCHAR(20) NOT NULL DEFAULT 'view',
+                status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                message TEXT,
+                responded_at TIMESTAMPTZ,
+                responded_by INTEGER REFERENCES users(id),
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+              );" \
+              -c "CREATE UNIQUE INDEX IF NOT EXISTS idx_access_requests_unique ON access_requests(site_id, person_id, requester_user_id, request_type) WHERE status = 'pending';" \
+              -c "CREATE INDEX IF NOT EXISTS idx_access_requests_person ON access_requests(person_id, status);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_access_requests_site ON access_requests(site_id, status);"
+            # ── 033: voice_recordings ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "CREATE TABLE IF NOT EXISTS voice_recordings (
+                id SERIAL PRIMARY KEY,
+                site_id INTEGER NOT NULL,
+                person_id INTEGER,
+                recorder_id INTEGER,
+                file_path VARCHAR(500) NOT NULL,
+                duration INTEGER DEFAULT 0,
+                description VARCHAR(300),
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+              );" \
+              -c "CREATE INDEX IF NOT EXISTS idx_voice_recordings_site ON voice_recordings(site_id);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_voice_recordings_person ON voice_recordings(person_id);"
+            # ── 034: persons.user_id (당사자 계정 연결) ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;" \
+              -c "CREATE INDEX IF NOT EXISTS idx_persons_user_id ON persons(user_id);"
             echo "Migrations done"
             # ─────────────────────────────────────────────────────────────
 

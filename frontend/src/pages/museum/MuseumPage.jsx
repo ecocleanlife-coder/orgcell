@@ -20,6 +20,7 @@ import FeaturePanel from '../../components/museum/FeaturePanel';
 import PhotoImportModal from '../../components/museum/PhotoImportModal';
 import VoiceRecordingModal from '../../components/museum/VoiceRecordingModal';
 import InvitationModal from '../../components/museum/InvitationModal';
+import AccessRequestManager from '../../components/museum/AccessRequestManager';
 import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
 import { getT } from '../../i18n/translations';
@@ -152,6 +153,7 @@ export default function MuseumPage({ initialTab }) {
     const [showPhotoImport, setShowPhotoImport] = useState(false);
     const [showVoiceRecording, setShowVoiceRecording] = useState(false);
     const [showInviteModal, setShowInviteModal] = useState(false);
+    const [showAccessRequests, setShowAccessRequests] = useState(false);
 
     // 가족트리 인물 목록 (녹음 인물 선택용)
     const [treePersons, setTreePersons] = useState([]);
@@ -308,6 +310,7 @@ export default function MuseumPage({ initialTab }) {
             case 'board': setShowCreatePost(true); break;
             case 'voice': setShowVoiceRecording(true); break;
             case 'invite': setShowInviteModal(true); break;
+            case 'access_requests': setShowAccessRequests(true); break;
         }
     }, []);
 
@@ -437,14 +440,14 @@ export default function MuseumPage({ initialTab }) {
                         {/* 우측: 자료실 버튼 패널 */}
                         {canEdit && (
                             <div className="hidden lg:block w-48 shrink-0">
-                                <FeaturePanel onFeatureClick={handleFeatureClick} />
+                                <FeaturePanel onFeatureClick={handleFeatureClick} isOwner={role === 'owner'} />
                             </div>
                         )}
                     </div>
                     {/* 모바일: 자료실 버튼을 아래에 가로 배치 */}
                     {canEdit && (
                         <div className="lg:hidden mt-4">
-                            <FeaturePanel onFeatureClick={handleFeatureClick} />
+                            <FeaturePanel onFeatureClick={handleFeatureClick} isOwner={role === 'owner'} />
                         </div>
                     )}
                 </Section>
@@ -632,6 +635,14 @@ export default function MuseumPage({ initialTab }) {
                     siteId={site?.id}
                     museumName={museumName}
                     onClose={() => setShowInviteModal(false)}
+                />
+            )}
+
+            {/* ════ 접근 요청 관리 모달 (관장 전용) ════ */}
+            {showAccessRequests && (
+                <AccessRequestManager
+                    siteId={site?.id}
+                    onClose={() => setShowAccessRequests(false)}
                 />
             )}
 

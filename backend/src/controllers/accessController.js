@@ -31,47 +31,61 @@ async function sendTelegramAlert(message) {
 }
 
 // ── 접근 권한 확인 ──
+// 권한 우선순위:
+// 1. 관장(사이트 소유자) → 모든 인물 접근 가능
+// 2. 당사자 본인 (person.user_id === currentUser) → 본인 자료실 접근
+// 3. 인물에 연결된 계정이 없으면(초대 미수락) → 관장에게 전권
+// 4. 명시적 허가 (access_requests approved)
+// 5. 그 외 → 거부
 exports.checkAccess = async (req, res) => {
     const { siteId, personId } = req.params;
     const userId = req.user?.id;
 
     try {
-        // 1. 인물 privacy 확인
-        const personRes = await pool.query(
-            'SELECT privacy_level, is_refused FROM persons WHERE id = $1 AND site_id = $2',
+        // 인물 + 사이트 소유자 정보를 한번에 조회
+        const result = await pool.query(
+            `SELECT p.privacy_level, p.is_refused, p.user_id AS person_user_id,
+                    fs.user_id AS owner_id
+             FROM persons p
+             JOIN family_sites fs ON fs.id = p.site_id
+             WHERE p.id = $1 AND p.site_id = $2`,
             [personId, siteId]
         );
-        if (personRes.rows.length === 0) {
+        if (result.rows.length === 0) {
             return res.status(404).json({ success: false, error: 'Person not found' });
         }
 
-        const person = personRes.rows[0];
+        const { privacy_level, is_refused, person_user_id, owner_id } = result.rows[0];
 
-        // 공개 인물 → 항상 접근 가능
-        if (person.privacy_level === 'public') {
-            return res.json({ success: true, data: { access: 'granted', level: 'public' } });
-        }
-
-        // 거절자 → 항상 접근 불가
-        if (person.is_refused) {
-            return res.json({ success: true, data: { access: 'denied', level: 'refused' } });
-        }
-
-        // 비로그인 → 접근 불가
+        // 비로그인 → 공개 인물만 접근 가능
         if (!userId) {
+            if (privacy_level === 'public' && !is_refused) {
+                return res.json({ success: true, data: { access: 'granted', level: 'public' } });
+            }
             return res.json({ success: true, data: { access: 'denied', level: 'auth_required' } });
         }
 
-        // 2. 사이트 소유자/멤버 → 접근 가능
-        const memberRes = await pool.query(
-            'SELECT role FROM site_members WHERE site_id = $1 AND user_id = $2',
-            [siteId, userId]
-        );
-        if (memberRes.rows.length > 0) {
-            return res.json({ success: true, data: { access: 'granted', level: 'member' } });
+        // 1. 관장(사이트 소유자) → 무조건 허용
+        if (userId === owner_id) {
+            return res.json({ success: true, data: { access: 'granted', level: 'owner' } });
         }
 
-        // 3. 승인된 요청 확인
+        // 거절자 → 관장 외에는 접근 불가
+        if (is_refused) {
+            return res.json({ success: true, data: { access: 'denied', level: 'refused' } });
+        }
+
+        // 2. 당사자 본인 (인물에 연결된 계정)
+        if (person_user_id && person_user_id === userId) {
+            return res.json({ success: true, data: { access: 'granted', level: 'self' } });
+        }
+
+        // 3. 공개 인물 → 누구나 접근
+        if (privacy_level === 'public') {
+            return res.json({ success: true, data: { access: 'granted', level: 'public' } });
+        }
+
+        // 4. 명시적 허가 (승인된 요청)
         const approvedRes = await pool.query(
             `SELECT id FROM access_requests
              WHERE site_id = $1 AND person_id = $2 AND requester_user_id = $3 AND status = 'approved'`,
@@ -81,7 +95,7 @@ exports.checkAccess = async (req, res) => {
             return res.json({ success: true, data: { access: 'granted', level: 'approved' } });
         }
 
-        // 4. 대기 중인 요청 확인
+        // 5. 대기 중인 요청
         const pendingRes = await pool.query(
             `SELECT id FROM access_requests
              WHERE site_id = $1 AND person_id = $2 AND requester_user_id = $3 AND status = 'pending'`,
@@ -91,8 +105,8 @@ exports.checkAccess = async (req, res) => {
             return res.json({ success: true, data: { access: 'pending', level: 'requested' } });
         }
 
-        // 5. family → 가족만, private → 본인만
-        return res.json({ success: true, data: { access: 'denied', level: person.privacy_level } });
+        // 6. 그 외 → 거부
+        return res.json({ success: true, data: { access: 'denied', level: privacy_level } });
     } catch (err) {
         console.error('[accessController] checkAccess error:', err);
         return res.status(500).json({ success: false, error: 'Internal server error' });

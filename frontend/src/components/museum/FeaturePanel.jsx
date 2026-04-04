@@ -6,21 +6,31 @@
  * - 게시판
  * - 육성녹음
  * - 초대하기
+ *
+ * 관장(owner) 전용:
+ * - 요청 관리 (접근 요청 승인/거절)
  */
-import React, { useState } from 'react';
-import { Image, MessageSquare, Mic, UserPlus } from 'lucide-react';
+import React from 'react';
+import { Image, MessageSquare, Mic, UserPlus, Shield } from 'lucide-react';
 
 const FEATURES = [
     { key: 'photo', label: '사진 불러오기', icon: Image, color: '#3498db', bg: '#ebf5fb' },
-    { key: 'board', label: '���시���', icon: MessageSquare, color: '#9b59b6', bg: '#f5eef8' },
+    { key: 'board', label: '게시판', icon: MessageSquare, color: '#9b59b6', bg: '#f5eef8' },
     { key: 'voice', label: '육성녹음', icon: Mic, color: '#e74c3c', bg: '#fdedec' },
     { key: 'invite', label: '초대하기', icon: UserPlus, color: '#2ecc71', bg: '#eafaf1' },
 ];
 
+const OWNER_FEATURES = [
+    { key: 'access_requests', label: '요청 관리', icon: Shield, color: '#C4A84F', bg: '#FAFAF2' },
+];
+
 /**
  * @param {function} onFeatureClick - (featureKey) => void
+ * @param {boolean} isOwner - 관장 여부 (요청 관리 표시)
  */
-export default function FeaturePanel({ onFeatureClick }) {
+export default function FeaturePanel({ onFeatureClick, isOwner = false }) {
+    const allFeatures = isOwner ? [...FEATURES, ...OWNER_FEATURES] : FEATURES;
+
     return (
         <div className="flex flex-col gap-3">
             <h3
@@ -29,7 +39,7 @@ export default function FeaturePanel({ onFeatureClick }) {
             >
                 자료실
             </h3>
-            {FEATURES.map(({ key, label, icon: Icon, color, bg }) => (
+            {allFeatures.map(({ key, label, icon: Icon, color, bg }) => (
                 <button
                     key={key}
                     onClick={() => onFeatureClick(key)}
