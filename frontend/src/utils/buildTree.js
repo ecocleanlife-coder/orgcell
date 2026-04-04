@@ -780,9 +780,38 @@ export function buildTree(persons, relations, overrideMainId = null) {
         byId[String(p.id)] = { ...p, gender: normalizeGender(p.gender) };
     }
 
-    const maps = buildMaps(persons, relations || []);
+    let maps = buildMaps(persons, relations || []);
     const mainId = overrideMainId ? String(overrideMainId) : pickMainId(persons);
     console.log('[buildTree] mainId:', mainId, '(override:', overrideMainId, ')');
+
+    // 가문전환 시 centerId 부부의 부모가 없으면 임시 부모 생성
+    if (overrideMainId) {
+        const centerSpouse = (maps.spousesOf[mainId] || [])[0] || null;
+        for (const pid of [mainId, centerSpouse].filter(Boolean)) {
+            const hasParents = (maps.parentOf[pid] || []).length > 0;
+            if (!hasParents) {
+                const person = byId[pid];
+                const surname = (person?.name || '').charAt(0);
+                const fatherId = `_tmp_father_${pid}`;
+                const motherId = `_tmp_mother_${pid}`;
+                const fatherName = surname ? `${person.name}의 아버지` : '아버지';
+                const motherName = surname ? `${person.name}의 어머니` : '어머니';
+                const cc = person?.oc_id ? person.oc_id.split('-')[0] : 'KR';
+
+                byId[fatherId] = { id: fatherId, name: fatherName, gender: 'M', oc_id: '', _temp: true };
+                byId[motherId] = { id: motherId, name: motherName, gender: 'F', oc_id: '', _temp: true };
+                persons = [...persons, byId[fatherId], byId[motherId]];
+
+                const newRels = [
+                    { person1_id: fatherId, person2_id: motherId, relation_type: 'spouse' },
+                    { person1_id: fatherId, person2_id: pid, relation_type: 'parent' },
+                    { person1_id: motherId, person2_id: pid, relation_type: 'parent' },
+                ];
+                relations = [...(relations || []), ...newRels];
+                maps = buildMaps(persons, relations);
+            }
+        }
+    }
 
     // 연결된 노드만 필터
     const allIds = persons.map(p => String(p.id));
