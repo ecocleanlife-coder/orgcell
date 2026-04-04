@@ -540,6 +540,29 @@ function FolderCard({
                 {/* 사망자 배지 */}
                 {isDeceased && <DeceasedBadge />}
 
+                {/* FamilySearch 연동 배지 */}
+                {data.fsPersonId && (
+                    <div
+                        title="FamilySearch 연동됨"
+                        style={{
+                            position: 'absolute',
+                            top: 6,
+                            left: 6,
+                            width: 20,
+                            height: 20,
+                            borderRadius: '50%',
+                            background: 'rgba(74,141,183,0.9)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 11,
+                            zIndex: 3,
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                            cursor: 'default',
+                        }}
+                    >🌐</div>
+                )}
+
                 {/* 카드 본체: Photo Front + Canvas Front fallback */}
                 {hasPhoto && (
                     <PhotoFront

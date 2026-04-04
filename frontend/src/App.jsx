@@ -35,6 +35,7 @@ const HomePage = lazy(() => import('./pages/home/HomePage'));
 const OnboardingNamePage = lazy(() => import('./pages/onboarding/OnboardingNamePage'));
 const OnboardingInvitePage = lazy(() => import('./pages/onboarding/OnboardingInvitePage'));
 const FamilySearchCallback = lazy(() => import('./pages/auth/FamilySearchCallback'));
+const FamilySearchImportPage = lazy(() => import('./pages/museum/FamilySearchImportPage'));
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'));
 const TermsOfServicePage = lazy(() => import('./pages/TermsOfServicePage'));
 const InviteDashboard = lazy(() => import('./components/museum/InviteDashboard'));
@@ -96,6 +97,7 @@ const APP_ROUTES = [
   '/family-setup', '/live-sharing', '/family-tree', '/person/',
   '/invite-dashboard', '/inbox', '/redeem', '/payment/',
   '/privacy', '/terms', '/privacy-choice', '/dev/',
+  '/familysearch-import',
 ];
 
 function ConditionalLayout({ children }) {
@@ -183,6 +185,7 @@ function App() {
         <Route path="/family-setup" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><FamilySetupPage /></Suspense></ErrorBoundary>} />
         <Route path="/live-sharing" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><LiveSharingPage /></Suspense></ErrorBoundary>} />
         <Route path="/family-tree" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><FamilyTreeView /></Suspense></ErrorBoundary>} />
+        <Route path="/familysearch-import" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><FamilySearchImportPage /></Suspense></ErrorBoundary>} />
         <Route path="/person/:id" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><PersonFolderView /></Suspense></ErrorBoundary>} />
         <Route path="/invite-dashboard" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><InviteDashboard /></Suspense></ErrorBoundary>} />
         <Route path="/inbox" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><InboxPage /></Suspense></ErrorBoundary>} />

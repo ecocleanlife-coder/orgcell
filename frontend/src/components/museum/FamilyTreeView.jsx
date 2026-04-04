@@ -121,17 +121,11 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                     return;
                 }
             }
-            // 가계도 가져오기
-            const treeRes = await axios.get(`/api/familysearch/tree/${siteId}`);
-            if (treeRes.data?.success) {
-                const count = treeRes.data.data?.importedCount || 0;
-                alert(`FamilySearch에서 ${count}명의 인물을 가져왔습니다.`);
-                fetchPersons();
-            }
+            // 연결됨 → import 페이지로 이동
+            navigate(`/familysearch-import?siteId=${siteId}&subdomain=${subdomain}&maxGen=5`);
         } catch (err) {
             console.error('FamilySearch sync error:', err);
             if (err.response?.status === 401) {
-                // 토큰 만료 → 재인증
                 try {
                     const authRes = await axios.get('/api/familysearch/auth');
                     if (authRes.data?.authUrl) {

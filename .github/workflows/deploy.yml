@@ -598,6 +598,13 @@ jobs:
             docker exec orgcell-db psql -U orgcell_user -d orgcell \
               -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;" \
               -c "CREATE INDEX IF NOT EXISTS idx_persons_user_id ON persons(user_id);"
+            # ── 035: person_external_ids (FamilySearch 등 외부 ID 매핑) ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "CREATE TABLE IF NOT EXISTS person_external_ids (id SERIAL PRIMARY KEY, person_id INTEGER REFERENCES persons(id) ON DELETE CASCADE, oc_id VARCHAR(12), source VARCHAR(50) NOT NULL, external_id VARCHAR(100) NOT NULL, verified BOOLEAN DEFAULT false, confidence_level INTEGER DEFAULT 1, added_by VARCHAR(20) DEFAULT 'self', created_at TIMESTAMPTZ DEFAULT NOW(), UNIQUE(source, external_id));" \
+              -c "CREATE INDEX IF NOT EXISTS idx_person_external_ids_person ON person_external_ids(person_id);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_person_external_ids_source ON person_external_ids(source, external_id);" \
+              -c "CREATE INDEX IF NOT EXISTS idx_person_external_ids_oc_id ON person_external_ids(oc_id);" \
+              -c "INSERT INTO person_external_ids (person_id, source, external_id, verified, confidence_level, added_by) SELECT id, 'familysearch', fs_person_id, true, 2, 'migration' FROM persons WHERE fs_person_id IS NOT NULL ON CONFLICT (source, external_id) DO NOTHING;"
             echo "Migrations done"
             # ─────────────────────────────────────────────────────────────
 
