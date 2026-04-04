@@ -38,10 +38,22 @@ export default defineConfig({
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,json}'],
+        // JS/CSS는 precache에서 제외 — runtimeCaching NetworkFirst로 처리
+        globPatterns: ['**/*.{html,ico,png,svg,webp,json}'],
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api/],
         runtimeCaching: [
+          {
+            // JS/CSS: 항상 네트워크 우선 → 새 배포 즉시 반영
+            urlPattern: /\.(?:js|css)$/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'app-assets',
+              expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 7 },
+              networkTimeoutSeconds: 3,
+              cacheableResponse: { statuses: [0, 200] }
+            }
+          },
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',
@@ -66,7 +78,7 @@ export default defineConfig({
             options: {
               cacheName: 'api-cache',
               expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 },
-              networkTimeoutSeconds: 5, // Fallback to cache after 5s
+              networkTimeoutSeconds: 5,
               cacheableResponse: { statuses: [0, 200] }
             }
           }
