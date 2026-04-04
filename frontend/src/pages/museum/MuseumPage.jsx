@@ -5,7 +5,7 @@ import {
     GalleryThumbnails, Settings,
     LogIn, Bell, Star, Calendar, MessageSquare, Download,
     Plus, X, Pencil, UserPlus, Sparkles,
-    Upload, Users, Network, CalendarDays, Image,
+    Upload, Users, Network, CalendarDays, Image, HelpCircle,
 } from 'lucide-react';
 import axios from 'axios';
 import LanguageSwitcher from '../../components/common/LanguageSwitcher';
@@ -405,6 +405,14 @@ export default function MuseumPage({ initialTab }) {
                                 <Settings size={16} />
                             </button>
                         )}
+                        <button
+                            onClick={() => navigate('/help')}
+                            className="w-8 h-8 rounded-full flex items-center justify-center"
+                            style={{ background: '#EBF4FB', color: '#4A8DB7' }}
+                            title={lang === 'en' ? 'Help' : '도움말'}
+                        >
+                            <HelpCircle size={16} />
+                        </button>
                         <LanguageSwitcher />
                     </div>
                 </div>
@@ -496,6 +504,30 @@ export default function MuseumPage({ initialTab }) {
                         />
                     </Section>
                 )}
+
+                {/* ══ 저작권 경고 + 도움말 링크 ══ */}
+                <div className="mt-12 mb-4 rounded-xl p-4 text-center" style={{ background: '#F5F3EE', border: '1px solid #e8e0d0' }}>
+                    <p className="text-[11px] leading-relaxed mb-2" style={{ color: '#7a6e5e' }}>
+                        {lang === 'en'
+                            ? 'All photos, records, and content in this museum are owned by the curator and family members, protected by copyright law. Unauthorized reproduction, copying, distribution, or commercial use is strictly prohibited.'
+                            : '본 박물관의 모든 사진, 기록, 음성 등 콘텐츠는 관장 및 가족 구성원의 소유이며 저작권법의 보호를 받습니다. 무단 복제, 복사, 배포, 상업적 사용을 금지합니다. 위반 시 법적 책임을 질 수 있습니다.'}
+                    </p>
+                    <div className="flex items-center justify-center gap-4 text-[11px]" style={{ color: '#9a9a8a' }}>
+                        <button onClick={() => navigate('/help')} className="hover:underline">
+                            {lang === 'en' ? 'Help Guide' : '사용 안내'}
+                        </button>
+                        <span>·</span>
+                        <button onClick={() => navigate('/terms')} className="hover:underline">
+                            {lang === 'en' ? 'Terms' : '이용약관'}
+                        </button>
+                        <span>·</span>
+                        <button onClick={() => navigate('/privacy')} className="hover:underline">
+                            {lang === 'en' ? 'Privacy' : '개인정보'}
+                        </button>
+                        <span>·</span>
+                        <span>© 2026 Orgcell</span>
+                    </div>
+                </div>
             </main>
 
             {/* ════ 플로팅 업로드 버튼 (우측 하단) ════ */}

@@ -78,6 +78,11 @@ export default function Footer() {
                                 </li>
                             ))}
                             <li className="text-[13.5px]" style={{ color: '#A89880' }}>
+                                <button onClick={() => navigate('/help')} className="hover:text-white transition">
+                                    사용 안내
+                                </button>
+                            </li>
+                            <li className="text-[13.5px]" style={{ color: '#A89880' }}>
                                 <a href="mailto:ecocleanlife@gmail.com" className="hover:text-white transition">
                                     고객지원
                                 </a>
