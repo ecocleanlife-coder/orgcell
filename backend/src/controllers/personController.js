@@ -296,7 +296,7 @@ exports.listPersonPhotos = async (req, res) => {
         const { siteId, personId } = req.params;
         // exhibitions에서 person_id로 연결된 전시관의 사진 + 인물 프로필 사진
         const { rows } = await db.query(
-            `SELECT ep.id, ep.photo_url AS url, ep.caption, ep.created_at
+            `SELECT ep.id, ep.url, ep.original_name AS caption, ep.created_at
              FROM exhibition_photos ep
              JOIN exhibitions e ON e.id = ep.exhibition_id
              WHERE e.site_id = $1 AND e.person_id = $2
