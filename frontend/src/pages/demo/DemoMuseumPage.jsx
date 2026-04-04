@@ -7,73 +7,73 @@
  * - 달력/전시관 탭 (샘플 데이터)
  * - 편집 기능 숨김, 열람 전용
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import {
     TreePine, CalendarDays, Image, Network,
-    ChevronRight, Star, Camera, MapPin, X, Loader2,
+    ChevronRight, Star, Camera, MapPin, X,
 } from 'lucide-react';
-import axios from 'axios';
 import FamilyTreeCanvas from '../../components/museum/FamilyTreeCanvas';
 import { buildTree } from '../../utils/buildTree';
 
 // ════════════════════════════════════════
-// 실제 데이터: 이한봉 가족 (DB site_id=2 기반)
+// 데모 데이터: 가명 + DiceBear 아바타 (저작권 없음)
+// 관계 구조는 실제 4세대 가족과 동일
 // ════════════════════════════════════════
+const avatar = (seed) => `https://api.dicebear.com/7.x/personas/svg?seed=${encodeURIComponent(seed)}`;
+
 const DEMO_PERSONS = [
-    // 조부모 (부계: 이순호+임윤님)
-    { id: '33', name: '이순호', gender: 'M', generation: 2 },
-    { id: '34', name: '임윤님', gender: 'F', generation: 2 },
-    // 조부모 (모계: 공석환+민임분)
-    { id: '37', name: '공석환', gender: 'M', generation: 2 },
-    { id: '38', name: '민임분', gender: 'F', generation: 2 },
+    // 조부모 (부계: 김태호+최순희)
+    { id: '33', name: '김태호', gender: 'M', generation: 2, birth_year: 1928, death_year: 2005, is_deceased: true, photo_url: avatar('kimtaeho') },
+    { id: '34', name: '최순희', gender: 'F', generation: 2, birth_year: 1932, death_year: 2010, is_deceased: true, photo_url: avatar('choisunhee') },
+    // 조부모 (모계: 박정수+한미영)
+    { id: '37', name: '박정수', gender: 'M', generation: 2, birth_year: 1930, death_year: 2008, is_deceased: true, photo_url: avatar('parkjungsu') },
+    { id: '38', name: '한미영', gender: 'F', generation: 2, birth_year: 1934, death_year: 2015, is_deceased: true, photo_url: avatar('hanmiyoung') },
     // 부모세대
-    { id: '16', name: '이한봉', gender: 'M', generation: 1 },
-    { id: '17', name: '공우영', gender: 'F', generation: 1 },
-    { id: '35', name: '이은미', gender: 'F', generation: 1 },
-    { id: '36', name: '이선미', gender: 'F', generation: 1 },
-    { id: '24', name: '공인영', gender: 'M', generation: 1 },
-    { id: '25', name: '공진영', gender: 'M', generation: 1 },
-    { id: '26', name: '공수자', gender: 'F', generation: 1, privacy_level: 'private', is_refused: true, privacy_variant: 'surname_only' },
-    { id: '27', name: '공정영', gender: 'F', generation: 1, privacy_level: 'private', is_refused: true, privacy_variant: 'anonymous', relation_label: '공우영의 동생' },
+    { id: '16', name: '김영수', gender: 'M', generation: 1, birth_year: 1958, photo_url: avatar('kimyoungsu') },
+    { id: '17', name: '박은정', gender: 'F', generation: 1, birth_year: 1962, photo_url: avatar('parkeunjung') },
+    { id: '35', name: '김은미', gender: 'F', generation: 1, birth_year: 1960, photo_url: avatar('kimeunmi') },
+    { id: '36', name: '김선미', gender: 'F', generation: 1, birth_year: 1964, photo_url: avatar('kimsunmi') },
+    { id: '24', name: '박인영', gender: 'M', generation: 1, birth_year: 1965, photo_url: avatar('parkinyoung') },
+    { id: '25', name: '박진영', gender: 'M', generation: 1, birth_year: 1968, photo_url: avatar('parkjinyoung') },
+    { id: '26', name: '박수자', gender: 'F', generation: 1, privacy_level: 'private', is_refused: true, privacy_variant: 'surname_only' },
+    { id: '27', name: '박정영', gender: 'F', generation: 1, privacy_level: 'private', is_refused: true, privacy_variant: 'anonymous', relation_label: '박은정의 동생' },
     // 자녀세대
-    { id: '18', name: '이슬기', gender: 'F', is_deceased: true, generation: 0 },
-    { id: '19', name: '이상훈', gender: 'M', generation: 0 },
-    { id: '22', name: '신세라', gender: 'F', generation: 0 },
-    { id: '20', name: '이하영', gender: 'F', generation: 0 },
-    { id: '23', name: 'John Lambert', gender: 'M', generation: 0 },
-    { id: '21', name: '이유경', gender: 'F', generation: 0 },
-    { id: '28', name: '이지섭', gender: 'M', generation: 0 },
-    { id: '29', name: '이은섭', gender: 'M', generation: 0 },
-    // 이은미 남편
-    { id: '40', name: '배상기', gender: 'M', generation: 1 },
-    // 이선미 남편
-    { id: '41', name: '정홍교', gender: 'M', generation: 1 },
-    // 배상기+이은미 자녀
-    { id: '42', name: '배정일', gender: 'M', generation: 0 },
-    { id: '43', name: '배창일', gender: 'M', generation: 0 },
-    // 정홍교+이선미 자녀
-    { id: '44', name: '정애현', gender: 'F', generation: 0 },
-    { id: '45', name: '정의건', gender: 'M', generation: 0 },
-    { id: '46', name: '정의준', gender: 'M', generation: 0 },
+    { id: '18', name: '김슬기', gender: 'F', is_deceased: true, generation: 0, birth_year: 1985, death_year: 2020, photo_url: avatar('kimseulgi') },
+    { id: '19', name: '김준호', gender: 'M', generation: 0, birth_year: 1987, photo_url: avatar('kimjunho') },
+    { id: '22', name: '정수연', gender: 'F', generation: 0, birth_year: 1989, photo_url: avatar('jungsuyeon') },
+    { id: '20', name: '김하나', gender: 'F', generation: 0, birth_year: 1990, photo_url: avatar('kimhana') },
+    { id: '23', name: 'David Wilson', gender: 'M', generation: 0, birth_year: 1988, photo_url: avatar('davidwilson') },
+    { id: '21', name: '김유경', gender: 'F', generation: 0, birth_year: 1992, photo_url: avatar('kimyukyung') },
+    { id: '28', name: '김민준', gender: 'M', generation: 0, birth_year: 2015, photo_url: avatar('kimminjun') },
+    { id: '29', name: '김서준', gender: 'M', generation: 0, birth_year: 2018, photo_url: avatar('kimseojun') },
+    // 김은미 남편
+    { id: '40', name: '오상기', gender: 'M', generation: 1, birth_year: 1959, photo_url: avatar('ohsanggi') },
+    // 김선미 남편
+    { id: '41', name: '조홍교', gender: 'M', generation: 1, birth_year: 1963, photo_url: avatar('johongkyo') },
+    // 오상기+김은미 자녀
+    { id: '42', name: '오정일', gender: 'M', generation: 0, birth_year: 1986, photo_url: avatar('ohjungil') },
+    { id: '43', name: '오창일', gender: 'M', generation: 0, birth_year: 1989, photo_url: avatar('ohchangil') },
+    // 조홍교+김선미 자녀
+    { id: '44', name: '조애현', gender: 'F', generation: 0, birth_year: 1988, photo_url: avatar('joaehyun') },
+    { id: '45', name: '조의건', gender: 'M', generation: 0, birth_year: 1991, photo_url: avatar('jouigun') },
+    { id: '46', name: '조의준', gender: 'M', generation: 0, birth_year: 1994, photo_url: avatar('jouijun') },
     // 손자
-    { id: '32', name: 'Daniel Lee Lambert', gender: 'M', generation: -1 },
+    { id: '32', name: 'Daniel Wilson', gender: 'M', generation: -1, birth_year: 2020, photo_url: avatar('danielwilson') },
 ];
 
 const DEMO_RELATIONS = [
-    // ── 부계 조부모 부부 ──
+    // ── 부계 조부모 ──
     { person1_id: '33', person2_id: '34', relation_type: 'spouse' },
-    // 이순호+임윤님 → 이한봉, 이은미, 이선미
     { person1_id: '33', person2_id: '16', relation_type: 'parent' },
     { person1_id: '34', person2_id: '16', relation_type: 'parent' },
     { person1_id: '33', person2_id: '35', relation_type: 'parent' },
     { person1_id: '34', person2_id: '35', relation_type: 'parent' },
     { person1_id: '33', person2_id: '36', relation_type: 'parent' },
     { person1_id: '34', person2_id: '36', relation_type: 'parent' },
-    // ── 모계 조부모 부부 ──
+    // ── 모계 조부모 ──
     { person1_id: '37', person2_id: '38', relation_type: 'spouse' },
-    // 공석환+민임분 → 공우영, 공인영, 공진영, 공수자, 공정영
     { person1_id: '37', person2_id: '17', relation_type: 'parent' },
     { person1_id: '38', person2_id: '17', relation_type: 'parent' },
     { person1_id: '37', person2_id: '24', relation_type: 'parent' },
@@ -84,9 +84,8 @@ const DEMO_RELATIONS = [
     { person1_id: '38', person2_id: '26', relation_type: 'parent' },
     { person1_id: '37', person2_id: '27', relation_type: 'parent' },
     { person1_id: '38', person2_id: '27', relation_type: 'parent' },
-    // ── 이한봉+공우영 부부 ──
+    // ── 김영수+박은정 ──
     { person1_id: '16', person2_id: '17', relation_type: 'spouse' },
-    // 이한봉+공우영 → 자녀: 이슬기, 이상훈, 이하영, 이유경
     { person1_id: '16', person2_id: '18', relation_type: 'parent' },
     { person1_id: '17', person2_id: '18', relation_type: 'parent' },
     { person1_id: '16', person2_id: '19', relation_type: 'parent' },
@@ -95,28 +94,24 @@ const DEMO_RELATIONS = [
     { person1_id: '17', person2_id: '20', relation_type: 'parent' },
     { person1_id: '16', person2_id: '21', relation_type: 'parent' },
     { person1_id: '17', person2_id: '21', relation_type: 'parent' },
-    // ── 이상훈+신세라 부부 ──
+    // ── 김준호+정수연 ──
     { person1_id: '19', person2_id: '22', relation_type: 'spouse' },
-    // 이상훈+신세라 → 이지섭, 이은섭
     { person1_id: '19', person2_id: '28', relation_type: 'parent' },
     { person1_id: '22', person2_id: '28', relation_type: 'parent' },
     { person1_id: '19', person2_id: '29', relation_type: 'parent' },
     { person1_id: '22', person2_id: '29', relation_type: 'parent' },
-    // ── 이하영+John Lambert 부부 ──
+    // ── 김하나+David Wilson ──
     { person1_id: '20', person2_id: '23', relation_type: 'spouse' },
-    // 이하영+John Lambert → Daniel Lee Lambert
     { person1_id: '23', person2_id: '32', relation_type: 'parent' },
     { person1_id: '20', person2_id: '32', relation_type: 'parent' },
-    // ── 배상기+이은미 부부 ──
+    // ── 오상기+김은미 ──
     { person1_id: '35', person2_id: '40', relation_type: 'spouse' },
-    // 배상기+이은미 → 배정일, 배창일
     { person1_id: '35', person2_id: '42', relation_type: 'parent' },
     { person1_id: '40', person2_id: '42', relation_type: 'parent' },
     { person1_id: '35', person2_id: '43', relation_type: 'parent' },
     { person1_id: '40', person2_id: '43', relation_type: 'parent' },
-    // ── 정홍교+이선미 부부 ──
+    // ── 조홍교+김선미 ──
     { person1_id: '36', person2_id: '41', relation_type: 'spouse' },
-    // 정홍교+이선미 → 정애현, 정의건, 정의준
     { person1_id: '36', person2_id: '44', relation_type: 'parent' },
     { person1_id: '41', person2_id: '44', relation_type: 'parent' },
     { person1_id: '36', person2_id: '45', relation_type: 'parent' },
@@ -127,19 +122,19 @@ const DEMO_RELATIONS = [
 
 // ── 샘플 행사 데이터 ──
 const DEMO_EVENTS = [
-    { id: 1, title: '이슬기 추모일', date: '2026-04-15', type: 'memorial', person: '이슬기' },
-    { id: 2, title: '이한봉·공우영 결혼기념일', date: '2026-06-10', type: 'anniversary', person: '이한봉 & 공우영' },
-    { id: 3, title: 'Daniel 생일', date: '2026-08-12', type: 'birthday', person: 'Daniel Lee Lambert' },
-    { id: 4, title: '이지섭 생일', date: '2026-05-20', type: 'birthday', person: '이지섭' },
+    { id: 1, title: '김슬기 추모일', date: '2026-04-15', type: 'memorial', person: '김슬기' },
+    { id: 2, title: '김영수·박은정 결혼기념일', date: '2026-06-10', type: 'anniversary', person: '김영수 & 박은정' },
+    { id: 3, title: 'Daniel 생일', date: '2026-08-12', type: 'birthday', person: 'Daniel Wilson' },
+    { id: 4, title: '김민준 생일', date: '2026-05-20', type: 'birthday', person: '김민준' },
     { id: 5, title: '가족 여름 모임', date: '2026-07-25', type: 'event', person: '전체 가족' },
-    { id: 6, title: '이은섭 졸업식', date: '2026-03-02', type: 'event', person: '이은섭' },
+    { id: 6, title: '김서준 졸업식', date: '2026-03-02', type: 'event', person: '김서준' },
 ];
 
 // ── 샘플 전시 데이터 ──
 const DEMO_EXHIBITIONS = [
     { id: 1, title: '2025 추석 가족 모임', desc: '온 가족이 모인 추석 명절', count: 24, cover: '🏠' },
-    { id: 2, title: '이슬기 추모 앨범', desc: '슬기의 아름다운 기억들', count: 18, cover: '🕊️' },
-    { id: 3, title: '이한봉·공우영 결혼식', desc: '두 가족이 하나가 된 날', count: 42, cover: '💍' },
+    { id: 2, title: '김슬기 추모 앨범', desc: '슬기의 아름다운 기억들', count: 18, cover: '🕊️' },
+    { id: 3, title: '김영수·박은정 결혼식', desc: '두 가족이 하나가 된 날', count: 42, cover: '💍' },
     { id: 4, title: '2024 가족 여행', desc: '함께한 행복한 시간', count: 38, cover: '✈️' },
 ];
 
@@ -193,46 +188,11 @@ export default function DemoMuseumPage() {
     const [activeTab, setActiveTab] = useState('tree');
     const [showCtaModal, setShowCtaModal] = useState(false);
     const [mainPersonId, setMainPersonId] = useState(null);
-    const [livePersons, setLivePersons] = useState(null);
-    const [liveRelations, setLiveRelations] = useState(null);
-    const [museumName, setMuseumName] = useState('이한봉 가족유산박물관');
-    const [dataLoading, setDataLoading] = useState(true);
-
-    // site_id=1 (subdomain=lee) 실제 데이터 가져오기
-    useEffect(() => {
-        let cancelled = false;
-        async function fetchLive() {
-            try {
-                const siteRes = await axios.get('/api/museum/lee');
-                const siteId = siteRes.data?.data?.id;
-                if (siteRes.data?.data?.museum_name) setMuseumName(siteRes.data.data.museum_name);
-                if (!siteId) throw new Error('no site');
-
-                const [personsRes, relRes] = await Promise.all([
-                    axios.get(`/api/persons/${siteId}`),
-                    axios.get(`/api/relations/${siteId}`),
-                ]);
-                if (cancelled) return;
-                if (personsRes.data?.data) setLivePersons(personsRes.data.data);
-                if (relRes.data?.data) setLiveRelations(relRes.data.data);
-            } catch {
-                // fallback: 하드코딩 데이터 사용
-            } finally {
-                if (!cancelled) setDataLoading(false);
-            }
-        }
-        fetchLive();
-        return () => { cancelled = true; };
-    }, []);
-
-    // 실제 데이터 있으면 사용, 없으면 fallback
-    const usePersons = livePersons || DEMO_PERSONS;
-    const useRelations = liveRelations || DEMO_RELATIONS;
-    const defaultCenter = livePersons ? (livePersons.find(p => p.name === '이한봉')?.id || livePersons[0]?.id || '16') : '16';
+    const museumName = '김영수 가족유산박물관';
 
     const treeData = useMemo(() => {
-        return buildTree(usePersons, useRelations, mainPersonId || String(defaultCenter));
-    }, [usePersons, useRelations, mainPersonId, defaultCenter]);
+        return buildTree(DEMO_PERSONS, DEMO_RELATIONS, mainPersonId || '16');
+    }, [mainPersonId]);
 
     const handleCardClick = () => {
         setShowCtaModal(true);
@@ -303,11 +263,6 @@ export default function DemoMuseumPage() {
                 {/* 가족트리 탭 */}
                 {activeTab === 'tree' && (
                     <div className="w-full relative" style={{ height: 'calc(100vh - 130px)', minHeight: '500px' }}>
-                        {dataLoading && (
-                            <div className="absolute inset-0 z-20 flex items-center justify-center" style={{ background: 'rgba(250,250,247,0.9)' }}>
-                                <Loader2 size={32} className="animate-spin" style={{ color: '#C4A84F' }} />
-                            </div>
-                        )}
                         {mainPersonId && (
                             <button
                                 onClick={() => setMainPersonId(null)}
