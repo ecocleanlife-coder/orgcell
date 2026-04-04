@@ -127,6 +127,7 @@ export function WormholeWrapper({ phase, children }) {
                 style={{
                     width: '100%',
                     height: '100%',
+                    transformStyle: 'preserve-3d',
                     opacity: phase === 'blank' ? 0 : 1,
                     transition: 'opacity 0.2s ease',
                 }}
@@ -142,7 +143,7 @@ export function WormholeWrapper({ phase, children }) {
             style={{
                 width: '100%',
                 height: '100%',
-                perspective: '1200px',
+                transformStyle: 'preserve-3d',
             }}
         >
             <style>{`
@@ -180,6 +181,7 @@ export function WormholeWrapper({ phase, children }) {
                 style={{
                     width: '100%',
                     height: '100%',
+                    transformStyle: 'preserve-3d',
                     opacity: phase === 'blank' ? 0 : 1,
                     transition: phase === 'blank' ? 'opacity 0.05s' : 'none',
                 }}

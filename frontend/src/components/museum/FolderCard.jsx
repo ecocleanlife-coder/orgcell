@@ -415,6 +415,7 @@ function FolderCard({
                 position: externalStyle?.position || 'relative',
                 paddingTop: TAB_H,
                 touchAction: 'manipulation',
+                transformStyle: 'preserve-3d',
             }}
             data-person-id={node.id}
             data-z={node.z}

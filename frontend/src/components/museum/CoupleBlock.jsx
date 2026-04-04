@@ -54,10 +54,12 @@ function CoupleBlock({
                 position: externalStyle?.position || 'relative',
                 width: totalW,
                 height: totalH,
+                transformStyle: 'preserve-3d',
             }}
             data-testid="couple-block"
             data-couple={isCouple ? 'true' : 'false'}
             data-z-depth={maxZ}
+            /* preserve-3d 전파: viewport → blocks-layer → couple-wrapper → 여기 → FolderCard → Cube3D */
         >
             {/* Z-depth 안개 배경 레이어: 타 가문 인척만 표시 */}
             {hasDepth && (
@@ -102,7 +104,7 @@ function CoupleBlock({
             {isCouple ? (
                 <>
                     {/* 남편 (왼쪽) */}
-                    <div style={{ position: 'absolute', left: padding, top: padding }}>
+                    <div style={{ position: 'absolute', left: padding, top: padding, transformStyle: 'preserve-3d' }}>
                         <FolderCard
                             node={husbandNode}
                             isSelected={selectedId === husbandNode.id}
@@ -114,7 +116,7 @@ function CoupleBlock({
                     </div>
 
                     {/* 아내 (오른쪽) */}
-                    <div style={{ position: 'absolute', left: padding + CARD_SIZE + GAP, top: padding }}>
+                    <div style={{ position: 'absolute', left: padding + CARD_SIZE + GAP, top: padding, transformStyle: 'preserve-3d' }}>
                         <FolderCard
                             node={wifeNode}
                             isSelected={selectedId === wifeNode.id}
@@ -127,7 +129,7 @@ function CoupleBlock({
                 </>
             ) : (
                 /* 솔로 (홀부모) */
-                <div style={{ position: 'absolute', left: padding, top: padding }}>
+                <div style={{ position: 'absolute', left: padding, top: padding, transformStyle: 'preserve-3d' }}>
                     <FolderCard
                         node={soloNode}
                         isSelected={selectedId === soloNode.id}

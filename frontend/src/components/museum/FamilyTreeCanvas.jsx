@@ -1,20 +1,22 @@
 /**
- * FamilyTreeCanvas.jsx — 전체 가계도 캔버스
+ * FamilyTreeCanvas.jsx — 전체 가계도 캔버스 (듀얼 레이어 아키텍처)
  *
- * buildTree() 출력 → CoupleBlocks + ConnectorLines 렌더링
- * - 절대 위치 기반 레이아웃 (220px 그리드)
- * - SVG 커넥터: 부부 박스 하단 중심 → 수평 버스 → 자녀 박스 상단
- * - Pan/Zoom (react-zoom-pan-pinch)
+ * 구조:
+ *   div.tree-viewport (perspective: 1200px, d3-zoom 바인딩)
+ *   ├ motion.svg  (연결선, pointerEvents: none, x/y/scale = motionValue)
+ *   └ motion.div  (3D 블록, preserve-3d, x/y/scale = motionValue)
+ *
+ * d3-zoom → useMotionValue → SVG + HTML 동시 동기화 (React state 미사용)
+ * perspective는 최상위 viewport에 적용 → CSS 엔진이 위치 기반 자동 원근감 생성
  */
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
+import { motion, useMotionValue, useTransform } from 'framer-motion';
+import { zoom as d3Zoom } from 'd3-zoom';
+import { select as d3Select } from 'd3-selection';
 import CoupleBlock from './CoupleBlock';
 import ConnectorLine from './ConnectorLine';
 import { useWormholeTransition, WormholeWrapper } from './WormholeTransition';
 import useTreeViewStore from '../../store/treeViewStore';
-
-const springTransition = { type: 'spring', stiffness: 200, damping: 25 };
 
 const CARD_SIZE = 180;  // 3D 큐브 정면 너비
 const CARD_HALF = 90;
@@ -72,8 +74,8 @@ function calcBounds(nodes) {
     };
 }
 
-// ── 줌 컨트롤 ──
-function ZoomControls({ zoomIn, zoomOut, resetTransform }) {
+// ── 줌 컨트롤 (d3-zoom 기반) ──
+function ZoomControls({ zoomBehaviorRef, containerRef }) {
     const btnStyle = {
         width: 32, height: 32,
         border: '1px solid #C4A84F',
@@ -87,11 +89,30 @@ function ZoomControls({ zoomIn, zoomOut, resetTransform }) {
         justifyContent: 'center',
     };
 
+    const handleZoom = useCallback((factor) => {
+        const sel = d3Select(containerRef.current);
+        const zb = zoomBehaviorRef.current;
+        if (sel && zb) sel.transition().duration(300).call(zb.scaleBy, factor);
+    }, [zoomBehaviorRef, containerRef]);
+
+    const handleReset = useCallback(() => {
+        const sel = d3Select(containerRef.current);
+        const zb = zoomBehaviorRef.current;
+        if (sel && zb) {
+            const vw = containerRef.current.clientWidth;
+            const vh = containerRef.current.clientHeight;
+            sel.transition().duration(500).call(
+                zb.transform,
+                { k: 0.55, x: vw / 2, y: vh / 3 },
+            );
+        }
+    }, [zoomBehaviorRef, containerRef]);
+
     return (
         <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 20, display: 'flex', gap: 6 }}>
-            <button style={btnStyle} onClick={() => zoomIn()} title="확대">+</button>
-            <button style={btnStyle} onClick={() => zoomOut()} title="축소">−</button>
-            <button style={{ ...btnStyle, fontSize: '12px' }} onClick={() => resetTransform()} title="리셋">⌂</button>
+            <button style={btnStyle} onClick={() => handleZoom(1.3)} title="확대">+</button>
+            <button style={btnStyle} onClick={() => handleZoom(0.7)} title="축소">-</button>
+            <button style={{ ...btnStyle, fontSize: '12px' }} onClick={handleReset} title="리셋">&#x2302;</button>
         </div>
     );
 }
@@ -110,7 +131,16 @@ export default function FamilyTreeCanvas({
 }) {
     const [internalSelectedId, setInternalSelectedId] = useState(null);
     const selectedId = externalSelectedId ?? internalSelectedId;
-    const transformRef = useRef(null);
+
+    // d3-zoom → useMotionValue (React state 미사용)
+    const containerRef = useRef(null);
+    const zoomBehaviorRef = useRef(null);
+    const zoomX = useMotionValue(0);
+    const zoomY = useMotionValue(0);
+    const zoomScale = useMotionValue(0.55);
+    // 동적 perspective: scale이 작을수록 perspective도 작게 → 3D 효과 유지
+    // 목표: 블록 로컬 공간에서 항상 ~600px perspective 느끼도록
+    const perspectiveValue = useTransform(zoomScale, (s) => Math.max(250, 600 * s));
 
     const nodesMap = useMemo(() => {
         const m = {};
@@ -141,7 +171,6 @@ export default function FamilyTreeCanvas({
 
     // 모든 Z=0 노드 표시 (LOD 필터 없음 — 모든 세대 렌더링)
     const visibleNodes = allZ0Nodes;
-    const visibleIds = allZ0Ids;
     const visibleLinks = useMemo(() => links.filter(l => allZ0Ids.has(l.source) && allZ0Ids.has(l.target)), [links, allZ0Ids]);
 
     const bounds = useMemo(() => calcBounds(allZ0Nodes), [allZ0Nodes]);
@@ -178,37 +207,47 @@ export default function FamilyTreeCanvas({
     const mainScreenX = useMemo(() => toScreenX(0), [bounds]);
     const mainScreenY = useMemo(() => toScreenY(0), [screenBounds]);
 
+    // ── d3-zoom 초기화 ──
     useEffect(() => {
-        if (!transformRef.current || allZ0Nodes.length === 0) return;
+        if (!containerRef.current || allZ0Nodes.length === 0) return;
 
-        // 저장된 뷰포트가 있으면 복원 (인물 편집 후 돌아올 때)
+        const zoomBehavior = d3Zoom()
+            .scaleExtent([0.15, 2])
+            .on('zoom', (event) => {
+                const { x, y, k } = event.transform;
+                zoomX.set(x);
+                zoomY.set(y);
+                zoomScale.set(k);
+                // 뷰포트 저장 (인물 편집 복귀 시 복원)
+                setViewport(k, x, y);
+            });
+
+        zoomBehaviorRef.current = zoomBehavior;
+        const sel = d3Select(containerRef.current).call(zoomBehavior);
+
+        // 초기 위치 설정
         if (hasValidViewport()) {
-            setTimeout(() => {
-                transformRef.current?.setTransform(
-                    savedViewport.positionX,
-                    savedViewport.positionY,
-                    savedViewport.scale,
-                );
-            }, 50);
-            return;
+            // 저장된 뷰포트 복원
+            const { scale, positionX, positionY } = savedViewport;
+            sel.call(zoomBehavior.transform, {
+                k: scale,
+                x: positionX,
+                y: positionY,
+            });
+        } else {
+            // 관장 부부 중심 배치
+            const scale = 0.55;
+            const vw = containerRef.current.clientWidth;
+            const vh = containerRef.current.clientHeight - 130;
+            const tx = vw / 2 - mainScreenX * scale;
+            const ty = vh / 3 - mainScreenY * scale;
+            sel.call(zoomBehavior.transform, { k: scale, x: tx, y: ty });
         }
 
-        // 기본: 관장 부부 중심 배치
-        const scale = 0.55;
-        const vw = window.innerWidth;
-        const vh = window.innerHeight - 130;
-        const tx = vw / 2 - mainScreenX * scale;
-        const ty = vh / 3 - mainScreenY * scale;
-        setTimeout(() => {
-            transformRef.current?.setTransform(tx, ty, scale);
-        }, 50);
+        return () => {
+            sel.on('.zoom', null);
+        };
     }, [allZ0Nodes.length, mainScreenX, mainScreenY]);
-
-    // ── pan/zoom 변경 시 뷰포트 저장 ──
-    const handleTransformChange = useCallback((ref) => {
-        const { scale, positionX, positionY } = ref.state;
-        setViewport(scale, positionX, positionY);
-    }, [setViewport]);
 
     // ── 커플/솔로별 박스 위치 (screen coords) ──
     const couplePositions = useMemo(() => {
@@ -228,7 +267,6 @@ export default function FamilyTreeCanvas({
                 const boxCenterX = boxLeft + boxW / 2;
                 const boxBottom = boxTop + BOX_H;
 
-                // 두 사람 모두 이 박스에 매핑
                 const key = `${husband.id}-${wife.id}`;
                 positions[husband.id] = { key, centerX: boxCenterX, top: boxTop, bottom: boxBottom };
                 positions[wife.id] = { key, centerX: boxCenterX, top: boxTop, bottom: boxBottom };
@@ -286,7 +324,6 @@ export default function FamilyTreeCanvas({
                     const cp = couplePositions[cid];
                     const node = nodesMap[cid];
                     if (!cp || !node) return null;
-                    // 개인 위치 (커플 박스 중심이 아닌 본인 카드 중심)
                     const personalX = toScreenX(node.x);
                     return { x: personalX, y: cp.top };
                 })
@@ -328,131 +365,135 @@ export default function FamilyTreeCanvas({
             data-testid="tree-canvas"
         >
             <WormholeWrapper phase={phase}>
-            <TransformWrapper
-                ref={transformRef}
-                initialScale={0.55}
-                minScale={0.15}
-                maxScale={2}
-                limitToBounds={false}
-                onTransformed={handleTransformChange}
+            {/* 듀얼 레이어 뷰포트: 동적 perspective (zoom scale 보정) */}
+            <motion.div
+                ref={containerRef}
+                style={{
+                    width: '100%',
+                    height: '100%',
+                    overflow: 'hidden',
+                    perspective: perspectiveValue,
+                    cursor: 'grab',
+                    touchAction: 'none',
+                }}
+                data-testid="tree-viewport"
             >
-                {({ zoomIn, zoomOut, resetTransform }) => (
-                    <>
-                        <ZoomControls zoomIn={zoomIn} zoomOut={zoomOut} resetTransform={resetTransform} />
-                        <TransformComponent
-                            wrapperStyle={{ width: '100%', height: '100%' }}
-                            contentStyle={{ width: canvasW, height: realCanvasH }}
-                        >
-                            <div
-                                style={{
-                                    position: 'relative',
-                                    width: canvasW,
-                                    height: realCanvasH,
-                                }}
-                            >
-                                {/* SVG 커넥터: 박스 하단 → 버스 → 자녀 박스 상단 */}
-                                <svg
+                <ZoomControls zoomBehaviorRef={zoomBehaviorRef} containerRef={containerRef} />
+
+                {/* 레이어 1: SVG 연결선 (pointerEvents: none) */}
+                <motion.svg
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: canvasW,
+                        height: realCanvasH,
+                        pointerEvents: 'none',
+                        x: zoomX,
+                        y: zoomY,
+                        scale: zoomScale,
+                        transformOrigin: '0 0',
+                        zIndex: 1,
+                    }}
+                    data-testid="connector-svg"
+                >
+                    {connectors.map(c => (
+                        <ConnectorLine
+                            key={c.key}
+                            parentX={c.parentX}
+                            parentY={c.parentY}
+                            children={c.children}
+                            z={c.z}
+                        />
+                    ))}
+                </motion.svg>
+
+                {/* 레이어 2: HTML 3D 블록 (preserve-3d) */}
+                <motion.div
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: canvasW,
+                        height: realCanvasH,
+                        pointerEvents: 'none',
+                        transformStyle: 'preserve-3d',
+                        x: zoomX,
+                        y: zoomY,
+                        scale: zoomScale,
+                        transformOrigin: '0 0',
+                        zIndex: 2,
+                    }}
+                    data-testid="blocks-layer"
+                >
+                    {couples.map((couple) => {
+                        const { husband, wife } = couple;
+                        const isCouple = !!(husband && wife);
+                        const soloNode = husband || wife;
+                        if (!soloNode) return null;
+
+                        if (isCouple) {
+                            const leftNode = husband.x < wife.x ? husband : wife;
+                            const coupleChildIds = [
+                                ...(childrenMap[husband.id] || []),
+                                ...(childrenMap[wife.id] || []),
+                            ];
+                            const isMain = husband.id === mainId || wife.id === mainId;
+
+                            return (
+                                <div
+                                    key={`couple-${husband.id}-${wife.id}`}
                                     style={{
                                         position: 'absolute',
-                                        top: 0,
-                                        left: 0,
-                                        width: canvasW,
-                                        height: realCanvasH,
-                                        zIndex: 5,
-                                        pointerEvents: 'none',
+                                        left: toScreenX(leftNode.x) - CARD_HALF - BOX_PAD,
+                                        top: toScreenY(leftNode.y) - CARD_HALF - TAB_H - BOX_PAD,
+                                        transformStyle: 'preserve-3d',
+                                        pointerEvents: 'auto',
                                     }}
-                                    data-testid="connector-svg"
                                 >
-                                    {connectors.map(c => (
-                                        <ConnectorLine
-                                            key={c.key}
-                                            parentX={c.parentX}
-                                            parentY={c.parentY}
-                                            children={c.children}
-                                            z={c.z}
-                                        />
-                                    ))}
-                                </svg>
+                                    <CoupleBlock
+                                        husbandNode={husband}
+                                        wifeNode={wife}
+                                        isMainCouple={isMain}
+                                        selectedId={selectedId}
+                                        childrenIds={[...new Set(coupleChildIds)]}
+                                        onCardClick={handleCardClick}
+                                        onContextMenu={onContextMenu}
+                                        onAction={onAction}
+                                    />
+                                </div>
+                            );
+                        }
 
-                                {/* 모든 노드를 CoupleBlock으로 렌더링 (부부 + 솔로) */}
-                                {couples.map((couple) => {
-                                    const { husband, wife } = couple;
-                                    const isCouple = !!(husband && wife);
-                                    const soloNode = husband || wife;
-                                    if (!soloNode) return null;
-
-                                    if (isCouple) {
-                                        const leftNode = husband.x < wife.x ? husband : wife;
-                                        const coupleChildIds = [
-                                            ...(childrenMap[husband.id] || []),
-                                            ...(childrenMap[wife.id] || []),
-                                        ];
-                                        const isMain = husband.id === mainId || wife.id === mainId;
-
-                                        return (
-                                            <motion.div
-                                                key={`couple-${husband.id}-${wife.id}`}
-                                                animate={{
-                                                    left: toScreenX(leftNode.x) - CARD_HALF - BOX_PAD,
-                                                    top: toScreenY(leftNode.y) - CARD_HALF - TAB_H - BOX_PAD,
-                                                }}
-                                                transition={springTransition}
-                                                style={{
-                                                    position: 'absolute',
-                                                    zIndex: 1,
-                                                }}
-                                            >
-                                                <CoupleBlock
-                                                    husbandNode={husband}
-                                                    wifeNode={wife}
-                                                    isMainCouple={isMain}
-                                                    selectedId={selectedId}
-                                                    childrenIds={[...new Set(coupleChildIds)]}
-                                                    onCardClick={handleCardClick}
-                                                    onContextMenu={onContextMenu}
-                                                    onAction={onAction}
-                                                />
-                                            </motion.div>
-                                        );
-                                    }
-
-                                    // 솔로 → CoupleBlock (홀부모도 박스 표시)
-                                    const soloChildIds = [...(childrenMap[soloNode.id] || [])];
-                                    return (
-                                        <motion.div
-                                            key={soloNode.id}
-                                            animate={{
-                                                left: toScreenX(soloNode.x) - CARD_HALF - BOX_PAD,
-                                                top: toScreenY(soloNode.y) - CARD_HALF - TAB_H - BOX_PAD,
-                                            }}
-                                            transition={springTransition}
-                                            style={{
-                                                position: 'absolute',
-                                                zIndex: 1,
-                                            }}
-                                        >
-                                            <CoupleBlock
-                                                husbandNode={husband}
-                                                wifeNode={wife}
-                                                isMainCouple={soloNode.id === mainId}
-                                                selectedId={selectedId}
-                                                childrenIds={soloChildIds}
-                                                onCardClick={handleCardClick}
-                                                onContextMenu={onContextMenu}
-                                                onAction={onAction}
-                                            />
-                                        </motion.div>
-                                    );
-                                })}
-
-                                {/* 모든 세대 표시 — LOD 필터 없음 */}
+                        // 솔로 → CoupleBlock (홀부모도 박스 표시)
+                        const soloChildIds = [...(childrenMap[soloNode.id] || [])];
+                        return (
+                            <div
+                                key={soloNode.id}
+                                style={{
+                                    position: 'absolute',
+                                    left: toScreenX(soloNode.x) - CARD_HALF - BOX_PAD,
+                                    top: toScreenY(soloNode.y) - CARD_HALF - TAB_H - BOX_PAD,
+                                    transformStyle: 'preserve-3d',
+                                    pointerEvents: 'auto',
+                                }}
+                            >
+                                <CoupleBlock
+                                    husbandNode={husband}
+                                    wifeNode={wife}
+                                    isMainCouple={soloNode.id === mainId}
+                                    selectedId={selectedId}
+                                    childrenIds={soloChildIds}
+                                    onCardClick={handleCardClick}
+                                    onContextMenu={onContextMenu}
+                                    onAction={onAction}
+                                />
                             </div>
-                        </TransformComponent>
-                    </>
-                )}
-            </TransformWrapper>
+                        );
+                    })}
+                </motion.div>
+            </motion.div>
             </WormholeWrapper>
-
         </div>
     );
 }
