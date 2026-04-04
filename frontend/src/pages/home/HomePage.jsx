@@ -8,8 +8,8 @@ import { LogOut, CalendarDays, MessageSquare, ChevronRight, Home, Users, UserPlu
 const SERVICES = [
     {
         image: '/images/landing/card-museum.png',
-        title: '가족 박물관',
-        desc: '우리 가족만의 디지털 박물관을 만들고,\n4세대를 연결하세요.',
+        title: '가족유산박물관',
+        desc: '우리 가족만의 유산박물관을 만들고,\n4세대를 연결하세요.',
         btn: '박물관 가기',
         btnSetup: '박물관 만들기',
         color: '#7C5CFC',

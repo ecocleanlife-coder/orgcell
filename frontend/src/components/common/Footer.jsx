@@ -22,7 +22,7 @@ export default function Footer() {
                         </div>
                         <p className="text-[13.5px] leading-relaxed mb-4" style={{ color: '#A89880' }}>
                             가족의 추억을 AI가 자동으로 정리하고,<br />
-                            영원히 함께할 수 있는 디지털 공간을 만들어 드립니다.
+                            영원히 함께할 수 있는 유산박물관을 만들어 드립니다.
                         </p>
                         <p className="text-[12px] italic" style={{ color: '#7A6E5E', fontFamily: 'Georgia, serif' }}>
                             "Family can be together forever"

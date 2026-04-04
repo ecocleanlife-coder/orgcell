@@ -18,17 +18,17 @@ router.get('/:subdomain', async (req, res) => {
         let appName, shortName;
         if (rows.length) {
             const ownerName = rows[0].owner_name || subdomain;
-            appName = `${ownerName} 가족 박물관`;
+            appName = `${ownerName} 가족유산박물관`;
             shortName = `${ownerName.split(' ')[0]}의 박물관`;
         } else {
-            appName = 'Orgcell 가족 박물관';
-            shortName = '가족 박물관';
+            appName = 'Orgcell 가족유산박물관';
+            shortName = '가족유산박물관';
         }
 
         const manifest = {
             name: appName,
             short_name: shortName,
-            description: '우리 가족의 디지털 박물관 — Orgcell',
+            description: '우리 가족의 유산을 영원히 보존하세요 — Orgcell',
             start_url: `/${subdomain}`,
             scope: `/${subdomain}`,
             display: 'standalone',

@@ -511,7 +511,7 @@ function ShareDropdown({ url, t, lang, onClose }) {
                 window.Kakao.Share.sendDefault({
                     objectType: 'feed',
                     content: {
-                        title: 'Family Museum',
+                        title: 'Family Heritage Museum',
                         imageUrl: 'https://orgcell.com/pwa-512x512.png',
                         link: { mobileWebUrl: url, webUrl: url },
                     },

@@ -4,10 +4,10 @@ const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 async function createProducts() {
   console.log('Stripe Product 생성 시작...\n');
 
-  // 1. Orgcell Family Museum
+  // 1. Orgcell Family Heritage Museum
   const orgcell = await stripe.products.create({
-    name: 'Orgcell Family Museum',
-    description: 'AI 기반 가족 사진 자동 정리 + 디지털 가족 박물관',
+    name: 'Orgcell Family Heritage Museum',
+    description: 'AI 기반 가족 사진 자동 정리 + 가족유산박물관',
   });
   const orgcellPrice = await stripe.prices.create({
     product: orgcell.id,
@@ -15,7 +15,7 @@ async function createProducts() {
     currency: 'usd',
     recurring: { interval: 'year' },
   });
-  console.log('✅ Orgcell Family Museum');
+  console.log('✅ Orgcell Family Heritage Museum');
   console.log('   Product ID:', orgcell.id);
   console.log('   Price ID:', orgcellPrice.id);
 

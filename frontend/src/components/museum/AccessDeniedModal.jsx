@@ -91,6 +91,13 @@ export default function AccessDeniedModal({
                 }}
                 onClick={(e) => e.stopPropagation()}
             >
+                {/* 로고 */}
+                <img
+                    src="/logo-icon-sm.png"
+                    alt="Orgcell"
+                    style={{ height: 32, objectFit: 'contain', marginBottom: 8 }}
+                />
+
                 {/* 아이콘 */}
                 <div style={{ fontSize: '40px', marginBottom: 12 }}>
                     {content.icon}

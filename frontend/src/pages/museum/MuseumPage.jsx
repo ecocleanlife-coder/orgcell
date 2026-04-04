@@ -333,7 +333,7 @@ export default function MuseumPage({ initialTab }) {
         );
     }
 
-    const museumName = site?.museum_name || `${subdomain} 가족 박물관`;
+    const museumName = site?.museum_name || `${subdomain} 가족유산박물관`;
     const canEdit = role === 'owner' || role === 'member';
 
     return (
@@ -363,9 +363,12 @@ export default function MuseumPage({ initialTab }) {
                 style={{ background: 'rgba(250,250,247,0.96)', borderColor: '#e8e0d0', backdropFilter: 'blur(8px)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
             >
                 <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-                    <h1 className="font-bold text-base truncate" style={{ color: '#3a3a2a' }}>
-                        {museumName}
-                    </h1>
+                    <div className="flex items-center gap-2 truncate">
+                        <img src="/logo-icon-sm.png" alt="" style={{ height: 28, objectFit: 'contain' }} />
+                        <h1 className="font-bold text-base truncate" style={{ color: '#3a3a2a' }}>
+                            {museumName}
+                        </h1>
+                    </div>
                     <div className="flex items-center gap-2 shrink-0">
                         {role === 'owner' && installPrompt && !isInstalled && (
                             <button
@@ -667,7 +670,7 @@ export default function MuseumPage({ initialTab }) {
                                 {friendRequesting ? '...' : friendRequested ? '요청됨' : '친구 추가'}
                             </button>
                             <p className="text-sm font-medium truncate" style={{ color: '#3a3a2a' }}>
-                                나도 가족 박물관 만들기
+                                나도 가족유산박물관 만들기
                             </p>
                         </div>
                         <button

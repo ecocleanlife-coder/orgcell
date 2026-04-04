@@ -65,8 +65,8 @@ export default function OnboardingInvitePage() {
     const shareNative = () => {
         if (navigator.share) {
             navigator.share({
-                title: '우리 가족 박물관에 초대합니다',
-                text: `우리 가족 디지털 박물관을 만들었어요! 방문해보세요: ${fullUrl}`,
+                title: '우리 가족유산박물관에 초대합니다',
+                text: `우리 가족유산박물관을 만들었어요! 방문해보세요: ${fullUrl}`,
                 url: fullUrl,
             }).catch(() => {});
         } else {

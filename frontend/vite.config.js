@@ -17,7 +17,7 @@ export default defineConfig({
       manifest: {
         name: 'Orgcell',
         short_name: 'Orgcell',
-        description: 'AI-powered secure photo organizer and sharing application',
+        description: 'Family Heritage Museum - 소중한 가족의 유산을 영원히 보존하세요',
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',

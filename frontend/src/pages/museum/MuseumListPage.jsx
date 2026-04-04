@@ -105,7 +105,7 @@ const MuseumListPage = () => {
             className={`tab-btn ${activeTab === 'family' ? 'active' : ''}`}
             onClick={() => setActiveTab('family')}
           >
-            가족 박물관
+            가족유산박물관
           </button>
         </div>
       </div>

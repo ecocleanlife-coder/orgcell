@@ -58,7 +58,7 @@ export default function PaymentSuccessPage() {
         >
             <Helmet>
                 <title>{t.title || '결제 완료'} — Orgcell</title>
-                <meta name="description" content={t.desc || '결제가 완료되었습니다. 가족 박물관을 시작해 보세요!'} />
+                <meta name="description" content={t.desc || '결제가 완료되었습니다. 가족유산박물관을 시작해 보세요!'} />
             </Helmet>
 
             <div

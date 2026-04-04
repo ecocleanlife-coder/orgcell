@@ -90,7 +90,7 @@ export default function OnboardingWelcomePage() {
                             color: '#7A6E5E',
                         }}
                     >
-                        🏛️ 가족 박물관
+                        🏛️ 가족유산박물관
                     </button>
                     <button
                         onClick={() => navigate('/onboarding/service?type=share')}

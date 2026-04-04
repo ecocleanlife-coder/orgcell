@@ -63,13 +63,15 @@ export default function LoginPage() {
             }}>
                 {/* Logo */}
                 <div style={{ textAlign: 'center', marginBottom: 32 }}>
-                    <div style={{ fontSize: 30, fontWeight: 900, color: '#3D2008', letterSpacing: '-0.02em', fontFamily: 'Georgia, serif' }}>
-                        Orgcell<span style={{ color: '#5A9460' }}>.com</span>
-                    </div>
+                    <img
+                        src="/logo-full.png"
+                        alt="Orgcell"
+                        style={{ height: 80, objectFit: 'contain', margin: '0 auto 12px' }}
+                    />
                     <p style={{ marginTop: 10, fontSize: 15, color: '#7A6E5E', lineHeight: 1.6 }}>
                         {next === 'checkout'
                             ? '결제를 진행하려면 먼저 로그인해 주세요.'
-                            : '가족 디지털 박물관에 오신 것을 환영합니다.'}
+                            : '가족유산박물관에 오신 것을 환영합니다.'}
                     </p>
                 </div>
 

@@ -33,7 +33,7 @@ export default function FamilyWebsiteView() {
     }, []);
 
     const shareUrl = `https://orgcell.com/${subdomain || 'your-family'}`;
-    const shareTitle = t.shareInviteTitle || 'You are invited to our Family Museum';
+    const shareTitle = t.shareInviteTitle || 'You are invited to our Family Heritage Museum';
     const shareDesc = t.shareInviteDesc || 'Share precious family moments together on orgcell.com';
 
     const showToast = (msg) => {

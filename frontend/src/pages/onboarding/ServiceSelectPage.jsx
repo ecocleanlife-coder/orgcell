@@ -6,7 +6,7 @@ import useOnboardingStore from '../../store/onboardingStore';
 const services = [
     {
         icon: '🏛️',
-        title: '가족 박물관',
+        title: '가족유산박물관',
         desc: '가계도 · 사진 앨범 · 가족 채팅',
         sub: 'orgcell.com/yourfamily 주소 무료',
         color: '#7C5CFC',

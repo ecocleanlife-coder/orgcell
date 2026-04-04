@@ -46,10 +46,10 @@ export default function InviteFamilyPage() {
     const signupUrl = 'orgcell.com/onboarding/service';
 
     // 가족 초대 메시지
-    const familyShareMessage = `우리 가족 디지털 박물관을 만들었어요!\n방문하려면: ${museumUrl}\n당신만의 박물관을 만들려면: ${signupUrl}`;
+    const familyShareMessage = `우리 가족유산박물관을 만들었어요!\n방문하려면: ${museumUrl}\n당신만의 박물관을 만들려면: ${signupUrl}`;
 
     // 친구 초대 메시지 (바이럴 루프)
-    const friendShareMessage = `내 가족 박물관을 만들었어요!\n구경하러 오세요: ${museumUrl}\n당신도 만들어보세요: ${signupUrl}`;
+    const friendShareMessage = `내 가족유산박물관을 만들었어요!\n구경하러 오세요: ${museumUrl}\n당신도 만들어보세요: ${signupUrl}`;
 
     const shareMessage = activeTab === 'family' ? familyShareMessage : friendShareMessage;
 
@@ -85,8 +85,8 @@ export default function InviteFamilyPage() {
     const shareEmail = () => {
         const subject = encodeURIComponent(
             activeTab === 'family'
-                ? `${subdomain} 가족 박물관에 초대합니다`
-                : `${subdomain} 가족 박물관에 놀러오세요`
+                ? `${subdomain} 가족유산박물관에 초대합니다`
+                : `${subdomain} 가족유산박물관에 놀러오세요`
         );
         const body = encodeURIComponent(shareMessage);
         window.location.href = `mailto:?subject=${subject}&body=${body}`;
@@ -97,7 +97,7 @@ export default function InviteFamilyPage() {
         if (navigator.share) {
             try {
                 await navigator.share({
-                    title: `${subdomain} 가족 박물관`,
+                    title: `${subdomain} 가족유산박물관`,
                     text: shareMessage,
                     url: `https://${museumUrl}`,
                 });
@@ -322,7 +322,7 @@ export default function InviteFamilyPage() {
                         >
                             <div className="text-left">
                                 <p className="text-sm font-bold text-gray-900">가족이 이미 Orgcell을 쓰고 있나요?</p>
-                                <p className="text-xs text-gray-500">가족 박물관을 서로 연결할 수 있어요</p>
+                                <p className="text-xs text-gray-500">가족유산박물관을 서로 연결할 수 있어요</p>
                             </div>
                             <span className={`text-gray-400 transition-transform ${showConnect ? 'rotate-90' : ''}`}>
                                 &rsaquo;

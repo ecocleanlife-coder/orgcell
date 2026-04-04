@@ -113,7 +113,7 @@ function FederationCard({ site }) {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Link2 size={16} style={{ color: '#8e44ad' }} />
-                        <p className="text-sm font-bold" style={{ color: '#3a3a2a' }}>연결된 가족 박물관</p>
+                        <p className="text-sm font-bold" style={{ color: '#3a3a2a' }}>연결된 가족유산박물관</p>
                     </div>
                     <button onClick={() => setShowForm(!showForm)}
                         className="px-3 py-1 rounded-lg text-xs font-bold transition-all"
@@ -184,7 +184,7 @@ function FederationCard({ site }) {
                     <p className="text-xs text-center py-2" style={{ color: '#9a9a8a' }}>로딩...</p>
                 ) : others.length === 0 && incoming.length === 0 ? (
                     <p className="text-xs py-2" style={{ color: '#9a9a8a' }}>
-                        연결된 가족 박물관이 없습니다. 다른 가족과 연결해보세요!
+                        연결된 가족유산박물관이 없습니다. 다른 가족과 연결해보세요!
                     </p>
                 ) : (
                     <div className="space-y-2">
@@ -221,7 +221,7 @@ function FederationCard({ site }) {
     );
 }
 
-// ─── Heritage (디지털 유산 승계) card ───
+// ─── Heritage (유산 승계) card ───
 function HeritageCard({ site, t }) {
     const [heirs, setHeirs] = useState([]);
     const [showForm, setShowForm] = useState(false);
@@ -277,7 +277,7 @@ function HeritageCard({ site, t }) {
                 <div className="flex items-center gap-2">
                     <Shield size={16} style={{ color: '#7a5a3a' }} />
                     <span className="text-[14px] font-bold" style={{ color: '#3D2008' }}>
-                        {t.heritageTitle || '디지털 유산 승계'}
+                        {t.heritageTitle || '유산 승계'}
                     </span>
                 </div>
                 <button
@@ -291,7 +291,7 @@ function HeritageCard({ site, t }) {
             </div>
 
             <p className="text-[12px]" style={{ color: '#a09080' }}>
-                {t.heritageDesc || '계정 미활동 시 가족 박물관을 지정된 승계자에게 전달합니다.'}
+                {t.heritageDesc || '계정 미활동 시 가족유산박물관을 지정된 승계자에게 전달합니다.'}
             </p>
 
             {/* Heir list */}
@@ -1173,7 +1173,7 @@ export default function FamilyDomainDashboard() {
                         {/* Federation (웜홀 라우팅) */}
                         <FederationCard site={site} />
 
-                        {/* Heritage (디지털 유산 승계) */}
+                        {/* Heritage (유산 승계) */}
                         <HeritageCard site={site} t={t} />
 
                         {/* Logout */}

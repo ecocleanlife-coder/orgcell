@@ -1,5 +1,5 @@
 /**
- * DemoMuseumPage.jsx — 이한봉 가족 박물관 체험 페이지
+ * DemoMuseumPage.jsx — 이한봉 가족유산박물관 체험 페이지
  *
  * 비로그인 사용자가 실제 박물관 구조를 체험할 수 있는 데모 페이지
  * - 실제 FamilyTreeCanvas (드래그/줌/웜홀 작동)
@@ -213,8 +213,8 @@ export default function DemoMuseumPage() {
     return (
         <div className="min-h-screen font-sans flex flex-col" style={{ background: '#FAFAF7' }}>
             <Helmet>
-                <title>이한봉 가족 박물관 — Orgcell 체험</title>
-                <meta name="description" content="Orgcell 가족 박물관 데모. 실제 가계도를 둘러보세요." />
+                <title>이한봉 가족유산박물관 — Orgcell 체험</title>
+                <meta name="description" content="Orgcell 가족유산박물관 데모. 실제 가계도를 둘러보세요." />
             </Helmet>
 
             {/* ── 상단 고정 배너 ── */}
@@ -226,7 +226,7 @@ export default function DemoMuseumPage() {
                     <div className="flex items-center gap-2 min-w-0">
                         <TreePine size={16} className="text-[#C4A84F] shrink-0" />
                         <span className="text-[13px] font-semibold text-[#e8e0d0] truncate">
-                            이한봉 가족 박물관 체험 중
+                            이한봉 가족유산박물관 체험 중
                         </span>
                     </div>
                     <button

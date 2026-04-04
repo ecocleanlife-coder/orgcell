@@ -51,8 +51,8 @@ exports.sendPaymentConfirmationEmail = async (to, { amountUsd, sessionId }) => {
         subject: '[Orgcell] 결제가 완료되었습니다 🎉',
         html: `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 20px;">
-                <h1 style="font-size: 26px; font-weight: 800; color: #111; margin-bottom: 4px;">Orgcell</h1>
-                <p style="color: #888; font-size: 13px; margin-top: 0; margin-bottom: 32px;">디지털 가족 박물관</p>
+                <img src="https://orgcell.com/logo-full.png" alt="Orgcell" style="height: 60px; margin-bottom: 8px;" />
+                <p style="color: #888; font-size: 13px; margin-top: 0; margin-bottom: 32px;">가족유산박물관</p>
 
                 <h2 style="font-size: 20px; color: #16a34a; margin-bottom: 24px;">결제가 완료되었습니다 🎉</h2>
 
@@ -72,7 +72,7 @@ exports.sendPaymentConfirmationEmail = async (to, { amountUsd, sessionId }) => {
                 </table>
 
                 <p style="color: #374151; font-size: 15px; line-height: 1.6; margin-bottom: 28px;">
-                    이제 나만의 가족 박물관을 만들 수 있습니다.<br/>
+                    이제 나만의 가족유산박물관을 만들 수 있습니다.<br/>
                     아래 버튼을 눌러 박물관 설정을 시작하세요.
                 </p>
 
@@ -149,15 +149,15 @@ exports.sendInviteEmail = async ({ to, code, inviterName, subdomain }) => {
     const mailOptions = {
         from: '"Orgcell" <noreply@orgcell.com>',
         to,
-        subject: `[Orgcell] ${inviterName}님이 가족 박물관에 초대했습니다`,
+        subject: `[Orgcell] ${inviterName}님이 가족유산박물관에 초대했습니다`,
         html: `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 20px;">
-                <h1 style="font-size: 26px; font-weight: 800; color: #111; margin-bottom: 4px;">Orgcell</h1>
-                <p style="color: #888; font-size: 13px; margin-top: 0; margin-bottom: 32px;">디지털 가족 박물관</p>
+                <img src="https://orgcell.com/logo-full.png" alt="Orgcell" style="height: 60px; margin-bottom: 8px;" />
+                <p style="color: #888; font-size: 13px; margin-top: 0; margin-bottom: 32px;">가족유산박물관</p>
 
-                <h2 style="font-size: 20px; color: #3a3a2a; margin-bottom: 8px;">가족 박물관 초대장</h2>
+                <h2 style="font-size: 20px; color: #3a3a2a; margin-bottom: 8px;">가족유산박물관 초대장</h2>
                 <p style="color: #555; font-size: 15px; line-height: 1.7; margin-bottom: 28px;">
-                    <strong>${inviterName}</strong>님이 <strong>${museumLabel}</strong> 가족 박물관에 초대했습니다.<br/>
+                    <strong>${inviterName}</strong>님이 <strong>${museumLabel}</strong> 가족유산박물관에 초대했습니다.<br/>
                     아래 버튼을 눌러 박물관에서의 노출 방식을 선택하세요.
                 </p>
 
@@ -214,8 +214,8 @@ exports.sendMagicLinkEmail = async (to, magicLink) => {
         subject: '[Orgcell] 로그인 링크',
         html: `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
-                <h1 style="font-size: 28px; font-weight: 800; color: #111; margin-bottom: 4px;">Orgcell</h1>
-                <p style="color: #888; font-size: 13px; margin-top: 0; margin-bottom: 32px;">디지털 가족 박물관</p>
+                <img src="https://orgcell.com/logo-full.png" alt="Orgcell" style="height: 60px; margin-bottom: 8px;" />
+                <p style="color: #888; font-size: 13px; margin-top: 0; margin-bottom: 32px;">가족유산박물관</p>
                 <p style="color: #333; font-size: 16px; line-height: 1.6;">
                     아래 버튼을 눌러 로그인하세요.<br/>
                     이 링크는 <strong>15분간</strong> 유효하며, 한 번만 사용할 수 있습니다.
@@ -252,8 +252,8 @@ exports.sendAccessRequestEmail = async ({ to, requesterName, personName, message
         subject: `[Orgcell] ${requesterName}님이 전시관 접근을 요청했습니다`,
         html: `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 520px; margin: 0 auto; padding: 40px 20px;">
-                <h1 style="font-size: 26px; font-weight: 800; color: #111; margin-bottom: 4px;">Orgcell</h1>
-                <p style="color: #888; font-size: 13px; margin-top: 0; margin-bottom: 32px;">디지털 가족 박물관</p>
+                <img src="https://orgcell.com/logo-full.png" alt="Orgcell" style="height: 60px; margin-bottom: 8px;" />
+                <p style="color: #888; font-size: 13px; margin-top: 0; margin-bottom: 32px;">가족유산박물관</p>
 
                 <h2 style="font-size: 20px; color: #3a3a2a; margin-bottom: 8px;">전시관 접근 요청</h2>
                 <p style="color: #555; font-size: 15px; line-height: 1.7; margin-bottom: 20px;">

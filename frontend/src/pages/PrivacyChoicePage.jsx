@@ -45,7 +45,7 @@ const PRIVACY_OPTIONS = [
 const NEXT_ACTIONS = [
     { key: 'photo', icon: Camera, title: '사진 공유하기', desc: '가족 사진을 공유해보세요', path: null },
     { key: 'edit', icon: Edit3, title: '내 정보 수정', desc: '생년월일, 사진 등을 수정하세요', path: null },
-    { key: 'museum', icon: TreePine, title: '내 박물관 만들기', desc: '나만의 가족 박물관을 시작하세요', path: '/onboarding/name' },
+    { key: 'museum', icon: TreePine, title: '내 박물관 만들기', desc: '나만의 가족유산박물관을 시작하세요', path: '/onboarding/name' },
 ];
 
 export default function PrivacyChoicePage() {
@@ -129,6 +129,11 @@ export default function PrivacyChoicePage() {
             <div className="max-w-lg mx-auto px-4 py-8">
                 {/* 헤더 */}
                 <div className="text-center mb-8">
+                    <img
+                        src="/logo-full.png"
+                        alt="Orgcell"
+                        style={{ height: 48, objectFit: 'contain', marginBottom: 8 }}
+                    />
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
                         style={{ background: 'linear-gradient(135deg, #C4A84F, #A88E3A)' }}
                     >
@@ -147,7 +152,7 @@ export default function PrivacyChoicePage() {
                     <div className="space-y-4">
                         <div className="bg-white rounded-2xl p-6 shadow-sm" style={{ border: '1px solid #e8e0d0' }}>
                             <p className="text-[15px] text-gray-700 leading-relaxed">
-                                <strong>{curatorInfo?.name}</strong>님이 가족 박물관에 당신의 자리를 마련했습니다.
+                                <strong>{curatorInfo?.name}</strong>님이 가족유산박물관에 당신의 자리를 마련했습니다.
                                 <br /><br />
                                 박물관에서 당신의 정보를 어떻게 표시할지 선택해주세요.
                                 <br />

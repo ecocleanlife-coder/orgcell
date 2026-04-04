@@ -136,7 +136,7 @@ export default function WormholePortal({ federation, onClose }) {
                         <div>
                             <h3 className="text-lg font-bold">웜홀 포털</h3>
                             <p className="text-sm text-white/70">
-                                {chainHistory.length > 1 ? `체인 탐색 (${chainHistory.length}홉)` : '연결된 가족 박물관'}
+                                {chainHistory.length > 1 ? `체인 탐색 (${chainHistory.length}홉)` : '연결된 가족유산박물관'}
                             </p>
                         </div>
                     </div>

@@ -1,5 +1,5 @@
 # Security Review Report
-**orgcell Family Museum Backend & Frontend**
+**orgcell Family Heritage Museum Backend & Frontend**
 **Date: 2026-03-21**
 
 **CRITICAL ISSUES: 1 | HIGH ISSUES: 3 | MEDIUM ISSUES: 2**

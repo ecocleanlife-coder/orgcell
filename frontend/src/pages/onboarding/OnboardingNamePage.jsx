@@ -172,7 +172,7 @@ export default function OnboardingNamePage() {
                     fontFamily: 'Georgia, serif', textAlign: 'center',
                     marginBottom: 10, lineHeight: 1.35,
                 }}>
-                    우리 가족 박물관<br />이름을 지어주세요
+                    우리 가족유산박물관<br />이름을 지어주세요
                 </h1>
 
                 <p style={{ fontSize: 16, color: '#7A6E5E', textAlign: 'center', marginBottom: 40, lineHeight: 1.5 }}>
@@ -188,7 +188,7 @@ export default function OnboardingNamePage() {
                     type="text"
                     value={name}
                     onChange={(e) => handleNameChange(e.target.value)}
-                    placeholder="예: 이한봉 가족 박물관"
+                    placeholder="예: 이한봉 가족유산박물관"
                     maxLength={30}
                     className="w-full"
                     style={{

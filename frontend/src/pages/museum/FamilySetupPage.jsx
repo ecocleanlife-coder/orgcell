@@ -407,7 +407,7 @@ export default function FamilySetupPage() {
                                                 onClick={() => {
                                                     const text = inviteUrl;
                                                     if (navigator.share) {
-                                                        navigator.share({ title: 'Family Museum Invite', url: inviteUrl });
+                                                        navigator.share({ title: 'Family Heritage Museum Invite', url: inviteUrl });
                                                     } else {
                                                         window.open(`sms:?body=${encodeURIComponent(text)}`);
                                                     }

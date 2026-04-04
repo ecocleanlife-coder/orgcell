@@ -350,7 +350,7 @@ export default function RequestViewPage() {
                             {data.requesterName}님께 전달됩니다.
                         </p>
                         <p className="mb-8" style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, lineHeight: 1.6 }}>
-                            당신도 가족 박물관을 만들어보세요
+                            당신도 가족유산박물관을 만들어보세요
                         </p>
 
                         <button

@@ -58,9 +58,9 @@ const FamilyWebsitePage = () => {
     return (
         <div style={{ background: '#FAFAF7', color: '#1E2A0E' }}>
                 <Helmet>
-                <title>Family Museum — Orgcell</title>
+                <title>Family Heritage Museum — Orgcell</title>
                 <meta name="description" content="나만의 가족 도메인(orgcell.com/yourfamily)을 무료로 시작하세요. Google Drive 연결으로 사진을 안전하게 보관. 4세대 가계도, 사진 갤러리, 가족 채팅 포함." />
-                <meta property="og:title" content="Family Museum — Orgcell" />
+                <meta property="og:title" content="Family Heritage Museum — Orgcell" />
                 <meta property="og:description" content="orgcell.com/yourfamily 도메인 개설. Google Drive/OneDrive 연결 무료. 가계도·앨범·라이브 공유 포함." />
                 <meta property="og:image" content="/pwa-512x512.png" />
             </Helmet>
@@ -605,7 +605,7 @@ const FamilyWebsitePage = () => {
                 <div className="max-w-[1040px] mx-auto">
                     <img
                         src="/images/landing/familytree-sample.png"
-                        alt="Digital Family Museum - Family Tree"
+                        alt="Family Heritage Museum - Family Tree"
                         style={{
                             maxWidth: '100%',
                             borderRadius: '12px',

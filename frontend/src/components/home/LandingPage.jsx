@@ -36,7 +36,7 @@ function LandingPage() {
                 <title>Orgcell — 자손들에게 물려줄 우리 가족만의 박물관</title>
                 <meta name="description" content="소중한 사진과 이야기를 가족과 함께 영원히 보존하세요. 가족행사 달력, 전시관, 가족트리를 한곳에." />
                 <meta property="og:title" content="Orgcell — 우리 가족만의 박물관" />
-                <meta property="og:description" content="자손들에게 물려줄 가족 디지털 박물관. 사진, 이야기, 가족트리를 영원히 보존합니다." />
+                <meta property="og:description" content="자손들에게 물려줄 가족유산박물관. 사진, 이야기, 가족트리를 영원히 보존합니다." />
                 <meta property="og:image" content="/pwa-512x512.png" />
             </Helmet>
 
@@ -48,13 +48,11 @@ function LandingPage() {
                 style={{ minHeight: '100vh', padding: '48px 20px 32px', background: '#FFFFFF' }}
             >
                 {/* 로고 */}
-                <span style={{
-                    fontSize: 20, fontWeight: 900, color: '#3D2008',
-                    fontFamily: 'Georgia, serif', letterSpacing: '-0.02em',
-                    marginBottom: 32,
-                }}>
-                    Orgcell<span style={{ color: '#5A9460' }}>.com</span>
-                </span>
+                <img
+                    src="/logo-full.png"
+                    alt="Orgcell - Family Heritage Museum"
+                    style={{ height: 64, marginBottom: 32, objectFit: 'contain' }}
+                />
 
                 {/* 메인 문구 */}
                 <h1 style={{
@@ -305,7 +303,7 @@ function LandingPage() {
                             {
                                 icon: '📜',
                                 title: '영원히 보존',
-                                desc: '한국 특허 출원 기술로 안전하게. 세대를 넘어 자손들에게 전해지는 디지털 유산.',
+                                desc: '한국 특허 출원 기술로 안전하게. 세대를 넘어 자손들에게 전해지는 가족 유산.',
                             },
                         ].map((card) => (
                             <div key={card.title} style={{

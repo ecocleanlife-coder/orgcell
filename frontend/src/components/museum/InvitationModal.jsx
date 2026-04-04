@@ -31,7 +31,7 @@ export default function InvitationModal({
     // 초대 메시지 템플릿
     const messageTemplate = `안녕하세요, ${personName}님.
 
-${curatorName}님이 「${museumName || '가족 박물관'}」에서 당신을 기다리고 있습니다.
+${curatorName}님이 「${museumName || '가족유산박물관'}」에서 당신을 기다리고 있습니다.
 
 가계도에서 당신의 자리가 마련되어 있어요.
 아래 링크를 클릭하면, 박물관에서의 노출 방식을 직접 선택하실 수 있습니다.
@@ -104,8 +104,8 @@ ${inviteLink}
         if (navigator.share) {
             try {
                 await navigator.share({
-                    title: `${museumName || '가족 박물관'} 초대`,
-                    text: `${curatorName}님이 가족 박물관에 초대합니다`,
+                    title: `${museumName || '가족유산박물관'} 초대`,
+                    text: `${curatorName}님이 가족유산박물관에 초대합니다`,
                     url: inviteLink,
                 });
             } catch { /* user cancelled */ }
