@@ -1,33 +1,34 @@
 /**
- * FolderCard.jsx — 3D 박물관 건물 블록
+ * FolderCard.jsx — "기록의 벽돌" (Record Brick)
  *
- * CSS preserve-3d 정육면체로 각 인물을 표현
- * - 정면: 인물 사진 + 이름 (Photo/Canvas Front)
- * - 좌측면: 아치형 문 — 일반전시관
- * - 우측면: 나무 대문 — 가족전시관
- * - 상단면: 어두운 그라디언트 (입체감)
- * - Hover/Touch 액션 버튼 유지
+ * VISION.md v2.0 레고 블록 표준 + 박물관 컨셉
+ * - 180×180px 정사각형 + 40×10 폴더 탭
+ * - Photo Front: 사진 전면 + 하단 그라디언트 오버레이
+ * - Canvas Front: 아이보리 린넨 + Georgia 서체 + 성별 실루엣
+ * - 1.5px 금색 액자 프레임 + 인셋 라인
+ * - 20px 시각적 3D 두께 (box-shadow 블록)
+ * - preserve-3d + translateZ (웜홀 대비)
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { maskName, maskInitials } from '../../utils/privacyMask';
 import RefusedPersonBox from './RefusedPersonBox';
-import Cube3D, { FRONT_W, FRONT_H } from './Cube3D';
-import { ArchDoor, WoodenDoor } from './CubeDoorSVG';
-import CubeSignboard from './CubeSignboard';
-import useMediaQuery from '../../hooks/useMediaQuery';
 
-const CARD_W = FRONT_W;    // 180px
-const CARD_H = FRONT_H;    // 180px
+const CARD_SIZE = 180;
 const TAB_W = 40;
 const TAB_H = 10;
-const Z_DEPTH_PX = 200;
-const FRAME_COLOR = '#C4A84F';
-const INSET_COLOR = 'rgba(196,168,79,0.3)';
+const BLOCK_DEPTH = 20;       // 시각적 3D 두께
+const Z_DEPTH_PX = 200;       // Z 레이어 간 translateZ 거리
+const FRAME_COLOR = '#C4A84F'; // 금색 액자
+const INSET_COLOR = 'rgba(196,168,79,0.3)'; // 인셋 라인
 
-// ── Z축 안개 blur ──
+// ── 성별 실루엣 색상 ──
+const SILHOUETTE_COLOR = { M: '#8B7355', F: '#C4956A' };
+const GENDER_ICON = { M: '♂', F: '♀' };
+
+// ── Z축 안개 blur (VISION.md LOD) ──
 const Z_BLUR = { 0: 0, 1: 3, 2: 6 };
 
-// ── 린넨 노이즈 배경 ──
+// ── 린넨 노이즈 배경 (CSS 패턴) ──
 const LINEN_BG = `
     repeating-linear-gradient(
         0deg,
@@ -40,6 +41,50 @@ const LINEN_BG = `
         rgba(0,0,0,0.008) 2px, rgba(0,0,0,0.008) 4px
     )
 `.trim().replace(/\n\s*/g, ' ');
+
+// ── 3D 블록 box-shadow ──
+function getBlockShadow(isMainPerson, isSelected) {
+    // 우측+하단 묵직한 두께감 + 드롭 그림자
+    const thickness = `${BLOCK_DEPTH * 0.3}px ${BLOCK_DEPTH * 0.4}px 0 rgba(80,60,30,0.25)`;
+    const drop = `${BLOCK_DEPTH * 0.5}px ${BLOCK_DEPTH * 0.6}px ${BLOCK_DEPTH}px rgba(40,30,10,0.2)`;
+    const ambient = `0 2px 8px rgba(61,32,8,0.08)`;
+
+    if (isMainPerson) {
+        return `${thickness}, ${drop}, ${ambient}, 0 0 24px rgba(196,168,79,0.3)`;
+    }
+    if (isSelected) {
+        return `${thickness}, ${drop}, ${ambient}, 0 0 16px rgba(196,168,79,0.2)`;
+    }
+    return `${thickness}, ${drop}, ${ambient}`;
+}
+
+// ── 카드 기본 스타일 ──
+function getCardStyle(node, isSelected, isMainPerson, hasPhoto) {
+    const base = {
+        width: CARD_SIZE,
+        height: CARD_SIZE,
+        borderRadius: '3px',
+        cursor: 'pointer',
+        position: 'relative',
+        overflow: 'hidden',
+        boxSizing: 'border-box',
+        transition: 'box-shadow 0.3s, transform 0.4s, opacity 0.4s',
+        opacity: node.zOpacity,
+        transform: `scale(${node.zScale}) translateZ(${10 - (node.z || 0) * Z_DEPTH_PX}px)`,
+        border: `1.5px solid ${FRAME_COLOR}`,
+        boxShadow: getBlockShadow(isMainPerson, isSelected),
+    };
+
+    if (hasPhoto) {
+        return base;
+    }
+
+    // Canvas Front: 린넨 배경
+    return {
+        ...base,
+        background: `${LINEN_BG}, #FAFAF2`,
+    };
+}
 
 // ── 성별 탭 색상 ──
 const TAB_COLOR = { M: '#7BA7C4', F: '#C4956A' };
@@ -62,8 +107,7 @@ function FolderTab({ gender, isDeceased }) {
                 borderTopRightRadius: '4px',
                 border: `1px solid ${tabColor}`,
                 borderBottom: 'none',
-                boxShadow: '2px -1px 3px rgba(40,30,10,0.15)',
-                zIndex: 5,
+                boxShadow: `2px -1px 3px rgba(40,30,10,0.15)`,
             }}
         />
     );
@@ -73,7 +117,7 @@ function FolderTab({ gender, isDeceased }) {
 function PhotoFront({ data, isDeceased }) {
     const [imgError, setImgError] = useState(false);
 
-    if (imgError) return null;
+    if (imgError) return null; // fallback to CanvasFront
 
     const cropX = data.photoPosition?.x ?? 50;
     const cropY = data.photoPosition?.y ?? 50;
@@ -93,7 +137,7 @@ function PhotoFront({ data, isDeceased }) {
                     filter: isDeceased ? 'grayscale(50%)' : 'none',
                 }}
             />
-            {/* 하단 다크 그라디언트 */}
+            {/* 하단 30% 다크 그라디언트 */}
             <div
                 style={{
                     position: 'absolute',
@@ -118,7 +162,7 @@ function PhotoFront({ data, isDeceased }) {
                 <div
                     style={{
                         fontFamily: 'Georgia, "Noto Serif KR", serif',
-                        fontSize: '13px',
+                        fontSize: '14px',
                         fontWeight: 700,
                         color: '#FFFFFF',
                         textShadow: '0 1px 4px rgba(0,0,0,0.6)',
@@ -158,16 +202,16 @@ function CanvasFront({ data, isDeceased }) {
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '16px 10px',
+                padding: '16px 12px',
                 boxSizing: 'border-box',
                 position: 'relative',
-                background: `${LINEN_BG}, #FAFAF2`,
             }}
         >
+            {/* 이름 (Georgia 클래식) */}
             <div
                 style={{
                     fontFamily: 'Georgia, "Noto Serif KR", serif',
-                    fontSize: '16px',
+                    fontSize: '18px',
                     fontWeight: 700,
                     color: isDeceased ? '#999' : '#3D2008',
                     textAlign: 'center',
@@ -179,6 +223,7 @@ function CanvasFront({ data, isDeceased }) {
                 {data.displayName}
             </div>
 
+            {/* 날짜 */}
             {data.dateLabel && (
                 <div
                     style={{
@@ -192,6 +237,7 @@ function CanvasFront({ data, isDeceased }) {
                     {data.dateLabel}
                 </div>
             )}
+
         </div>
     );
 }
@@ -240,76 +286,55 @@ function InsetFrame() {
     );
 }
 
-// (HoverActions 제거 → CubeSignboard로 대체)
+// ── Hover 액션 버튼 ──
+const HOVER_ACTIONS = [
+    { key: 'wormhole', label: '가문전환', icon: '⊕' },
+    { key: 'exhibit', label: '전시', icon: '🖼' },
+    { key: 'edit', label: '편집', icon: '✎' },
+    { key: 'photo', label: '사진', icon: '📷' },
+    { key: 'invite', label: '초대', icon: '✉' },
+];
 
-// ── 정면 콘텐츠 (Cube3D.front에 주입) ──
-function FrontContent({
-    maskedData,
-    hasPhoto,
-    photoFailed,
-    isDeceased,
-    isSelected,
-    isMainPerson,
-    node,
-    hovered,
-    touchLocked,
-    isMobile,
-    handleAction,
-}) {
-    const blurPx = Z_BLUR[node.z] ?? 0;
-
+function HoverActions({ onAction }) {
     return (
         <div
             style={{
-                width: CARD_W,
-                height: CARD_H,
-                position: 'relative',
-                overflow: 'hidden',
-                borderRadius: '3px',
-                border: `1.5px solid ${FRAME_COLOR}`,
-                boxSizing: 'border-box',
-                background: hasPhoto ? '#1a1a1a' : `${LINEN_BG}, #FAFAF2`,
-                filter: isDeceased ? 'grayscale(40%) brightness(0.9)' : 'none',
-                ...(isMainPerson ? {
-                    border: '2.5px solid #3D2008',
-                    boxShadow: 'inset 0 0 0 1px rgba(196,168,79,0.4)',
-                } : isSelected ? {
-                    border: `2px solid ${FRAME_COLOR}`,
-                } : {}),
+                position: 'absolute',
+                bottom: 4,
+                left: 0,
+                right: 0,
+                display: 'flex',
+                justifyContent: 'center',
+                gap: 3,
+                zIndex: 10,
             }}
+            data-testid="hover-actions"
         >
-            <InsetFrame />
-            {isDeceased && <DeceasedBadge />}
-
-            {hasPhoto ? (
-                <PhotoFront data={maskedData} isDeceased={isDeceased} />
-            ) : (
-                <CanvasFront data={maskedData} isDeceased={isDeceased} />
-            )}
-
-            <CubeSignboard
-                visible={hovered || touchLocked}
-                isMobile={isMobile}
-                onAction={handleAction}
-                width={CARD_W}
-                height={CARD_H}
-            />
-
-            {blurPx > 0 && (
-                <div
-                    data-testid="fog-overlay"
+            {HOVER_ACTIONS.map(a => (
+                <button
+                    key={a.key}
+                    onClick={(e) => { e.stopPropagation(); onAction(a.key); }}
+                    onPointerUp={(e) => { e.stopPropagation(); }}
+                    title={a.label}
                     style={{
-                        position: 'absolute',
-                        inset: 0,
-                        borderRadius: '3px',
-                        backdropFilter: `blur(${blurPx}px)`,
-                        WebkitBackdropFilter: `blur(${blurPx}px)`,
-                        background: `rgba(250,250,242,${node.z === 2 ? 0.5 : 0.2})`,
-                        pointerEvents: 'none',
-                        zIndex: 4,
+                        width: 28,
+                        height: 28,
+                        border: '1px solid rgba(196,168,79,0.6)',
+                        borderRadius: '4px',
+                        background: 'rgba(30,26,20,0.85)',
+                        color: '#C4A84F',
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 0,
+                        lineHeight: 1,
                     }}
-                />
-            )}
+                >
+                    {a.icon}
+                </button>
+            ))}
         </div>
     );
 }
@@ -328,11 +353,10 @@ function FolderCard({
     const isDeceased = data.isDeceased;
     const [photoFailed, setPhotoFailed] = useState(false);
     const [hovered, setHovered] = useState(false);
-    const [touchLocked, setTouchLocked] = useState(false);
+    const [touchLocked, setTouchLocked] = useState(false); // 터치 토글 고정
     const cardRef = useRef(null);
-    const isMobile = useMediaQuery('(pointer: coarse)');
 
-    // ── 거절자 빈 레고 박스 ──
+    // ── 거절자 빈 레고 박스: privacyLevel=private + isRefused=true ──
     const isRefused = data.privacyLevel === 'private' && data.isRefused;
     if (isRefused) {
         const refusedText = data.privacyVariant === 'surname_only'
@@ -350,6 +374,11 @@ function FolderCard({
         );
     }
 
+    // 관계자 수 (부모+배우자+자녀)
+    const relCount = (rels?.parents?.length || 0)
+        + (rels?.spouses?.length || 0)
+        + (rels?.children?.length || 0);
+
     // Privacy masking
     const isPrivate = data.privacyLevel === 'private';
     const maskedName = isPrivate
@@ -361,7 +390,7 @@ function FolderCard({
 
     const hasPhoto = !!(maskedData.avatar && !photoFailed);
 
-    // Click-Outside-Close
+    // Click-Outside-Close: 터치 메뉴 열린 상태에서 외부 터치 시 닫기
     useEffect(() => {
         if (!touchLocked) return;
         const handleOutside = (e) => {
@@ -378,16 +407,21 @@ function FolderCard({
         if (onClick) onClick(node.id);
     };
 
+    // Touch Toggle: 첫 터치 → 메뉴 열기, 메뉴 열린 상태 터치 → 편집 모달
     const handleTouchEnd = useCallback((e) => {
+        // 터치 디바이스에서만 동작 (mouse 이벤트 무시)
         if (!e.nativeEvent || e.nativeEvent.pointerType === 'mouse') return;
+
         e.preventDefault();
         e.stopPropagation();
 
         if (!touchLocked) {
+            // 첫 터치: 메뉴 열기 + haptic
             setTouchLocked(true);
             setHovered(true);
             if (navigator.vibrate) navigator.vibrate(10);
         } else {
+            // 메뉴 열린 상태에서 카드 본체 터치: 상세보기 모달
             setTouchLocked(false);
             setHovered(false);
             if (onAction) onAction(node.id, 'edit');
@@ -401,11 +435,27 @@ function FolderCard({
         }
     };
 
+    const cardStyle = getCardStyle(node, isSelected, isMainPerson, hasPhoto);
+
+    // 사망자 필터
+    const deceasedFilter = isDeceased
+        ? { filter: 'grayscale(40%) brightness(0.9)', opacity: cardStyle.opacity * 0.8 }
+        : {};
+
+    // 선택/주인공 테두리 강조
+    const stateOverride = {};
+    if (isMainPerson) {
+        stateOverride.border = `2.5px solid #3D2008`;
+        stateOverride.boxShadow = cardStyle.boxShadow + ', inset 0 0 0 1px rgba(196,168,79,0.4)';
+    } else if (isSelected) {
+        stateOverride.border = `2px solid ${FRAME_COLOR}`;
+    }
+
+    const blurPx = Z_BLUR[node.z] ?? 0;
+
     const handleAction = (actionKey) => {
         if (onAction) onAction(node.id, actionKey);
     };
-
-    const cubeOpacity = node.zOpacity ?? 1;
 
     return (
         <div
@@ -414,8 +464,8 @@ function FolderCard({
                 ...externalStyle,
                 position: externalStyle?.position || 'relative',
                 paddingTop: TAB_H,
-                touchAction: 'manipulation',
                 transformStyle: 'preserve-3d',
+                touchAction: 'manipulation',
             }}
             data-person-id={node.id}
             data-z={node.z}
@@ -423,31 +473,91 @@ function FolderCard({
             onMouseEnter={() => { if (!touchLocked) setHovered(true); }}
             onMouseLeave={() => { if (!touchLocked) setHovered(false); }}
             onPointerUp={handleTouchEnd}
-            onClick={(e) => { if (!touchLocked) handleClick(); }}
-            onContextMenu={handleContextMenu}
         >
+            {/* 폴더 쌓임 효과: 관계자 2명+ → 그림자 2장 */}
+            {relCount >= 2 && (
+                <div
+                    data-testid="stack-shadow-2"
+                    style={{
+                        position: 'absolute',
+                        top: TAB_H - 6,
+                        left: 6,
+                        width: CARD_SIZE,
+                        height: CARD_SIZE,
+                        border: `1.5px solid ${FRAME_COLOR}`,
+                        borderRadius: '3px',
+                        opacity: 0.4,
+                        zIndex: -2,
+                        pointerEvents: 'none',
+                        background: 'rgba(250,250,242,0.3)',
+                    }}
+                />
+            )}
+            {/* 폴더 쌓임 효과: 관계자 1명+ → 그림자 1장 */}
+            {relCount >= 1 && (
+                <div
+                    data-testid="stack-shadow-1"
+                    style={{
+                        position: 'absolute',
+                        top: TAB_H - 3,
+                        left: 3,
+                        width: CARD_SIZE,
+                        height: CARD_SIZE,
+                        border: `1.5px solid ${FRAME_COLOR}`,
+                        borderRadius: '3px',
+                        opacity: 0.6,
+                        zIndex: -1,
+                        pointerEvents: 'none',
+                        background: 'rgba(250,250,242,0.3)',
+                    }}
+                />
+            )}
             <FolderTab gender={maskedData.gender} isDeceased={isDeceased} />
+            <div
+                style={{ ...cardStyle, ...deceasedFilter, ...stateOverride }}
+                onClick={(e) => { if (!touchLocked) handleClick(); }}
+                onContextMenu={handleContextMenu}
+                role="button"
+                tabIndex={0}
+                aria-label={maskedName}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleClick(); }}
+            >
+                {/* 인셋 프레임 */}
+                <InsetFrame />
 
-            <Cube3D
-                opacity={cubeOpacity}
-                front={
-                    <FrontContent
-                        maskedData={maskedData}
-                        hasPhoto={hasPhoto}
-                        photoFailed={photoFailed}
+                {/* 사망자 배지 */}
+                {isDeceased && <DeceasedBadge />}
+
+                {/* 카드 본체: Photo Front 또는 Canvas Front */}
+                {hasPhoto ? (
+                    <PhotoFront
+                        data={maskedData}
                         isDeceased={isDeceased}
-                        isSelected={isSelected}
-                        isMainPerson={isMainPerson}
-                        node={node}
-                        hovered={hovered}
-                        touchLocked={touchLocked}
-                        isMobile={isMobile}
-                        handleAction={handleAction}
                     />
-                }
-                leftFace={<ArchDoor />}
-                rightFace={<WoodenDoor />}
-            />
+                ) : (
+                    <CanvasFront data={maskedData} isDeceased={isDeceased} />
+                )}
+
+                {/* Hover/Touch 액션 버튼 */}
+                {(hovered || touchLocked) && <HoverActions onAction={handleAction} />}
+
+                {/* Z축 안개 오버레이 */}
+                {blurPx > 0 && (
+                    <div
+                        data-testid="fog-overlay"
+                        style={{
+                            position: 'absolute',
+                            inset: 0,
+                            borderRadius: '3px',
+                            backdropFilter: `blur(${blurPx}px)`,
+                            WebkitBackdropFilter: `blur(${blurPx}px)`,
+                            background: `rgba(250,250,242,${node.z === 2 ? 0.5 : 0.2})`,
+                            pointerEvents: 'none',
+                            zIndex: 4,
+                        }}
+                    />
+                )}
+            </div>
         </div>
     );
 }
