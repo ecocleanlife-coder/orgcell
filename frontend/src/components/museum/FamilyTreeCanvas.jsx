@@ -118,13 +118,22 @@ export default function FamilyTreeCanvas({
         return m;
     }, [nodes]);
 
-    // Wormhole: 데이터 재계산이 핵심, 애니메이션은 부가 효과
+    // Wormhole: 오직 setMainPersonId만 호출. 애니메이션/transition/setTimeout 없음.
     const handleWormhole = useCallback((newMainId) => {
-        console.log('=== 가문전환 ===');
+        console.log('=== 가문전환 START ===');
         console.log('이전 centerId:', mainId);
         console.log('새 centerId:', newMainId);
-        if (onWormhole) onWormhole(newMainId);
-    }, [onWormhole, mainId]);
+        // 1단계: viewport 초기화 (sessionStorage 강제 제거)
+        sessionStorage.removeItem('familyTree_state');
+        clearViewport();
+        // 2단계: mainPersonId 변경 → useMemo에서 buildTree 자동 재호출
+        if (onWormhole) {
+            onWormhole(newMainId);
+            console.log('=== 가문전환 onWormhole 호출 완료 ===');
+        } else {
+            console.error('=== 가문전환 실패: onWormhole prop이 없음 ===');
+        }
+    }, [onWormhole, mainId, clearViewport]);
 
     const handleCardClick = useCallback((nodeId) => {
         const node = nodesMap[nodeId];
