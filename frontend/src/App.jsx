@@ -90,6 +90,14 @@ const NO_LAYOUT_PATTERNS = [
   '/invite',     // 초대 수락 페이지 (정확 일치)
 ];
 
+// MainLayout을 적용할 앱 내부 경로 (자체 헤더 없는 페이지)
+const APP_ROUTES = [
+  '/home', '/museums', '/museum', '/smart-sort', '/family-website',
+  '/family-setup', '/live-sharing', '/family-tree', '/person/',
+  '/invite-dashboard', '/inbox', '/redeem', '/payment/',
+  '/privacy', '/terms', '/privacy-choice', '/dev/',
+];
+
 function ConditionalLayout({ children }) {
   const location = useLocation();
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
@@ -104,7 +112,10 @@ function ConditionalLayout({ children }) {
     path.startsWith('/request/') ||
     path.endsWith('-callback');
 
-  if (skipLayout || !isAuthenticated) {
+  // /:subdomain 경로는 자체 헤더를 사용하므로 MainLayout 스킵
+  const isAppRoute = APP_ROUTES.some(r => path === r || path.startsWith(r));
+
+  if (skipLayout || !isAuthenticated || !isAppRoute) {
     return <>{children}</>;
   }
 
@@ -185,6 +196,7 @@ function App() {
 
         {/* ══════ 동적 서브도메인 (자체 헤더 사용) ══════ */}
         <Route path="/:subdomain/gallery/:id" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><ExhibitionDetailPage /></Suspense></ErrorBoundary>} />
+        <Route path="/:subdomain/archive/:id" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><PersonFolderView /></Suspense></ErrorBoundary>} />
         <Route path="/:subdomain/board" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><MuseumPage initialTab="board" /></Suspense></ErrorBoundary>} />
         <Route path="/:subdomain" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><MuseumPage /></Suspense></ErrorBoundary>} />
       </Routes>
