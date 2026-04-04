@@ -460,10 +460,9 @@ function FolderCard({
 
     const blurPx = Z_BLUR[node.z] ?? 0;
 
-    // 타성 배우자 판별: 직계 혈족이 아니고 배우자 관계로 연결된 인물
-    const isInLaw = !isMainPerson
-        && (rels?.spouses?.length > 0)
-        && !data.isBloodline;
+    // 가문전환 버튼: buildTree에서 계산한 showWormholeButton 사용
+    // 규칙: frontend/src/rules/WORMHOLE_RULES.md
+    const showWormhole = !!data.showWormholeButton;
 
     const handleAction = (actionKey) => {
         if (onAction) onAction(node.id, actionKey);
@@ -582,7 +581,7 @@ function FolderCard({
                     onAction={handleAction}
                     width={CARD_SIZE}
                     height={CARD_SIZE}
-                    showWormhole={isInLaw}
+                    showWormhole={showWormhole}
                 />
 
                 {/* Z축 안개 오버레이 */}

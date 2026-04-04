@@ -61,6 +61,10 @@ const DEMO_PERSONS = [
     { id: '46', name: '조의준', gender: 'M', generation: 0, birth_year: 1994, photo_url: avatar('jouijun') },
     // 손자
     { id: '32', name: 'Daniel Wilson', gender: 'M', generation: -1, birth_year: 2020, photo_url: avatar('danielwilson') },
+    // 입양아 + 친부모
+    { id: '50', name: '김도윤', gender: 'M', generation: 0, birth_year: 1993, photo_url: avatar('kimdoyoon'), relation_label: '입양 (김영수의 아들)' },
+    { id: '51', name: '최정호', gender: 'M', generation: 1, birth_year: 1968, photo_url: avatar('choijungho') },
+    { id: '52', name: '윤서영', gender: 'F', generation: 1, birth_year: 1970, photo_url: avatar('yoonseoyoung') },
 ];
 
 const DEMO_RELATIONS = [
@@ -118,6 +122,14 @@ const DEMO_RELATIONS = [
     { person1_id: '41', person2_id: '45', relation_type: 'parent' },
     { person1_id: '36', person2_id: '46', relation_type: 'parent' },
     { person1_id: '41', person2_id: '46', relation_type: 'parent' },
+    // ── 김도윤 (입양아) ──
+    // 양부모: 김영수+박은정 (parent-child)
+    { person1_id: '16', person2_id: '50', relation_type: 'parent' },
+    { person1_id: '17', person2_id: '50', relation_type: 'parent' },
+    // 친부모: 최정호+윤서영 (birth-parent)
+    { person1_id: '51', person2_id: '50', relation_type: 'birth-parent' },
+    { person1_id: '52', person2_id: '50', relation_type: 'birth-parent' },
+    { person1_id: '51', person2_id: '52', relation_type: 'spouse' },
 ];
 
 // ── 샘플 행사 데이터 ──

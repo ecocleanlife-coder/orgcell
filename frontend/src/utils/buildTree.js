@@ -66,6 +66,9 @@ function buildMaps(persons, relations) {
     const parentOf = {};
     const childrenOf = {};
     const spousesOf = {};
+    const birthParentOf = {};  // 입양아 → 친부모 (birth-parent)
+    const birthChildOf = {};   // 친부모 → 입양아 (역방향)
+    const birthParentSet = new Set(); // 친부모 ID (가문전환 대상)
 
     for (const rel of relations) {
         const p1 = String(rel.person1_id);
@@ -84,6 +87,15 @@ function buildMaps(persons, relations) {
             if (!spousesOf[p1].includes(p2)) spousesOf[p1].push(p2);
             if (!spousesOf[p2]) spousesOf[p2] = [];
             if (!spousesOf[p2].includes(p1)) spousesOf[p2].push(p1);
+        }
+
+        // birth-parent 관계: person1=친부모, person2=입양아
+        if (rel.relation_type === 'birth-parent') {
+            birthParentSet.add(p1);
+            if (!birthParentOf[p2]) birthParentOf[p2] = [];
+            if (!birthParentOf[p2].includes(p1)) birthParentOf[p2].push(p1);
+            if (!birthChildOf[p1]) birthChildOf[p1] = [];
+            if (!birthChildOf[p1].includes(p2)) birthChildOf[p1].push(p2);
         }
 
         if (rel.relation_type === 'sibling') {
@@ -105,7 +117,7 @@ function buildMaps(persons, relations) {
         }
     }
 
-    return { parentOf, childrenOf, spousesOf };
+    return { parentOf, childrenOf, spousesOf, birthParentOf, birthChildOf, birthParentSet };
 }
 
 // ── 연결된 노드 필터 (BFS) ──────────────────────
@@ -114,7 +126,7 @@ function filterConnected(personIds, maps, mainId) {
     const mainStr = String(mainId);
     if (!personIds.includes(mainStr)) return personIds;
 
-    const { parentOf, childrenOf, spousesOf } = maps;
+    const { parentOf, childrenOf, spousesOf, birthParentOf, birthChildOf } = maps;
     const visited = new Set();
     const queue = [mainStr];
 
@@ -126,6 +138,8 @@ function filterConnected(personIds, maps, mainId) {
             ...(parentOf[current] || []),
             ...(childrenOf[current] || []),
             ...(spousesOf[current] || []),
+            ...(birthParentOf[current] || []),
+            ...(birthChildOf[current] || []),
         ];
         for (const n of neighbors) {
             if (!visited.has(n) && personIds.includes(n)) queue.push(n);
@@ -790,22 +804,14 @@ export function buildTree(persons, relations, overrideMainId = null) {
     // Z축 분류
     const zMap = classifyZ(mainId, maps, depthMap, byId);
 
-    // 직계 혈족 판별 (centerId에서 부모/자녀 체인으로만 도달 가능한 인물)
-    const bloodlineSet = new Set();
-    {
-        const queue = [mainId];
-        bloodlineSet.add(mainId);
-        while (queue.length > 0) {
-            const cur = queue.shift();
-            // 부모 체인
-            for (const p of (maps.parentOf[cur] || [])) {
-                if (!bloodlineSet.has(p)) { bloodlineSet.add(p); queue.push(p); }
-            }
-            // 자녀 체인
-            for (const c of (maps.childrenOf[cur] || [])) {
-                if (!bloodlineSet.has(c)) { bloodlineSet.add(c); queue.push(c); }
-            }
-        }
+    // ── 가문전환 대상 판별 ─────────────────────���────
+    // 규칙: frontend/src/rules/WORMHOLE_RULES.md
+    // 1. spouse 관계가 있는 사람
+    // 2. birth-parent 관계에서 친부모(person1)
+    const wormholeSet = new Set();
+    for (const id of connectedIds) {
+        if ((maps.spousesOf[id] || []).length > 0) wormholeSet.add(id);
+        if (maps.birthParentSet.has(id)) wormholeSet.add(id);
     }
 
     // CoupleBlock 레이아웃
@@ -818,7 +824,7 @@ export function buildTree(persons, relations, overrideMainId = null) {
         const depth = depthMap[id] ?? 0;
         const zLevel = zMap[id] ?? 1;
 
-        const isBloodline = bloodlineSet.has(id);
+        const showWormholeButton = wormholeSet.has(id);
         return {
             id,
             x: pos.x,
@@ -827,7 +833,7 @@ export function buildTree(persons, relations, overrideMainId = null) {
             z: zLevel,
             zOpacity: zOpacity(zLevel),
             zScale: zScale(zLevel),
-            data: { ...buildNodeData(person), isBloodline },
+            data: { ...buildNodeData(person), showWormholeButton },
             rels: {
                 parents: (maps.parentOf[id] || []).filter(p => connectedIds.includes(p)),
                 spouses: (maps.spousesOf[id] || []).filter(s => connectedIds.includes(s)),
