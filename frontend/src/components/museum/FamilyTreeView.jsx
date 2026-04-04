@@ -246,6 +246,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     const [editPrivacy, setEditPrivacy] = useState('family');
     const [submitting, setSubmitting] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
+    const [pendingPhotoFile, setPendingPhotoFile] = useState(null); // 편집 모달에서 선택한 사진 파일
 
     // ── API helpers ──
     const apiCreatePerson = async (data) => {
@@ -330,6 +331,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         setEditGender(raw.gender || '');
         setEditPrivacy(raw.privacy_level || 'family');
         setConfirmDelete(false);
+        setPendingPhotoFile(null);
         setModal({ mode: 'edit' });
     };
 
@@ -471,10 +473,21 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             privacy_level: editPrivacy,
             photo_position: editPerson.photo_position || { x: 50, y: 50 },
         });
+        // 편집 모달에서 선택한 사진 파일이 있으면 업로드
+        if (pendingPhotoFile && siteId) {
+            const fd = new FormData();
+            fd.append('photo', pendingPhotoFile);
+            try {
+                await axios.post(`/api/persons/${siteId}/${editPerson.id}/photo`, fd);
+            } catch (err) {
+                console.error('Photo upload in edit modal:', err);
+            }
+        }
         await fetchPersons();
         setSubmitting(false);
         setModal(null);
         setEditPerson(null);
+        setPendingPhotoFile(null);
     };
 
     const handleDelete = async () => {
@@ -899,6 +912,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                                     );
                                                     if (res.data?.data?.photo_url) {
                                                         setEditPerson(prev => ({ ...prev, photo_url: res.data.data.photo_url, photo_position: position }));
+                                                        setPendingPhotoFile(null); // PhotoEditor에서 직접 업로드 완료
                                                         fetchPersons();
                                                         toast.success(lang === 'ko' ? '사진이 저장되었습니다' : 'Photo saved');
                                                     }
@@ -929,6 +943,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                                         if (!file) return;
                                                         const localPreview = URL.createObjectURL(file);
                                                         setEditPerson(prev => ({ ...prev, photo_url: localPreview }));
+                                                        setPendingPhotoFile(file);
                                                     }}
                                                 />
                                             </label>
@@ -946,6 +961,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                                     if (!file) return;
                                                     const localPreview = URL.createObjectURL(file);
                                                     setEditPerson(prev => ({ ...prev, photo_url: localPreview }));
+                                                    setPendingPhotoFile(file);
                                                 }}
                                             />
                                         </label>

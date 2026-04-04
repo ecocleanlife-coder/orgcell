@@ -12,6 +12,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { maskName, maskInitials } from '../../utils/privacyMask';
 import RefusedPersonBox from './RefusedPersonBox';
+import CubeSignboard from './CubeSignboard';
+import useMediaQuery from '../../hooks/useMediaQuery';
 
 const CARD_SIZE = 180;
 const TAB_W = 40;
@@ -116,6 +118,9 @@ function FolderTab({ gender, isDeceased }) {
 // ── Photo Front: 사진 전면 + 하단 그라디언트 ──
 function PhotoFront({ data, isDeceased }) {
     const [imgError, setImgError] = useState(false);
+
+    // avatar URL 변경 시 에러 상태 리셋
+    useEffect(() => { setImgError(false); }, [data.avatar]);
 
     if (imgError) return null; // fallback to CanvasFront
 
@@ -355,6 +360,7 @@ function FolderCard({
     const [hovered, setHovered] = useState(false);
     const [touchLocked, setTouchLocked] = useState(false); // 터치 토글 고정
     const cardRef = useRef(null);
+    const isMobile = useMediaQuery('(pointer: coarse)');
 
     // ── 거절자 빈 레고 박스: privacyLevel=private + isRefused=true ──
     const isRefused = data.privacyLevel === 'private' && data.isRefused;
@@ -528,18 +534,26 @@ function FolderCard({
                 {/* 사망자 배지 */}
                 {isDeceased && <DeceasedBadge />}
 
-                {/* 카드 본체: Photo Front 또는 Canvas Front */}
-                {hasPhoto ? (
+                {/* 카드 본체: Photo Front + Canvas Front fallback */}
+                {hasPhoto && (
                     <PhotoFront
                         data={maskedData}
                         isDeceased={isDeceased}
                     />
-                ) : (
+                )}
+                {/* Canvas Front: 사진 없거나 로드 실패 시 배경으로 표시 */}
+                {!hasPhoto && (
                     <CanvasFront data={maskedData} isDeceased={isDeceased} />
                 )}
 
-                {/* Hover/Touch 액션 버튼 */}
-                {(hovered || touchLocked) && <HoverActions onAction={handleAction} />}
+                {/* Hover/Touch 액션 간판 메뉴 */}
+                <CubeSignboard
+                    visible={hovered || touchLocked}
+                    isMobile={isMobile}
+                    onAction={handleAction}
+                    width={CARD_SIZE}
+                    height={CARD_SIZE}
+                />
 
                 {/* Z축 안개 오버레이 */}
                 {blurPx > 0 && (
