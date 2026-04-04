@@ -1,19 +1,20 @@
 /**
  * Cube3D.jsx — CSS preserve-3d 정육면체 (6면)
  *
- * 듀얼 레이어 아키텍처:
- * - 부모 viewport에 perspective: 1200px
- * - 개별 블록에 rotateX/Y 없음
- * - CSS 엔진이 위치 기반으로 자동 원근감 생성
+ * 180×180×60 정밀 수치 (LM 검증)
+ * 모든 면은 rotate + translateZ만으로 배치 (CSS position 속성 미사용)
+ * 부모 큐브 중심(90,90,0) 기준 배치
  *
- * 규격: 180×180×60 (DEPTH 60px → 옆면 넓게)
+ * HALF_SIZE = 90px (정면 절반)
+ * HALF_DEPTH = 30px (깊이 절반)
  */
 import React from 'react';
 
 const FRONT_W = 180;
 const FRONT_H = 180;
 const DEPTH = 60;
-const HALF_DEPTH = DEPTH / 2; // 30px
+const HALF_SIZE = FRONT_W / 2;  // 90px
+const HALF_DEPTH = DEPTH / 2;   // 30px
 
 // 색상
 const WALL_BASE = '#F5F0E6';
@@ -32,6 +33,8 @@ export default function Cube3D({
 }) {
     const faceBase = {
         position: 'absolute',
+        top: 0,
+        left: 0,
         backfaceVisibility: 'hidden',
         boxSizing: 'border-box',
     };
@@ -58,14 +61,13 @@ export default function Cube3D({
                 }}
                 data-testid="cube3d-scene"
             >
-                {/* ── 정면 (Front) ── */}
+                {/* ── 정면 (Front): translateZ(30px) ── */}
                 <div
                     style={{
                         ...faceBase,
                         width: FRONT_W,
                         height: FRONT_H,
                         transform: `translateZ(${HALF_DEPTH}px)`,
-                        zIndex: 3,
                         overflow: 'hidden',
                         borderRadius: '3px',
                     }}
@@ -74,30 +76,27 @@ export default function Cube3D({
                     {front}
                 </div>
 
-                {/* ── 후면 (Back) ── */}
+                {/* ── 후면 (Back): rotateY(180deg) translateZ(30px) ── */}
                 <div
                     style={{
                         ...faceBase,
                         width: FRONT_W,
                         height: FRONT_H,
-                        transform: `translateZ(-${HALF_DEPTH}px) rotateY(180deg)`,
+                        transform: `rotateY(180deg) translateZ(${HALF_DEPTH}px)`,
                         background: BACK_COLOR,
-                        zIndex: 0,
                     }}
                     data-testid="cube3d-back"
                 />
 
-                {/* ── 좌측면 (Left) — 일반전시관 문 ── */}
+                {/* ── 좌측면 (Left): rotateY(-90deg) translateZ(90px) ── */}
                 <div
                     style={{
                         ...faceBase,
                         width: DEPTH,
                         height: FRONT_H,
-                        transform: `rotateY(-90deg) translateZ(${HALF_DEPTH}px)`,
-                        transformOrigin: 'left center',
+                        transform: `rotateY(-90deg) translateZ(${HALF_SIZE}px)`,
                         background: `linear-gradient(180deg, ${WALL_SHADOW} 0%, ${WALL_BASE} 30%, ${WALL_SHADOW} 100%)`,
                         borderLeft: '1px solid rgba(196,168,79,0.3)',
-                        zIndex: 2,
                         overflow: 'hidden',
                     }}
                     data-testid="cube3d-left"
@@ -105,17 +104,15 @@ export default function Cube3D({
                     {leftFace}
                 </div>
 
-                {/* ── 우측면 (Right) — 가족전시관 문 ── */}
+                {/* ── 우측면 (Right): rotateY(90deg) translateZ(90px) ── */}
                 <div
                     style={{
                         ...faceBase,
                         width: DEPTH,
                         height: FRONT_H,
-                        transform: `rotateY(90deg) translateZ(${FRONT_W - HALF_DEPTH}px)`,
-                        transformOrigin: 'left center',
+                        transform: `rotateY(90deg) translateZ(${HALF_SIZE}px)`,
                         background: `linear-gradient(180deg, ${WALL_SHADOW} 0%, ${WALL_BASE} 30%, ${WALL_SHADOW} 100%)`,
                         borderRight: '1px solid rgba(196,168,79,0.3)',
-                        zIndex: 1,
                         overflow: 'hidden',
                     }}
                     data-testid="cube3d-right"
@@ -123,30 +120,26 @@ export default function Cube3D({
                     {rightFace}
                 </div>
 
-                {/* ── 상단면 (Top) ── */}
+                {/* ── 상단면 (Top): rotateX(90deg) translateZ(90px) ── */}
                 <div
                     style={{
                         ...faceBase,
                         width: FRONT_W,
                         height: DEPTH,
-                        transform: `rotateX(90deg) translateZ(${HALF_DEPTH}px)`,
-                        transformOrigin: 'center top',
+                        transform: `rotateX(90deg) translateZ(${HALF_SIZE}px)`,
                         background: `linear-gradient(180deg, ${ROOF_DARK} 0%, rgba(60,45,20,0.15) 100%)`,
-                        zIndex: 0,
                     }}
                     data-testid="cube3d-top"
                 />
 
-                {/* ── 하단면 (Bottom) ── */}
+                {/* ── 하단면 (Bottom): rotateX(-90deg) translateZ(90px) ── */}
                 <div
                     style={{
                         ...faceBase,
                         width: FRONT_W,
                         height: DEPTH,
-                        transform: `rotateX(-90deg) translateZ(${FRONT_H - HALF_DEPTH}px)`,
-                        transformOrigin: 'center top',
+                        transform: `rotateX(-90deg) translateZ(${HALF_SIZE}px)`,
                         background: FLOOR_COLOR,
-                        zIndex: 0,
                     }}
                     data-testid="cube3d-bottom"
                 />
