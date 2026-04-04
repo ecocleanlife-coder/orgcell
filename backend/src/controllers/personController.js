@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { generateOcId, resolveCountryCode } = require('../utils/ocIdGenerator');
 
 // 사이트 접근 권한 확인 (owner 또는 member)
 async function checkSiteAccess(userId, siteId) {
@@ -23,7 +24,7 @@ exports.listPersons = async (req, res) => {
                     privacy_level, parent1_id, parent2_id, spouse_id,
                     generation, photo_url, birth_date, death_date,
                     is_deceased, birth_lunar, death_lunar,
-                    fs_person_id, photo_position, biography, created_at
+                    fs_person_id, photo_position, biography, oc_id, created_at
              FROM persons WHERE site_id = $1
              ORDER BY generation ASC, id ASC`,
             [siteId]
@@ -102,7 +103,20 @@ exports.createPerson = async (req, res) => {
             [siteId, name, birth_year || null, death_year || null, gender || null, privacy_level || 'family', parent1_id || null, parent2_id || null, spouse_id || null, generation || 0, photo_url || null, birth_date || null, death_date || null, is_deceased ?? false, birth_lunar ?? false, death_lunar ?? false, photo_position ? JSON.stringify(photo_position) : '{"x":50,"y":50}']
         );
 
-        const newPersonId = rows[0].id;
+        const newPerson = rows[0];
+        const newPersonId = newPerson.id;
+
+        // oc_id 자동 부여
+        try {
+            const lang = req.headers['accept-language'] || '';
+            const geo = req.headers['cf-ipcountry'] || req.headers['x-country-code'] || '';
+            const countryCode = resolveCountryCode(lang, geo);
+            const ocId = await generateOcId(db, countryCode);
+            await db.query('UPDATE persons SET oc_id = $1 WHERE id = $2', [ocId, newPersonId]);
+            newPerson.oc_id = ocId;
+        } catch (err) {
+            console.error('oc_id generation failed:', err.message);
+        }
 
         // person_relations에 parent 관계 기록 (정본)
         if (parent1_id) {
@@ -132,7 +146,7 @@ exports.createPerson = async (req, res) => {
             );
         }
 
-        res.status(201).json({ success: true, data: rows[0] });
+        res.status(201).json({ success: true, data: newPerson });
     } catch (err) {
         console.error('createPerson error:', err);
         res.status(500).json({ success: false, message: 'Failed to create person' });
@@ -318,6 +332,24 @@ exports.listPersonPhotos = async (req, res) => {
     } catch (err) {
         console.error('listPersonPhotos error:', err);
         res.status(500).json({ success: false, data: [] });
+    }
+};
+
+// POST /api/persons/:siteId/backfill-oc-ids — 기존 인물에 oc_id 일괄 부여
+exports.backfillOcIds = async (req, res) => {
+    try {
+        const { siteId } = req.params;
+        const userId = req.user?.id;
+        if (!await checkSiteAccess(userId, siteId)) {
+            return res.status(403).json({ success: false, message: 'Forbidden' });
+        }
+
+        const { backfillOcIds: backfill } = require('../utils/ocIdGenerator');
+        const count = await backfill(db, 'KR');
+        res.json({ success: true, message: `${count}명에게 oc_id 부여 완료` });
+    } catch (err) {
+        console.error('backfillOcIds error:', err);
+        res.status(500).json({ success: false, message: 'Failed to backfill oc_ids' });
     }
 };
 

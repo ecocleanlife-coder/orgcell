@@ -207,82 +207,70 @@ function computeDepth(mainId, maps) {
     return depth;
 }
 
-// ── Z축 분류 (VISION.md 3장) ────────────────────
+// ── Z축 분류 ────────────────────────────────────
+// centerId 부부만 양쪽 가문이 X/Y에 펼쳐지고,
+// 나머지 배우자들의 가문(부모/형제)은 Z=1로 접힌다.
+// 규칙: frontend/src/rules/WORMHOLE_RULES.md
 
 function classifyZ(mainId, maps, depthMap, byId) {
     const { parentOf, childrenOf, spousesOf } = maps;
     const z = {};
 
-    // main + main의 배우자 → Z=0
-    z[mainId] = 0;
+    // 혈족 추적: parent-child 링크만 따라감 (spouse 안 따라감)
+    // 조상 → 조상의 자녀(형제) → 후손까지 포함
+    function getBloodRelatives(startId) {
+        const blood = new Set();
+
+        // 위로: 조상 추적
+        function traceUp(id) {
+            blood.add(id);
+            for (const pid of (parentOf[id] || [])) {
+                if (!blood.has(pid)) traceUp(pid);
+            }
+        }
+
+        // 아래로: 후손 추적
+        function traceDown(id) {
+            blood.add(id);
+            for (const cid of (childrenOf[id] || [])) {
+                if (!blood.has(cid)) traceDown(cid);
+            }
+        }
+
+        // 1. 본인 → 조상까지 위로
+        traceUp(startId);
+
+        // 2. 모든 조상의 자녀(형제) + 그 후손까지 아래로
+        const ancestors = new Set(blood);
+        for (const anc of ancestors) {
+            for (const cid of (childrenOf[anc] || [])) {
+                if (!blood.has(cid)) traceDown(cid);
+            }
+        }
+
+        return blood;
+    }
+
+    // centerId + spouse의 혈족 = Z0
+    const centerBlood = getBloodRelatives(mainId);
     const mainSpouse = (spousesOf[mainId] || [])[0] || null;
-    if (mainSpouse) z[mainSpouse] = 0;
+    const spouseBlood = mainSpouse ? getBloodRelatives(mainSpouse) : new Set();
 
-    // main의 부모/조부모 (직계 혈족) → Z=0
-    function markAncestors(id) {
-        for (const pid of (parentOf[id] || [])) {
-            if (z[pid] === undefined) {
-                z[pid] = 0;
-                markAncestors(pid);
-            }
-        }
+    // 양쪽 혈족 합집합
+    const allZ0Blood = new Set([...centerBlood, ...spouseBlood]);
+
+    for (const id of allZ0Blood) {
+        z[id] = 0;
     }
-    markAncestors(mainId);
 
-    // main의 자녀/손자 (직계 후손) → Z=0
-    function markDescendants(id) {
-        for (const cid of (childrenOf[id] || [])) {
-            if (z[cid] === undefined) {
-                z[cid] = 0;
-                markDescendants(cid);
-            }
-        }
-    }
-    markDescendants(mainId);
-    if (mainSpouse) markDescendants(mainSpouse);
-
-    // main의 형제 + 형제의 배우자 + 형제의 자녀 → Z=0
-    const mainParents = parentOf[mainId] || [];
-    for (const pid of mainParents) {
-        for (const sib of (childrenOf[pid] || [])) {
-            if (z[sib] === undefined) z[sib] = 0;
-            // 형제의 배우자 → Z=0
-            for (const sibSpouse of (spousesOf[sib] || [])) {
-                if (z[sibSpouse] === undefined) z[sibSpouse] = 0;
-            }
-            // 형제의 자녀 (조카) → Z=0
-            for (const nephew of (childrenOf[sib] || [])) {
-                if (z[nephew] === undefined) z[nephew] = 0;
-            }
+    // 혈족의 배우자 → 카드는 Z0에 보이되, 그 배우자의 가문은 Z1
+    for (const id of allZ0Blood) {
+        for (const sp of (spousesOf[id] || [])) {
+            if (z[sp] === undefined) z[sp] = 0;
         }
     }
 
-    // 배우자의 형제 + 형제의 배우자 + 형제의 자녀 → Z=0
-    if (mainSpouse) {
-        const spouseParents = parentOf[mainSpouse] || [];
-        for (const pid of spouseParents) {
-            if (z[pid] === undefined) z[pid] = 0;
-            for (const sib of (childrenOf[pid] || [])) {
-                if (z[sib] === undefined) z[sib] = 0;
-                for (const sibSpouse of (spousesOf[sib] || [])) {
-                    if (z[sibSpouse] === undefined) z[sibSpouse] = 0;
-                }
-                for (const nephew of (childrenOf[sib] || [])) {
-                    if (z[nephew] === undefined) z[nephew] = 0;
-                }
-            }
-        }
-    }
-
-    // 자녀의 배우자 → Z=0
-    const mainChildren = childrenOf[mainId] || [];
-    for (const cid of mainChildren) {
-        for (const cSpouse of (spousesOf[cid] || [])) {
-            if (z[cSpouse] === undefined) z[cSpouse] = 0;
-        }
-    }
-
-    // 나머지: Z=1 (직계가 아닌 인척)
+    // 나머지: Z=1 (다른 가문 — 폴더 뒤에 접힘)
     for (const id of Object.keys(depthMap)) {
         if (z[id] === undefined) z[id] = 1;
     }
@@ -337,6 +325,7 @@ function buildNodeData(person) {
         isDeceased,
         birthLunar: person.birth_lunar || false,
         deathLunar: person.death_lunar || false,
+        ocId: person.oc_id || '',
         fsPersonId: person.fs_person_id || '',
         privacyLevel: person.privacy_level || 'family',
         privacyVariant: person.privacy_variant || null,
@@ -802,10 +791,8 @@ export function buildTree(persons, relations, overrideMainId = null) {
     // 관계 기반 depth (DB generation 무시)
     const depthMap = computeDepth(mainId, maps);
 
-    // Z축 분류 — 가문전환 시에는 모든 노드 Z=0 (숨김 없음)
-    const zMap = overrideMainId
-        ? Object.fromEntries(connectedIds.map(id => [id, 0]))
-        : classifyZ(mainId, maps, depthMap, byId);
+    // Z축 분류 — 가문전환 여부 무관, 항상 classifyZ 실행
+    const zMap = classifyZ(mainId, maps, depthMap, byId);
 
     // ── 가문전환 대상 판별 ─────────────────────���────
     // 규칙: frontend/src/rules/WORMHOLE_RULES.md

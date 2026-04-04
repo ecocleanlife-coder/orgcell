@@ -178,6 +178,11 @@ function PhotoFront({ data, isDeceased }) {
                     }}
                 >
                     {data.displayName}
+                    {data.ocId && (
+                        <span style={{ fontSize: '9px', fontWeight: 400, marginLeft: '4px', opacity: 0.7 }}>
+                            {data.ocId}
+                        </span>
+                    )}
                 </div>
                 {data.dateLabel && (
                     <div
@@ -229,6 +234,21 @@ function CanvasFront({ data, isDeceased }) {
                 {data.displayName}
             </div>
 
+            {/* oc_id */}
+            {data.ocId && (
+                <div
+                    style={{
+                        fontFamily: 'monospace',
+                        fontSize: '9px',
+                        color: isDeceased ? '#bbb' : '#A09080',
+                        marginTop: '2px',
+                        zIndex: 1,
+                    }}
+                >
+                    {data.ocId}
+                </div>
+            )}
+
             {/* 날짜 */}
             {data.dateLabel && (
                 <div
@@ -236,7 +256,7 @@ function CanvasFront({ data, isDeceased }) {
                         fontFamily: 'Georgia, "Noto Serif KR", serif',
                         fontSize: '11px',
                         color: isDeceased ? '#aaa' : '#7A6E5E',
-                        marginTop: '6px',
+                        marginTop: '4px',
                         zIndex: 1,
                     }}
                 >

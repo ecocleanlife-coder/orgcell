@@ -25,46 +25,46 @@ const avatar = (seed) => `https://api.dicebear.com/7.x/personas/svg?seed=${encod
 
 const DEMO_PERSONS = [
     // 조부모 (부계: 김태호+최순희)
-    { id: '33', name: '김태호', gender: 'M', generation: 2, birth_year: 1928, death_year: 2005, is_deceased: true, photo_url: avatar('kimtaeho') },
-    { id: '34', name: '최순희', gender: 'F', generation: 2, birth_year: 1932, death_year: 2010, is_deceased: true, photo_url: avatar('choisunhee') },
+    { id: '33', name: '김태호', gender: 'M', generation: 2, birth_year: 1928, death_year: 2005, is_deceased: true, photo_url: avatar('kimtaeho'), oc_id: 'KR-T8H3K' },
+    { id: '34', name: '최순희', gender: 'F', generation: 2, birth_year: 1932, death_year: 2010, is_deceased: true, photo_url: avatar('choisunhee'), oc_id: 'KR-S4N7E' },
     // 조부모 (모계: 박정수+한미영)
-    { id: '37', name: '박정수', gender: 'M', generation: 2, birth_year: 1930, death_year: 2008, is_deceased: true, photo_url: avatar('parkjungsu') },
-    { id: '38', name: '한미영', gender: 'F', generation: 2, birth_year: 1934, death_year: 2015, is_deceased: true, photo_url: avatar('hanmiyoung') },
+    { id: '37', name: '박정수', gender: 'M', generation: 2, birth_year: 1930, death_year: 2008, is_deceased: true, photo_url: avatar('parkjungsu'), oc_id: 'KR-J2S9P' },
+    { id: '38', name: '한미영', gender: 'F', generation: 2, birth_year: 1934, death_year: 2015, is_deceased: true, photo_url: avatar('hanmiyoung'), oc_id: 'KR-M5Y8H' },
     // 부모세대
-    { id: '16', name: '김영수', gender: 'M', generation: 1, birth_year: 1958, photo_url: avatar('kimyoungsu') },
-    { id: '17', name: '박은정', gender: 'F', generation: 1, birth_year: 1962, photo_url: avatar('parkeunjung') },
-    { id: '35', name: '김은미', gender: 'F', generation: 1, birth_year: 1960, photo_url: avatar('kimeunmi') },
-    { id: '36', name: '김선미', gender: 'F', generation: 1, birth_year: 1964, photo_url: avatar('kimsunmi') },
-    { id: '24', name: '박인영', gender: 'M', generation: 1, birth_year: 1965, photo_url: avatar('parkinyoung') },
-    { id: '25', name: '박진영', gender: 'M', generation: 1, birth_year: 1968, photo_url: avatar('parkjinyoung') },
-    { id: '26', name: '박수자', gender: 'F', generation: 1, privacy_level: 'private', is_refused: true, privacy_variant: 'surname_only' },
-    { id: '27', name: '박정영', gender: 'F', generation: 1, privacy_level: 'private', is_refused: true, privacy_variant: 'anonymous', relation_label: '박은정의 동생' },
+    { id: '16', name: '김영수', gender: 'M', generation: 1, birth_year: 1958, photo_url: avatar('kimyoungsu'), oc_id: 'KR-Y3S6K' },
+    { id: '17', name: '박은정', gender: 'F', generation: 1, birth_year: 1962, photo_url: avatar('parkeunjung'), oc_id: 'KR-E7J4P' },
+    { id: '35', name: '김은미', gender: 'F', generation: 1, birth_year: 1960, photo_url: avatar('kimeunmi'), oc_id: 'KR-U2M8K' },
+    { id: '36', name: '김선미', gender: 'F', generation: 1, birth_year: 1964, photo_url: avatar('kimsunmi'), oc_id: 'KR-S6M3K' },
+    { id: '24', name: '박인영', gender: 'M', generation: 1, birth_year: 1965, photo_url: avatar('parkinyoung'), oc_id: 'KR-N4Y7P' },
+    { id: '25', name: '박진영', gender: 'M', generation: 1, birth_year: 1968, photo_url: avatar('parkjinyoung'), oc_id: 'KR-J8Y2P' },
+    { id: '26', name: '박수자', gender: 'F', generation: 1, privacy_level: 'private', is_refused: true, privacy_variant: 'surname_only', oc_id: 'KR-S3Z9P' },
+    { id: '27', name: '박정영', gender: 'F', generation: 1, privacy_level: 'private', is_refused: true, privacy_variant: 'anonymous', relation_label: '박은정의 동생', oc_id: 'KR-J5Y6P' },
     // 자녀세대
-    { id: '18', name: '김슬기', gender: 'F', is_deceased: true, generation: 0, birth_year: 1985, death_year: 2020, photo_url: avatar('kimseulgi') },
-    { id: '19', name: '김준호', gender: 'M', generation: 0, birth_year: 1987, photo_url: avatar('kimjunho') },
-    { id: '22', name: '정수연', gender: 'F', generation: 0, birth_year: 1989, photo_url: avatar('jungsuyeon') },
-    { id: '20', name: '김하나', gender: 'F', generation: 0, birth_year: 1990, photo_url: avatar('kimhana') },
-    { id: '23', name: 'David Wilson', gender: 'M', generation: 0, birth_year: 1988, photo_url: avatar('davidwilson') },
-    { id: '21', name: '김유경', gender: 'F', generation: 0, birth_year: 1992, photo_url: avatar('kimyukyung') },
-    { id: '28', name: '김민준', gender: 'M', generation: 0, birth_year: 2015, photo_url: avatar('kimminjun') },
-    { id: '29', name: '김서준', gender: 'M', generation: 0, birth_year: 2018, photo_url: avatar('kimseojun') },
+    { id: '18', name: '김슬기', gender: 'F', is_deceased: true, generation: 0, birth_year: 1985, death_year: 2020, photo_url: avatar('kimseulgi'), oc_id: 'KR-G4K8S' },
+    { id: '19', name: '김준호', gender: 'M', generation: 0, birth_year: 1987, photo_url: avatar('kimjunho'), oc_id: 'KR-H7J2K' },
+    { id: '22', name: '정수연', gender: 'F', generation: 0, birth_year: 1989, photo_url: avatar('jungsuyeon'), oc_id: 'KR-Y9S3J' },
+    { id: '20', name: '김하나', gender: 'F', generation: 0, birth_year: 1990, photo_url: avatar('kimhana'), oc_id: 'KR-H2N5K' },
+    { id: '23', name: 'David Wilson', gender: 'M', generation: 0, birth_year: 1988, photo_url: avatar('davidwilson'), oc_id: 'US-D4W7R' },
+    { id: '21', name: '김유경', gender: 'F', generation: 0, birth_year: 1992, photo_url: avatar('kimyukyung'), oc_id: 'KR-K6Y8U' },
+    { id: '28', name: '김민준', gender: 'M', generation: 0, birth_year: 2015, photo_url: avatar('kimminjun'), oc_id: 'KR-M3J7K' },
+    { id: '29', name: '김서준', gender: 'M', generation: 0, birth_year: 2018, photo_url: avatar('kimseojun'), oc_id: 'KR-S5J2K' },
     // 김은미 남편
-    { id: '40', name: '오상기', gender: 'M', generation: 1, birth_year: 1959, photo_url: avatar('ohsanggi') },
+    { id: '40', name: '오상기', gender: 'M', generation: 1, birth_year: 1959, photo_url: avatar('ohsanggi'), oc_id: 'KR-G8K4S' },
     // 김선미 남편
-    { id: '41', name: '조홍교', gender: 'M', generation: 1, birth_year: 1963, photo_url: avatar('johongkyo') },
+    { id: '41', name: '조홍교', gender: 'M', generation: 1, birth_year: 1963, photo_url: avatar('johongkyo'), oc_id: 'KR-H3K9J' },
     // 오상기+김은미 자녀
-    { id: '42', name: '오정일', gender: 'M', generation: 0, birth_year: 1986, photo_url: avatar('ohjungil') },
-    { id: '43', name: '오창일', gender: 'M', generation: 0, birth_year: 1989, photo_url: avatar('ohchangil') },
+    { id: '42', name: '오정일', gender: 'M', generation: 0, birth_year: 1986, photo_url: avatar('ohjungil'), oc_id: 'KR-J6R2S' },
+    { id: '43', name: '오창일', gender: 'M', generation: 0, birth_year: 1989, photo_url: avatar('ohchangil'), oc_id: 'KR-C4R7S' },
     // 조홍교+김선미 자녀
-    { id: '44', name: '조애현', gender: 'F', generation: 0, birth_year: 1988, photo_url: avatar('joaehyun') },
-    { id: '45', name: '조의건', gender: 'M', generation: 0, birth_year: 1991, photo_url: avatar('jouigun') },
-    { id: '46', name: '조의준', gender: 'M', generation: 0, birth_year: 1994, photo_url: avatar('jouijun') },
+    { id: '44', name: '조애현', gender: 'F', generation: 0, birth_year: 1988, photo_url: avatar('joaehyun'), oc_id: 'KR-A8H3J' },
+    { id: '45', name: '조의건', gender: 'M', generation: 0, birth_year: 1991, photo_url: avatar('jouigun'), oc_id: 'KR-G5K2J' },
+    { id: '46', name: '조의준', gender: 'M', generation: 0, birth_year: 1994, photo_url: avatar('jouijun'), oc_id: 'KR-J7U4J' },
     // 손자
-    { id: '32', name: 'Daniel Wilson', gender: 'M', generation: -1, birth_year: 2020, photo_url: avatar('danielwilson') },
+    { id: '32', name: 'Daniel Wilson', gender: 'M', generation: -1, birth_year: 2020, photo_url: avatar('danielwilson'), oc_id: 'US-N8W3D' },
     // 입양아 + 친부모
-    { id: '50', name: '김도윤', gender: 'M', generation: 0, birth_year: 1993, photo_url: avatar('kimdoyoon'), relation_label: '입양 (김영수의 아들)' },
-    { id: '51', name: '최정호', gender: 'M', generation: 1, birth_year: 1968, photo_url: avatar('choijungho') },
-    { id: '52', name: '윤서영', gender: 'F', generation: 1, birth_year: 1970, photo_url: avatar('yoonseoyoung') },
+    { id: '50', name: '김도윤', gender: 'M', generation: 0, birth_year: 1993, photo_url: avatar('kimdoyoon'), relation_label: '입양 (김영수의 아들)', oc_id: 'KR-D9Y2K' },
+    { id: '51', name: '최정호', gender: 'M', generation: 1, birth_year: 1968, photo_url: avatar('choijungho'), oc_id: 'KR-J4H8C' },
+    { id: '52', name: '윤서영', gender: 'F', generation: 1, birth_year: 1970, photo_url: avatar('yoonseoyoung'), oc_id: 'KR-S7Y3U' },
 ];
 
 const DEMO_RELATIONS = [
