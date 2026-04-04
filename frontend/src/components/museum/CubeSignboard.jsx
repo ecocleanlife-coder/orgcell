@@ -1,42 +1,50 @@
 /**
- * CubeSignboard.jsx — 3D 큐브 간판 메뉴
+ * CubeSignboard.jsx — 블록 호버 메뉴 (방향 간판)
  *
- * 박물관 건물 블록 위에 표시되는 액션 메뉴:
- * - PC: hover 시 정면 오버레이로 슬라이드 다운
- * - 모바일: 터치 후 자동 순환 하이라이트
- * - 금색 테마의 박물관 간판 스타일
- * - 5개 액션: 가문전환, 전시, 편집, 사진, 초대
+ * FolderCard 호버/터치 시 표시되는 방향 메뉴:
+ *
+ * 일반인물: 3개 메뉴
+ *   ◀ 일반전시관 | 가족전시관 ▶ | ▼ 자료실
+ *
+ * 사위/며느리: 4개 메뉴 (+ 가문전환)
+ *   ◀ 일반전시관 | 가족전시관 ▶ | ▼ 자료실 | ⊕ 가문전환
+ *
+ * PC: hover fade-in 0.3s
+ * 모바일: 2초 간격 자동 순환 ghost effect
  */
 import React from 'react';
 import useCubeAnimation from '../../hooks/useCubeAnimation';
 
-const ACTIONS = [
-    { key: 'wormhole', label: '가문전환', icon: '⊕', desc: '다른 가문으로' },
-    { key: 'exhibit',  label: '전시',     icon: '🖼', desc: '개인 전시관' },
-    { key: 'edit',     label: '편집',     icon: '✎', desc: '정보 수정' },
-    { key: 'photo',    label: '사진',     icon: '📷', desc: '사진 등록' },
-    { key: 'invite',   label: '초대',     icon: '✉', desc: '가족 초대' },
+const BASE_ACTIONS = [
+    { key: 'exhibit_public', label: '일반전시관', icon: '◀', desc: '공개 전시' },
+    { key: 'exhibit_family', label: '가족전시관', icon: '▶', desc: '가족 전용' },
+    { key: 'archive',        label: '자료실',     icon: '▼', desc: '사진·문서' },
 ];
 
+const WORMHOLE_ACTION = { key: 'wormhole', label: '가문전환', icon: '⊕', desc: '다른 가문으로' };
+
 /**
- * @param {boolean} visible — 간판 표시 여부
+ * @param {boolean} visible — 메뉴 표시 여부
  * @param {boolean} isMobile — 모바일 여부 (자동 순환)
+ * @param {boolean} showWormhole — 가문전환 표시 (사위/며느리만)
  * @param {function} onAction — (actionKey) => void
- * @param {number} width — 간판 너비 (기본 180)
- * @param {number} height — 간판 높이 (기본 180)
+ * @param {number} width — 너비 (기본 180)
+ * @param {number} height — 높이 (기본 180)
  */
 export default function CubeSignboard({
     visible = false,
     isMobile = false,
+    showWormhole = false,
     onAction,
     width = 180,
     height = 180,
-    showWormhole = false,
 }) {
-    const filteredActions = showWormhole ? ACTIONS : ACTIONS.filter(a => a.key !== 'wormhole');
+    const actions = showWormhole
+        ? [...BASE_ACTIONS, WORMHOLE_ACTION]
+        : BASE_ACTIONS;
 
-    const { activeIndex, handleInteract } = useCubeAnimation(filteredActions.length, {
-        interval: 2500,
+    const { activeIndex, handleInteract } = useCubeAnimation(actions.length, {
+        interval: 2000,
         active: visible && isMobile,
     });
 
@@ -50,51 +58,27 @@ export default function CubeSignboard({
                 width,
                 height,
                 borderRadius: '3px',
-                background: 'rgba(30, 26, 20, 0.88)',
+                background: 'rgba(30, 26, 20, 0.85)',
                 backdropFilter: 'blur(4px)',
                 WebkitBackdropFilter: 'blur(4px)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 4,
+                gap: 6,
                 zIndex: 10,
-                animation: 'signboardFadeIn 0.25s ease-out',
-                padding: '12px 8px',
+                opacity: 1,
+                animation: 'signboardFadeIn 0.3s ease-out',
+                padding: '16px 10px',
                 boxSizing: 'border-box',
             }}
             data-testid="cube-signboard"
             onTouchStart={handleInteract}
         >
-            {/* 간판 타이틀 */}
-            <div
-                style={{
-                    fontFamily: 'Georgia, "Noto Serif KR", serif',
-                    fontSize: '10px',
-                    fontWeight: 700,
-                    color: '#C4A84F',
-                    letterSpacing: '2px',
-                    marginBottom: 4,
-                    textTransform: 'uppercase',
-                    opacity: 0.7,
-                }}
-            >
-                MUSEUM
-            </div>
-
-            {/* 구분선 */}
-            <div
-                style={{
-                    width: '60%',
-                    height: '1px',
-                    background: 'linear-gradient(90deg, transparent, #C4A84F, transparent)',
-                    marginBottom: 4,
-                }}
-            />
-
             {/* 액션 버튼들 */}
-            {filteredActions.map((action, idx) => {
+            {actions.map((action, idx) => {
                 const isHighlighted = isMobile && idx === activeIndex;
+                const isWormhole = action.key === 'wormhole';
 
                 return (
                     <button
@@ -106,25 +90,41 @@ export default function CubeSignboard({
                         onPointerUp={(e) => e.stopPropagation()}
                         title={action.desc}
                         style={{
-                            width: '90%',
-                            padding: '5px 8px',
-                            border: `1px solid ${isHighlighted ? '#C4A84F' : 'rgba(196,168,79,0.3)'}`,
-                            borderRadius: '6px',
+                            width: '92%',
+                            padding: '8px 10px',
+                            border: `1px solid ${
+                                isHighlighted ? '#C4A84F'
+                                : isWormhole ? 'rgba(100,180,255,0.4)'
+                                : 'rgba(196,168,79,0.3)'
+                            }`,
+                            borderRadius: '8px',
                             background: isHighlighted
-                                ? 'rgba(196,168,79,0.2)'
-                                : 'rgba(196,168,79,0.05)',
-                            color: isHighlighted ? '#E8D48C' : '#C4A84F',
-                            fontSize: '11px',
-                            fontWeight: 600,
+                                ? 'rgba(196,168,79,0.25)'
+                                : isWormhole
+                                    ? 'rgba(100,180,255,0.08)'
+                                    : 'rgba(196,168,79,0.05)',
+                            color: isHighlighted
+                                ? '#E8D48C'
+                                : isWormhole ? '#8BC4F0' : '#C4A84F',
+                            fontSize: '12px',
+                            fontWeight: 700,
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
                             gap: 8,
                             transition: 'all 0.3s ease',
-                            transform: isHighlighted ? 'scale(1.03)' : 'scale(1)',
+                            transform: isHighlighted ? 'scale(1.04)' : 'scale(1)',
+                            boxShadow: isHighlighted
+                                ? '0 0 8px rgba(196,168,79,0.3)'
+                                : 'none',
                         }}
                     >
-                        <span style={{ fontSize: '13px', width: 18, textAlign: 'center' }}>
+                        <span style={{
+                            fontSize: '14px',
+                            width: 20,
+                            textAlign: 'center',
+                            opacity: isHighlighted ? 1 : 0.8,
+                        }}>
                             {action.icon}
                         </span>
                         <span>{action.label}</span>
@@ -132,7 +132,7 @@ export default function CubeSignboard({
                             style={{
                                 marginLeft: 'auto',
                                 fontSize: '9px',
-                                opacity: 0.6,
+                                opacity: 0.5,
                                 fontWeight: 400,
                             }}
                         >
@@ -142,15 +142,15 @@ export default function CubeSignboard({
                 );
             })}
 
-            {/* CSS 애니메이션 */}
+            {/* fade-in 애니메이션 */}
             <style>{`
                 @keyframes signboardFadeIn {
-                    from { opacity: 0; transform: translateY(-8px); }
-                    to { opacity: 1; transform: translateY(0); }
+                    from { opacity: 0; }
+                    to { opacity: 1; }
                 }
             `}</style>
         </div>
     );
 }
 
-export { ACTIONS };
+export { BASE_ACTIONS, WORMHOLE_ACTION };

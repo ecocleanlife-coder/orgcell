@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
     Network, Plus, UserPlus, ExternalLink,
     Edit3, Trash2, Globe, Lock, Eye,
@@ -46,6 +46,7 @@ const PARENT_TYPE_KEYS = [
 // ════════════════════════════════════════
 export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewer' }) {
     const navigate = useNavigate();
+    const { subdomain } = useParams();
     const lang = useUiStore((s) => s.lang);
     const t = getT('familyTree', lang);
     const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -166,8 +167,37 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             case 'wormhole':
                 setMainPersonId(String(raw.id));
                 break;
+            case 'exhibit_public': {
+                // 일반전시관: 접근 권한 확인 → 전시관 페이지
+                const result = await checkAccess(raw.id);
+                if (result?.access === 'granted') {
+                    navigate(`/${subdomain}/exhibit/${raw.id}`);
+                } else {
+                    setAccessTarget(raw);
+                }
+                break;
+            }
+            case 'exhibit_family': {
+                // 가족전시관: 가족 권한 확인 → 전시관 페이지
+                const result = await checkAccess(raw.id);
+                if (result?.access === 'granted') {
+                    navigate(`/${subdomain}/exhibit/${raw.id}?type=family`);
+                } else {
+                    setAccessTarget(raw);
+                }
+                break;
+            }
+            case 'archive': {
+                // 자료실: 관장/당사자/허가자만 진입
+                const result = await checkAccess(raw.id);
+                if (result?.access === 'granted') {
+                    navigate(`/${subdomain}/archive/${raw.id}`);
+                } else {
+                    setAccessTarget(raw);
+                }
+                break;
+            }
             case 'photo': {
-                // 카메라 아이콘 → 사진 불러오기 (file input 트리거)
                 const fileInput = document.createElement('input');
                 fileInput.type = 'file';
                 fileInput.accept = 'image/*,.heic,.heif,.HEIC,.HEIF';
@@ -193,24 +223,13 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 fileInput.click();
                 break;
             }
-            case 'exhibit': {
-                // 접근 권한 확인 후 전시관 이동 또는 거부 모달 표시
-                const result = await checkAccess(raw.id);
-                if (result?.access === 'granted') {
-                    // TODO: 전시관 페이지로 이동
-                    toast.success(lang === 'ko' ? '전시관 접근 허용' : 'Access granted');
-                } else {
-                    setAccessTarget(raw);
-                }
-                break;
-            }
             case 'invite':
                 setInviteTarget(raw);
                 break;
             default:
                 break;
         }
-    }, [persons, siteId, lang, fetchPersons]);
+    }, [persons, siteId, lang, fetchPersons, subdomain, navigate, checkAccess]);
 
     // ── buildTree 계산 (persons + relations → nodes/links) ──
     const treeData = useMemo(() => {
