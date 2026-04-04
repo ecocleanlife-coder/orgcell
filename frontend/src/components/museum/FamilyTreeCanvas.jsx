@@ -123,9 +123,9 @@ export default function FamilyTreeCanvas({
         console.log('=== 가문전환 START ===');
         console.log('이전 centerId:', mainId);
         console.log('새 centerId:', newMainId);
-        // 1단계: viewport 초기화 (sessionStorage 강제 제거)
+        // 1단계: viewport 캐시 강제 제거
         sessionStorage.removeItem('familyTree_state');
-        clearViewport();
+        useTreeViewStore.getState().clearViewport();
         // 2단계: mainPersonId 변경 → useMemo에서 buildTree 자동 재호출
         if (onWormhole) {
             onWormhole(newMainId);
@@ -133,7 +133,7 @@ export default function FamilyTreeCanvas({
         } else {
             console.error('=== 가문전환 실패: onWormhole prop이 없음 ===');
         }
-    }, [onWormhole, mainId, clearViewport]);
+    }, [onWormhole, mainId]);
 
     const handleCardClick = useCallback((nodeId) => {
         const node = nodesMap[nodeId];
