@@ -11,6 +11,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 
 const PREVIEW_SIZE = 200; // 미리보기 영역 크기
+const OUTPUT_SIZE = 400;  // 저장 이미지 크기 (고해상도)
 
 /**
  * @param {string} src — 이미지 URL (blob 또는 서버 URL)
@@ -97,44 +98,85 @@ export default function PhotoEditor({ src, initialPosition, onSave, onCancel }) 
     // ── 미세 회전 리셋 ──
     const resetFineRotation = () => setFineRotation(0);
 
-    // ── canvas crop 저장 ──
+    // ── canvas crop 저장 (편집 상태를 이미지에 반영) ──
     const handleSave = useCallback(async () => {
         if (!imgRef.current) return;
 
         const canvas = document.createElement('canvas');
-        const size = PREVIEW_SIZE;
+        const size = OUTPUT_SIZE;
         canvas.width = size;
         canvas.height = size;
         const ctx = canvas.getContext('2d');
 
-        const img = imgRef.current;
-        ctx.save();
-        ctx.translate(size / 2, size / 2);
-        ctx.rotate((totalRotation * Math.PI) / 180);
-        ctx.scale(zoom, zoom);
-        ctx.translate(pan.x, pan.y);
+        // 원본 이미지를 새로 로드하여 CORS/tainted 방지
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
 
-        const aspect = img.naturalWidth / img.naturalHeight;
-        let drawW, drawH;
-        if (aspect >= 1) {
-            drawH = size;
-            drawW = size * aspect;
-        } else {
-            drawW = size;
-            drawH = size / aspect;
-        }
-        ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
-        ctx.restore();
+        const loadAndDraw = () => {
+            // 스케일 비율: 미리보기 → 출력 (2x)
+            const scale = size / PREVIEW_SIZE;
 
-        canvas.toBlob((blob) => {
-            if (blob && onSave) {
-                const position = {
-                    x: 50 + (pan.x / size) * 100,
-                    y: 50 + (pan.y / size) * 100,
-                };
-                onSave(blob, position);
+            ctx.save();
+            // 출력 캔버스 중앙으로 이동
+            ctx.translate(size / 2, size / 2);
+            // 회전 적용
+            ctx.rotate((totalRotation * Math.PI) / 180);
+            // 줌 적용 (스케일 비율 포함)
+            ctx.scale(zoom * scale, zoom * scale);
+            // 팬 적용 (미리보기 좌표 그대로)
+            ctx.translate(pan.x, pan.y);
+
+            // objectFit: cover 비율 계산 (미리보기 크기 기준)
+            const aspect = img.naturalWidth / img.naturalHeight;
+            let drawW, drawH;
+            if (aspect >= 1) {
+                drawH = PREVIEW_SIZE;
+                drawW = PREVIEW_SIZE * aspect;
+            } else {
+                drawW = PREVIEW_SIZE;
+                drawH = PREVIEW_SIZE / aspect;
             }
-        }, 'image/jpeg', 0.92);
+            ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+            ctx.restore();
+
+            canvas.toBlob((blob) => {
+                if (blob && onSave) {
+                    // 편집이 이미 이미지에 반영되었으므로 항상 중앙
+                    onSave(blob, { x: 50, y: 50 });
+                }
+            }, 'image/jpeg', 0.92);
+        };
+
+        // 이미 로드된 img 요소 사용 시도, 실패하면 새로 로드
+        try {
+            const srcImg = imgRef.current;
+            // 기존 img에서 직접 그리기 시도
+            const aspect = srcImg.naturalWidth / srcImg.naturalHeight;
+            const scaleR = size / PREVIEW_SIZE;
+            ctx.save();
+            ctx.translate(size / 2, size / 2);
+            ctx.rotate((totalRotation * Math.PI) / 180);
+            ctx.scale(zoom * scaleR, zoom * scaleR);
+            ctx.translate(pan.x, pan.y);
+            let drawW, drawH;
+            if (aspect >= 1) { drawH = PREVIEW_SIZE; drawW = PREVIEW_SIZE * aspect; }
+            else { drawW = PREVIEW_SIZE; drawH = PREVIEW_SIZE / aspect; }
+            ctx.drawImage(srcImg, -drawW / 2, -drawH / 2, drawW, drawH);
+            ctx.restore();
+
+            canvas.toBlob((blob) => {
+                if (blob && onSave) {
+                    onSave(blob, { x: 50, y: 50 });
+                }
+            }, 'image/jpeg', 0.92);
+        } catch {
+            // tainted canvas → 새 이미지로 재시도
+            img.onload = loadAndDraw;
+            img.onerror = () => {
+                console.error('PhotoEditor: image load failed for canvas save');
+            };
+            img.src = imgRef.current.src;
+        }
     }, [totalRotation, zoom, pan, onSave]);
 
     const transformStyle = {
@@ -169,10 +211,12 @@ export default function PhotoEditor({ src, initialPosition, onSave, onCancel }) 
                         src={src}
                         alt="편집 중"
                         onLoad={() => setImgLoaded(true)}
+                        crossOrigin="anonymous"
                         style={{
                             width: '100%',
                             height: '100%',
                             objectFit: 'cover',
+                            imageOrientation: 'from-image',
                             pointerEvents: 'none',
                             userSelect: 'none',
                             ...transformStyle,

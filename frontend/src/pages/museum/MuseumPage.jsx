@@ -16,6 +16,10 @@ import DashboardExhibitionWidget from '../../components/museum/DashboardExhibiti
 import PostDetailModal from '../../components/museum/PostDetailModal';
 import OnboardingGuide from '../../components/museum/OnboardingGuide';
 import UploadModal from '../../components/museum/UploadModal';
+import FeaturePanel from '../../components/museum/FeaturePanel';
+import PhotoImportModal from '../../components/museum/PhotoImportModal';
+import VoiceRecordingModal from '../../components/museum/VoiceRecordingModal';
+import InvitationModal from '../../components/museum/InvitationModal';
 import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
 import { getT } from '../../i18n/translations';
@@ -143,6 +147,14 @@ export default function MuseumPage({ initialTab }) {
     const [showUploadModal, setShowUploadModal] = useState(false);
     const [uploadInitialDest, setUploadInitialDest] = useState(null);
     const [showFsModal, setShowFsModal] = useState(false);
+
+    // 자료실 모달
+    const [showPhotoImport, setShowPhotoImport] = useState(false);
+    const [showVoiceRecording, setShowVoiceRecording] = useState(false);
+    const [showInviteModal, setShowInviteModal] = useState(false);
+
+    // 가족트리 인물 목록 (녹음 인물 선택용)
+    const [treePersons, setTreePersons] = useState([]);
 
     // 친구 요청
     const [friendRequested, setFriendRequested] = useState(false);
@@ -281,6 +293,24 @@ export default function MuseumPage({ initialTab }) {
         }
     };
 
+    // ── Fetch persons for voice recording ──
+    useEffect(() => {
+        if (!site) return;
+        axios.get(`/api/persons/${site.id}`)
+            .then(r => { if (r.data?.data) setTreePersons(r.data.data); })
+            .catch(() => {});
+    }, [site]);
+
+    // ── Feature panel handler ──
+    const handleFeatureClick = useCallback((key) => {
+        switch (key) {
+            case 'photo': setShowPhotoImport(true); break;
+            case 'board': setShowCreatePost(true); break;
+            case 'voice': setShowVoiceRecording(true); break;
+            case 'invite': setShowInviteModal(true); break;
+        }
+    }, []);
+
     const BOARD_CATS = [
         { key: 'all',    label: t.boardAll },
         { key: 'notice', label: t.boardNotice },
@@ -396,14 +426,27 @@ export default function MuseumPage({ initialTab }) {
                     />
                 </div>
 
-                {/* ══ 가족트리 (나머지 화면 채움) ══ */}
+                {/* ══ 가족트리 + 자료실 (좌우 분할) ══ */}
                 <Section id="section-tree">
-                    <SectionHeader
-                        title="우리 가족"
-                    />
-                    <div className="overflow-hidden" style={{ minHeight: '70vh' }}>
-                        <FamilyTreeView siteId={site?.id} readOnly={role === 'public'} role={role} />
+                    <SectionHeader title="우리 가족" />
+                    <div className="flex gap-5" style={{ minHeight: '70vh' }}>
+                        {/* 좌측: 기존 가족트리 */}
+                        <div className="flex-1 overflow-hidden">
+                            <FamilyTreeView siteId={site?.id} readOnly={role === 'public'} role={role} />
+                        </div>
+                        {/* 우측: 자료실 버튼 패널 */}
+                        {canEdit && (
+                            <div className="hidden lg:block w-48 shrink-0">
+                                <FeaturePanel onFeatureClick={handleFeatureClick} />
+                            </div>
+                        )}
                     </div>
+                    {/* 모바일: 자료실 버튼을 아래에 가로 배치 */}
+                    {canEdit && (
+                        <div className="lg:hidden mt-4">
+                            <FeaturePanel onFeatureClick={handleFeatureClick} />
+                        </div>
+                    )}
                 </Section>
 
                 {/* ══ 사진 요청 배너 ══ */}
@@ -562,6 +605,33 @@ export default function MuseumPage({ initialTab }) {
                     }}
                     onClose={() => setShowOnboarding(false)}
                     t={t}
+                />
+            )}
+
+            {/* ════ 사진 불러오기 모달 ════ */}
+            {showPhotoImport && (
+                <PhotoImportModal
+                    siteId={site?.id}
+                    onClose={() => setShowPhotoImport(false)}
+                    onDone={() => { /* refresh if needed */ }}
+                />
+            )}
+
+            {/* ════ 육성녹음 모달 ════ */}
+            {showVoiceRecording && (
+                <VoiceRecordingModal
+                    siteId={site?.id}
+                    persons={treePersons.map(p => ({ id: p.id, name: p.name }))}
+                    onClose={() => setShowVoiceRecording(false)}
+                />
+            )}
+
+            {/* ════ 초대 모달 ════ */}
+            {showInviteModal && (
+                <InvitationModal
+                    siteId={site?.id}
+                    museumName={museumName}
+                    onClose={() => setShowInviteModal(false)}
                 />
             )}
 

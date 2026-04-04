@@ -771,6 +771,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                         }
                     }}
                     onWormhole={(personId) => setMainPersonId(String(personId))}
+                    onHome={() => setMainPersonId(null)}
                     onAction={handleCardAction}
                     style={{ width: '100%', height: '100%' }}
                 />

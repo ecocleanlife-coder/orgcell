@@ -139,6 +139,7 @@ function PhotoFront({ data, isDeceased }) {
                     objectFit: 'cover',
                     objectPosition: `${cropX}% ${cropY}%`,
                     display: 'block',
+                    imageOrientation: 'from-image',
                     filter: isDeceased ? 'grayscale(50%)' : 'none',
                 }}
             />
@@ -459,6 +460,11 @@ function FolderCard({
 
     const blurPx = Z_BLUR[node.z] ?? 0;
 
+    // 사위/며느리 판별: 배우자가 있고 부모가 트리에 없는 인물 (시집/장가 온 사람)
+    const isInLaw = !isMainPerson
+        && (rels?.spouses?.length > 0)
+        && (rels?.parents?.length === 0);
+
     const handleAction = (actionKey) => {
         if (onAction) onAction(node.id, actionKey);
     };
@@ -553,6 +559,7 @@ function FolderCard({
                     onAction={handleAction}
                     width={CARD_SIZE}
                     height={CARD_SIZE}
+                    showWormhole={isInLaw}
                 />
 
                 {/* Z축 안개 오버레이 */}

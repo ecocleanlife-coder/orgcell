@@ -109,6 +109,7 @@ const ROUTE_MAP = {
     'inboxRoutes': '/api/inbox',
     'requestRoutes': '/api/request',
     'accessRoutes': '/api/access',
+    'voiceRoutes': '/api/voice',
 };
 
 const routesDir = path.join(__dirname, 'src', 'routes');

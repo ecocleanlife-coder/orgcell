@@ -31,8 +31,11 @@ export default function CubeSignboard({
     onAction,
     width = 180,
     height = 180,
+    showWormhole = false,
 }) {
-    const { activeIndex, handleInteract } = useCubeAnimation(ACTIONS.length, {
+    const filteredActions = showWormhole ? ACTIONS : ACTIONS.filter(a => a.key !== 'wormhole');
+
+    const { activeIndex, handleInteract } = useCubeAnimation(filteredActions.length, {
         interval: 2500,
         active: visible && isMobile,
     });
@@ -90,7 +93,7 @@ export default function CubeSignboard({
             />
 
             {/* 액션 버튼들 */}
-            {ACTIONS.map((action, idx) => {
+            {filteredActions.map((action, idx) => {
                 const isHighlighted = isMobile && idx === activeIndex;
 
                 return (

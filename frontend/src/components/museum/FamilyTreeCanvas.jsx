@@ -73,7 +73,7 @@ function calcBounds(nodes) {
 }
 
 // ── 줌 컨트롤 ──
-function ZoomControls({ zoomIn, zoomOut, resetTransform }) {
+function ZoomControls({ zoomIn, zoomOut, resetTransform, onHome }) {
     const btnStyle = {
         width: 32, height: 32,
         border: '1px solid #C4A84F',
@@ -91,7 +91,7 @@ function ZoomControls({ zoomIn, zoomOut, resetTransform }) {
         <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 20, display: 'flex', gap: 6 }}>
             <button style={btnStyle} onClick={() => zoomIn()} title="확대">+</button>
             <button style={btnStyle} onClick={() => zoomOut()} title="축소">−</button>
-            <button style={{ ...btnStyle, fontSize: '12px' }} onClick={() => resetTransform()} title="리셋">⌂</button>
+            <button style={{ ...btnStyle, fontSize: '12px' }} onClick={() => onHome ? onHome() : resetTransform()} title="관장 복귀">🏠</button>
         </div>
     );
 }
@@ -104,6 +104,7 @@ export default function FamilyTreeCanvas({
     selectedId: externalSelectedId = null,
     onCardClick: externalOnClick,
     onWormhole,
+    onHome,
     onContextMenu,
     onAction,
     style,
@@ -178,11 +179,17 @@ export default function FamilyTreeCanvas({
     const mainScreenX = useMemo(() => toScreenX(0), [bounds]);
     const mainScreenY = useMemo(() => toScreenY(0), [screenBounds]);
 
+    // 이전 mainId 추적 (가문전환 감지)
+    const prevMainIdRef = useRef(mainId);
+
     useEffect(() => {
         if (!transformRef.current || allZ0Nodes.length === 0) return;
 
-        // 저장된 뷰포트가 있으면 복원 (인물 편집 후 돌아올 때)
-        if (hasValidViewport()) {
+        const isWormholeSwitch = prevMainIdRef.current !== mainId;
+        prevMainIdRef.current = mainId;
+
+        // 가문전환 시: 항상 새 중심으로 리셋 (저장된 뷰포트 무시)
+        if (!isWormholeSwitch && hasValidViewport()) {
             setTimeout(() => {
                 transformRef.current?.setTransform(
                     savedViewport.positionX,
@@ -193,7 +200,7 @@ export default function FamilyTreeCanvas({
             return;
         }
 
-        // 기본: 관장 부부 중심 배치
+        // 기본/가문전환: 관장 부부 중심 배치
         const scale = 0.55;
         const vw = window.innerWidth;
         const vh = window.innerHeight - 130;
@@ -202,7 +209,7 @@ export default function FamilyTreeCanvas({
         setTimeout(() => {
             transformRef.current?.setTransform(tx, ty, scale);
         }, 50);
-    }, [allZ0Nodes.length, mainScreenX, mainScreenY]);
+    }, [allZ0Nodes.length, mainScreenX, mainScreenY, mainId]);
 
     // ── pan/zoom 변경 시 뷰포트 저장 ──
     const handleTransformChange = useCallback((ref) => {
@@ -338,7 +345,7 @@ export default function FamilyTreeCanvas({
             >
                 {({ zoomIn, zoomOut, resetTransform }) => (
                     <>
-                        <ZoomControls zoomIn={zoomIn} zoomOut={zoomOut} resetTransform={resetTransform} />
+                        <ZoomControls zoomIn={zoomIn} zoomOut={zoomOut} resetTransform={resetTransform} onHome={onHome} />
                         <TransformComponent
                             wrapperStyle={{ width: '100%', height: '100%' }}
                             contentStyle={{ width: canvasW, height: realCanvasH }}
