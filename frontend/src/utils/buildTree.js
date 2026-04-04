@@ -802,8 +802,10 @@ export function buildTree(persons, relations, overrideMainId = null) {
     // 관계 기반 depth (DB generation 무시)
     const depthMap = computeDepth(mainId, maps);
 
-    // Z축 분류
-    const zMap = classifyZ(mainId, maps, depthMap, byId);
+    // Z축 분류 — 가문전환 시에는 모든 노드 Z=0 (숨김 없음)
+    const zMap = overrideMainId
+        ? Object.fromEntries(connectedIds.map(id => [id, 0]))
+        : classifyZ(mainId, maps, depthMap, byId);
 
     // ── 가문전환 대상 판별 ─────────────────────���────
     // 규칙: frontend/src/rules/WORMHOLE_RULES.md
