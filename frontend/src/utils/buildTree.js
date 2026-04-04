@@ -790,6 +790,24 @@ export function buildTree(persons, relations, overrideMainId = null) {
     // Z축 분류
     const zMap = classifyZ(mainId, maps, depthMap, byId);
 
+    // 직계 혈족 판별 (centerId에서 부모/자녀 체인으로만 도달 가능한 인물)
+    const bloodlineSet = new Set();
+    {
+        const queue = [mainId];
+        bloodlineSet.add(mainId);
+        while (queue.length > 0) {
+            const cur = queue.shift();
+            // 부모 체인
+            for (const p of (maps.parentOf[cur] || [])) {
+                if (!bloodlineSet.has(p)) { bloodlineSet.add(p); queue.push(p); }
+            }
+            // 자녀 체인
+            for (const c of (maps.childrenOf[cur] || [])) {
+                if (!bloodlineSet.has(c)) { bloodlineSet.add(c); queue.push(c); }
+            }
+        }
+    }
+
     // CoupleBlock 레이아웃
     const positions = layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds);
 
@@ -800,6 +818,7 @@ export function buildTree(persons, relations, overrideMainId = null) {
         const depth = depthMap[id] ?? 0;
         const zLevel = zMap[id] ?? 1;
 
+        const isBloodline = bloodlineSet.has(id);
         return {
             id,
             x: pos.x,
@@ -808,7 +827,7 @@ export function buildTree(persons, relations, overrideMainId = null) {
             z: zLevel,
             zOpacity: zOpacity(zLevel),
             zScale: zScale(zLevel),
-            data: buildNodeData(person),
+            data: { ...buildNodeData(person), isBloodline },
             rels: {
                 parents: (maps.parentOf[id] || []).filter(p => connectedIds.includes(p)),
                 spouses: (maps.spousesOf[id] || []).filter(s => connectedIds.includes(s)),

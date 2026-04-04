@@ -460,10 +460,10 @@ function FolderCard({
 
     const blurPx = Z_BLUR[node.z] ?? 0;
 
-    // 사위/며느리 판별: 배우자가 있고 부모가 트리에 없는 인물 (시집/장가 온 사람)
+    // 타성 배우자 판별: 직계 혈족이 아니고 배우자 관계로 연결된 인물
     const isInLaw = !isMainPerson
         && (rels?.spouses?.length > 0)
-        && (rels?.parents?.length === 0);
+        && !data.isBloodline;
 
     const handleAction = (actionKey) => {
         if (onAction) onAction(node.id, actionKey);

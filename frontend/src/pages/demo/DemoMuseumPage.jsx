@@ -7,13 +7,14 @@
  * - 달력/전시관 탭 (샘플 데이터)
  * - 편집 기능 숨김, 열람 전용
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import {
     TreePine, CalendarDays, Image, Network,
-    ChevronRight, Star, Camera, MapPin, X,
+    ChevronRight, Star, Camera, MapPin, X, Loader2,
 } from 'lucide-react';
+import axios from 'axios';
 import FamilyTreeCanvas from '../../components/museum/FamilyTreeCanvas';
 import { buildTree } from '../../utils/buildTree';
 
@@ -192,11 +193,46 @@ export default function DemoMuseumPage() {
     const [activeTab, setActiveTab] = useState('tree');
     const [showCtaModal, setShowCtaModal] = useState(false);
     const [mainPersonId, setMainPersonId] = useState(null);
+    const [livePersons, setLivePersons] = useState(null);
+    const [liveRelations, setLiveRelations] = useState(null);
+    const [museumName, setMuseumName] = useState('이한봉 가족유산박물관');
+    const [dataLoading, setDataLoading] = useState(true);
 
-    // buildTree로 실제 트리 데이터 생성
+    // site_id=1 (subdomain=lee) 실제 데이터 가져오기
+    useEffect(() => {
+        let cancelled = false;
+        async function fetchLive() {
+            try {
+                const siteRes = await axios.get('/api/museum/lee');
+                const siteId = siteRes.data?.data?.id;
+                if (siteRes.data?.data?.museum_name) setMuseumName(siteRes.data.data.museum_name);
+                if (!siteId) throw new Error('no site');
+
+                const [personsRes, relRes] = await Promise.all([
+                    axios.get(`/api/persons/${siteId}`),
+                    axios.get(`/api/relations/${siteId}`),
+                ]);
+                if (cancelled) return;
+                if (personsRes.data?.data) setLivePersons(personsRes.data.data);
+                if (relRes.data?.data) setLiveRelations(relRes.data.data);
+            } catch {
+                // fallback: 하드코딩 데이터 사용
+            } finally {
+                if (!cancelled) setDataLoading(false);
+            }
+        }
+        fetchLive();
+        return () => { cancelled = true; };
+    }, []);
+
+    // 실제 데이터 있으면 사용, 없으면 fallback
+    const usePersons = livePersons || DEMO_PERSONS;
+    const useRelations = liveRelations || DEMO_RELATIONS;
+    const defaultCenter = livePersons ? (livePersons.find(p => p.name === '이한봉')?.id || livePersons[0]?.id || '16') : '16';
+
     const treeData = useMemo(() => {
-        return buildTree(DEMO_PERSONS, DEMO_RELATIONS, mainPersonId || '16');
-    }, [mainPersonId]);
+        return buildTree(usePersons, useRelations, mainPersonId || String(defaultCenter));
+    }, [usePersons, useRelations, mainPersonId, defaultCenter]);
 
     const handleCardClick = () => {
         setShowCtaModal(true);
@@ -213,7 +249,7 @@ export default function DemoMuseumPage() {
     return (
         <div className="min-h-screen font-sans flex flex-col" style={{ background: '#FAFAF7' }}>
             <Helmet>
-                <title>이한봉 가족유산박물관 — Orgcell 체험</title>
+                <title>{museumName} — Orgcell 체험</title>
                 <meta name="description" content="Orgcell 가족유산박물관 데모. 실제 가계도를 둘러보세요." />
             </Helmet>
 
@@ -226,7 +262,7 @@ export default function DemoMuseumPage() {
                     <div className="flex items-center gap-2 min-w-0">
                         <TreePine size={16} className="text-[#C4A84F] shrink-0" />
                         <span className="text-[13px] font-semibold text-[#e8e0d0] truncate">
-                            이한봉 가족유산박물관 체험 중
+                            {museumName} 체험 중
                         </span>
                     </div>
                     <button
@@ -267,6 +303,11 @@ export default function DemoMuseumPage() {
                 {/* 가족트리 탭 */}
                 {activeTab === 'tree' && (
                     <div className="w-full relative" style={{ height: 'calc(100vh - 130px)', minHeight: '500px' }}>
+                        {dataLoading && (
+                            <div className="absolute inset-0 z-20 flex items-center justify-center" style={{ background: 'rgba(250,250,247,0.9)' }}>
+                                <Loader2 size={32} className="animate-spin" style={{ color: '#C4A84F' }} />
+                            </div>
+                        )}
                         {mainPersonId && (
                             <button
                                 onClick={() => setMainPersonId(null)}

@@ -5,7 +5,7 @@ import {
     GalleryThumbnails, Settings,
     LogIn, Bell, Star, Calendar, MessageSquare, Download,
     Plus, X, Pencil, UserPlus, Sparkles,
-    Upload, Users,
+    Upload, Users, Network, CalendarDays, Image,
 } from 'lucide-react';
 import axios from 'axios';
 import LanguageSwitcher from '../../components/common/LanguageSwitcher';
@@ -116,6 +116,12 @@ function PageLoader() {
 // ═══════════════════════════════════════════════
 // MAIN COMPONENT — 스크롤형 박물관
 // ═══════════════════════════════════════════════
+const MUSEUM_TABS = [
+    { key: 'tree', label: '가족트리', icon: Network },
+    { key: 'calendar', label: '행사', icon: CalendarDays },
+    { key: 'gallery', label: '전시관', icon: Image },
+];
+
 export default function MuseumPage({ initialTab }) {
     const { subdomain } = useParams();
     const navigate = useNavigate();
@@ -128,6 +134,7 @@ export default function MuseumPage({ initialTab }) {
     const [role, setRole] = useState(null);
     const [loading, setLoading] = useState(true);
     const [notFound, setNotFound] = useState(false);
+    const [activeTab, setActiveTab] = useState(initialTab || 'tree');
 
     // 전시관
     const [exhibitions, setExhibitions] = useState([]);
@@ -362,7 +369,7 @@ export default function MuseumPage({ initialTab }) {
                 className="sticky top-0 z-40 border-b"
                 style={{ background: 'rgba(250,250,247,0.96)', borderColor: '#e8e0d0', backdropFilter: 'blur(8px)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
             >
-                <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+                <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
                     <div className="flex items-center gap-2 truncate">
                         <img src="/logo-icon-sm.png" alt="" style={{ height: 28, objectFit: 'contain' }} />
                         <h1 className="font-bold text-base truncate" style={{ color: '#3a3a2a' }}>
@@ -403,80 +410,90 @@ export default function MuseumPage({ initialTab }) {
                 </div>
             </header>
 
-            {/* ════ 메인 콘텐츠 (스크롤) ════ */}
+            {/* ════ 탭 메뉴 (가족트리 / 행사 / 전시관) ════ */}
+            <div className="sticky top-[57px] z-30 bg-white border-b" style={{ borderColor: '#e8e0d0' }}>
+                <div className="max-w-5xl mx-auto flex">
+                    {MUSEUM_TABS.map(({ key, label, icon: Icon }) => (
+                        <button
+                            key={key}
+                            onClick={() => setActiveTab(key)}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-3 text-[13px] font-semibold transition-colors relative"
+                            style={{
+                                color: activeTab === key ? '#C4A84F' : '#7a6e5e',
+                                background: activeTab === key ? '#fffdf5' : 'transparent',
+                            }}
+                        >
+                            <Icon size={15} />
+                            {label}
+                            {activeTab === key && (
+                                <div className="absolute bottom-0 left-1/4 right-1/4 h-[2px] rounded-full" style={{ background: '#C4A84F' }} />
+                            )}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* ════ 메인 콘텐츠 (탭별 표시) ════ */}
             <main className="max-w-5xl mx-auto px-4 py-6 pb-28">
 
-                {/* ══ 2열 대시보드 위젯 (대형 카드 버튼) ══ */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-12">
-                    <DashboardCalendarWidget
-                        siteId={site?.id}
-                        role={role}
-                        t={t}
-                        posts={posts}
-                        boardLoading={boardLoading}
-                        canEdit={canEdit}
-                        onPostClick={(id) => setSelectedPostId(id)}
-                        onWritePost={() => setShowCreatePost(true)}
-                    />
-                    <DashboardExhibitionWidget
-                        siteId={site?.id}
-                        role={role}
-                        t={t}
-                        subdomain={subdomain}
-                        exhibitions={exhibitions}
-                        exhLoading={exhLoading}
-                        canEdit={canEdit}
-                        onUpload={() => setShowUploadModal(true)}
-                        onPrivateUpload={() => { setUploadInitialDest('private'); setShowUploadModal(true); }}
-                        onNavigate={navigate}
-                    />
-                </div>
-
-                {/* ══ 가족트리 + 자료실 (좌우 분할) ══ */}
-                <Section id="section-tree">
-                    <SectionHeader title="우리 가족" />
-                    <div className="flex gap-5" style={{ minHeight: '70vh' }}>
-                        {/* 좌측: 기존 가족트리 */}
-                        <div className="flex-1 overflow-hidden">
+                {/* ══ 가족트리 탭 ══ */}
+                {activeTab === 'tree' && (
+                    <Section id="section-tree">
+                        <div style={{ minHeight: '70vh' }}>
                             <FamilyTreeView siteId={site?.id} readOnly={role === 'public'} role={role} />
                         </div>
-                        {/* 우측: 자료실 버튼 패널 */}
+                    </Section>
+                )}
+
+                {/* ══ 행사 탭 (달력 + 게시판) ══ */}
+                {activeTab === 'calendar' && (
+                    <Section id="section-calendar">
+                        <DashboardCalendarWidget
+                            siteId={site?.id}
+                            role={role}
+                            t={t}
+                            posts={posts}
+                            boardLoading={boardLoading}
+                            canEdit={canEdit}
+                            onPostClick={(id) => setSelectedPostId(id)}
+                            onWritePost={() => setShowCreatePost(true)}
+                        />
                         {canEdit && (
-                            <div className="hidden lg:block w-48 shrink-0">
-                                <FeaturePanel onFeatureClick={handleFeatureClick} isOwner={role === 'owner'} />
+                            <div className="mt-6 rounded-2xl p-6 text-center"
+                                style={{ background: 'linear-gradient(135deg, #e8f5e0, #d4edda)', border: '1px solid #b8ddb0' }}>
+                                <p className="text-base font-bold mb-1" style={{ color: '#2a6a2a' }}>
+                                    가족에게 사진을 요청해보세요
+                                </p>
+                                <p className="text-sm mb-4" style={{ color: '#4a8a4a' }}>
+                                    박물관을 둘러보고 추억 사진을 올려줄 거예요
+                                </p>
+                                <button
+                                    onClick={() => navigate('/museum')}
+                                    className="px-5 py-2.5 rounded-full text-sm font-bold text-white transition-all hover:brightness-110"
+                                    style={{ background: '#4a7a3a' }}>
+                                    <Users size={14} className="inline mr-1.5" />
+                                    가족에게 요청하기
+                                </button>
                             </div>
                         )}
-                    </div>
-                    {/* 모바일: 자료실 버튼을 아래에 가로 배치 */}
-                    {canEdit && (
-                        <div className="lg:hidden mt-4">
-                            <FeaturePanel onFeatureClick={handleFeatureClick} isOwner={role === 'owner'} />
-                        </div>
-                    )}
-                </Section>
+                    </Section>
+                )}
 
-                {/* ══ 사진 요청 배너 ══ */}
-                {canEdit && (
-                    <Section id="section-request">
-                        <div
-                            className="rounded-2xl p-6 text-center"
-                            style={{ background: 'linear-gradient(135deg, #e8f5e0, #d4edda)', border: '1px solid #b8ddb0' }}
-                        >
-                            <p className="text-base font-bold mb-1" style={{ color: '#2a6a2a' }}>
-                                가족에게 사진을 요청해보세요
-                            </p>
-                            <p className="text-sm mb-4" style={{ color: '#4a8a4a' }}>
-                                박물관을 둘러보고 추억 사진을 올려줄 거예요
-                            </p>
-                            <button
-                                onClick={() => navigate('/museum')}
-                                className="px-5 py-2.5 rounded-full text-sm font-bold text-white transition-all hover:brightness-110"
-                                style={{ background: '#4a7a3a' }}
-                            >
-                                <Users size={14} className="inline mr-1.5" />
-                                가족에게 요청하기
-                            </button>
-                        </div>
+                {/* ══ 전시관 탭 ══ */}
+                {activeTab === 'gallery' && (
+                    <Section id="section-gallery">
+                        <DashboardExhibitionWidget
+                            siteId={site?.id}
+                            role={role}
+                            t={t}
+                            subdomain={subdomain}
+                            exhibitions={exhibitions}
+                            exhLoading={exhLoading}
+                            canEdit={canEdit}
+                            onUpload={() => setShowUploadModal(true)}
+                            onPrivateUpload={() => { setUploadInitialDest('private'); setShowUploadModal(true); }}
+                            onNavigate={navigate}
+                        />
                     </Section>
                 )}
             </main>

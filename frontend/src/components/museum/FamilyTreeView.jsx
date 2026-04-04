@@ -122,7 +122,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 }
             }
             // 연결됨 → import 페이지로 이동
-            navigate(`/familysearch-import?siteId=${siteId}&subdomain=${subdomain}&maxGen=5`);
+            navigate(`/familysearch-import?siteId=${siteId}&subdomain=${subdomain}&maxGen=2`);
         } catch (err) {
             console.error('FamilySearch sync error:', err);
             if (err.response?.status === 401) {
@@ -182,7 +182,12 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 break;
             }
             case 'archive': {
-                // 자료실: 관장/당사자/허가자만 진입
+                // 관장은 무조건 진입 가능
+                if (role === 'owner') {
+                    navigate(`/${subdomain}/archive/${raw.id}`);
+                    break;
+                }
+                // 그 외: 접근 권한 확인
                 const result = await checkAccess(raw.id);
                 if (result?.access === 'granted') {
                     navigate(`/${subdomain}/archive/${raw.id}`);

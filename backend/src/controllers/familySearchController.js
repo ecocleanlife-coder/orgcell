@@ -260,7 +260,7 @@ exports.importTree = async (req, res) => {
         }
 
         const siteId = parseInt(req.query.siteId, 10);
-        const maxGen = Math.min(parseInt(req.query.maxGen, 10) || 5, 8);
+        const maxGen = Math.min(parseInt(req.query.maxGen, 10) || 2, 8);
 
         if (!siteId) {
             return res.status(400).json({ success: false, message: 'siteId가 필요합니다.' });

@@ -193,7 +193,7 @@ export default function FamilySearchImportPage() {
 
     const siteId = searchParams.get('siteId');
     const subdomain = searchParams.get('subdomain');
-    const maxGen = parseInt(searchParams.get('maxGen') || '5', 10);
+    const initialMaxGen = parseInt(searchParams.get('maxGen') || '2', 10);
 
     // ── 상태 ──
     const [step, setStep] = useState('loading');
@@ -204,6 +204,9 @@ export default function FamilySearchImportPage() {
     const [genFilter, setGenFilter] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [saveResult, setSaveResult] = useState(null);
+    const [currentMaxGen, setCurrentMaxGen] = useState(initialMaxGen);
+    const [progress, setProgress] = useState({ message: '연결 준비 중...', sub: '' });
+    const [loadingMore, setLoadingMore] = useState(false);
 
     // Memories
     const [memoriesData, setMemoriesData] = useState([]);
@@ -211,50 +214,78 @@ export default function FamilySearchImportPage() {
     const [memoriesSaveResult, setMemoriesSaveResult] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(null);
 
-    // ── 1단계: 가져오기 ──
-    useEffect(() => {
+    // ── 가져오기 함수 (재사용: 초기 + 추가 로드) ──
+    const doImport = useCallback(async (maxGen, isLoadMore = false) => {
         if (!siteId) { setError('siteId가 필요합니다.'); setStep('error'); return; }
 
-        let cancelled = false;
-        async function doImport() {
-            try {
-                const res = await axios.get('/api/familysearch/tree/import', {
-                    params: { siteId, maxGen },
-                    timeout: 120000,
-                });
-                if (cancelled) return;
-                if (res.data?.success) {
-                    const { persons: imported, stats: importStats } = res.data.data;
-                    setPersons(imported);
-                    setStats(importStats);
-                    const defaultDecisions = {};
-                    for (const p of imported) {
-                        defaultDecisions[p.fs_id] = {
-                            ...p,
-                            action: p.match.status === 'suggest' ? 'link' : 'create',
-                            person_id: p.match.person_id || null,
-                        };
-                    }
-                    setDecisions(defaultDecisions);
-                    setStep('results');
-                } else {
-                    throw new Error(res.data?.message || '가져오기 실패');
+        if (isLoadMore) {
+            setLoadingMore(true);
+        } else {
+            setStep('loading');
+        }
+
+        // 진행 상황 시뮬레이션
+        const genLabels = ['본인', '부모 세대', '조부모 세대', '증조부모 세대', '고조부모 세대', '5대조 세대'];
+        let progressTimer;
+        if (!isLoadMore) {
+            let currentGen = 0;
+            progressTimer = setInterval(() => {
+                if (currentGen <= maxGen) {
+                    setProgress({
+                        message: `${genLabels[currentGen] || `${currentGen}대조 세대`} 가져오는 중...`,
+                        sub: currentGen === 0 ? '' : `${currentGen}세대까지 탐색 중`,
+                    });
+                    currentGen++;
                 }
-            } catch (err) {
-                if (cancelled) return;
-                if (err.response?.status === 401) {
-                    try {
-                        const authRes = await axios.get('/api/familysearch/auth');
-                        if (authRes.data?.authUrl) { window.location.href = authRes.data.authUrl; return; }
-                    } catch { /* ignore */ }
+            }, 1500);
+        }
+
+        try {
+            const res = await axios.get('/api/familysearch/tree/import', {
+                params: { siteId, maxGen },
+                timeout: 120000,
+            });
+            if (progressTimer) clearInterval(progressTimer);
+
+            if (res.data?.success) {
+                const { persons: imported, stats: importStats } = res.data.data;
+                setPersons(imported);
+                setStats(importStats);
+                setCurrentMaxGen(maxGen);
+                const defaultDecisions = {};
+                for (const p of imported) {
+                    defaultDecisions[p.fs_id] = {
+                        ...p,
+                        action: p.match.status === 'suggest' ? 'link' : 'create',
+                        person_id: p.match.person_id || null,
+                    };
                 }
+                setDecisions(defaultDecisions);
+                setStep('results');
+            } else {
+                throw new Error(res.data?.message || '가져오기 실패');
+            }
+        } catch (err) {
+            if (progressTimer) clearInterval(progressTimer);
+            if (err.response?.status === 401) {
+                try {
+                    const authRes = await axios.get('/api/familysearch/auth');
+                    if (authRes.data?.authUrl) { window.location.href = authRes.data.authUrl; return; }
+                } catch { /* ignore */ }
+            }
+            if (!isLoadMore) {
                 setError(err.response?.data?.message || err.message || '가져오기에 실패했습니다.');
                 setStep('error');
             }
+        } finally {
+            setLoadingMore(false);
         }
-        doImport();
-        return () => { cancelled = true; };
-    }, [siteId, maxGen]);
+    }, [siteId]);
+
+    // ── 1단계: 초기 가져오기 ──
+    useEffect(() => {
+        doImport(initialMaxGen);
+    }, [initialMaxGen, doImport]);
 
     // ── 필터링 ──
     const filtered = useMemo(() => {
@@ -392,7 +423,7 @@ export default function FamilySearchImportPage() {
 
             <main className="max-w-2xl mx-auto px-4 py-6 pb-32">
                 {/* ══ 로딩 ══ */}
-                {step === 'loading' && <ImportLoader message="조상 데이터를 가져오는 중..." sub="FamilySearch에서 조상 데이터를 가져오는 중..." />}
+                {step === 'loading' && <ImportLoader message={progress.message} sub={progress.sub} />}
 
                 {/* ══ 에러 ══ */}
                 {step === 'error' && (
@@ -417,8 +448,27 @@ export default function FamilySearchImportPage() {
                             <div className="flex gap-4 text-xs" style={{ color: '#4A8DB7' }}>
                                 <span>유사 매칭: {stats?.suggest || 0}명</span>
                                 <span>새 인물: {stats?.new || 0}명</span>
+                                <span>{genLabel(currentMaxGen)}까지 조회</span>
                             </div>
                         </div>
+
+                        {/* 더 가져오기 버튼 */}
+                        {currentMaxGen < 5 && (
+                            <button
+                                onClick={() => doImport(currentMaxGen + 1, true)}
+                                disabled={loadingMore}
+                                className="w-full mb-4 py-2.5 rounded-xl text-sm font-bold transition-all hover:brightness-105 disabled:opacity-60"
+                                style={{ background: '#EBF4FB', color: '#2A6B8A', border: '1px solid #D0E8F5' }}
+                            >
+                                {loadingMore ? (
+                                    <><Loader2 size={14} className="inline mr-1.5 animate-spin" />
+                                        {genLabel(currentMaxGen + 1)} 가져오는 중...</>
+                                ) : (
+                                    <><TreePine size={14} className="inline mr-1.5" />
+                                        {genLabel(currentMaxGen + 1)} 더 가져오기</>
+                                )}
+                            </button>
+                        )}
 
                         <div className="flex gap-2 mb-4 flex-wrap items-center">
                             <div className="flex gap-1">

@@ -21,6 +21,8 @@ axios.interceptors.response.use(
     }
 );
 
+let _fetchMePromise = null; // 중복 호출 방지
+
 const useAuthStore = create((set) => ({
     user: null,
     isAuthenticated: false,
@@ -71,29 +73,35 @@ const useAuthStore = create((set) => ({
     },
 
     fetchMe: async () => {
+        // 이미 진행 중이면 기존 Promise 재사용 (중복 호출 방지)
+        if (_fetchMePromise) return _fetchMePromise;
+
         set({ isLoading: true });
-        try {
-            const res = await Promise.race([
-                axios.get('/api/auth/me'),
-                new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Auth check timeout')), 5000)
-                ),
-            ]);
-            if (res.data?.data) {
-                set({ user: res.data.data, isAuthenticated: true });
-                useAuthStore.getState().checkDriveStatus();
-            } else {
-                throw new Error('Invalid user data');
+        _fetchMePromise = (async () => {
+            try {
+                const res = await Promise.race([
+                    axios.get('/api/auth/me', { headers: {}, _skipAuthToast: true }),
+                    new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Auth check timeout')), 5000)
+                    ),
+                ]);
+                if (res.data?.data) {
+                    set({ user: res.data.data, isAuthenticated: true });
+                    useAuthStore.getState().checkDriveStatus();
+                } else {
+                    throw new Error('Invalid user data');
+                }
+            } catch (err) {
+                if (err.response?.status === 401 || err.message === 'Auth check timeout') {
+                    set({ user: null, isAuthenticated: false });
+                }
+                set({ error: err.message });
+            } finally {
+                set({ isLoading: false });
+                _fetchMePromise = null;
             }
-        } catch (err) {
-            console.error('Auth check failed:', err);
-            if (err.response?.status === 401 || err.message === 'Auth check timeout') {
-                set({ user: null, isAuthenticated: false });
-            }
-            set({ error: err.message });
-        } finally {
-            set({ isLoading: false });
-        }
+        })();
+        return _fetchMePromise;
     },
 
     driveConnected: false,
