@@ -70,10 +70,20 @@ function LandingPage() {
                 {/* 서브 문구 */}
                 <p style={{
                     fontSize: 16, color: '#7A6E5E', lineHeight: 1.6,
-                    marginBottom: 40, maxWidth: 360,
+                    marginBottom: 20, maxWidth: 360,
                 }}>
                     소중한 사진과 이야기를<br />
                     가족과 함께 영원히 보존하세요
+                </p>
+
+                {/* 태그라인 */}
+                <p style={{
+                    fontSize: 13, color: '#A09888', lineHeight: 1.7,
+                    marginBottom: 40, maxWidth: 380,
+                    fontStyle: 'italic',
+                }}>
+                    "FamilySearch가 죽은 자의 도서관이라면,<br />
+                    Orgcell은 산 자의 박물관입니다."
                 </p>
 
                 {/* CTA 버튼 */}
@@ -343,6 +353,8 @@ function LandingPage() {
                 </span>
 
                 <div style={{ marginTop: 16, fontSize: 13, color: '#999' }}>
+                    <a href="/ancestry-guide" style={{ color: '#999', textDecoration: 'none' }}>조상찾기 안내</a>
+                    <span style={{ margin: '0 8px' }}>|</span>
                     <a href="/privacy" style={{ color: '#999', textDecoration: 'none' }}>개인정보처리방침</a>
                     <span style={{ margin: '0 8px' }}>|</span>
                     <a href="/terms" style={{ color: '#999', textDecoration: 'none' }}>이용약관</a>

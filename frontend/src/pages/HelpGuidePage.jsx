@@ -283,6 +283,17 @@ export default function HelpGuidePage() {
                         </div>
                     ))}
                 </div>
+
+                {/* 조상찾기 안내 링크 */}
+                <div className="mt-8 text-center">
+                    <button
+                        onClick={() => navigate('/ancestry-guide')}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold border transition hover:bg-[#F0EDE6]"
+                        style={{ color: '#5A5A4A', borderColor: '#E8E3D8' }}
+                    >
+                        {lang === 'ko' ? '조상찾기 안내' : 'Ancestry Research Guide'}
+                    </button>
+                </div>
             </div>
         </div>
     );

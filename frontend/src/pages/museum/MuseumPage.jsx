@@ -372,9 +372,16 @@ export default function MuseumPage({ initialTab }) {
                 <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
                     <div className="flex items-center gap-2 truncate">
                         <img src="/logo-icon-sm.png" alt="" style={{ height: 28, objectFit: 'contain' }} />
-                        <h1 className="font-bold text-base truncate" style={{ color: '#3a3a2a' }}>
-                            {museumName}
-                        </h1>
+                        <div className="truncate">
+                            <h1 className="font-bold text-base truncate" style={{ color: '#3a3a2a', lineHeight: 1.2 }}>
+                                {museumName}
+                            </h1>
+                            <p className="truncate" style={{ fontSize: 9, color: '#A09888', fontStyle: 'italic', lineHeight: 1.2 }}>
+                                {lang === 'en'
+                                    ? 'If FamilySearch is a library of the dead, Orgcell is a museum of the living.'
+                                    : 'FamilySearch가 죽은 자의 도서관이라면, Orgcell은 산 자의 박물관입니다.'}
+                            </p>
+                        </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                         {role === 'owner' && installPrompt && !isInstalled && (
@@ -512,7 +519,11 @@ export default function MuseumPage({ initialTab }) {
                             ? 'All photos, records, and content in this museum are owned by the curator and family members, protected by copyright law. Unauthorized reproduction, copying, distribution, or commercial use is strictly prohibited.'
                             : '본 박물관의 모든 사진, 기록, 음성 등 콘텐츠는 관장 및 가족 구성원의 소유이며 저작권법의 보호를 받습니다. 무단 복제, 복사, 배포, 상업적 사용을 금지합니다. 위반 시 법적 책임을 질 수 있습니다.'}
                     </p>
-                    <div className="flex items-center justify-center gap-4 text-[11px]" style={{ color: '#9a9a8a' }}>
+                    <div className="flex items-center justify-center gap-4 text-[11px] flex-wrap" style={{ color: '#9a9a8a' }}>
+                        <button onClick={() => navigate('/ancestry-guide')} className="hover:underline">
+                            {lang === 'en' ? 'Ancestry Guide' : '조상찾기 안내'}
+                        </button>
+                        <span>·</span>
                         <button onClick={() => navigate('/help')} className="hover:underline">
                             {lang === 'en' ? 'Help Guide' : '사용 안내'}
                         </button>

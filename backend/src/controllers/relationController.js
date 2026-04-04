@@ -45,7 +45,7 @@ exports.createRelation = async (req, res) => {
             return res.status(400).json({ success: false, message: 'person1_id, person2_id, relation_type are required' });
         }
 
-        const validTypes = ['parent', 'spouse', 'ex_spouse', 'adopted', 'step_parent', 'sibling', 'half_sibling'];
+        const validTypes = ['parent', 'spouse', 'ex_spouse', 'adopted', 'step_parent', 'sibling', 'half_sibling', 'birth-parent'];
         if (!validTypes.includes(relation_type)) {
             return res.status(400).json({ success: false, message: `Invalid relation_type. Must be one of: ${validTypes.join(', ')}` });
         }

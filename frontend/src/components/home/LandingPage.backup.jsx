@@ -6,7 +6,7 @@ const SECTIONS = [
     {
         bg: '#F3EFFF',
         image: '/images/landing/card-museum.png',
-        imageAlt: '가족 박물관 - 디지털 가족 공간',
+        imageAlt: '가족유산박물관 - 가족 유산 공간',
         title: '사라지지 않는 가족의 역사',
         desc: '나와 우리 가족의 소중한 기록이\n영원히 보관되는 디지털 박물관을 만들어보세요.',
         btnText: '박물관 만들기',
@@ -65,10 +65,10 @@ function LandingPage() {
     return (
         <div className="min-h-screen" style={{ background: '#FAFAF7' }}>
             <Helmet>
-                <title>Orgcell — AI 가족 사진 자동 정리 · Digital Family Museum</title>
+                <title>Orgcell — AI 가족 사진 자동 정리 · Family Heritage Museum</title>
                 <meta name="description" content="AI Smart Sort로 중복 사진 정리, 가족 도메인 개설, Live Sharing으로 실시간 공유. 가족 사진의 모든 것을 Orgcell에서." />
                 <meta property="og:title" content="Orgcell — AI 가족 사진 자동 정리" />
-                <meta property="og:description" content="AI가 사진을 정리하고 나만의 가족 박물관을 만들어보세요. 원본은 내 구글 드라이브에 안전하게." />
+                <meta property="og:description" content="AI가 사진을 정리하고 나만의 가족유산박물관을 만들어보세요. 원본은 내 구글 드라이브에 안전하게." />
                 <meta property="og:image" content="/pwa-512x512.png" />
             </Helmet>
 

@@ -793,6 +793,7 @@ export function buildTree(persons, relations, overrideMainId = null) {
 
     const maps = buildMaps(persons, relations || []);
     const mainId = overrideMainId ? String(overrideMainId) : pickMainId(persons);
+    console.log('[buildTree] mainId:', mainId, '(override:', overrideMainId, ')');
 
     // 연결된 노드만 필터
     const allIds = persons.map(p => String(p.id));
@@ -816,6 +817,9 @@ export function buildTree(persons, relations, overrideMainId = null) {
 
     // CoupleBlock 레이아웃
     const positions = layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds);
+
+    const mainPos = positions[mainId];
+    console.log('[buildTree] 중심 좌표:', mainId, '→', mainPos, 'Z0 수:', Object.values(zMap).filter(z => z === 0).length);
 
     // 노드 조립
     const nodes = connectedIds.map(id => {

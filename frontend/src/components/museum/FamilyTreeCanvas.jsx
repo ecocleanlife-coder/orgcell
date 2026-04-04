@@ -11,7 +11,6 @@ import { motion } from 'framer-motion';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import CoupleBlock from './CoupleBlock';
 import ConnectorLine from './ConnectorLine';
-import { useWormholeTransition, WormholeWrapper } from './WormholeTransition';
 import useTreeViewStore from '../../store/treeViewStore';
 
 const springTransition = { type: 'spring', stiffness: 200, damping: 25 };
@@ -119,22 +118,33 @@ export default function FamilyTreeCanvas({
         return m;
     }, [nodes]);
 
-    // Wormhole
-    const handleWormholeTransition = useCallback((newMainId) => {
+    // Wormhole: 데이터 재계산이 핵심, 애니메이션은 부가 효과
+    const handleWormhole = useCallback((newMainId) => {
+        console.log('=== 가문전환 ===');
+        console.log('이전 centerId:', mainId);
+        console.log('새 centerId:', newMainId);
         if (onWormhole) onWormhole(newMainId);
-    }, [onWormhole]);
-    const { phase, trigger: triggerWormhole } = useWormholeTransition(handleWormholeTransition);
+    }, [onWormhole, mainId]);
 
     const handleCardClick = useCallback((nodeId) => {
         const node = nodesMap[nodeId];
         if (node && node.z >= 1 && onWormhole) {
-            triggerWormhole(nodeId);
+            handleWormhole(nodeId);
         } else if (externalOnClick) {
             externalOnClick(nodeId);
         } else {
             setInternalSelectedId(nodeId);
         }
-    }, [nodesMap, onWormhole, externalOnClick, triggerWormhole]);
+    }, [nodesMap, onWormhole, externalOnClick, handleWormhole]);
+
+    // onAction 래핑: wormhole 액션은 직접 centerId 변경 (애니메이션 없이)
+    const handleAction = useCallback((nodeId, actionKey) => {
+        if (actionKey === 'wormhole') {
+            handleWormhole(nodeId);
+        } else if (onAction) {
+            onAction(nodeId, actionKey);
+        }
+    }, [handleWormhole, onAction]);
 
     // Z=0만 표시 (타가문은 웜홀 전환 전까지 숨김)
     const allZ0Nodes = useMemo(() => nodes.filter(n => n.z === 0), [nodes]);
@@ -173,7 +183,7 @@ export default function FamilyTreeCanvas({
     const toScreenY = (treeY) => -treeY - screenBounds.minY;
 
     // ── 뷰포트 상태 유지 ──
-    const { viewport: savedViewport, setViewport, hasValidViewport } = useTreeViewStore();
+    const { viewport: savedViewport, setViewport, clearViewport, hasValidViewport } = useTreeViewStore();
 
     // ── 관장 부부 중심 뷰: 초기 로드 시 main couple을 화면 중앙에 배치 ──
     const mainScreenX = useMemo(() => toScreenX(0), [bounds]);
@@ -188,7 +198,12 @@ export default function FamilyTreeCanvas({
         const isWormholeSwitch = prevMainIdRef.current !== mainId;
         prevMainIdRef.current = mainId;
 
-        // 가문전환 시: 항상 새 중심으로 리셋 (저장된 뷰포트 무시)
+        if (isWormholeSwitch) {
+            console.log('[가문전환] viewport 초기화, mainId:', mainId, 'Z0노드:', allZ0Nodes.length);
+            clearViewport();
+        }
+
+        // 일반 복원: 가문전환 아닌 경우만 저장된 뷰포트 사용
         if (!isWormholeSwitch && hasValidViewport()) {
             setTimeout(() => {
                 transformRef.current?.setTransform(
@@ -206,6 +221,7 @@ export default function FamilyTreeCanvas({
         const vh = window.innerHeight - 130;
         const tx = vw / 2 - mainScreenX * scale;
         const ty = vh / 3 - mainScreenY * scale;
+        console.log('[가문전환] 중심 배치 mainId:', mainId, 'screenX:', mainScreenX, 'screenY:', mainScreenY, 'tx:', tx, 'ty:', ty);
         setTimeout(() => {
             transformRef.current?.setTransform(tx, ty, scale);
         }, 50);
@@ -334,7 +350,6 @@ export default function FamilyTreeCanvas({
             }}
             data-testid="tree-canvas"
         >
-            <WormholeWrapper phase={phase}>
             <TransformWrapper
                 ref={transformRef}
                 initialScale={0.55}
@@ -417,7 +432,7 @@ export default function FamilyTreeCanvas({
                                                     childrenIds={[...new Set(coupleChildIds)]}
                                                     onCardClick={handleCardClick}
                                                     onContextMenu={onContextMenu}
-                                                    onAction={onAction}
+                                                    onAction={handleAction}
                                                 />
                                             </motion.div>
                                         );
@@ -446,7 +461,7 @@ export default function FamilyTreeCanvas({
                                                 childrenIds={soloChildIds}
                                                 onCardClick={handleCardClick}
                                                 onContextMenu={onContextMenu}
-                                                onAction={onAction}
+                                                onAction={handleAction}
                                             />
                                         </motion.div>
                                     );
@@ -458,7 +473,6 @@ export default function FamilyTreeCanvas({
                     </>
                 )}
             </TransformWrapper>
-            </WormholeWrapper>
 
         </div>
     );

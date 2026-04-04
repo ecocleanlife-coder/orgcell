@@ -63,6 +63,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     // 가계도 중심 인물 (wormhole 전환 시 변경)
     const [mainPersonId, setMainPersonId] = useState(null);
 
+    // 가문전환 안내 메시지 (편집 후 표시)
+    const [wormholeGuide, setWormholeGuide] = useState(null);
+
     // 초대 모달 상태
     const [inviteTarget, setInviteTarget] = useState(null);
 
@@ -159,6 +162,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 openEditModal(raw);
                 break;
             case 'wormhole':
+                console.log('[FamilyTreeView] 가문전환:', mainPersonId, '→', String(raw.id));
                 setMainPersonId(String(raw.id));
                 break;
             case 'exhibit_public': {
@@ -233,7 +237,11 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     // ── buildTree 계산 (persons + relations → nodes/links) ──
     const treeData = useMemo(() => {
         if (persons.length === 0) return { nodes: [], links: [], mainId: null };
-        return buildTree(persons, relations, mainPersonId);
+        console.log('[FamilyTreeView] buildTree 호출, mainPersonId:', mainPersonId);
+        const result = buildTree(persons, relations, mainPersonId);
+        const mainNode = result.nodes.find(n => n.id === result.mainId);
+        console.log('[FamilyTreeView] buildTree 결과 mainId:', result.mainId, '좌표:', mainNode ? { x: mainNode.x, y: mainNode.y, z: mainNode.z } : 'NOT FOUND');
+        return result;
     }, [persons, relations, mainPersonId]);
 
     // ── Modal state ──
@@ -479,6 +487,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
     const handleEditSubmit = async () => {
         if (!editPerson || !editName.trim()) return;
+        const editedPersonId = String(editPerson.id);
         setSubmitting(true);
         await apiUpdatePerson(editPerson.id, {
             name: editName.trim(),
@@ -506,6 +515,12 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         setModal(null);
         setEditPerson(null);
         setPendingPhotoFile(null);
+
+        // 가문전환 버튼이 있는 인물 편집 후 안내 표시
+        const editedNode = treeData.nodes.find(n => n.id === editedPersonId);
+        if (editedNode?.data?.showWormholeButton) {
+            setWormholeGuide(editedPersonId);
+        }
     };
 
     const handleDelete = async () => {
@@ -788,8 +803,14 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                             if (raw) openEditModal(raw);
                         }
                     }}
-                    onWormhole={(personId) => setMainPersonId(String(personId))}
-                    onHome={() => setMainPersonId(null)}
+                    onWormhole={(personId) => {
+                        console.log('[FamilyTreeView] onWormhole 콜백:', mainPersonId, '→', String(personId));
+                        setMainPersonId(String(personId));
+                    }}
+                    onHome={() => {
+                        console.log('[FamilyTreeView] onHome: centerId → null');
+                        setMainPersonId(null);
+                    }}
                     onAction={handleCardAction}
                     style={{ width: '100%', height: '100%' }}
                 />
@@ -802,6 +823,38 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                     </button>
                 )}
             </div>
+
+            {/* ── 가문전환 안내 메시지 ── */}
+            {wormholeGuide && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 mx-4" style={{ maxWidth: 360 }}>
+                        <p className="text-sm font-medium text-center mb-4 whitespace-pre-line" style={{ color: '#3a3a2a', lineHeight: 1.7 }}>
+                            {lang === 'en'
+                                ? 'Edit saved.\nTo view from your family\'s perspective,\npress the Wormhole button.'
+                                : '편집이 저장되었습니다.\n내 가문 중심으로 보시려면\n가문전환 버튼을 눌러주세요.'}
+                        </p>
+                        <div className="flex gap-3 justify-center">
+                            <button
+                                onClick={() => {
+                                    setMainPersonId(wormholeGuide);
+                                    setWormholeGuide(null);
+                                }}
+                                className="px-4 py-2 rounded-lg text-sm font-bold text-white"
+                                style={{ background: 'linear-gradient(135deg, #64B4FF, #4A8FD9)' }}
+                            >
+                                {lang === 'en' ? 'Switch Family' : '가문전환'}
+                            </button>
+                            <button
+                                onClick={() => setWormholeGuide(null)}
+                                className="px-4 py-2 rounded-lg text-sm font-medium border"
+                                style={{ color: '#7a6e5e', borderColor: '#e8e0d0' }}
+                            >
+                                {lang === 'en' ? 'Close' : '닫기'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ── 초대 모달 ── */}
             {inviteTarget && (

@@ -203,7 +203,12 @@ export default function DemoMuseumPage() {
     const museumName = '김영수 가족유산박물관';
 
     const treeData = useMemo(() => {
-        return buildTree(DEMO_PERSONS, DEMO_RELATIONS, mainPersonId || '16');
+        const centerId = mainPersonId || '16';
+        console.log('[DemoMuseum] buildTree 호출, centerId:', centerId);
+        const result = buildTree(DEMO_PERSONS, DEMO_RELATIONS, centerId);
+        const mainNode = result.nodes.find(n => n.id === result.mainId);
+        console.log('[DemoMuseum] 결과 mainId:', result.mainId, '좌표:', mainNode ? { x: mainNode.x, y: mainNode.y, z: mainNode.z } : 'NOT FOUND', 'Z0수:', result.nodes.filter(n => n.z === 0).length);
+        return result;
     }, [mainPersonId]);
 
     const handleCardClick = () => {
@@ -212,6 +217,7 @@ export default function DemoMuseumPage() {
 
     const handleAction = (personId, actionKey) => {
         if (actionKey === 'wormhole') {
+            console.log('[DemoMuseum] 가문전환:', mainPersonId, '→', String(personId));
             setMainPersonId(String(personId));
         } else {
             setShowCtaModal(true);
