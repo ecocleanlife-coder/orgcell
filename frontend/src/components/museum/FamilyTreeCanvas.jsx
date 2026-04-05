@@ -136,15 +136,12 @@ export default function FamilyTreeCanvas({
     }, [onWormhole, mainId]);
 
     const handleCardClick = useCallback((nodeId) => {
-        const node = nodesMap[nodeId];
-        if (node && node.z >= 1 && onWormhole) {
-            handleWormhole(nodeId);
-        } else if (externalOnClick) {
+        if (externalOnClick) {
             externalOnClick(nodeId);
         } else {
             setInternalSelectedId(nodeId);
         }
-    }, [nodesMap, onWormhole, externalOnClick, handleWormhole]);
+    }, [externalOnClick]);
 
     // onCardDoubleClick 래핑
     const handleCardDoubleClick = useCallback((nodeId) => {
@@ -153,16 +150,12 @@ export default function FamilyTreeCanvas({
         }
     }, [externalOnDoubleClick]);
 
-    // Z=0만 표시 (타가문은 웜홀 전환 전까지 숨김)
-    const allZ0Nodes = useMemo(() => nodes.filter(n => n.z === 0), [nodes]);
-    const allZ0Ids = useMemo(() => new Set(allZ0Nodes.map(n => n.id)), [allZ0Nodes]);
+    // z=0만 표시 (타가문 숨김)
+    const visibleNodes = useMemo(() => nodes.filter(n => n.z === 0), [nodes]);
+    const visibleIds = useMemo(() => new Set(visibleNodes.map(n => n.id)), [visibleNodes]);
+    const visibleLinks = useMemo(() => links.filter(l => visibleIds.has(l.source) && visibleIds.has(l.target)), [links, visibleIds]);
 
-    // 모든 Z=0 노드 표시 (LOD 필터 없음 — 모든 세대 렌더링)
-    const visibleNodes = allZ0Nodes;
-    const visibleIds = allZ0Ids;
-    const visibleLinks = useMemo(() => links.filter(l => allZ0Ids.has(l.source) && allZ0Ids.has(l.target)), [links, allZ0Ids]);
-
-    const bounds = useMemo(() => calcBounds(allZ0Nodes), [allZ0Nodes]);
+    const bounds = useMemo(() => calcBounds(visibleNodes), [visibleNodes]);
     const couples = useMemo(() => groupCouples(visibleNodes, visibleLinks), [visibleNodes, visibleLinks]);
 
     // 자녀 ID 맵
@@ -176,12 +169,12 @@ export default function FamilyTreeCanvas({
         return map;
     }, [visibleLinks]);
 
-    // ── 스크린 좌표 변환 (전체 Z=0 기준 — 캔버스 크기 안정) ──
-    const screenYs = allZ0Nodes.map(n => -n.y);
+    // ── 스크린 좌표 변환 ──
+    const screenYs = visibleNodes.map(n => -n.y);
     const screenBounds = useMemo(() => ({
-        minY: allZ0Nodes.length > 0 ? Math.min(...screenYs) - CARD_HALF - 140 - TAB_H : 0,
-        maxY: allZ0Nodes.length > 0 ? Math.max(...screenYs) + CARD_HALF + 140 + 30 : 400,
-    }), [allZ0Nodes, screenYs]);
+        minY: visibleNodes.length > 0 ? Math.min(...screenYs) - CARD_HALF - 140 - TAB_H : 0,
+        maxY: visibleNodes.length > 0 ? Math.max(...screenYs) + CARD_HALF + 140 + 30 : 400,
+    }), [visibleNodes, screenYs]);
 
     const canvasW = bounds.maxX - bounds.minX;
     const realCanvasH = screenBounds.maxY - screenBounds.minY;
@@ -206,7 +199,6 @@ export default function FamilyTreeCanvas({
         prevMainIdRef.current = mainId;
 
         if (isWormholeSwitch) {
-            console.log('[가문전환] viewport 초기화, mainId:', mainId, 'Z0노드:', allZ0Nodes.length);
             clearViewport();
         }
 
@@ -228,7 +220,6 @@ export default function FamilyTreeCanvas({
         const vh = window.innerHeight - 130;
         const tx = vw / 2 - mainScreenX * scale;
         const ty = vh / 3 - mainScreenY * scale;
-        console.log('[가문전환] 중심 배치 mainId:', mainId, 'screenX:', mainScreenX, 'screenY:', mainScreenY, 'tx:', tx, 'ty:', ty);
         setTimeout(() => {
             transformRef.current?.setTransform(tx, ty, scale);
         }, 50);
@@ -323,8 +314,6 @@ export default function FamilyTreeCanvas({
                 .filter(Boolean);
             if (childEntries.length === 0) continue;
 
-            const z = Math.min(...parentIds.map(id => nodesMap[id]?.z ?? 0));
-
             result.push({
                 key: coupleKey,
                 parentX: parentPos.centerX,
@@ -333,7 +322,6 @@ export default function FamilyTreeCanvas({
                     x: cp.x,
                     y: cp.y - 5,
                 })),
-                z,
             });
         }
 
@@ -398,7 +386,6 @@ export default function FamilyTreeCanvas({
                                             parentX={c.parentX}
                                             parentY={c.parentY}
                                             children={c.children}
-                                            z={c.z}
                                         />
                                     ))}
                                 </svg>
@@ -474,7 +461,6 @@ export default function FamilyTreeCanvas({
                                     );
                                 })}
 
-                                {/* 모든 세대 표시 — LOD 필터 없음 */}
                             </div>
                         </TransformComponent>
                     </>

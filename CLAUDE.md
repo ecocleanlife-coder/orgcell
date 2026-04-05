@@ -1,8 +1,8 @@
 > 공통 규칙은 C:\IOC\CLAUDE.md 참조
 
-## 모든 개발은 VISION.md의 레고 블록 원칙을 준수한다
+## 모든 개발은 ORGCELL_CODING_RULES.md의 레고 블록 원칙을 준수한다
 
-## 비전/로드맵 → VISION.md 참조
+## 비전/로드맵 → VISION.md 참조 (단, ORGCELL_CODING_RULES.md 우선)
 
 # orgcell — AI 사진 정리/공유 플랫폼
 

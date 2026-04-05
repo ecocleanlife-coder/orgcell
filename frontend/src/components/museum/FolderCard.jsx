@@ -1,13 +1,12 @@
 /**
  * FolderCard.jsx — "기록의 벽돌" (Record Brick)
  *
- * VISION.md v2.0 레고 블록 표준 + 박물관 컨셉
+ * ORGCELL_CODING_RULES.md 레고 블록 표준 + 박물관 컨셉
  * - 180×180px 정사각형 + 40×10 폴더 탭
  * - Photo Front: 사진 전면 + 하단 그라디언트 오버레이
  * - Canvas Front: 아이보리 린넨 + Georgia 서체 + 성별 실루엣
  * - 1.5px 금색 액자 프레임 + 인셋 라인
  * - 20px 시각적 3D 두께 (box-shadow 블록)
- * - preserve-3d + translateZ (웜홀 대비)
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { maskName, maskInitials } from '../../utils/privacyMask';
@@ -18,16 +17,12 @@ const CARD_SIZE = 180;
 const TAB_W = 40;
 const TAB_H = 10;
 const BLOCK_DEPTH = 20;       // 시각적 3D 두께
-const Z_DEPTH_PX = 200;       // Z 레이어 간 translateZ 거리
 const FRAME_COLOR = '#C4A84F'; // 금색 액자
 const INSET_COLOR = 'rgba(196,168,79,0.3)'; // 인셋 라인
 
 // ── 성별 실루엣 색상 ──
 const SILHOUETTE_COLOR = { M: '#8B7355', F: '#C4956A' };
 const GENDER_ICON = { M: '♂', F: '♀' };
-
-// ── Z축 안개 blur (VISION.md LOD) ──
-const Z_BLUR = { 0: 0, 1: 3, 2: 6 };
 
 // ── 린넨 노이즈 배경 (CSS 패턴) ──
 const LINEN_BG = `
@@ -69,9 +64,7 @@ function getCardStyle(node, isSelected, isMainPerson, hasPhoto) {
         position: 'relative',
         overflow: 'hidden',
         boxSizing: 'border-box',
-        transition: 'box-shadow 0.3s, transform 0.4s, opacity 0.4s',
-        opacity: node.zOpacity,
-        transform: `scale(${node.zScale}) translateZ(${10 - (node.z || 0) * Z_DEPTH_PX}px)`,
+        transition: 'box-shadow 0.3s',
         border: `1.5px solid ${FRAME_COLOR}`,
         boxShadow: getBlockShadow(isMainPerson, isSelected),
     };
@@ -400,8 +393,6 @@ function FolderCard({
         stateOverride.border = `2px solid ${FRAME_COLOR}`;
     }
 
-    const blurPx = Z_BLUR[node.z] ?? 0;
-
     return (
         <div
             ref={cardRef}
@@ -414,7 +405,6 @@ function FolderCard({
                 touchAction: 'manipulation',
             }}
             data-person-id={node.id}
-            data-z={node.z}
             data-testid="folder-card"
         >
             {/* 폴더 쌓임 효과: 관계자 2명+ → 그림자 2장 */}
@@ -507,22 +497,6 @@ function FolderCard({
                     <CanvasFront data={maskedData} isDeceased={isDeceased} />
                 )}
 
-                {/* Z축 안개 오버레이 */}
-                {blurPx > 0 && (
-                    <div
-                        data-testid="fog-overlay"
-                        style={{
-                            position: 'absolute',
-                            inset: 0,
-                            borderRadius: '3px',
-                            backdropFilter: `blur(${blurPx}px)`,
-                            WebkitBackdropFilter: `blur(${blurPx}px)`,
-                            background: `rgba(250,250,242,${node.z === 2 ? 0.5 : 0.2})`,
-                            pointerEvents: 'none',
-                            zIndex: 4,
-                        }}
-                    />
-                )}
             </div>
         </div>
     );
@@ -535,7 +509,6 @@ export default React.memo(FolderCard, (prev, next) => {
     const nextRelCount = (nextRels.parents?.length || 0) + (nextRels.spouses?.length || 0) + (nextRels.children?.length || 0);
     return (
         prev.node.id === next.node.id &&
-        prev.node.z === next.node.z &&
         prev.node.x === next.node.x &&
         prev.node.y === next.node.y &&
         prev.isSelected === next.isSelected &&

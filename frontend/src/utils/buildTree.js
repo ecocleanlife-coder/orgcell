@@ -207,10 +207,9 @@ function computeDepth(mainId, maps) {
     return depth;
 }
 
-// ── Z축 분류 ────────────────────────────────────
+// ── 표시 여부 분류 ────────────────────────────────────
 // centerId 부부만 양쪽 가문이 X/Y에 펼쳐지고,
-// 나머지 배우자들의 가문(부모/형제)은 Z=1로 접힌다.
-// 규칙: frontend/src/rules/WORMHOLE_RULES.md
+// 나머지 배우자들의 가문(부모/형제)은 숨김 (z=1).
 
 function classifyZ(mainId, maps, depthMap, byId) {
     const { parentOf, childrenOf, spousesOf } = maps;
@@ -278,17 +277,6 @@ function classifyZ(mainId, maps, depthMap, byId) {
     return z;
 }
 
-function zOpacity(zLevel) {
-    if (zLevel === 0) return 1.0;
-    if (zLevel === 1) return 0.4;
-    return 0.15;
-}
-
-function zScale(zLevel) {
-    if (zLevel === 0) return 1.0;
-    if (zLevel === 1) return 0.85;
-    return 0.7;
-}
 
 // ── 노드 데이터 생성 ────────────────────────────
 
@@ -823,21 +811,8 @@ export function buildTree(persons, relations, overrideMainId = null) {
     // Z축 분류 — 가문전환 여부 무관, 항상 classifyZ 실행
     const zMap = classifyZ(mainId, maps, depthMap, byId);
 
-    // ── 가문전환 대상 판별 ─────────────────────���────
-    // 규칙: frontend/src/rules/WORMHOLE_RULES.md
-    // 1. spouse 관계가 있는 사람
-    // 2. birth-parent 관계에서 친부모(person1)
-    const wormholeSet = new Set();
-    for (const id of connectedIds) {
-        if ((maps.spousesOf[id] || []).length > 0) wormholeSet.add(id);
-        if (maps.birthParentSet.has(id)) wormholeSet.add(id);
-    }
-
     // CoupleBlock 레이아웃
     const positions = layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds);
-
-    const mainPos = positions[mainId];
-    console.log('[buildTree] 중심 좌표:', mainId, '→', mainPos, 'Z0 수:', Object.values(zMap).filter(z => z === 0).length);
 
     // 노드 조립
     const nodes = connectedIds.map(id => {
@@ -846,16 +821,13 @@ export function buildTree(persons, relations, overrideMainId = null) {
         const depth = depthMap[id] ?? 0;
         const zLevel = zMap[id] ?? 1;
 
-        const showWormholeButton = wormholeSet.has(id);
         return {
             id,
             x: pos.x,
             y: pos.y,
             depth,
             z: zLevel,
-            zOpacity: zOpacity(zLevel),
-            zScale: zScale(zLevel),
-            data: { ...buildNodeData(person), showWormholeButton },
+            data: buildNodeData(person),
             rels: {
                 parents: (maps.parentOf[id] || []).filter(p => connectedIds.includes(p)),
                 spouses: (maps.spousesOf[id] || []).filter(s => connectedIds.includes(s)),
@@ -885,8 +857,6 @@ export {
     pickMainId,
     computeDepth,
     classifyZ,
-    zOpacity,
-    zScale,
     buildNodeData,
     getSiblings,
     SLOT_W,

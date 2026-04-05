@@ -9,7 +9,6 @@ import {
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
-import WormholePortal from './WormholePortal';
 import FamilyTreeCanvas from './FamilyTreeCanvas';
 import InvitationModal from './InvitationModal';
 import PhotoEditor from './PhotoEditor';
@@ -55,17 +54,12 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     const [persons, setPersons] = useState([]);
     const [relations, setRelations] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [federations, setFederations] = useState([]);
-    const [portalFed, setPortalFed] = useState(null);
     const [fsSyncing, setFsSyncing] = useState(false);
 
     const canEdit = !readOnly && (role === 'owner' || role === 'member');
 
     // 가계도 중심 인물 (URL ?person= 으로 초기값 설정)
     const [mainPersonId, setMainPersonId] = useState(initialPersonId || null);
-
-    // 가문전환 안내 메시지 (편집 후 표시)
-    const [wormholeGuide, setWormholeGuide] = useState(null);
 
     // 클릭 확인 모달
     const [confirmTarget, setConfirmTarget] = useState(null); // {person}
@@ -77,28 +71,20 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     const { checking: accessChecking, accessResult, checkAccess, requestAccess, clearAccess } = useAccessCheck(siteId);
     const [accessTarget, setAccessTarget] = useState(null); // 접근 거부 대상 인물
 
-    const getFederationForPerson = (personId) => {
-        return federations.find(f =>
-            String(f.source_node_id) === String(personId) || String(f.target_node_id) === String(personId)
-        );
-    };
-
     // ── Fetch persons + relations from API ──
     const fetchPersons = useCallback(async (retry = 0) => {
         if (!siteId) { setIsLoading(false); return; }
         try {
             setIsLoading(true);
             const noCache = { headers: { 'Cache-Control': 'no-cache' } };
-            const [personsRes, relationsRes, fedRes] = await Promise.all([
+            const [personsRes, relationsRes] = await Promise.all([
                 axios.get(`/api/persons/${siteId}`, noCache),
                 axios.get(`/api/persons/${siteId}/relations`, noCache).catch(() => ({ data: { data: [] } })),
-                isAuthenticated ? axios.get('/api/federation/list', noCache).catch(() => ({ data: { data: [] } })) : Promise.resolve({ data: { data: [] } }),
             ]);
             const personsData = personsRes.data?.data || [];
             const relationsData = relationsRes.data?.data || [];
             setPersons(personsData);
             setRelations(relationsData);
-            setFederations((fedRes.data?.data || []).filter(f => f.status === 'accepted'));
             return personsData;
         } catch (err) {
             console.error('Failed to load persons:', err);
@@ -550,11 +536,6 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         setEditPerson(null);
         setPendingPhotoFile(null);
 
-        // 가문전환 버튼이 있는 인물 편집 후 안내 표시
-        const editedNode = treeData.nodes.find(n => n.id === editedPersonId);
-        if (editedNode?.data?.showWormholeButton) {
-            setWormholeGuide(editedPersonId);
-        }
     };
 
     const handleDelete = async () => {
@@ -828,38 +809,6 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                     </button>
                 )}
             </div>
-
-            {/* ── 가문전환 안내 메시지 ── */}
-            {wormholeGuide && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 mx-4" style={{ maxWidth: 360 }}>
-                        <p className="text-sm font-medium text-center mb-4 whitespace-pre-line" style={{ color: '#3a3a2a', lineHeight: 1.7 }}>
-                            {lang === 'en'
-                                ? 'Edit saved.\nTo view from your family\'s perspective,\npress the Wormhole button.'
-                                : '편집이 저장되었습니다.\n내 가문 중심으로 보시려면\n가문전환 버튼을 눌러주세요.'}
-                        </p>
-                        <div className="flex gap-3 justify-center">
-                            <button
-                                onClick={() => {
-                                    setMainPersonId(wormholeGuide);
-                                    setWormholeGuide(null);
-                                }}
-                                className="px-4 py-2 rounded-lg text-sm font-bold text-white"
-                                style={{ background: 'linear-gradient(135deg, #64B4FF, #4A8FD9)' }}
-                            >
-                                {lang === 'en' ? 'Switch Family' : '가문전환'}
-                            </button>
-                            <button
-                                onClick={() => setWormholeGuide(null)}
-                                className="px-4 py-2 rounded-lg text-sm font-medium border"
-                                style={{ color: '#7a6e5e', borderColor: '#e8e0d0' }}
-                            >
-                                {lang === 'en' ? 'Close' : '닫기'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* ── 클릭 확인 모달 (규칙서 4번) ── */}
             {confirmTarget && (
@@ -1315,10 +1264,6 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 </div>
             )}
 
-            {/* WormholePortal */}
-            {portalFed && (
-                <WormholePortal federation={portalFed} onClose={() => setPortalFed(null)} />
-            )}
         </div>
     );
 }
