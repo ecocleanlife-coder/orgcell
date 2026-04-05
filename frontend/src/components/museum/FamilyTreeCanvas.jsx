@@ -193,7 +193,7 @@ export default function FamilyTreeCanvas({
     const prevMainIdRef = useRef(mainId);
 
     useEffect(() => {
-        if (!transformRef.current || allZ0Nodes.length === 0) return;
+        if (!transformRef.current || visibleNodes.length === 0) return;
 
         const isWormholeSwitch = prevMainIdRef.current !== mainId;
         prevMainIdRef.current = mainId;
@@ -214,16 +214,16 @@ export default function FamilyTreeCanvas({
             return;
         }
 
-        // 기본/가문전환: 관장 부부 중심 배치
+        // 기본/가문전환: 관장 부부 정중앙 배치
         const scale = 0.55;
         const vw = window.innerWidth;
         const vh = window.innerHeight - 130;
         const tx = vw / 2 - mainScreenX * scale;
-        const ty = vh / 3 - mainScreenY * scale;
+        const ty = vh / 2 - mainScreenY * scale;
         setTimeout(() => {
             transformRef.current?.setTransform(tx, ty, scale);
         }, 50);
-    }, [allZ0Nodes.length, mainScreenX, mainScreenY, mainId]);
+    }, [visibleNodes.length, mainScreenX, mainScreenY, mainId]);
 
     // ── pan/zoom 변경 시 뷰포트 저장 ──
     const handleTransformChange = useCallback((ref) => {
