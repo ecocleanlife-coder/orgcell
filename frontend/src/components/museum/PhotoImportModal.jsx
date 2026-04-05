@@ -17,7 +17,7 @@ const PAGE_OPTIONS = [
     { value: 100, label: '100장' },
 ];
 
-export default function PhotoImportModal({ siteId, onClose, onDone }) {
+export default function PhotoImportModal({ siteId, onClose, onDone, inline = false }) {
     const [source, setSource] = useState('local');
     const [photos, setPhotos] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -172,9 +172,12 @@ export default function PhotoImportModal({ siteId, onClose, onDone }) {
         onClose();
     };
 
+    const containerClass = inline ? "flex flex-col h-full bg-white rounded-2xl w-full border border-[#e8e0d0] overflow-hidden" : "fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 md:p-0";
+    const innerClass = inline ? "bg-white flex flex-col h-full w-full" : "bg-white rounded-xl w-full h-full md:w-11/12 md:h-5/6 md:rounded-2xl flex flex-col";
+
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-            <div className="bg-white rounded-xl w-full h-full md:w-11/12 md:h-5/6 md:rounded-2xl flex flex-col" style={{ backgroundColor: '#FAFAF7' }}>
+        <div className={containerClass}>
+            <div className={innerClass} style={{ backgroundColor: '#FAFAF7' }}>
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: '#e8e0d0' }}>
                     <div>
@@ -183,12 +186,14 @@ export default function PhotoImportModal({ siteId, onClose, onDone }) {
                             {photos.length}장 선택됨 {selectedIds.size > 0 && `(${selectedIds.size}장)`}
                         </p>
                     </div>
+                    {!inline && (
                     <button
                         onClick={onClose}
                         className="p-2 hover:bg-gray-200 rounded-lg transition"
                     >
                         <X size={24} style={{ color: '#3a3a2a' }} />
                     </button>
+                    )}
                 </div>
 
                 {/* Source Tabs */}

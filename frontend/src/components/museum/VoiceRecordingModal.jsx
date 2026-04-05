@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Mic, Square, Play, Pause, Trash2, Save, User } from 'lucide-react';
 import axios from 'axios';
 
-export default function VoiceRecordingModal({ siteId, persons = [], onClose }) {
+export default function VoiceRecordingModal({ siteId, persons = [], onClose, inline = false }) {
     // Recording state
     const [isRecording, setIsRecording] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
@@ -182,9 +182,11 @@ export default function VoiceRecordingModal({ siteId, persons = [], onClose }) {
         return `${m}:${s}`;
     };
 
+    const containerClass = inline ? "flex flex-col h-full bg-white rounded-2xl w-full border border-[#e8e0d0]" : "fixed inset-0 z-50 flex flex-col";
+
     return (
         <div
-            className="fixed inset-0 z-50 flex flex-col"
+            className={containerClass}
             style={{ background: '#FAFAF7' }}
         >
             {/* Header */}
@@ -195,6 +197,7 @@ export default function VoiceRecordingModal({ siteId, persons = [], onClose }) {
                 <h2 className="text-lg font-bold" style={{ color: '#3a3a2a' }}>
                     🎙️ 육성녹음
                 </h2>
+                {!inline && (
                 <button
                     onClick={onClose}
                     className="w-8 h-8 rounded-full flex items-center justify-center"
@@ -202,6 +205,7 @@ export default function VoiceRecordingModal({ siteId, persons = [], onClose }) {
                 >
                     <X size={16} style={{ color: '#7a7a6a' }} />
                 </button>
+                )}
             </div>
 
             {/* Main content */}

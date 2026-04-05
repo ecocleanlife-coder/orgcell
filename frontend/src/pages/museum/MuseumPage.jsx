@@ -455,7 +455,7 @@ export default function MuseumPage({ initialTab }) {
                 {activeTab === 'tree' && (
                     <Section id="section-tree">
                         <div style={{ minHeight: '70vh' }}>
-                            <FamilyTreeView siteId={site?.id} readOnly={role === 'public'} role={role} />
+                            <FamilyTreeView siteId={site?.id} readOnly={role === 'public'} role={role} exhibitions={exhibitions} />
                         </div>
                     </Section>
                 )}

@@ -17,6 +17,7 @@ export default function InvitationModal({
     curatorName = '',
     museumName = '',
     onClose,
+    inline = false,
 }) {
     const [email, setEmail] = useState('');
     const [sending, setSending] = useState(false);
@@ -114,15 +115,18 @@ ${inviteLink}
         }
     }, [inviteLink, museumName, curatorName, handleCopyLink]);
 
+    const containerClass = inline ? "flex flex-col h-full bg-white rounded-2xl w-full" : "fixed inset-0 z-50 flex items-center justify-center p-4";
+    const innerClass = inline ? "bg-white flex flex-col h-full w-full" : "bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden";
+
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
-            onClick={onClose}
+            className={containerClass}
+            style={inline ? { border: '1px solid #e8e0d0' } : { background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+            onClick={!inline ? onClose : undefined}
         >
             <div
-                className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden"
-                onClick={(e) => e.stopPropagation()}
+                className={innerClass}
+                onClick={!inline ? (e) => e.stopPropagation() : undefined}
             >
                 {/* 헤더 */}
                 <div
@@ -133,12 +137,14 @@ ${inviteLink}
                         <h3 className="text-lg font-bold text-[#C4A84F]">가족 초대</h3>
                         <p className="text-xs text-[#e8e0d0] mt-0.5">{personName}님을 박물관에 초대합니다</p>
                     </div>
+                    {!inline && (
                     <button
                         onClick={onClose}
                         className="w-8 h-8 rounded-full flex items-center justify-center text-[#C4A84F] hover:bg-white/10 transition-colors"
                     >
                         <X size={18} />
                     </button>
+                    )}
                 </div>
 
                 <div className="px-6 py-5 space-y-4">

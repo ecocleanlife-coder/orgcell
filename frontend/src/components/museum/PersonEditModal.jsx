@@ -31,7 +31,7 @@ const labelStyle = {
 
 const rowStyle = { marginBottom: '16px' };
 
-export default function PersonEditModal({ person, onSave, onClose }) {
+export default function PersonEditModal({ person, onSave, onClose, inline = false }) {
     const [form, setForm] = useState({
         name: person?.name || '',
         gender: person?.gender || 'male',
@@ -53,7 +53,7 @@ export default function PersonEditModal({ person, onSave, onClose }) {
     };
 
     return (
-        <ModalBase title="인물 편집" onClose={onClose}>
+        <ModalBase title="인물 편집" onClose={onClose} inline={inline}>
             <form onSubmit={handleSubmit}>
                 <div style={rowStyle}>
                     <label style={labelStyle}>이름</label>

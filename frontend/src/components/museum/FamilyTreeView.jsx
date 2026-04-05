@@ -44,7 +44,7 @@ const PARENT_TYPE_KEYS = [
 // ════════════════════════════════════════
 // MAIN COMPONENT
 // ════════════════════════════════════════
-export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewer' }) {
+export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewer', exhibitions = [] }) {
     const navigate = useNavigate();
     const { subdomain } = useParams();
     const lang = useUiStore((s) => s.lang);
@@ -162,14 +162,16 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             clickTimeoutRef.current = null;
             const raw = persons.find(p => String(p.id) === String(personId));
             if (!raw) return;
+            const exh = exhibitions.find(e => String(e.person_id) === String(raw.id));
+            if (!exh) return; // Do nothing if there's no museum/exhibition for this person
             const result = await checkAccess(raw.id);
             if (result?.access === 'granted') {
-                navigate(`/${subdomain}/exhibit/${raw.id}`);
+                navigate(`/${subdomain}/gallery/${exh.id}`);
             } else {
                 setAccessTarget(raw);
             }
         }, 300);
-    }, [persons, checkAccess, navigate, subdomain]);
+    }, [persons, exhibitions, checkAccess, navigate, subdomain]);
 
     const handleCardDoubleClick = useCallback((personId) => {
         if (role === 'owner') {
@@ -196,9 +198,11 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 break;
             case 'exhibit_public': {
                 // 일반전시관: 접근 권한 확인 → 전시관 페이지
+                const exh = exhibitions.find(e => String(e.person_id) === String(raw.id));
+                if (!exh) return;
                 const result = await checkAccess(raw.id);
                 if (result?.access === 'granted') {
-                    navigate(`/${subdomain}/exhibit/${raw.id}`);
+                    navigate(`/${subdomain}/gallery/${exh.id}`);
                 } else {
                     setAccessTarget(raw);
                 }
@@ -206,9 +210,11 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             }
             case 'exhibit_family': {
                 // 가족전시관: 가족 권한 확인 → 전시관 페이지
+                const exh = exhibitions.find(e => String(e.person_id) === String(raw.id));
+                if (!exh) return;
                 const result = await checkAccess(raw.id);
                 if (result?.access === 'granted') {
-                    navigate(`/${subdomain}/exhibit/${raw.id}?type=family`);
+                    navigate(`/${subdomain}/gallery/${exh.id}?type=family`);
                 } else {
                     setAccessTarget(raw);
                 }

@@ -17,7 +17,7 @@ const STATUS_TABS = [
     { key: 'rejected', label: '거절됨', icon: XCircle, color: '#e74c3c' },
 ];
 
-export default function AccessRequestManager({ siteId, onClose }) {
+export default function AccessRequestManager({ siteId, onClose, inline = false }) {
     const [tab, setTab] = useState('pending');
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -65,15 +65,18 @@ export default function AccessRequestManager({ siteId, onClose }) {
         return `${month}/${day} ${hours}:${mins}`;
     };
 
+    const containerClass = inline ? "flex flex-col h-full bg-white rounded-2xl w-full" : "fixed inset-0 z-50 flex items-center justify-center p-4";
+    const innerClass = inline ? "bg-white flex flex-col h-full w-full overflow-hidden" : "bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden max-h-[85vh] flex flex-col";
+
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
-            onClick={onClose}
+            className={containerClass}
+            style={inline ? { border: '1px solid #e8e0d0' } : { background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+            onClick={!inline ? onClose : undefined}
         >
             <div
-                className="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
-                onClick={(e) => e.stopPropagation()}
+                className={innerClass}
+                onClick={!inline ? (e) => e.stopPropagation() : undefined}
             >
                 {/* 헤더 */}
                 <div
@@ -87,12 +90,14 @@ export default function AccessRequestManager({ siteId, onClose }) {
                             <p className="text-xs text-[#e8e0d0] mt-0.5">자료실/전시관 접근 요청을 관리합니다</p>
                         </div>
                     </div>
+                    {!inline && (
                     <button
                         onClick={onClose}
                         className="w-8 h-8 rounded-full flex items-center justify-center text-[#C4A84F] hover:bg-white/10 transition-colors"
                     >
                         <X size={18} />
                     </button>
+                    )}
                 </div>
 
                 {/* 탭 */}

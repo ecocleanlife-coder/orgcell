@@ -9,7 +9,7 @@ import React, { useEffect } from 'react';
 
 const FRAME_COLOR = '#C4A84F';
 
-export default function ModalBase({ title, onClose, children, width = 480 }) {
+export default function ModalBase({ title, onClose, children, width = 480, inline = false }) {
     useEffect(() => {
         const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
         window.addEventListener('keydown', handleEsc);
@@ -17,8 +17,55 @@ export default function ModalBase({ title, onClose, children, width = 480 }) {
     }, [onClose]);
 
     const handleBackdrop = (e) => {
+        if (inline) return;
         if (e.target === e.currentTarget) onClose();
     };
+
+    if (inline) {
+        return (
+            <div
+                style={{
+                    width: '100%',
+                    height: '100%',
+                    background: '#2A2418',
+                    border: `2px solid ${FRAME_COLOR}`,
+                    borderRadius: '8px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                }}
+                data-testid="modal-inline"
+            >
+                {title && (
+                <div
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '14px 20px',
+                        borderBottom: `1px solid rgba(196,168,79,0.3)`,
+                    }}
+                >
+                    <h3 style={{
+                        margin: 0,
+                        color: FRAME_COLOR,
+                        fontSize: '16px',
+                        fontFamily: 'Georgia, "Noto Serif KR", serif',
+                    }}>
+                        {title}
+                    </h3>
+                </div>
+                )}
+                <div style={{
+                    padding: '20px',
+                    overflowY: 'auto',
+                    flex: 1,
+                }}>
+                    {children}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div
