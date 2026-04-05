@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     Network, Plus, UserPlus, ExternalLink,
@@ -153,7 +153,36 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     const [bioText, setBioText] = useState('');
     const [bioSaving, setBioSaving] = useState(false);
 
-    // ── FolderCard hover 액션 핸들러 ──
+    // ── Click Action Handlers ──
+    const clickTimeoutRef = useRef(null);
+
+    const handleCardSingleClick = useCallback((personId) => {
+        if (clickTimeoutRef.current) return;
+        clickTimeoutRef.current = setTimeout(async () => {
+            clickTimeoutRef.current = null;
+            const raw = persons.find(p => String(p.id) === String(personId));
+            if (!raw) return;
+            const result = await checkAccess(raw.id);
+            if (result?.access === 'granted') {
+                navigate(`/${subdomain}/exhibit/${raw.id}`);
+            } else {
+                setAccessTarget(raw);
+            }
+        }, 300);
+    }, [persons, checkAccess, navigate, subdomain]);
+
+    const handleCardDoubleClick = useCallback((personId) => {
+        if (role === 'owner') {
+            if (clickTimeoutRef.current) {
+                clearTimeout(clickTimeoutRef.current);
+                clickTimeoutRef.current = null;
+            }
+            const raw = persons.find(p => String(p.id) === String(personId));
+            if (!raw) return;
+            navigate(`/${subdomain}/archive/${raw.id}`);
+        }
+    }, [role, persons, navigate, subdomain]);
+
     const handleCardAction = useCallback(async (personId, action) => {
         const raw = persons.find(p => String(p.id) === String(personId));
         if (!raw) return;
@@ -797,12 +826,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                     nodes={treeData.nodes}
                     links={treeData.links}
                     mainId={treeData.mainId}
-                    onCardClick={(personId) => {
-                        if (canEdit) {
-                            const raw = persons.find(p => String(p.id) === String(personId));
-                            if (raw) openEditModal(raw);
-                        }
-                    }}
+                    onCardClick={handleCardSingleClick}
+                    onCardDoubleClick={handleCardDoubleClick}
                     onWormhole={(personId) => {
                         console.log('[FamilyTreeView] onWormhole 콜백:', mainPersonId, '→', String(personId));
                         setMainPersonId(String(personId));
@@ -811,7 +836,6 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                         console.log('[FamilyTreeView] onHome: centerId → null');
                         setMainPersonId(null);
                     }}
-                    onAction={handleCardAction}
                     style={{ width: '100%', height: '100%' }}
                 />
                 {mainPersonId && (

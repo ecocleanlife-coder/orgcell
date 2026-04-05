@@ -8,3 +8,4 @@ gcp_token.json
 .playwright-mcp/
 *.log
 smoke-test-*.png
+backups/

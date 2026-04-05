@@ -12,7 +12,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { maskName, maskInitials } from '../../utils/privacyMask';
 import RefusedPersonBox from './RefusedPersonBox';
-import CubeSignboard from './CubeSignboard';
 import useMediaQuery from '../../hooks/useMediaQuery';
 
 const CARD_SIZE = 180;
@@ -155,7 +154,7 @@ function PhotoFront({ data, isDeceased }) {
                     pointerEvents: 'none',
                 }}
             />
-            {/* 이름 + 날짜 */}
+            {/* 이름, ID, 대표정보 */}
             <div
                 style={{
                     position: 'absolute',
@@ -163,6 +162,9 @@ function PhotoFront({ data, isDeceased }) {
                     left: '8px',
                     right: '8px',
                     pointerEvents: 'none',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '2px',
                 }}
             >
                 <div
@@ -175,28 +177,30 @@ function PhotoFront({ data, isDeceased }) {
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
                     }}
                 >
-                    {data.displayName}
+                    <span>{data.displayName}</span>
                     {data.ocId && (
-                        <span style={{ fontSize: '9px', fontWeight: 400, marginLeft: '4px', opacity: 0.7 }}>
+                        <span style={{ fontSize: '9px', fontWeight: 400, opacity: 0.7 }}>
                             {data.ocId}
                         </span>
                     )}
                 </div>
-                {data.dateLabel && (
-                    <div
-                        style={{
-                            fontFamily: 'Georgia, "Noto Serif KR", serif',
-                            fontSize: '10px',
-                            color: 'rgba(255,255,255,0.8)',
-                            textShadow: '0 1px 3px rgba(0,0,0,0.5)',
-                            marginTop: '2px',
-                        }}
-                    >
-                        {data.dateLabel}
-                    </div>
-                )}
+                
+                <div style={{
+                    fontFamily: 'Georgia, "Noto Serif KR", serif',
+                    fontSize: '10px',
+                    color: 'rgba(255,255,255,0.9)',
+                    textShadow: '0 1px 3px rgba(0,0,0,0.7)',
+                    lineHeight: 1.2
+                }}>
+                    {(data.display_info1 || data.displayInfo1) && <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{data.display_info1 || data.displayInfo1}</div>}
+                    {(data.display_info2 || data.displayInfo2) && <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{data.display_info2 || data.displayInfo2}</div>}
+                    {(data.display_info3 || data.displayInfo3) && <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{data.display_info3 || data.displayInfo3}</div>}
+                </div>
             </div>
         </>
     );
@@ -249,20 +253,23 @@ function CanvasFront({ data, isDeceased }) {
                 </div>
             )}
 
-            {/* 날짜 */}
-            {data.dateLabel && (
-                <div
-                    style={{
-                        fontFamily: 'Georgia, "Noto Serif KR", serif',
-                        fontSize: '11px',
-                        color: isDeceased ? '#aaa' : '#7A6E5E',
-                        marginTop: '4px',
-                        zIndex: 1,
-                    }}
-                >
-                    {data.dateLabel}
-                </div>
-            )}
+            {/* 대표정보 */}
+            <div
+                style={{
+                    fontFamily: 'Georgia, "Noto Serif KR", serif',
+                    fontSize: '11px',
+                    color: isDeceased ? '#aaa' : '#7A6E5E',
+                    marginTop: '6px',
+                    zIndex: 1,
+                    textAlign: 'center',
+                    lineHeight: 1.3,
+                    width: '100%',
+                }}
+            >
+                {(data.display_info1 || data.displayInfo1) && <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{data.display_info1 || data.displayInfo1}</div>}
+                {(data.display_info2 || data.displayInfo2) && <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{data.display_info2 || data.displayInfo2}</div>}
+                {(data.display_info3 || data.displayInfo3) && <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{data.display_info3 || data.displayInfo3}</div>}
+            </div>
 
         </div>
     );
@@ -312,74 +319,19 @@ function InsetFrame() {
     );
 }
 
-// ── Hover 액션 버튼 ──
-const HOVER_ACTIONS = [
-    { key: 'wormhole', label: '가문전환', icon: '⊕' },
-    { key: 'exhibit', label: '전시', icon: '🖼' },
-    { key: 'edit', label: '편집', icon: '✎' },
-    { key: 'photo', label: '사진', icon: '📷' },
-    { key: 'invite', label: '초대', icon: '✉' },
-];
-
-function HoverActions({ onAction }) {
-    return (
-        <div
-            style={{
-                position: 'absolute',
-                bottom: 4,
-                left: 0,
-                right: 0,
-                display: 'flex',
-                justifyContent: 'center',
-                gap: 3,
-                zIndex: 10,
-            }}
-            data-testid="hover-actions"
-        >
-            {HOVER_ACTIONS.map(a => (
-                <button
-                    key={a.key}
-                    onClick={(e) => { e.stopPropagation(); onAction(a.key); }}
-                    onPointerUp={(e) => { e.stopPropagation(); }}
-                    title={a.label}
-                    style={{
-                        width: 28,
-                        height: 28,
-                        border: '1px solid rgba(196,168,79,0.6)',
-                        borderRadius: '4px',
-                        background: 'rgba(30,26,20,0.85)',
-                        color: '#C4A84F',
-                        fontSize: '13px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: 0,
-                        lineHeight: 1,
-                    }}
-                >
-                    {a.icon}
-                </button>
-            ))}
-        </div>
-    );
-}
-
 // ── 메인 컴포넌트 ──
 function FolderCard({
     node,
     isSelected = false,
     isMainPerson = false,
     onClick,
+    onDoubleClick,
     onContextMenu,
-    onAction,
     style: externalStyle,
 }) {
     const { data, rels } = node;
     const isDeceased = data.isDeceased;
     const [photoFailed, setPhotoFailed] = useState(false);
-    const [hovered, setHovered] = useState(false);
-    const [touchLocked, setTouchLocked] = useState(false); // 터치 토글 고정
     const cardRef = useRef(null);
     const isMobile = useMediaQuery('(pointer: coarse)');
 
@@ -417,43 +369,13 @@ function FolderCard({
 
     const hasPhoto = !!(maskedData.avatar && !photoFailed);
 
-    // Click-Outside-Close: 터치 메뉴 열린 상태에서 외부 터치 시 닫기
-    useEffect(() => {
-        if (!touchLocked) return;
-        const handleOutside = (e) => {
-            if (cardRef.current && !cardRef.current.contains(e.target)) {
-                setTouchLocked(false);
-                setHovered(false);
-            }
-        };
-        document.addEventListener('pointerdown', handleOutside, true);
-        return () => document.removeEventListener('pointerdown', handleOutside, true);
-    }, [touchLocked]);
-
     const handleClick = () => {
         if (onClick) onClick(node.id);
     };
 
-    // Touch Toggle: 첫 터치 → 메뉴 열기, 메뉴 열린 상태 터치 → 편집 모달
-    const handleTouchEnd = useCallback((e) => {
-        // 터치 디바이스에서만 동작 (mouse 이벤트 무시)
-        if (!e.nativeEvent || e.nativeEvent.pointerType === 'mouse') return;
-
-        e.preventDefault();
-        e.stopPropagation();
-
-        if (!touchLocked) {
-            // 첫 터치: 메뉴 열기 + haptic
-            setTouchLocked(true);
-            setHovered(true);
-            if (navigator.vibrate) navigator.vibrate(10);
-        } else {
-            // 메뉴 열린 상태에서 카드 본체 터치: 상세보기 모달
-            setTouchLocked(false);
-            setHovered(false);
-            if (onAction) onAction(node.id, 'edit');
-        }
-    }, [touchLocked, node.id, onAction]);
+    const handleDoubleClick = () => {
+        if (onDoubleClick) onDoubleClick(node.id);
+    };
 
     const handleContextMenu = (e) => {
         if (onContextMenu) {
@@ -480,17 +402,10 @@ function FolderCard({
 
     const blurPx = Z_BLUR[node.z] ?? 0;
 
-    // 가문전환 버튼: buildTree에서 계산한 showWormholeButton 사용
-    // 규칙: frontend/src/rules/WORMHOLE_RULES.md
-    const showWormhole = !!data.showWormholeButton;
-
-    const handleAction = (actionKey) => {
-        if (onAction) onAction(node.id, actionKey);
-    };
-
     return (
         <div
             ref={cardRef}
+            title={`${maskedName} 박물관`}
             style={{
                 ...externalStyle,
                 position: externalStyle?.position || 'relative',
@@ -501,9 +416,6 @@ function FolderCard({
             data-person-id={node.id}
             data-z={node.z}
             data-testid="folder-card"
-            onMouseEnter={() => { if (!touchLocked) setHovered(true); }}
-            onMouseLeave={() => { if (!touchLocked) setHovered(false); }}
-            onPointerUp={handleTouchEnd}
         >
             {/* 폴더 쌓임 효과: 관계자 2명+ → 그림자 2장 */}
             {relCount >= 2 && (
@@ -546,7 +458,8 @@ function FolderCard({
             <FolderTab gender={maskedData.gender} isDeceased={isDeceased} />
             <div
                 style={{ ...cardStyle, ...deceasedFilter, ...stateOverride }}
-                onClick={(e) => { if (!touchLocked) handleClick(); }}
+                onClick={handleClick}
+                onDoubleClick={handleDoubleClick}
                 onContextMenu={handleContextMenu}
                 role="button"
                 tabIndex={0}
@@ -593,16 +506,6 @@ function FolderCard({
                 {!hasPhoto && (
                     <CanvasFront data={maskedData} isDeceased={isDeceased} />
                 )}
-
-                {/* Hover/Touch 액션 간판 메뉴 */}
-                <CubeSignboard
-                    visible={hovered || touchLocked}
-                    isMobile={isMobile}
-                    onAction={handleAction}
-                    width={CARD_SIZE}
-                    height={CARD_SIZE}
-                    showWormhole={showWormhole}
-                />
 
                 {/* Z축 안개 오버레이 */}
                 {blurPx > 0 && (

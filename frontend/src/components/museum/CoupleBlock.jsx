@@ -21,8 +21,8 @@ function CoupleBlock({
     selectedId = null,
     childrenIds = [],
     onCardClick,
+    onCardDoubleClick,
     onContextMenu,
-    onAction,
     style: externalStyle,
 }) {
     const isCouple = !!(husbandNode && wifeNode);
@@ -108,8 +108,8 @@ function CoupleBlock({
                             isSelected={selectedId === husbandNode.id}
                             isMainPerson={isMainCouple && husbandNode.id === selectedId}
                             onClick={onCardClick}
+                            onDoubleClick={onCardDoubleClick}
                             onContextMenu={onContextMenu}
-                            onAction={onAction}
                         />
                     </div>
 
@@ -120,8 +120,8 @@ function CoupleBlock({
                             isSelected={selectedId === wifeNode.id}
                             isMainPerson={isMainCouple && wifeNode.id === selectedId}
                             onClick={onCardClick}
+                            onDoubleClick={onCardDoubleClick}
                             onContextMenu={onContextMenu}
-                            onAction={onAction}
                         />
                     </div>
                 </>
@@ -133,8 +133,8 @@ function CoupleBlock({
                         isSelected={selectedId === soloNode.id}
                         isMainPerson={isMainCouple}
                         onClick={onCardClick}
+                        onDoubleClick={onCardDoubleClick}
                         onContextMenu={onContextMenu}
-                        onAction={onAction}
                     />
                 </div>
             )}

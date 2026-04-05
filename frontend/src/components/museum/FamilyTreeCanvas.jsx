@@ -102,10 +102,10 @@ export default function FamilyTreeCanvas({
     mainId = null,
     selectedId: externalSelectedId = null,
     onCardClick: externalOnClick,
+    onCardDoubleClick: externalOnDoubleClick,
     onWormhole,
     onHome,
     onContextMenu,
-    onAction,
     style,
 }) {
     const [internalSelectedId, setInternalSelectedId] = useState(null);
@@ -146,14 +146,12 @@ export default function FamilyTreeCanvas({
         }
     }, [nodesMap, onWormhole, externalOnClick, handleWormhole]);
 
-    // onAction 래핑: wormhole 액션은 직접 centerId 변경 (애니메이션 없이)
-    const handleAction = useCallback((nodeId, actionKey) => {
-        if (actionKey === 'wormhole') {
-            handleWormhole(nodeId);
-        } else if (onAction) {
-            onAction(nodeId, actionKey);
+    // onCardDoubleClick 래핑
+    const handleCardDoubleClick = useCallback((nodeId) => {
+        if (externalOnDoubleClick) {
+            externalOnDoubleClick(nodeId);
         }
-    }, [handleWormhole, onAction]);
+    }, [externalOnDoubleClick]);
 
     // Z=0만 표시 (타가문은 웜홀 전환 전까지 숨김)
     const allZ0Nodes = useMemo(() => nodes.filter(n => n.z === 0), [nodes]);
@@ -440,8 +438,8 @@ export default function FamilyTreeCanvas({
                                                     selectedId={selectedId}
                                                     childrenIds={[...new Set(coupleChildIds)]}
                                                     onCardClick={handleCardClick}
+                                                    onCardDoubleClick={handleCardDoubleClick}
                                                     onContextMenu={onContextMenu}
-                                                    onAction={handleAction}
                                                 />
                                             </motion.div>
                                         );
@@ -469,8 +467,8 @@ export default function FamilyTreeCanvas({
                                                 selectedId={selectedId}
                                                 childrenIds={soloChildIds}
                                                 onCardClick={handleCardClick}
+                                                onCardDoubleClick={handleCardDoubleClick}
                                                 onContextMenu={onContextMenu}
-                                                onAction={handleAction}
                                             />
                                         </motion.div>
                                     );
