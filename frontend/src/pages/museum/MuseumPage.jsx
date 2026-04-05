@@ -165,6 +165,9 @@ export default function MuseumPage({ initialTab }) {
     // 가족트리 인물 목록 (녹음 인물 선택용)
     const [treePersons, setTreePersons] = useState([]);
 
+    // 가족트리에서 방문 중인 인물 (null = 원래 관장)
+    const [visitedPerson, setVisitedPerson] = useState(null);
+
     // 친구 요청
     const [friendRequested, setFriendRequested] = useState(false);
     const [friendRequesting, setFriendRequesting] = useState(false);
@@ -341,6 +344,14 @@ export default function MuseumPage({ initialTab }) {
     }
 
     const museumName = site?.museum_name || `${subdomain} 가족유산박물관`;
+    // 방문 중인 인물이 있으면 해당 인물 박물관 이름으로 표시
+    const displayMuseumName = visitedPerson
+        ? `${visitedPerson.name} 가족유산박물관`
+        : museumName;
+    // 전시관: 방문 중인 인물 기준으로 필터
+    const displayExhibitions = visitedPerson
+        ? exhibitions.filter(e => String(e.person_id) === String(visitedPerson.id))
+        : exhibitions;
     const canEdit = role === 'owner' || role === 'member';
 
     return (
@@ -374,7 +385,7 @@ export default function MuseumPage({ initialTab }) {
                         <img src="/logo-icon-sm.png" alt="" style={{ height: 28, objectFit: 'contain' }} />
                         <div className="truncate">
                             <h1 className="font-bold text-base truncate" style={{ color: '#3a3a2a', lineHeight: 1.2 }}>
-                                {museumName}
+                                {displayMuseumName}
                             </h1>
                             <p className="truncate" style={{ fontSize: 9, color: '#A09888', fontStyle: 'italic', lineHeight: 1.2 }}>
                                 {lang === 'en'
@@ -455,7 +466,13 @@ export default function MuseumPage({ initialTab }) {
                 {activeTab === 'tree' && (
                     <Section id="section-tree">
                         <div style={{ minHeight: '70vh' }}>
-                            <FamilyTreeView siteId={site?.id} readOnly={role === 'public'} role={role} exhibitions={exhibitions} />
+                            <FamilyTreeView
+                                siteId={site?.id}
+                                readOnly={role === 'public'}
+                                role={role}
+                                exhibitions={exhibitions}
+                                onPersonVisit={setVisitedPerson}
+                            />
                         </div>
                     </Section>
                 )}
@@ -502,7 +519,7 @@ export default function MuseumPage({ initialTab }) {
                             role={role}
                             t={t}
                             subdomain={subdomain}
-                            exhibitions={exhibitions}
+                            exhibitions={displayExhibitions}
                             exhLoading={exhLoading}
                             canEdit={canEdit}
                             onUpload={() => setShowUploadModal(true)}

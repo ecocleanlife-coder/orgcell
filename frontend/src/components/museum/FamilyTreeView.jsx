@@ -45,7 +45,7 @@ const PARENT_TYPE_KEYS = [
 // ════════════════════════════════════════
 // MAIN COMPONENT
 // ════════════════════════════════════════
-export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewer', exhibitions = [] }) {
+export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewer', exhibitions = [], onPersonVisit }) {
     const navigate = useNavigate();
     const { subdomain } = useParams();
     const lang = useUiStore((s) => s.lang);
@@ -68,9 +68,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     const [wormholeGuide, setWormholeGuide] = useState(null);
 
     // 클릭 확인 모달
-    const [confirmTarget, setConfirmTarget] = useState(null); // {person, hasMuseum, exh}
-    // 박물관 없는 사람 클릭 시 배너
-    const [noMuseumBanner, setNoMuseumBanner] = useState(null); // person name or null
+    const [confirmTarget, setConfirmTarget] = useState(null); // {person}
 
     // 초대 모달 상태
     const [inviteTarget, setInviteTarget] = useState(null);
@@ -170,7 +168,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             if (!raw) return;
             const exh = exhibitions.find(e => String(e.person_id) === String(raw.id));
             // 확인 모달 표시
-            setConfirmTarget({ person: raw, hasMuseum: !!exh, exh: exh || null });
+            setConfirmTarget({ person: raw });
         }, 300);
     }, [persons, exhibitions]);
 
@@ -796,80 +794,11 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     // Existing tree — FamilyTreeCanvas 렌더링
     // ════════════════════════════════════════
 
-    // 관장 부부 계산 (규칙서 1번)
-    const curatorPerson = treeData.mainId ? persons.find(p => String(p.id) === String(treeData.mainId)) : null;
-    const spousePerson = curatorPerson?.spouse_id ? persons.find(p => String(p.id) === String(curatorPerson.spouse_id)) : null;
-
-    const curatorCardStyle = {
-        width: '110px', height: '130px', borderRadius: '6px', overflow: 'hidden',
-        border: '2px solid #8B7355',
-        borderRight: '4px solid #9a7a50',
-        borderBottom: '4px solid #7a6040',
-        boxShadow: '3px 3px 0 #c4a87a, 6px 6px 0 #b09060',
-        background: '#FDF8F0',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-    };
-
     return (
         <div className="w-full min-h-[70vh] overflow-hidden">
 
-            {/* ── 관장 부부 배너 (규칙서 1번) ── */}
-            {curatorPerson && (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', padding: '20px 16px 8px', marginBottom: '4px' }}>
-                    <div style={{ textAlign: 'center' }}>
-                        <div style={curatorCardStyle}>
-                            {curatorPerson.photo_url
-                                ? <img src={curatorPerson.photo_url} alt={curatorPerson.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                : <span style={{ fontSize: '40px' }}>👤</span>}
-                        </div>
-                        <p style={{ marginTop: '6px', fontWeight: 'bold', fontSize: '13px', color: '#3a3020', fontFamily: 'Georgia, "Noto Serif KR", serif' }}>{curatorPerson.name}</p>
-                    </div>
-                    {spousePerson && (
-                        <>
-                            <span style={{ fontSize: '20px', color: '#C4A882', marginTop: '-20px' }}>♥</span>
-                            <div style={{ textAlign: 'center' }}>
-                                <div style={curatorCardStyle}>
-                                    {spousePerson.photo_url
-                                        ? <img src={spousePerson.photo_url} alt={spousePerson.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                        : <span style={{ fontSize: '40px' }}>👤</span>}
-                                </div>
-                                <p style={{ marginTop: '6px', fontWeight: 'bold', fontSize: '13px', color: '#3a3020', fontFamily: 'Georgia, "Noto Serif KR", serif' }}>{spousePerson.name}</p>
-                            </div>
-                        </>
-                    )}
-                </div>
-            )}
-
-            <div className="p-4 pb-0">
-                <div className="mb-4 text-center">
-                    <h2 className="text-2xl md:text-3xl font-extrabold text-slate-800 dark:text-slate-100 flex items-center justify-center gap-3">
-                        <Network className="text-emerald-500" size={28} />
-                        {t.museumTitle}
-                    </h2>
-                    <p className="text-slate-500 text-sm mt-2">
-                        {t.treeDesc}{' '}
-                        <a href="https://www.familysearch.org" target="_blank" rel="noopener noreferrer"
-                            className="text-blue-500 hover:text-blue-600 hover:underline inline-flex items-center gap-1 font-medium">
-                            {t.ancestorLink} <ExternalLink size={12} />
-                        </a>
-                    </p>
-                    {canEdit && (
-                        <div className="mt-3 flex items-center justify-center gap-2 flex-wrap">
-                            <button
-                                onClick={handleFamilySearchSync}
-                                disabled={fsSyncing}
-                                className="px-4 py-2 text-white text-sm font-bold rounded-xl shadow transition-colors flex items-center gap-1 disabled:opacity-50"
-                                style={{ background: fsSyncing ? '#9CA3AF' : 'linear-gradient(135deg, #4a8c3f, #3d7434)' }}
-                            >
-                                {fsSyncing ? '동기화 중...' : '🌳 FamilySearch 연동'}
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </div>
-
             {/* FamilyTreeCanvas 렌더링 — key로 DOM 완전 초기화 */}
-            <div className="relative w-full" style={{ height: 'calc(100vh - 220px)', minHeight: '500px' }}>
+            <div className="relative w-full" style={{ height: 'calc(100vh - 130px)', minHeight: '500px' }}>
                 <FamilyTreeCanvas
                     key={mainPersonId || 'root'}
                     nodes={treeData.nodes}
@@ -884,11 +813,10 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                         setMainPersonId(String(personId));
                     }}
                     onHome={() => {
-                        console.log('[FamilyTreeView] onHome: centerId → null');
                         sessionStorage.removeItem('orgcell_tree_viewport');
                         useTreeViewStore.getState().clearViewport();
                         setMainPersonId(null);
-                        setNoMuseumBanner(null);
+                        onPersonVisit?.(null);
                     }}
                     style={{ width: '100%', height: '100%' }}
                 />
@@ -898,7 +826,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                             sessionStorage.removeItem('orgcell_tree_viewport');
                             useTreeViewStore.getState().clearViewport();
                             setMainPersonId(null);
-                            setNoMuseumBanner(null);
+                            onPersonVisit?.(null);
                         }}
                         className="absolute top-4 left-4 z-10 px-4 py-2 bg-white/90 dark:bg-gray-800/90 rounded-xl shadow-lg border border-gray-200 dark:border-gray-600 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-white transition-colors"
                     >
@@ -963,16 +891,10 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                 onClick={() => {
                                     const target = confirmTarget;
                                     setConfirmTarget(null);
-                                    // 뷰포트 강제 초기화
                                     sessionStorage.removeItem('orgcell_tree_viewport');
                                     useTreeViewStore.getState().clearViewport();
-                                    // 이전 화면 완전 제거 후 새 centerId로 buildTree 재호출
                                     setMainPersonId(String(target.person.id));
-                                    if (!target.hasMuseum) {
-                                        setNoMuseumBanner(target.person.name);
-                                    } else {
-                                        setNoMuseumBanner(null);
-                                    }
+                                    onPersonVisit?.(target.person);
                                 }}
                                 style={{ padding: '10px 28px', background: '#C4A882', border: 'none', borderRight: '2px solid #8B7355', borderBottom: '2px solid #8B7355', borderRadius: '6px', color: '#fff', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}
                             >
@@ -989,32 +911,6 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 </div>
             )}
 
-            {/* ── 박물관 없는 사람 배너 ── */}
-            {noMuseumBanner && (
-                <div style={{
-                    position: 'fixed', top: '80px', left: '50%', transform: 'translateX(-50%)',
-                    zIndex: 1500, background: '#FDF8F0',
-                    border: '2px solid #C4A882', borderRight: '3px solid #8B7355', borderBottom: '3px solid #8B7355',
-                    borderRadius: '12px', padding: '20px 32px', textAlign: 'center',
-                    boxShadow: '3px 3px 0 #c4a87a, 0 8px 32px rgba(0,0,0,0.25)',
-                    fontFamily: 'Georgia, "Noto Serif KR", serif', minWidth: '300px'
-                }}>
-                    <p style={{ color: '#8B7355', fontWeight: 'bold', marginBottom: '4px', fontSize: '15px' }}>
-                        🏗️ {noMuseumBanner} 박물관
-                    </p>
-                    <p style={{ color: '#3a3020', marginBottom: '16px', fontSize: '13px' }}>
-                        아직 박물관 오픈 전입니다
-                    </p>
-                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                        <button onClick={() => navigate('/onboarding')} style={{ padding: '8px 20px', background: '#C4A882', border: 'none', borderRight: '2px solid #8B7355', borderBottom: '2px solid #8B7355', borderRadius: '6px', color: '#fff', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
-                            무료로 시작하기
-                        </button>
-                        <button onClick={() => setNoMuseumBanner(null)} style={{ padding: '8px 14px', background: 'transparent', border: '1px solid #C4A882', borderRadius: '6px', color: '#8B7355', cursor: 'pointer', fontSize: '13px' }}>
-                            닫기
-                        </button>
-                    </div>
-                </div>
-            )}
 
             {/* ── 초대 모달 ── */}
             {inviteTarget && (
