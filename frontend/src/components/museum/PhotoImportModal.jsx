@@ -17,12 +17,17 @@ const PAGE_OPTIONS = [
     { value: 100, label: '100장' },
 ];
 
+// 디바이스 감지 (규칙서 2번)
+const isMobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+
 export default function PhotoImportModal({ siteId, onClose, onDone, inline = false }) {
     const [source, setSource] = useState('local');
     const [photos, setPhotos] = useState([]);
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
+    // 사진 정리 서비스 안내 (규칙서 3번)
+    const [showCleanupPrompt, setShowCleanupPrompt] = useState(false);
 
     const [pageSize, setPageSize] = useState(0);
     const [currentPage, setCurrentPage] = useState(0);
@@ -169,11 +174,70 @@ export default function PhotoImportModal({ siteId, onClose, onDone, inline = fal
 
         setUploading(false);
         if (onDone) onDone();
+        // 업로드 완료 후 정리 서비스 안내 (규칙서 3번)
+        setShowCleanupPrompt(true);
+    };
+
+    const handleCleanupYes = () => {
+        setShowCleanupPrompt(false);
+        // 폴더/앨범 선택 (PC: 폴더 선택, 모바일: 갤러리 접근)
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.multiple = true;
+        input.accept = 'image/*';
+        if (isMobile) {
+            // 모바일: 카메라 롤 접근
+            input.capture = false;
+        } else {
+            // PC: 폴더 선택 가능하면 webkitdirectory
+            input.webkitdirectory = true;
+        }
+        input.onchange = (e) => {
+            const files = Array.from(e.target.files || []);
+            // 중복 감지 + 제거 로직은 추후 구현
+            alert(`${files.length}장 스캔 완료. 중복 제거 및 년도별 정리 기능은 곧 출시됩니다.`);
+        };
+        input.click();
+        onClose();
+    };
+
+    const handleCleanupNo = () => {
+        setShowCleanupPrompt(false);
         onClose();
     };
 
     const containerClass = inline ? "flex flex-col h-full bg-white rounded-2xl w-full border border-[#e8e0d0] overflow-hidden" : "fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 md:p-0";
     const innerClass = inline ? "bg-white flex flex-col h-full w-full" : "bg-white rounded-xl w-full h-full md:w-11/12 md:h-5/6 md:rounded-2xl flex flex-col";
+
+    // 정리 서비스 안내 모달 (규칙서 3번)
+    if (showCleanupPrompt) {
+        return (
+            <div className={containerClass}>
+                <div style={{ background: '#FDF8F0', border: '2px solid #C4A882', borderRight: '3px solid #8B7355', borderBottom: '3px solid #8B7355', borderRadius: '16px', padding: '40px 32px', maxWidth: '400px', width: '90%', margin: 'auto', textAlign: 'center', boxShadow: '4px 4px 0 #c4a87a, 8px 8px 20px rgba(0,0,0,0.2)', fontFamily: 'Georgia, "Noto Serif KR", serif' }}>
+                    <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#3a3020', marginBottom: '12px' }}>
+                        📁 사진 정리 서비스
+                    </p>
+                    <p style={{ fontSize: '14px', color: '#7a6a50', marginBottom: '28px', lineHeight: 1.6 }}>
+                        사진 정리 및 중복 제거 서비스를<br />실행할까요?
+                    </p>
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                        <button
+                            onClick={handleCleanupYes}
+                            style={{ padding: '12px 28px', background: '#C4A882', border: 'none', borderRight: '2px solid #8B7355', borderBottom: '2px solid #8B7355', borderRadius: '8px', color: '#fff', fontWeight: 'bold', cursor: 'pointer', fontSize: '15px' }}
+                        >
+                            예
+                        </button>
+                        <button
+                            onClick={handleCleanupNo}
+                            style={{ padding: '12px 24px', background: '#e8e0d0', border: 'none', borderRadius: '8px', color: '#5a5040', cursor: 'pointer', fontSize: '15px' }}
+                        >
+                            아니오
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className={containerClass}>
@@ -209,7 +273,7 @@ export default function PhotoImportModal({ siteId, onClose, onDone, inline = fal
                         }}
                     >
                         <HardDrive size={18} />
-                        내 컴퓨터
+                        {isMobile ? '이 폰에서 가져오기' : '내 컴퓨터에서 가져오기'}
                     </button>
                     <button
                         onClick={() => setSource('gdrive')}
@@ -255,7 +319,7 @@ export default function PhotoImportModal({ siteId, onClose, onDone, inline = fal
                                             className="px-8 py-3 rounded-lg font-medium transition transform hover:scale-105"
                                             style={{ backgroundColor: '#C4A84F', color: '#FAFAF7' }}
                                         >
-                                            컴퓨터에서 선택
+                                            {isMobile ? '이 폰에서 선택' : '내 컴퓨터에서 선택'}
                                         </button>
                                         <input
                                             ref={fileInputRef}
