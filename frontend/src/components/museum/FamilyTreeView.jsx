@@ -45,7 +45,7 @@ const PARENT_TYPE_KEYS = [
 // ════════════════════════════════════════
 // MAIN COMPONENT
 // ════════════════════════════════════════
-export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewer', exhibitions = [], onPersonVisit }) {
+export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewer', exhibitions = [], initialPersonId = null, subdomain: subdomainProp }) {
     const navigate = useNavigate();
     const { subdomain } = useParams();
     const lang = useUiStore((s) => s.lang);
@@ -61,10 +61,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
     const canEdit = !readOnly && (role === 'owner' || role === 'member');
 
-    // 가계도 중심 인물 (wormhole 전환 시 변경)
-    const [mainPersonId, setMainPersonId] = useState(null);
-    // 가계도 DOM 완전 리셋용 카운터
-    const [treeKey, setTreeKey] = useState(0);
+    // 가계도 중심 인물 (URL ?person= 으로 초기값 설정)
+    const [mainPersonId, setMainPersonId] = useState(initialPersonId || null);
 
     // 가문전환 안내 메시지 (편집 후 표시)
     const [wormholeGuide, setWormholeGuide] = useState(null);
@@ -802,7 +800,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             {/* FamilyTreeCanvas 렌더링 — key로 DOM 완전 초기화 */}
             <div className="relative w-full" style={{ height: 'calc(100vh - 130px)', minHeight: '500px' }}>
                 <FamilyTreeCanvas
-                    key={treeKey}
+                    key="canvas"
                     nodes={treeData.nodes}
                     links={treeData.links}
                     mainId={treeData.mainId}
@@ -815,18 +813,14 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                         setMainPersonId(String(personId));
                     }}
                     onHome={() => {
-                        onPersonVisit?.(null);
-                        setTreeKey(prev => prev + 1);
-                        setMainPersonId(null);
+                        window.location.href = `/${subdomainProp || subdomain}`;
                     }}
                     style={{ width: '100%', height: '100%' }}
                 />
                 {mainPersonId && (
                     <button
                         onClick={() => {
-                            onPersonVisit?.(null);
-                            setTreeKey(prev => prev + 1);
-                            setMainPersonId(null);
+                            window.location.href = `/${subdomainProp || subdomain}`;
                         }}
                         className="absolute top-4 left-4 z-10 px-4 py-2 bg-white/90 dark:bg-gray-800/90 rounded-xl shadow-lg border border-gray-200 dark:border-gray-600 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-white transition-colors"
                     >
@@ -889,11 +883,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
                             <button
                                 onClick={() => {
-                                    const target = confirmTarget;
-                                    setConfirmTarget(null);
-                                    onPersonVisit?.(target.person);
-                                    setTreeKey(prev => prev + 1);
-                                    setMainPersonId(String(target.person.id));
+                                    const p = confirmTarget.person;
+                                    const sd = subdomainProp || subdomain;
+                                    window.location.href = `/${sd}?person=${p.id}&pname=${encodeURIComponent(p.name)}`;
                                 }}
                                 style={{ padding: '10px 28px', background: '#C4A882', border: 'none', borderRight: '2px solid #8B7355', borderBottom: '2px solid #8B7355', borderRadius: '6px', color: '#fff', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}
                             >

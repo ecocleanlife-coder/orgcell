@@ -165,8 +165,8 @@ export default function MuseumPage({ initialTab }) {
     // 가족트리 인물 목록 (녹음 인물 선택용)
     const [treePersons, setTreePersons] = useState([]);
 
-    // 가족트리에서 방문 중인 인물 (null = 원래 관장)
-    const [visitedPerson, setVisitedPerson] = useState(null);
+    // URL ?person=ID 파라미터로 방문 인물 결정
+    const visitPersonId = new URLSearchParams(window.location.search).get('person');
 
     // 친구 요청
     const [friendRequested, setFriendRequested] = useState(false);
@@ -344,13 +344,12 @@ export default function MuseumPage({ initialTab }) {
     }
 
     const museumName = site?.museum_name || `${subdomain} 가족유산박물관`;
-    // 방문 중인 인물이 있으면 해당 인물 박물관 이름으로 표시
-    const displayMuseumName = visitedPerson
-        ? `${visitedPerson.name} 가족유산박물관`
+    const visitPersonName = new URLSearchParams(window.location.search).get('pname');
+    const displayMuseumName = visitPersonId && visitPersonName
+        ? `${visitPersonName} 가족유산박물관`
         : museumName;
-    // 전시관: 방문 중인 인물 기준으로 필터
-    const displayExhibitions = visitedPerson
-        ? exhibitions.filter(e => String(e.person_id) === String(visitedPerson.id))
+    const displayExhibitions = visitPersonId
+        ? exhibitions.filter(e => String(e.person_id) === String(visitPersonId))
         : exhibitions;
     const canEdit = role === 'owner' || role === 'member';
 
@@ -471,7 +470,8 @@ export default function MuseumPage({ initialTab }) {
                                 readOnly={role === 'public'}
                                 role={role}
                                 exhibitions={exhibitions}
-                                onPersonVisit={setVisitedPerson}
+                                initialPersonId={visitPersonId}
+                                subdomain={subdomain}
                             />
                         </div>
                     </Section>
