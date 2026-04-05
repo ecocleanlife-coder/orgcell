@@ -218,8 +218,8 @@ describe('buildTree', () => {
         const parent = r.nodes.find(n => n.id === '1');
         const child = r.nodes.find(n => n.id === '5');
         expect(main.y).toBe(0);
-        expect(parent.y).toBe(270);
-        expect(child.y).toBe(-270);
+        expect(parent.y).toBe(280);
+        expect(child.y).toBe(-280);
     });
 
     it('부모→자녀 링크 8개', () => {
@@ -248,9 +248,9 @@ describe('buildTree', () => {
 
     it('constants 레고 표준', () => {
         const r = buildTree(PERSONS, RELATIONS);
-        expect(r.constants.SLOT_W).toBe(220);
-        expect(r.constants.Y_GAP).toBe(270);
-        expect(r.constants.CARD_W).toBe(180);
+        expect(r.constants.SLOT_W).toBe(260);
+        expect(r.constants.Y_GAP).toBe(280);
+        expect(r.constants.CARD_W).toBe(220);
     });
 
     it('고아 노드 제외', () => {

@@ -1,11 +1,11 @@
 /**
- * buildTree.js — VISION.md v2.0 레고 블록 표준 준수
+ * buildTree.js — ORGCELL_CODING_RULES.md v3.0 레고 블록 표준 준수
  *
  * persons[] + person_relations[] → { nodes[], links[], mainId, constants }
  *
  * 핵심 원칙:
- * - 240px 그리드 (220px 블록 + 20px 간격)
- * - 부부 간격 = 0 (붙어서 박스, center-to-center = CARD_W = 220)
+ * - 260px 그리드 (220px 블록 + 40px 간격)
+ * - 부부 간격 = 40px (좌우 예외 없음), center-to-center = 260 = SLOT_W
  * - Y축: 조상↑(+280) 자손↓(-280), 본인=0
  * - X축: 남편형제→좌, 아내형제→우
  * - Z축: 타가문 레이어 (0/1/2)
@@ -13,14 +13,28 @@
  */
 
 // ── 레고 표준 상수 (ORGCELL_CODING_RULES.md §2) ─────────────
-const SLOT_W = 240;     // 한 사람 슬롯 = 220px + 20px 간격
-const Y_GAP = 280;      // 세대 간 수직 간격 = 220px + 60px
-const CARD_W = 220;     // 카드 실제 폭
-const CARD_H = 220;     // 카드 실제 높이
-const CARD_GAP = 20;    // 카드 사이 간격 (부부 제외)
+const SLOT_W = 260;         // 한 사람 슬롯 = 220px + 40px 간격
+const Y_GAP = 280;          // 세대 간 수직 간격 = 220px + 60px
+const CARD_W = 220;         // 카드 실제 폭
+const CARD_H = 220;         // 카드 실제 높이
+const CARD_GAP = 40;        // 카드 사이 간격 (부부 포함 예외 없음)
+const COUPLE_HALF = 130;    // 부부 center-to-center / 2 = (220 + 40) / 2
 
 // ── 표시 범위 상수 (ORGCELL_CODING_RULES.md §22) ────────────
 const DISPLAY_MAX_ANCESTOR_DEPTH = 2; // 조부모(depth=2)까지만 화면 표시
+
+// ── Z축 투명도/크기 ──────────────────────────────
+export function zOpacity(z) {
+    if (z === 0) return 1.0;
+    if (z === 1) return 0.4;
+    return 0.15;
+}
+
+export function zScale(z) {
+    if (z === 0) return 1.0;
+    if (z === 1) return 0.85;
+    return 0.7;
+}
 
 // ── 유틸 ──────────────────────────────────────────
 
@@ -221,11 +235,9 @@ function classifyZ(mainId, maps, depthMap, byId) {
     const z = {};
 
     // 혈족 추적: parent-child 링크만 따라감 (spouse 안 따라감)
-    // 조상 → 조상의 자녀(형제) → 후손까지 포함
     function getBloodRelatives(startId) {
         const blood = new Set();
 
-        // 위로: 조상 추적
         function traceUp(id) {
             blood.add(id);
             for (const pid of (parentOf[id] || [])) {
@@ -233,7 +245,6 @@ function classifyZ(mainId, maps, depthMap, byId) {
             }
         }
 
-        // 아래로: 후손 추적
         function traceDown(id) {
             blood.add(id);
             for (const cid of (childrenOf[id] || [])) {
@@ -241,10 +252,8 @@ function classifyZ(mainId, maps, depthMap, byId) {
             }
         }
 
-        // 1. 본인 → 조상까지 위로
         traceUp(startId);
 
-        // 2. 모든 조상의 자녀(형제) + 그 후손까지 아래로
         const ancestors = new Set(blood);
         for (const anc of ancestors) {
             for (const cid of (childrenOf[anc] || [])) {
@@ -385,6 +394,29 @@ function getSiblings(personId, maps, byId) {
     return sibs;
 }
 
+// ── 형제 이동 공식 (ORGCELL_CODING_RULES.md §배치 알고리즘) ──
+/**
+ * 자녀 수에 따른 부모 형제 추가 이동량
+ * - n ≤ 2: 0px
+ * - n = 3: 130px (COUPLE_HALF)
+ * - n ≥ 4: 130 + (n - 3) × 260px
+ *
+ * 기하 정합성 검증:
+ * placeSiblingsOf에서 edge = refEdge - SLOT_W - extra
+ *   sibCenter = edge - ((sibWidth-1)*SLOT_W)/2
+ * 이므로 형제 서브트리 오른쪽 끝 = sibCenter + (sibWidth-1)*SLOT_W/2 = edge
+ * mainId 자녀 왼쪽 끝 = mainCenter - (n*SLOT_W)/2 + SLOT_W/2 - COUPLE_HALF
+ * n=3일 때: 0 - 390 + 130 - 110 = -370
+ * edge = refEdge - SLOT_W - 130 ≤ -130 - 260 - 130 = -520 < -370 ✓
+ * → 형제 서브트리 오른쪽이 항상 자녀 왼쪽보다 좌측. 겹침 없음.
+ * 나머지 충돌은 5단계 push-apart 패스(최대 10회)가 해소.
+ */
+export function siblingExtraOffset(numChildren) {
+    if (numChildren <= 2) return 0;
+    if (numChildren === 3) return COUPLE_HALF;
+    return COUPLE_HALF + (numChildren - 3) * SLOT_W;
+}
+
 // ── CoupleBlock 레이아웃 ────────────────────────
 
 /**
@@ -393,15 +425,13 @@ function getSiblings(personId, maps, byId) {
  * 1. mainId 부부를 X=0 중앙에 고정
  * 2. 서브트리 너비를 재귀 계산하여 겹침 방지
  * 3. 자녀를 부모 중심에 대칭 배치
- * 4. 형제는 자녀 영역 바깥에 배치
+ * 4. 형제는 자녀 영역 바깥에 자녀 수 기반 공식으로 배치
  * 5. 조상은 자손 범위 중심에 배치
  */
 function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
     const positions = {};
     const connSet = new Set(connectedIds);
     const { spousesOf, parentOf, childrenOf } = maps;
-    // 부부는 간격 0으로 붙어있으므로 center-to-center = CARD_W (SLOT_W 아님)
-    const HALF = CARD_W / 2;
 
     // ── 유틸 ──
     function getSpouse(id) {
@@ -457,12 +487,12 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
         if (positions[personId]) return;
         const sp = getSpouse(personId);
 
-        // 자신 + 배우자 배치
+        // 자신 + 배우자 배치 (부부 center-to-center = SLOT_W = 260)
         if (sp && !positions[sp]) {
             const m = byId[personId]?.gender === 'M' ? personId : sp;
             const f = byId[personId]?.gender === 'M' ? sp : personId;
-            positions[m] = { x: centerX - HALF, y };
-            positions[f] = { x: centerX + HALF, y };
+            positions[m] = { x: centerX - COUPLE_HALF, y };
+            positions[f] = { x: centerX + COUPLE_HALF, y };
         } else {
             positions[personId] = { x: centerX, y };
         }
@@ -500,7 +530,7 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
     // ── 1단계: 메인 부부 + 후손 배치 (X=0 중심) ──
     placeDescTree(mainId, 0, 0);
 
-    // ── 2단계: 형제 배치 (자손 영역 밖에) ──
+    // ── 2단계: 형제 배치 (자녀 수 기반 공식) ──
     const husbandId = byId[mainId]?.gender === 'M' ? mainId : getSpouse(mainId);
     const wifeId = byId[mainId]?.gender === 'M' ? getSpouse(mainId) : mainId;
 
@@ -509,18 +539,24 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
         const sibs = getSiblings(personId, maps, byId).filter(s => connSet.has(s) && !positions[s]);
         if (sibs.length === 0) return;
 
+        // 직계 자녀 수로 추가 오프셋 결정
+        const coupleIds = [personId, getSpouse(personId)].filter(Boolean);
+        const directChildren = getChildrenSorted(coupleIds);
+        const extra = siblingExtraOffset(directChildren.length);
+
         for (const sibId of sibs) {
             if (positions[sibId]) continue;
             const width = subtreeSlots(sibId);
 
-            // Y=0(형제 행)의 X만 기준으로 삼아 자녀 확산 영향 차단
+            // 같은 Y행(=0)의 노드만 기준으로 edge 계산 (자녀 확산 영향 차단)
             const sameYXs = Object.entries(positions)
                 .filter(([, pos]) => pos.y === 0)
                 .map(([, pos]) => pos.x);
             const refXs = sameYXs.length > 0 ? sameYXs : Object.values(positions).map(p => p.x);
+
             const edge = direction === -1
-                ? Math.min(...refXs) - SLOT_W
-                : Math.max(...refXs) + SLOT_W;
+                ? Math.min(...refXs) - SLOT_W - extra
+                : Math.max(...refXs) + SLOT_W + extra;
 
             const sibCenter = direction === -1
                 ? edge - ((width - 1) * SLOT_W) / 2
@@ -535,14 +571,12 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
 
     // ── 3단계: 조상 배치 (양가 분리, 자손 범위 중심 기준) ──
     function placeAncestorsUp(personId, side) {
-        // side: 'left' or 'right' — 양가 겹침 방지용
         if (!personId || !positions[personId]) return;
 
         const allParents = (parentOf[personId] || []).filter(p => connSet.has(p));
         const unplacedParents = allParents.filter(p => !positions[p]);
 
         if (unplacedParents.length > 0) {
-            // 본인 + 형제의 X 범위
             const sibs = getSiblings(personId, maps, byId).filter(s => connSet.has(s) && positions[s]);
             const groupIds = [personId, ...sibs].filter(id => positions[id]);
             const groupXs = groupIds.map(id => positions[id].x);
@@ -551,7 +585,7 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
             if (sibs.length > 0) {
                 centerX = (Math.min(...groupXs) + Math.max(...groupXs)) / 2;
             } else {
-                centerX = positions[personId].x + (side === 'left' ? -HALF : HALF);
+                centerX = positions[personId].x + (side === 'left' ? -COUPLE_HALF : COUPLE_HALF);
             }
 
             const depth = (depthMap[personId] || 0) + 1;
@@ -561,14 +595,14 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
             const sameYXs = Object.values(positions).filter(p => p.y === y).map(p => p.x);
             if (sameYXs.length > 0) {
                 const wouldOverlap = sameYXs.some(ox =>
-                    Math.abs(ox - (centerX - HALF)) < SLOT_W * 0.8 ||
-                    Math.abs(ox - (centerX + HALF)) < SLOT_W * 0.8
+                    Math.abs(ox - (centerX - COUPLE_HALF)) < SLOT_W * 0.8 ||
+                    Math.abs(ox - (centerX + COUPLE_HALF)) < SLOT_W * 0.8
                 );
                 if (wouldOverlap) {
                     const edge = side === 'left'
                         ? Math.min(...sameYXs) - SLOT_W
                         : Math.max(...sameYXs) + SLOT_W;
-                    centerX = side === 'left' ? edge - HALF : edge + HALF;
+                    centerX = side === 'left' ? edge - COUPLE_HALF : edge + COUPLE_HALF;
                 }
             }
 
@@ -576,27 +610,23 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
             const mother = unplacedParents.find(p => byId[p]?.gender === 'F');
 
             if (father && mother) {
-                positions[father] = { x: centerX - HALF, y };
-                positions[mother] = { x: centerX + HALF, y };
+                positions[father] = { x: centerX - COUPLE_HALF, y };
+                positions[mother] = { x: centerX + COUPLE_HALF, y };
             } else {
                 positions[unplacedParents[0]] = { x: centerX, y };
             }
         }
 
-        // 재귀: 배치된 부모를 통해 위로 계속
         for (const pid of allParents) {
             if (positions[pid]) placeAncestorsUp(pid, side);
         }
     }
 
-    // 메인 부부의 부모를 먼저 배치
-    // 남편측 부모 → 왼쪽, 아내측 부모 → 오른쪽
     function placeDirectParents(personId, side) {
         if (!personId) return;
         const parents = (parentOf[personId] || []).filter(p => connSet.has(p) && !positions[p]);
         if (parents.length === 0) return;
 
-        // 본인 + 형제 범위
         const sibs = getSiblings(personId, maps, byId).filter(s => connSet.has(s) && positions[s]);
         const groupIds = [personId, ...sibs].filter(id => positions[id]);
         const groupXs = groupIds.map(id => positions[id].x);
@@ -605,7 +635,7 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
         if (sibs.length > 0) {
             centerX = (Math.min(...groupXs) + Math.max(...groupXs)) / 2;
         } else {
-            centerX = positions[personId].x + (side === 'left' ? -HALF : HALF);
+            centerX = positions[personId].x + (side === 'left' ? -COUPLE_HALF : COUPLE_HALF);
         }
 
         const depth = (depthMap[personId] || 0) + 1;
@@ -615,14 +645,14 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
         const sameYXs = Object.values(positions).filter(p => p.y === y).map(p => p.x);
         if (sameYXs.length > 0) {
             const wouldOverlap = sameYXs.some(ox =>
-                Math.abs(ox - (centerX - HALF)) < SLOT_W * 0.8 ||
-                Math.abs(ox - (centerX + HALF)) < SLOT_W * 0.8
+                Math.abs(ox - (centerX - COUPLE_HALF)) < SLOT_W * 0.8 ||
+                Math.abs(ox - (centerX + COUPLE_HALF)) < SLOT_W * 0.8
             );
             if (wouldOverlap) {
                 const edge = side === 'left'
                     ? Math.min(...sameYXs) - SLOT_W
                     : Math.max(...sameYXs) + SLOT_W;
-                centerX = side === 'left' ? edge - HALF : edge + HALF;
+                centerX = side === 'left' ? edge - COUPLE_HALF : edge + COUPLE_HALF;
             }
         }
 
@@ -630,8 +660,8 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
         const mother = parents.find(p => byId[p]?.gender === 'F');
 
         if (father && mother) {
-            positions[father] = { x: centerX - HALF, y };
-            positions[mother] = { x: centerX + HALF, y };
+            positions[father] = { x: centerX - COUPLE_HALF, y };
+            positions[mother] = { x: centerX + COUPLE_HALF, y };
         } else {
             positions[parents[0]] = { x: centerX, y };
         }
@@ -663,11 +693,10 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
 
     // ── 4단계: 부모의 형제(삼촌/이모)만 배치 ──
     // §22: 부모(depth=1)의 형제까지만 표시. 조부모(depth=2) 형제는 숨김.
-    // maxPersonDepth: personId의 depth가 이 값 이상이면 형제 배치 중단
     function placeAncestorSiblings(personId, maxPersonDepth) {
         if (!personId) return;
         const personDepth = depthMap[personId] || 0;
-        if (personDepth >= maxPersonDepth) return; // 부모 세대(depth=1) 도달 시 중단
+        if (personDepth >= maxPersonDepth) return;
 
         const parents = (parentOf[personId] || []).filter(p => connSet.has(p) && positions[p]);
 
@@ -678,18 +707,23 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
                 const direction = parentX <= 0 ? -1 : 1;
                 const parentY = positions[pid].y;
 
+                // 부모의 자녀 수로 추가 오프셋 결정
+                const pCoupleIds = [pid, getSpouse(pid)].filter(Boolean);
+                const pChildren = getChildrenSorted(pCoupleIds);
+                const extra = siblingExtraOffset(pChildren.length);
+
                 for (const sibId of pSibs) {
                     if (positions[sibId]) continue;
                     const width = subtreeSlots(sibId);
 
-                    // 같은 Y 행의 X만 기준으로 (자녀 행이 영향 주지 않도록)
                     const sameYXs = Object.entries(positions)
                         .filter(([, pos]) => pos.y === parentY)
                         .map(([, pos]) => pos.x);
                     const refXs = sameYXs.length > 0 ? sameYXs : Object.values(positions).map(p => p.x);
+
                     const edge = direction === -1
-                        ? Math.min(...refXs) - SLOT_W
-                        : Math.max(...refXs) + SLOT_W;
+                        ? Math.min(...refXs) - SLOT_W - extra
+                        : Math.max(...refXs) + SLOT_W + extra;
 
                     const sibCenter = direction === -1
                         ? edge - ((width - 1) * SLOT_W) / 2
@@ -702,29 +736,25 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
         }
     }
 
-    // 남편/아내 side 각각 처리 (mainId 성별 무관하게 양가 모두 커버)
     // maxPersonDepth=1: depth<1 (=depth 0)인 personId의 부모만 형제 배치 → 삼촌/이모(depth=1)까지
     if (husbandId) placeAncestorSiblings(husbandId, 1);
     if (wifeId && wifeId !== husbandId) placeAncestorSiblings(wifeId, 1);
 
     // ── 5단계: 겹침 해소 (같은 Y에서 X 간격 < MIN_GAP 시 밀어내기) ──
-    const MIN_GAP = SLOT_W; // 200px 최소 간격 (180px 카드 + 20px 간격)
+    const MIN_GAP = SLOT_W; // 260px 최소 간격 (220px 카드 + 40px 간격)
 
-    // 부모-자손 관계를 따라 서브트리 전체를 deltaX만큼 이동
     function shiftSubtree(personId, deltaX, visited) {
         if (visited.has(personId)) return;
         visited.add(personId);
         if (!positions[personId]) return;
         positions[personId].x += deltaX;
 
-        // 배우자도 이동
         const sp = (spousesOf[personId] || []).find(s => connSet.has(s) && positions[s]);
         if (sp && !visited.has(sp)) {
             visited.add(sp);
             positions[sp].x += deltaX;
         }
 
-        // 자녀 + 자녀의 서브트리 재귀 이동
         const coupleIds = sp ? [personId, sp] : [personId];
         for (const pid of coupleIds) {
             for (const cid of (childrenOf[pid] || [])) {
@@ -733,11 +763,9 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
         }
     }
 
-    // 최대 10회 반복 (수렴할 때까지)
     for (let pass = 0; pass < 10; pass++) {
         let anyShifted = false;
 
-        // Y 그룹별로 노드 수집
         const byY = {};
         for (const [id, pos] of Object.entries(positions)) {
             const yKey = Math.round(pos.y);
@@ -754,11 +782,9 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
                 const gap = row[i + 1].x - row[i].x;
                 if (gap < MIN_GAP) {
                     const pushAmount = MIN_GAP - gap;
-                    // 오른쪽 노드 + 그 서브트리 전체를 밀어내기
                     const visited = new Set();
                     shiftSubtree(row[i + 1].id, pushAmount, visited);
                     anyShifted = true;
-                    // 이 row의 나머지도 갱신
                     for (let j = i + 1; j < row.length; j++) {
                         row[j].x = positions[row[j].id].x;
                     }
@@ -806,11 +832,11 @@ function buildLinks(connectedIds, maps) {
 // ── 트리 검증 함수 ──────────────────────────────
 /**
  * buildTree 결과 검증
- * - 규칙서 §2: 그리드 200px, 세대간격 220px
+ * - 규칙서 §2: 그리드 260px, 세대간격 280px
  * - 규칙서 §3: 남좌여우, 배우자 인접
  *
- * @param {Array} nodes - buildTree 출력 nodes (x, y, data.name, data.gender)
- * @param {Array} links - buildTree 출력 links (type: 'spouse'|'parent', source, target)
+ * @param {Array} nodes - buildTree 출력 nodes
+ * @param {Array} links - buildTree 출력 links
  * @returns {string[]} 오류 메시지 배열 (빈 배열 = 통과)
  */
 function validateTree(nodes, links) {
@@ -821,30 +847,33 @@ function validateTree(nodes, links) {
     const nodesMap = {};
     for (const n of nodes) nodesMap[n.id] = n;
 
-    // 부부 쌍 집합 (부부는 CARD_W=220 간격, 나머지는 SLOT_W=240 최소)
+    // 부부 쌍 집합
     const spouseLinks = links.filter(l => l.type === 'spouse');
     const spousePairSet = new Set(spouseLinks.map(l => [l.source, l.target].sort().join(':')));
 
-    // 1. 겹침/간격 검사 (§22 §23: 최소 20px 간격)
+    // 부부 center-to-center = SLOT_W = 260 (카드 220 + 간격 40)
+    const SPOUSE_DIST = CARD_W + CARD_GAP; // 260
+
+    // 1. 겹침/간격 검사 (최소 SLOT_W = 260px)
     for (let i = 0; i < z0.length; i++) {
         for (let j = i + 1; j < z0.length; j++) {
             if (Math.round(z0[i].y) !== Math.round(z0[j].y)) continue;
             const key = [z0[i].id, z0[j].id].sort().join(':');
             const isSpouse = spousePairSet.has(key);
             const dist = Math.abs(z0[i].x - z0[j].x);
-            const minDist = isSpouse ? CARD_W : SLOT_W; // 부부: 220, 나머지: 240(=220+20)
+            const minDist = isSpouse ? SPOUSE_DIST : SLOT_W; // 260 / 260
             if (dist < minDist) {
                 errors.push(`간격 오류: ${z0[i].data.name}과 ${z0[j].data.name} (간격: ${dist}px, 최소: ${minDist}px)`);
             }
         }
     }
 
-    // 2. 부부 인접 검사 (x 차이 = CARD_W = 220px, 부부는 간격 0으로 붙어있음)
+    // 2. 부부 인접 검사 (x 차이 = 260px)
     for (const l of spouseLinks) {
         const a = nodesMap[l.source];
         const b = nodesMap[l.target];
-        if (a && b && Math.abs(a.x - b.x) !== CARD_W) {
-            errors.push(`부부 간격 오류: ${a.data.name}과 ${b.data.name} (간격: ${Math.abs(a.x - b.x)}px, 기대: ${CARD_W}px)`);
+        if (a && b && Math.abs(a.x - b.x) !== SPOUSE_DIST) {
+            errors.push(`부부 간격 오류: ${a.data.name}과 ${b.data.name} (간격: ${Math.abs(a.x - b.x)}px, 기대: ${SPOUSE_DIST}px)`);
         }
     }
 
@@ -860,7 +889,7 @@ function validateTree(nodes, links) {
         }
     }
 
-    // 4. 세대 간격 검사 (부모 y = 자녀 y + Y_GAP = 220)
+    // 4. 세대 간격 검사 (부모 y = 자녀 y + Y_GAP = 280)
     const parentLinks = links.filter(l => l.type === 'parent');
     for (const l of parentLinks) {
         const parent = nodesMap[l.source];
@@ -912,7 +941,6 @@ export function buildTree(persons, relations, overrideMainId = null) {
                 const motherId = `_tmp_mother_${pid}`;
                 const fatherName = surname ? `${person.name}의 아버지` : '아버지';
                 const motherName = surname ? `${person.name}의 어머니` : '어머니';
-                const cc = person?.oc_id ? person.oc_id.split('-')[0] : 'KR';
 
                 byId[fatherId] = { id: fatherId, name: fatherName, gender: 'M', oc_id: '', _temp: true };
                 byId[motherId] = { id: motherId, name: motherName, gender: 'F', oc_id: '', _temp: true };
@@ -936,7 +964,7 @@ export function buildTree(persons, relations, overrideMainId = null) {
     // 관계 기반 depth (DB generation 무시)
     const depthMap = computeDepth(mainId, maps);
 
-    // Z축 분류 — 가문전환 여부 무관, 항상 classifyZ 실행
+    // Z축 분류
     const rawZMap = classifyZ(mainId, maps, depthMap, byId);
 
     // §22 표시 범위 필터: 직계 조부모까지만 표시, 증조부모+ 숨김
@@ -960,6 +988,8 @@ export function buildTree(persons, relations, overrideMainId = null) {
             y: pos.y,
             depth,
             z: zLevel,
+            zOpacity: zOpacity(zLevel),
+            zScale: zScale(zLevel),
             data: buildNodeData(person),
             rels: {
                 parents: (maps.parentOf[id] || []).filter(p => connectedIds.includes(p)),
@@ -999,4 +1029,5 @@ export {
     CARD_W,
     CARD_H,
     CARD_GAP,
+    COUPLE_HALF,
 };

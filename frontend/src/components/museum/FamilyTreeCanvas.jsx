@@ -12,17 +12,17 @@ import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import CoupleBlock from './CoupleBlock';
 import ConnectorLine from './ConnectorLine';
 import useTreeViewStore from '../../store/treeViewStore';
+import { CARD_W, CARD_GAP } from '../../utils/buildTree';
 
 const springTransition = { type: 'spring', stiffness: 200, damping: 25 };
 
-const CARD_SIZE = 220;
-const CARD_HALF = 110;
+// buildTree.js에서 import한 상수만 사용 — 여기서 직접 정의 금지
+const CARD_HALF = CARD_W / 2;  // 110
 const TAB_H = 10;
 const BOX_PAD = 10;  // CoupleBlock 내부 패딩
-const GAP = 0;       // 부부 카드 간 간격 = 0 (붙어있음)
 
-// CoupleBlock 전체 높이: CARD_SIZE + padding*2 + TAB_H
-const BOX_H = CARD_SIZE + BOX_PAD * 2 + TAB_H; // 250
+// CoupleBlock 전체 높이: CARD_W + padding*2 + TAB_H
+const BOX_H = CARD_W + BOX_PAD * 2 + TAB_H; // 250
 
 /**
  * nodes/links → couple 단위 그룹핑
@@ -186,7 +186,7 @@ export default function FamilyTreeCanvas({
     const { viewport: savedViewport, setViewport, clearViewport, hasValidViewport } = useTreeViewStore();
 
     // ── 관장 부부 중심 뷰: 초기 로드 시 main couple을 화면 중앙에 배치 ──
-    // buildTree에서 mainId 부부는 x=0 중앙에 배치 (husband=-HALF, wife=+HALF, 커플 중심=0)
+    // buildTree에서 mainId 부부는 x=0 중앙에 배치 (husband=-COUPLE_HALF, wife=+COUPLE_HALF, 커플 중심=0)
     const mainScreenX = useMemo(() => toScreenX(0), [bounds]);
     const mainScreenY = useMemo(() => toScreenY(0), [screenBounds]);
 
@@ -250,7 +250,7 @@ export default function FamilyTreeCanvas({
                 const leftNode = husband.x < wife.x ? husband : wife;
                 const boxLeft = toScreenX(leftNode.x) - CARD_HALF - BOX_PAD;
                 const boxTop = toScreenY(leftNode.y) - CARD_HALF - TAB_H - BOX_PAD;
-                const boxW = CARD_SIZE * 2 + GAP + BOX_PAD * 2;
+                const boxW = CARD_W * 2 + CARD_GAP + BOX_PAD * 2;
                 const boxCenterX = boxLeft + boxW / 2;
                 const boxBottom = boxTop + BOX_H;
 
@@ -261,7 +261,7 @@ export default function FamilyTreeCanvas({
             } else {
                 const boxLeft = toScreenX(soloNode.x) - CARD_HALF - BOX_PAD;
                 const boxTop = toScreenY(soloNode.y) - CARD_HALF - TAB_H - BOX_PAD;
-                const boxW = CARD_SIZE + BOX_PAD * 2;
+                const boxW = CARD_W + BOX_PAD * 2;
                 const boxCenterX = boxLeft + boxW / 2;
                 const boxBottom = boxTop + BOX_H;
 
