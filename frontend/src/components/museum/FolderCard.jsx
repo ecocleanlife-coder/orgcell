@@ -13,7 +13,7 @@ import { maskName, maskInitials } from '../../utils/privacyMask';
 import RefusedPersonBox from './RefusedPersonBox';
 import useMediaQuery from '../../hooks/useMediaQuery';
 
-const CARD_SIZE = 180;
+const CARD_SIZE = 220;
 const TAB_W = 40;
 const TAB_H = 10;
 const FRAME_COLOR = '#C4A84F'; // 금색 액자

@@ -156,12 +156,37 @@ export default function PersonFolderView() {
 
     // ── 가족 추가 상태 ───────────────────────────────────────────────────────
     const [showFamilyAdd, setShowFamilyAdd]     = useState(false);
-    const [addRelationType, setAddRelationType] = useState(null);
+    const [addRelationKey, setAddRelationKey]   = useState(null); // 선택된 관계 키
+    const [addRelationType, setAddRelationType] = useState(null); // 실제 API 관계 타입
     const [relationName, setRelationName]       = useState('');
     const [relationGender, setRelationGender]   = useState('male');
     const [existingPersonSearch, setExistingPersonSearch] = useState('');
     const [allPersons, setAllPersons]           = useState([]);
     const [submittingRelation, setSubmittingRelation] = useState(false);
+
+    // 관계 옵션 (성별이 자동으로 결정됨)
+    const RELATION_OPTIONS = [
+        { key: 'father',       label: '부',          relation: 'parent',       gender: 'male' },
+        { key: 'mother',       label: '모',          relation: 'parent',       gender: 'female' },
+        { key: 'hyeong',       label: '형',          relation: 'sibling',      gender: 'male' },
+        { key: 'je',           label: '제',          relation: 'sibling',      gender: 'female' },
+        { key: 'son',          label: '아들',        relation: 'child',        gender: 'male' },
+        { key: 'daughter',     label: '딸',          relation: 'child',        gender: 'female' },
+        { key: 'birth-father', label: '입양후 친부', relation: 'birth-parent', gender: 'male' },
+        { key: 'birth-mother', label: '입양후 친모', relation: 'birth-parent', gender: 'female' },
+    ];
+
+    const handleRelationKeySelect = (key) => {
+        if (addRelationKey === key) {
+            setAddRelationKey(null);
+            setAddRelationType(null);
+        } else {
+            const opt = RELATION_OPTIONS.find(o => o.key === key);
+            setAddRelationKey(key);
+            setAddRelationType(opt.relation);
+            setRelationGender(opt.gender);
+        }
+    };
 
     // 1) siteId 조회
     useEffect(() => {
@@ -265,7 +290,32 @@ export default function PersonFolderView() {
             if (!targetId) { toast.error('생성 실패'); setSubmittingRelation(false); return; }
             await connectRelation(targetId);
             toast.success(`${relationName.trim()}이(가) 생성되었습니다`);
+
+            // 이름 입력란 초기화
+            const createdName = relationName.trim();
             setRelationName('');
+
+            // 로컬 state 즉시 반영 (API 재호출 없이)
+            const newPersonData = { ...res.data.data, id: targetId };
+            if (addRelationType === 'parent' || addRelationType === 'birth-parent') {
+                // 현재 인물의 parent1_id 업데이트 + 신규 인물 추가
+                const updatedNewPerson = { ...newPersonData };
+                setAllPersons(prev => [...prev, updatedNewPerson]);
+                setPerson(prev => ({ ...prev, parent1_id: targetId }));
+            } else if (addRelationType === 'child' || addRelationType === 'adoption') {
+                // 신규 자녀는 현재 인물을 부모로 가짐
+                const updatedNewPerson = { ...newPersonData, parent1_id: person.id };
+                setAllPersons(prev => [...prev, updatedNewPerson]);
+            } else if (addRelationType === 'spouse') {
+                const updatedNewPerson = { ...newPersonData, spouse_id: person.id };
+                setAllPersons(prev => [...prev, updatedNewPerson]);
+                setPerson(prev => ({ ...prev, spouse_id: targetId }));
+            } else if (addRelationType === 'sibling') {
+                const updatedNewPerson = { ...newPersonData, parent1_id: person.parent1_id || null, parent2_id: person.parent2_id || null };
+                setAllPersons(prev => [...prev, updatedNewPerson]);
+            } else {
+                setAllPersons(prev => [...prev, newPersonData]);
+            }
         } catch {
             toast.error('생성에 실패했습니다');
         }
@@ -548,49 +598,21 @@ export default function PersonFolderView() {
                                     />
                                 </div>
 
-                                {/* 관계 유형 체크박스 */}
-                                <div style={{ display: 'flex', gap: '16px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                                    {[
-                                        { type: 'parent', label: '부모' },
-                                        { type: 'sibling', label: '형제' },
-                                        { type: 'child', label: '자녀' },
-                                    ].map(({ type, label }) => (
-                                        <label key={type} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '13px', color: TEXT, fontFamily: 'Georgia, "Noto Serif KR", serif' }}>
+                                {/* 관계 유형 체크박스 (성별 자동 결정) */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '14px' }}>
+                                    {RELATION_OPTIONS.map(({ key, label }) => (
+                                        <label key={key} style={{
+                                            display: 'flex', alignItems: 'center', gap: '5px',
+                                            cursor: 'pointer', fontSize: '13px', color: TEXT,
+                                            fontFamily: 'Georgia, "Noto Serif KR", serif',
+                                            padding: '4px 6px',
+                                            background: addRelationKey === key ? 'rgba(196,168,130,0.25)' : 'transparent',
+                                            borderRadius: '4px',
+                                        }}>
                                             <input
                                                 type="checkbox"
-                                                checked={addRelationType === type}
-                                                onChange={() => setAddRelationType(addRelationType === type ? null : type)}
-                                            />
-                                            {label}
-                                        </label>
-                                    ))}
-                                </div>
-
-                                {/* 성별 체크박스 */}
-                                <div style={{ display: 'flex', gap: '16px', marginBottom: '8px' }}>
-                                    {[{ v: 'male', l: '남' }, { v: 'female', l: '녀' }].map(({ v, l }) => (
-                                        <label key={v} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '13px', color: TEXT, fontFamily: 'Georgia, "Noto Serif KR", serif' }}>
-                                            <input
-                                                type="checkbox"
-                                                checked={relationGender === v}
-                                                onChange={() => setRelationGender(v)}
-                                            />
-                                            {l}
-                                        </label>
-                                    ))}
-                                </div>
-
-                                {/* 입양 체크박스 */}
-                                <div style={{ display: 'flex', gap: '16px', marginBottom: '14px' }}>
-                                    {[
-                                        { type: 'birth-parent', label: '입양후 친부모' },
-                                        { type: 'adoption', label: '입양' },
-                                    ].map(({ type, label }) => (
-                                        <label key={type} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '13px', color: TEXT, fontFamily: 'Georgia, "Noto Serif KR", serif' }}>
-                                            <input
-                                                type="checkbox"
-                                                checked={addRelationType === type}
-                                                onChange={() => setAddRelationType(addRelationType === type ? null : type)}
+                                                checked={addRelationKey === key}
+                                                onChange={() => handleRelationKeySelect(key)}
                                             />
                                             {label}
                                         </label>

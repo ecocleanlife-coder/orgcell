@@ -9,8 +9,8 @@
 import React from 'react';
 import FolderCard from './FolderCard';
 
-const CARD_SIZE = 180;
-const GAP = 20;
+const CARD_SIZE = 220;
+const GAP = 0;  // 부부 카드 간 간격 = 0 (붙어있음)
 const FRAME_COLOR = '#C4A84F';
 
 // ── 메인 컴포넌트 ──

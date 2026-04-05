@@ -4,18 +4,20 @@
  * persons[] + person_relations[] → { nodes[], links[], mainId, constants }
  *
  * 핵심 원칙:
- * - 200px 그리드 (180px 블록 + 20px 간격)
- * - Y축: 조상↑(+270) 자손↓(-270), 본인=0
+ * - 240px 그리드 (220px 블록 + 20px 간격)
+ * - 부부 간격 = 0 (붙어서 박스, center-to-center = CARD_W = 220)
+ * - Y축: 조상↑(+280) 자손↓(-280), 본인=0
  * - X축: 남편형제→좌, 아내형제→우
  * - Z축: 타가문 레이어 (0/1/2)
  * - DB generation 사용 금지 → 관계 기반 BFS depth
  */
 
 // ── 레고 표준 상수 (ORGCELL_CODING_RULES.md §2) ─────────────
-const SLOT_W = 200;     // 한 사람 = 180px + 20px 간격
-const Y_GAP = 220;      // 세대 간 수직 간격
-const CARD_W = 180;     // 카드 실제 폭
-const CARD_GAP = 20;    // 카드 사이 간격
+const SLOT_W = 240;     // 한 사람 슬롯 = 220px + 20px 간격
+const Y_GAP = 280;      // 세대 간 수직 간격 = 220px + 60px
+const CARD_W = 220;     // 카드 실제 폭
+const CARD_H = 220;     // 카드 실제 높이
+const CARD_GAP = 20;    // 카드 사이 간격 (부부 제외)
 
 // ── 유틸 ──────────────────────────────────────────
 
@@ -363,7 +365,8 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
     const positions = {};
     const connSet = new Set(connectedIds);
     const { spousesOf, parentOf, childrenOf } = maps;
-    const HALF = SLOT_W / 2;
+    // 부부는 간격 0으로 붙어있으므로 center-to-center = CARD_W (SLOT_W 아님)
+    const HALF = CARD_W / 2;
 
     // ── 유틸 ──
     function getSpouse(id) {
@@ -757,6 +760,74 @@ function buildLinks(connectedIds, maps) {
     return links;
 }
 
+// ── 트리 검증 함수 ──────────────────────────────
+/**
+ * buildTree 결과 검증
+ * - 규칙서 §2: 그리드 200px, 세대간격 220px
+ * - 규칙서 §3: 남좌여우, 배우자 인접
+ *
+ * @param {Array} nodes - buildTree 출력 nodes (x, y, data.name, data.gender)
+ * @param {Array} links - buildTree 출력 links (type: 'spouse'|'parent', source, target)
+ * @returns {string[]} 오류 메시지 배열 (빈 배열 = 통과)
+ */
+function validateTree(nodes, links) {
+    const errors = [];
+
+    // z=0 (화면에 보이는 노드만 검사)
+    const z0 = nodes.filter(n => n.z === 0);
+    const nodesMap = {};
+    for (const n of nodes) nodesMap[n.id] = n;
+
+    // 1. 겹침 검사
+    for (let i = 0; i < z0.length; i++) {
+        for (let j = i + 1; j < z0.length; j++) {
+            if (z0[i].x === z0[j].x && z0[i].y === z0[j].y) {
+                errors.push(`겹침: ${z0[i].data.name}과 ${z0[j].data.name} (x=${z0[i].x}, y=${z0[i].y})`);
+            }
+        }
+    }
+
+    const spouseLinks = links.filter(l => l.type === 'spouse');
+
+    // 2. 부부 인접 검사 (x 차이 = CARD_W = 220px, 부부는 간격 0으로 붙어있음)
+    for (const l of spouseLinks) {
+        const a = nodesMap[l.source];
+        const b = nodesMap[l.target];
+        if (a && b && Math.abs(a.x - b.x) !== CARD_W) {
+            errors.push(`부부 간격 오류: ${a.data.name}과 ${b.data.name} (간격: ${Math.abs(a.x - b.x)}px, 기대: ${CARD_W}px)`);
+        }
+    }
+
+    // 3. 남좌여우 검사 (남성 x < 여성 x)
+    for (const l of spouseLinks) {
+        const a = nodesMap[l.source];
+        const b = nodesMap[l.target];
+        if (!a || !b) continue;
+        const male   = a.data.gender === 'M' ? a : b;
+        const female = a.data.gender === 'M' ? b : a;
+        if (male.data.gender === 'M' && female.data.gender === 'F' && male.x > female.x) {
+            errors.push(`남좌여우 위반: ${male.data.name}이 오른쪽에 있음 (남x=${male.x}, 녀x=${female.x})`);
+        }
+    }
+
+    // 4. 세대 간격 검사 (부모 y = 자녀 y + Y_GAP = 220)
+    const parentLinks = links.filter(l => l.type === 'parent');
+    for (const l of parentLinks) {
+        const parent = nodesMap[l.source];
+        const child  = nodesMap[l.target];
+        if (parent && child && parent.y !== child.y + Y_GAP) {
+            errors.push(`세대간격 오류: ${parent.data.name}→${child.data.name} (부모y=${parent.y}, 자녀y=${child.y}, 기대차=${Y_GAP})`);
+        }
+    }
+
+    if (errors.length > 0) {
+        console.error('=== 트리 검증 실패 ===', errors);
+    } else {
+        console.log('=== 트리 검증 통과 ===');
+    }
+    return errors;
+}
+
 // ── 메인 함수 ────────────────────────────────────
 
 /**
@@ -845,6 +916,8 @@ export function buildTree(persons, relations, overrideMainId = null) {
 
     const links = buildLinks(connectedIds, maps);
 
+    validateTree(nodes, links);
+
     return {
         nodes,
         links,
@@ -869,5 +942,6 @@ export {
     SLOT_W,
     Y_GAP,
     CARD_W,
+    CARD_H,
     CARD_GAP,
 };

@@ -41,7 +41,7 @@ function ConnectorLine({ parentX, parentY, children }) {
             d={parts.join(' ')}
             fill="none"
             stroke={FRAME_COLOR}
-            strokeWidth={2}
+            strokeWidth={4}
             strokeOpacity={0.7}
             strokeLinejoin="round"
             data-testid="connector-line"

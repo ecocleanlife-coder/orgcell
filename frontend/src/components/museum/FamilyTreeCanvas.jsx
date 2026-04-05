@@ -15,14 +15,14 @@ import useTreeViewStore from '../../store/treeViewStore';
 
 const springTransition = { type: 'spring', stiffness: 200, damping: 25 };
 
-const CARD_SIZE = 180;
-const CARD_HALF = 90;
+const CARD_SIZE = 220;
+const CARD_HALF = 110;
 const TAB_H = 10;
 const BOX_PAD = 10;  // CoupleBlock 내부 패딩
-const GAP = 20;      // 카드 간 간격
+const GAP = 0;       // 부부 카드 간 간격 = 0 (붙어있음)
 
 // CoupleBlock 전체 높이: CARD_SIZE + padding*2 + TAB_H
-const BOX_H = CARD_SIZE + BOX_PAD * 2 + TAB_H; // 210
+const BOX_H = CARD_SIZE + BOX_PAD * 2 + TAB_H; // 250
 
 /**
  * nodes/links → couple 단위 그룹핑
@@ -72,7 +72,7 @@ function calcBounds(nodes) {
 }
 
 // ── 줌 컨트롤 ──
-function ZoomControls({ zoomIn, zoomOut, resetTransform, onHome }) {
+function ZoomControls({ zoomIn, zoomOut, resetTransform, onCenterMain }) {
     const btnStyle = {
         width: 32, height: 32,
         border: '1px solid #C4A84F',
@@ -90,7 +90,7 @@ function ZoomControls({ zoomIn, zoomOut, resetTransform, onHome }) {
         <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 20, display: 'flex', gap: 6 }}>
             <button style={btnStyle} onClick={() => zoomIn()} title="확대">+</button>
             <button style={btnStyle} onClick={() => zoomOut()} title="축소">−</button>
-            <button style={{ ...btnStyle, fontSize: '12px' }} onClick={() => onHome ? onHome() : resetTransform()} title="관장 복귀">🏠</button>
+            <button style={{ ...btnStyle, fontSize: '12px' }} onClick={() => onCenterMain ? onCenterMain() : resetTransform()} title="관장 중앙 배치">🏠</button>
         </div>
     );
 }
@@ -186,8 +186,20 @@ export default function FamilyTreeCanvas({
     const { viewport: savedViewport, setViewport, clearViewport, hasValidViewport } = useTreeViewStore();
 
     // ── 관장 부부 중심 뷰: 초기 로드 시 main couple을 화면 중앙에 배치 ──
+    // buildTree에서 mainId 부부는 x=0 중앙에 배치 (husband=-HALF, wife=+HALF, 커플 중심=0)
     const mainScreenX = useMemo(() => toScreenX(0), [bounds]);
     const mainScreenY = useMemo(() => toScreenY(0), [screenBounds]);
+
+    // 관장 중앙 배치 함수 (🏠 버튼 + wormhole 복귀 시 사용)
+    const centerOnMain = useCallback(() => {
+        if (!transformRef.current) return;
+        const scale = 0.55;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight - 130;
+        const tx = vw / 2 - mainScreenX * scale;
+        const ty = vh / 2 - mainScreenY * scale;
+        transformRef.current.setTransform(tx, ty, scale);
+    }, [mainScreenX, mainScreenY]);
 
     // 이전 mainId 추적 (가문전환 감지)
     const prevMainIdRef = useRef(mainId);
@@ -215,14 +227,7 @@ export default function FamilyTreeCanvas({
         }
 
         // 기본/가문전환: 관장 부부 정중앙 배치
-        const scale = 0.55;
-        const vw = window.innerWidth;
-        const vh = window.innerHeight - 130;
-        const tx = vw / 2 - mainScreenX * scale;
-        const ty = vh / 2 - mainScreenY * scale;
-        setTimeout(() => {
-            transformRef.current?.setTransform(tx, ty, scale);
-        }, 50);
+        setTimeout(() => { centerOnMain(); }, 50);
     }, [visibleNodes.length, mainScreenX, mainScreenY, mainId]);
 
     // ── pan/zoom 변경 시 뷰포트 저장 ──
@@ -302,6 +307,11 @@ export default function FamilyTreeCanvas({
             const parentPos = couplePositions[pid];
             if (!parentPos) continue;
 
+            // 부모 선 시작점: 커플 박스 중앙이 아닌 pid 본인 카드 중앙에서 내려옴
+            const pidNode = nodesMap[pid];
+            if (!pidNode) continue;
+            const parentPersonalX = toScreenX(pidNode.x);
+
             const childEntries = [...allChildren]
                 .map(cid => {
                     const cp = couplePositions[cid];
@@ -316,7 +326,7 @@ export default function FamilyTreeCanvas({
 
             result.push({
                 key: coupleKey,
-                parentX: parentPos.centerX,
+                parentX: parentPersonalX,
                 parentY: parentPos.bottom + 5,
                 children: childEntries.map(cp => ({
                     x: cp.x,
@@ -355,7 +365,7 @@ export default function FamilyTreeCanvas({
             >
                 {({ zoomIn, zoomOut, resetTransform }) => (
                     <>
-                        <ZoomControls zoomIn={zoomIn} zoomOut={zoomOut} resetTransform={resetTransform} onHome={onHome} />
+                        <ZoomControls zoomIn={zoomIn} zoomOut={zoomOut} resetTransform={resetTransform} onCenterMain={centerOnMain} />
                         <TransformComponent
                             wrapperStyle={{ width: '100%', height: '100%' }}
                             contentStyle={{ width: canvasW, height: realCanvasH }}
