@@ -19,6 +19,7 @@ import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
 import useAccessCheck from '../../hooks/useAccessCheck';
 import { getT } from '../../i18n/translations';
+import useTreeViewStore from '../../store/treeViewStore';
 
 // ── Constants ──
 const GENDER_OPTIONS = [
@@ -867,9 +868,10 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 </div>
             </div>
 
-            {/* FamilyTreeCanvas 렌더링 */}
+            {/* FamilyTreeCanvas 렌더링 — key로 DOM 완전 초기화 */}
             <div className="relative w-full" style={{ height: 'calc(100vh - 220px)', minHeight: '500px' }}>
                 <FamilyTreeCanvas
+                    key={mainPersonId || 'root'}
                     nodes={treeData.nodes}
                     links={treeData.links}
                     mainId={treeData.mainId}
@@ -877,20 +879,30 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                     onCardDoubleClick={handleCardDoubleClick}
                     onWormhole={(personId) => {
                         console.log('[FamilyTreeView] onWormhole 콜백:', mainPersonId, '→', String(personId));
+                        sessionStorage.removeItem('orgcell_tree_viewport');
+                        useTreeViewStore.getState().clearViewport();
                         setMainPersonId(String(personId));
                     }}
                     onHome={() => {
                         console.log('[FamilyTreeView] onHome: centerId → null');
+                        sessionStorage.removeItem('orgcell_tree_viewport');
+                        useTreeViewStore.getState().clearViewport();
                         setMainPersonId(null);
+                        setNoMuseumBanner(null);
                     }}
                     style={{ width: '100%', height: '100%' }}
                 />
                 {mainPersonId && (
                     <button
-                        onClick={() => setMainPersonId(null)}
+                        onClick={() => {
+                            sessionStorage.removeItem('orgcell_tree_viewport');
+                            useTreeViewStore.getState().clearViewport();
+                            setMainPersonId(null);
+                            setNoMuseumBanner(null);
+                        }}
                         className="absolute top-4 left-4 z-10 px-4 py-2 bg-white/90 dark:bg-gray-800/90 rounded-xl shadow-lg border border-gray-200 dark:border-gray-600 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-white transition-colors"
                     >
-                        {lang === 'ko' ? '원래 가문으로 돌아가기' : 'Back to main family'}
+                        {lang === 'ko' ? '🏠 원래 가문으로' : '🏠 Back to main family'}
                     </button>
                 )}
             </div>
@@ -948,19 +960,18 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                         </p>
                         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
                             <button
-                                onClick={async () => {
+                                onClick={() => {
                                     const target = confirmTarget;
                                     setConfirmTarget(null);
-                                    if (target.hasMuseum) {
-                                        const result = await checkAccess(target.person.id);
-                                        if (result?.access === 'granted') {
-                                            navigate(`/${subdomain}/gallery/${target.exh.id}`);
-                                        } else {
-                                            setAccessTarget(target.person);
-                                        }
-                                    } else {
-                                        setMainPersonId(String(target.person.id));
+                                    // 뷰포트 강제 초기화
+                                    sessionStorage.removeItem('orgcell_tree_viewport');
+                                    useTreeViewStore.getState().clearViewport();
+                                    // 이전 화면 완전 제거 후 새 centerId로 buildTree 재호출
+                                    setMainPersonId(String(target.person.id));
+                                    if (!target.hasMuseum) {
                                         setNoMuseumBanner(target.person.name);
+                                    } else {
+                                        setNoMuseumBanner(null);
                                     }
                                 }}
                                 style={{ padding: '10px 28px', background: '#C4A882', border: 'none', borderRight: '2px solid #8B7355', borderBottom: '2px solid #8B7355', borderRadius: '6px', color: '#fff', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}
@@ -980,15 +991,25 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
             {/* ── 박물관 없는 사람 배너 ── */}
             {noMuseumBanner && (
-                <div style={{ position: 'fixed', bottom: '140px', left: '50%', transform: 'translateX(-50%)', zIndex: 1500, background: '#FDF8F0', border: '2px solid #C4A882', borderRadius: '12px', padding: '18px 28px', textAlign: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.2)', fontFamily: 'Georgia, "Noto Serif KR", serif', minWidth: '280px' }}>
-                    <p style={{ color: '#3a3020', fontWeight: 'bold', marginBottom: '12px', fontSize: '14px' }}>
-                        🏗️ 아직 박물관 오픈 전입니다
+                <div style={{
+                    position: 'fixed', top: '80px', left: '50%', transform: 'translateX(-50%)',
+                    zIndex: 1500, background: '#FDF8F0',
+                    border: '2px solid #C4A882', borderRight: '3px solid #8B7355', borderBottom: '3px solid #8B7355',
+                    borderRadius: '12px', padding: '20px 32px', textAlign: 'center',
+                    boxShadow: '3px 3px 0 #c4a87a, 0 8px 32px rgba(0,0,0,0.25)',
+                    fontFamily: 'Georgia, "Noto Serif KR", serif', minWidth: '300px'
+                }}>
+                    <p style={{ color: '#8B7355', fontWeight: 'bold', marginBottom: '4px', fontSize: '15px' }}>
+                        🏗️ {noMuseumBanner} 박물관
+                    </p>
+                    <p style={{ color: '#3a3020', marginBottom: '16px', fontSize: '13px' }}>
+                        아직 박물관 오픈 전입니다
                     </p>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                        <button onClick={() => navigate('/onboarding')} style={{ padding: '7px 18px', background: '#C4A882', border: 'none', borderRadius: '6px', color: '#fff', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
+                        <button onClick={() => navigate('/onboarding')} style={{ padding: '8px 20px', background: '#C4A882', border: 'none', borderRight: '2px solid #8B7355', borderBottom: '2px solid #8B7355', borderRadius: '6px', color: '#fff', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
                             무료로 시작하기
                         </button>
-                        <button onClick={() => setNoMuseumBanner(null)} style={{ padding: '7px 14px', background: 'transparent', border: '1px solid #C4A882', borderRadius: '6px', color: '#8B7355', cursor: 'pointer', fontSize: '13px' }}>
+                        <button onClick={() => setNoMuseumBanner(null)} style={{ padding: '8px 14px', background: 'transparent', border: '1px solid #C4A882', borderRadius: '6px', color: '#8B7355', cursor: 'pointer', fontSize: '13px' }}>
                             닫기
                         </button>
                     </div>
