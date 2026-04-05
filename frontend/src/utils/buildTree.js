@@ -475,11 +475,14 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
             if (positions[sibId]) continue;
             const width = subtreeSlots(sibId);
 
-            // 현재 배치된 전체 노드의 최외곽 x 기준
-            const allXs = Object.values(positions).map(p => p.x);
+            // Y=0(형제 행)의 X만 기준으로 삼아 자녀 확산 영향 차단
+            const sameYXs = Object.entries(positions)
+                .filter(([, pos]) => pos.y === 0)
+                .map(([, pos]) => pos.x);
+            const refXs = sameYXs.length > 0 ? sameYXs : Object.values(positions).map(p => p.x);
             const edge = direction === -1
-                ? Math.min(...allXs) - SLOT_W
-                : Math.max(...allXs) + SLOT_W;
+                ? Math.min(...refXs) - SLOT_W
+                : Math.max(...refXs) + SLOT_W;
 
             const sibCenter = direction === -1
                 ? edge - ((width - 1) * SLOT_W) / 2
@@ -636,10 +639,14 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
                     if (positions[sibId]) continue;
                     const width = subtreeSlots(sibId);
 
-                    const allXs = Object.values(positions).map(p => p.x);
+                    // 같은 Y 행의 X만 기준으로 (자녀 행이 영향 주지 않도록)
+                    const sameYXs = Object.entries(positions)
+                        .filter(([, pos]) => pos.y === parentY)
+                        .map(([, pos]) => pos.x);
+                    const refXs = sameYXs.length > 0 ? sameYXs : Object.values(positions).map(p => p.x);
                     const edge = direction === -1
-                        ? Math.min(...allXs) - SLOT_W
-                        : Math.max(...allXs) + SLOT_W;
+                        ? Math.min(...refXs) - SLOT_W
+                        : Math.max(...refXs) + SLOT_W;
 
                     const sibCenter = direction === -1
                         ? edge - ((width - 1) * SLOT_W) / 2
@@ -655,7 +662,7 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
     placeAncestorSiblings(mainId);
 
     // ── 5단계: 겹침 해소 (같은 Y에서 X 간격 < MIN_GAP 시 밀어내기) ──
-    const MIN_GAP = CARD_W + 20; // 180 + 20 = 200px 최소 간격
+    const MIN_GAP = SLOT_W; // 220px 최소 간격 (180px 카드 + 40px 간격)
 
     // 부모-자손 관계를 따라 서브트리 전체를 deltaX만큼 이동
     function shiftSubtree(personId, deltaX, visited) {
