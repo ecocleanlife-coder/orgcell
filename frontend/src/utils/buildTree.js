@@ -4,18 +4,18 @@
  * persons[] + person_relations[] → { nodes[], links[], mainId, constants }
  *
  * 핵심 원칙:
- * - 220px 그리드 (180px 블록 + 40px 간격)
+ * - 200px 그리드 (180px 블록 + 20px 간격)
  * - Y축: 조상↑(+270) 자손↓(-270), 본인=0
  * - X축: 남편형제→좌, 아내형제→우
  * - Z축: 타가문 레이어 (0/1/2)
  * - DB generation 사용 금지 → 관계 기반 BFS depth
  */
 
-// ── 레고 표준 상수 (VISION.md 2.2) ─────────────
-const SLOT_W = 220;     // 한 사람 = 180px + 40px 간격
-const Y_GAP = 270;      // 세대 간 수직 간격
-const CARD_W = 180;     // 카드 실제 폭 (3D 큐브 정면)
-const CARD_GAP = 40;    // 카드 사이 간격
+// ── 레고 표준 상수 (ORGCELL_CODING_RULES.md §2) ─────────────
+const SLOT_W = 200;     // 한 사람 = 180px + 20px 간격
+const Y_GAP = 220;      // 세대 간 수직 간격
+const CARD_W = 180;     // 카드 실제 폭
+const CARD_GAP = 20;    // 카드 사이 간격
 
 // ── 유틸 ──────────────────────────────────────────
 
@@ -662,7 +662,7 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
     placeAncestorSiblings(mainId);
 
     // ── 5단계: 겹침 해소 (같은 Y에서 X 간격 < MIN_GAP 시 밀어내기) ──
-    const MIN_GAP = SLOT_W; // 220px 최소 간격 (180px 카드 + 40px 간격)
+    const MIN_GAP = SLOT_W; // 200px 최소 간격 (180px 카드 + 20px 간격)
 
     // 부모-자손 관계를 따라 서브트리 전체를 deltaX만큼 이동
     function shiftSubtree(personId, deltaX, visited) {

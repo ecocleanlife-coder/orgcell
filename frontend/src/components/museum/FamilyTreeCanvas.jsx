@@ -19,7 +19,7 @@ const CARD_SIZE = 180;
 const CARD_HALF = 90;
 const TAB_H = 10;
 const BOX_PAD = 10;  // CoupleBlock 내부 패딩
-const GAP = 40;      // 카드 간 간격
+const GAP = 20;      // 카드 간 간격
 
 // CoupleBlock 전체 높이: CARD_SIZE + padding*2 + TAB_H
 const BOX_H = CARD_SIZE + BOX_PAD * 2 + TAB_H; // 210

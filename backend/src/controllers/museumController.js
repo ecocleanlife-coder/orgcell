@@ -1,5 +1,39 @@
 const db = require('../config/db');
 
+// GET /api/museum/search?q=name  (no auth — public persons only)
+exports.searchMuseums = async (req, res) => {
+    try {
+        const q = (req.query.q || '').trim();
+        if (!q || q.length < 2) {
+            return res.json({ success: true, data: [] });
+        }
+        const like = `%${q}%`;
+        const { rows } = await db.query(
+            `SELECT p.id, p.name, p.maiden_name, p.former_name, p.gender,
+                    p.birth_date, p.death_date, p.is_deceased,
+                    p.photo_url, p.oc_id,
+                    fs.subdomain, fs.title AS museum_title, fs.id AS site_id
+             FROM persons p
+             JOIN family_sites fs ON fs.id = p.site_id
+             WHERE fs.status = 'public'
+               AND p.privacy_level = 'public'
+               AND (
+                 p.name ILIKE $1
+                 OR p.maiden_name ILIKE $1
+                 OR p.former_name ILIKE $1
+                 OR p.oc_id ILIKE $1
+               )
+             ORDER BY p.name
+             LIMIT 20`,
+            [like]
+        );
+        res.json({ success: true, data: rows });
+    } catch (err) {
+        console.error('searchMuseums error:', err);
+        res.status(500).json({ success: false, message: 'Search failed' });
+    }
+};
+
 // GET /api/museum/mine  (protect)
 // 로그인 유저가 소유하거나 멤버인 박물관 목록 반환
 exports.getMyMuseums = async (req, res) => {

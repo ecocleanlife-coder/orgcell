@@ -27,7 +27,43 @@ export default function FamilySetupPage() {
     }, [isAuthenticated, navigate]);
 
     // ── Step state ──
-    const [step, setStep] = useState(1); // 1=domain, 2=drive, 3=done
+    const [step, setStep] = useState(0); // 0=가족확인, 0.5=검색결과, 1=domain, 2=drive, 3=done
+
+    // ── Step 0: 가족 확인 ──
+    const [familySearchName, setFamilySearchName] = useState('');
+    const [familySearching, setFamilySearching] = useState(false);
+    const [familySearchResults, setFamilySearchResults] = useState([]);
+    const [selectedFoundPerson, setSelectedFoundPerson] = useState(null);
+    const [joinRequestSent, setJoinRequestSent] = useState(false);
+
+    const handleFamilySearch = async () => {
+        const q = familySearchName.trim();
+        if (!q) return;
+        setFamilySearching(true);
+        try {
+            const res = await axios.get(`/api/museum/search?q=${encodeURIComponent(q)}`);
+            setFamilySearchResults(res.data?.data || []);
+            setStep(0.5);
+        } catch {
+            setFamilySearchResults([]);
+            setStep(0.5);
+        } finally {
+            setFamilySearching(false);
+        }
+    };
+
+    const handleJoinRequest = async (person) => {
+        try {
+            await axios.post('/api/invite/create', {
+                site_id: person.site_id,
+                person_id: person.id,
+            });
+            setSelectedFoundPerson(person);
+            setJoinRequestSent(true);
+        } catch {
+            setJoinRequestSent(true); // optimistic: assume sent
+        }
+    };
 
     // ── Step 1: Domain ──
     const [subdomain, setSubdomain] = useState('');
@@ -169,9 +205,10 @@ export default function FamilySetupPage() {
     };
 
     const STEPS = [
-        { num: 1, label: t.step1Label || 'Domain' },
-        { num: 2, label: t.step2Label || 'Storage' },
-        { num: 3, label: t.step3Label || 'Invite' },
+        { num: 0, label: '가족 확인' },
+        { num: 1, label: t.step1Label || '도메인' },
+        { num: 2, label: t.step2Label || '저장소' },
+        { num: 3, label: t.step3Label || '완료' },
     ];
 
     return (
@@ -193,24 +230,159 @@ export default function FamilySetupPage() {
                                     <div
                                         className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
                                         style={{
-                                            background: step >= s.num ? '#5A9460' : '#e8e0d0',
-                                            color: step >= s.num ? '#fff' : '#9a9a8a',
+                                            background: Math.floor(step) >= s.num ? '#5A9460' : '#e8e0d0',
+                                            color: Math.floor(step) >= s.num ? '#fff' : '#9a9a8a',
                                         }}
                                     >
-                                        {step > s.num ? <Check size={14} /> : s.num}
+                                        {Math.floor(step) > s.num ? <Check size={14} /> : s.num}
                                     </div>
                                     <span className="text-xs font-medium hidden sm:inline" style={{ color: step >= s.num ? '#3a3a2a' : '#9a9a8a' }}>
                                         {s.label}
                                     </span>
                                 </div>
                                 {i < STEPS.length - 1 && (
-                                    <div className="w-8 h-0.5" style={{ background: step > s.num ? '#5A9460' : '#e8e0d0' }} />
+                                    <div className="w-8 h-0.5" style={{ background: Math.floor(step) > s.num ? '#5A9460' : '#e8e0d0' }} />
                                 )}
                             </React.Fragment>
                         ))}
                     </div>
 
                     <div className="bg-white rounded-2xl shadow-lg p-8" style={{ border: '1px solid #e8e0d0' }}>
+                        {/* ═══ Step 0: 가족 확인 ═══ */}
+                        {step === 0 && (
+                            <>
+                                <div className="text-center mb-6">
+                                    <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: '#fdf8f0' }}>
+                                        <span style={{ fontSize: 32 }}>🏛️</span>
+                                    </div>
+                                    <h1 className="text-xl font-bold" style={{ color: '#3D2008' }}>가족유산박물관 만들기</h1>
+                                    <p className="mt-2 text-sm leading-relaxed" style={{ color: '#7a6e5e' }}>
+                                        가족 중에 이미 박물관을 갖고 계신 분이<br />
+                                        계신지 확인하겠습니다.
+                                    </p>
+                                </div>
+                                <div className="space-y-3">
+                                    <label className="block text-sm font-medium" style={{ color: '#5a5040' }}>
+                                        가족 이름 검색 (부·모·형제자매·자녀)
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={familySearchName}
+                                            onChange={e => setFamilySearchName(e.target.value)}
+                                            onKeyDown={e => { if (e.key === 'Enter') handleFamilySearch(); }}
+                                            placeholder="가족 이름 입력"
+                                            className="flex-1 px-3 py-2.5 rounded-lg text-sm outline-none"
+                                            style={{ border: '1.5px solid #d8d0c0' }}
+                                        />
+                                        <button
+                                            onClick={handleFamilySearch}
+                                            disabled={familySearching || !familySearchName.trim()}
+                                            className="px-4 py-2.5 rounded-lg text-sm font-bold text-white"
+                                            style={{ background: '#C4A84F', opacity: familySearching || !familySearchName.trim() ? 0.6 : 1 }}
+                                        >
+                                            {familySearching ? '검색 중...' : '검색'}
+                                        </button>
+                                    </div>
+                                    <button
+                                        onClick={() => setStep(1)}
+                                        className="w-full py-2.5 rounded-lg text-sm font-medium mt-2"
+                                        style={{ background: '#f0ece4', color: '#7a6e5e', border: '1px solid #d8d0c0' }}
+                                    >
+                                        건너뛰고 바로 만들기 →
+                                    </button>
+                                </div>
+                            </>
+                        )}
+
+                        {/* ═══ Step 0.5: 검색 결과 ═══ */}
+                        {step === 0.5 && (
+                            <>
+                                {familySearchResults.length > 0 && !joinRequestSent ? (
+                                    <>
+                                        <div className="text-center mb-5">
+                                            <span style={{ fontSize: 32 }}>🎉</span>
+                                            <h2 className="text-lg font-bold mt-2" style={{ color: '#3D2008' }}>
+                                                박물관을 찾았습니다!
+                                            </h2>
+                                        </div>
+                                        <div className="space-y-3 mb-5 max-h-60 overflow-y-auto">
+                                            {familySearchResults.map(person => (
+                                                <div key={person.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ border: '1px solid #e8e0d0', background: '#fdfaf5' }}>
+                                                    {person.photo_url
+                                                        ? <img src={person.photo_url} alt="" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
+                                                        : <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#e8f5e0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>👤</div>
+                                                    }
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="font-bold text-sm" style={{ color: '#3D2008' }}>{person.name}</div>
+                                                        <div className="text-xs" style={{ color: '#9a9a8a' }}>{person.museum_title || person.subdomain} 박물관</div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleJoinRequest(person)}
+                                                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-white"
+                                                        style={{ background: '#5A9460', whiteSpace: 'nowrap' }}
+                                                    >
+                                                        합류
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => setStep(1)}
+                                                className="flex-1 py-2.5 rounded-lg text-sm font-medium"
+                                                style={{ background: '#f0ece4', color: '#7a6e5e', border: '1px solid #d8d0c0' }}
+                                            >
+                                                아니오, 독립 박물관 만들기
+                                            </button>
+                                        </div>
+                                    </>
+                                ) : joinRequestSent ? (
+                                    <>
+                                        <div className="text-center py-4">
+                                            <span style={{ fontSize: 40 }}>✅</span>
+                                            <h2 className="text-lg font-bold mt-3" style={{ color: '#3D2008' }}>
+                                                연결 요청을 보냈습니다
+                                            </h2>
+                                            <p className="text-sm mt-2 leading-relaxed" style={{ color: '#7a6e5e' }}>
+                                                {selectedFoundPerson?.name}님에게 연결 요청을 보냈습니다.<br />
+                                                승인 후 가족트리에 추가됩니다.
+                                            </p>
+                                            <p className="text-xs mt-2" style={{ color: '#9a9a8a' }}>
+                                                승인 대기 중에도 본인 박물관을 만드실 수 있습니다.
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => setStep(1)}
+                                            className="w-full mt-4 py-2.5 rounded-lg text-sm font-bold text-white"
+                                            style={{ background: '#C4A84F' }}
+                                        >
+                                            내 박물관도 만들기 →
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="text-center py-4">
+                                            <span style={{ fontSize: 40 }}>🌱</span>
+                                            <h2 className="text-lg font-bold mt-3" style={{ color: '#3D2008' }}>
+                                                가문의 첫 박물관 주인이 되세요!
+                                            </h2>
+                                            <p className="text-sm mt-2" style={{ color: '#7a6e5e' }}>
+                                                "{familySearchName}" 이름으로 된 가족 박물관을 찾지 못했습니다.
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => setStep(1)}
+                                            className="w-full mt-4 py-2.5 rounded-lg text-sm font-bold text-white"
+                                            style={{ background: '#5A9460' }}
+                                        >
+                                            가문의 첫 박물관 만들기 →
+                                        </button>
+                                    </>
+                                )}
+                            </>
+                        )}
+
                         {/* ═══ Step 1: Domain ═══ */}
                         {step === 1 && (
                             <>

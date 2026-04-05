@@ -20,7 +20,7 @@ exports.listPersons = async (req, res) => {
 
         // 인물 목록 조회 (persons 컬럼은 과도기 호환용으로 유지)
         const { rows: persons } = await db.query(
-            `SELECT id, site_id, name, birth_year, death_year, gender,
+            `SELECT id, site_id, name, maiden_name, former_name, birth_year, death_year, gender,
                     privacy_level, parent1_id, parent2_id, spouse_id,
                     generation, photo_url, birth_date, death_date,
                     is_deceased, birth_lunar, death_lunar,
@@ -164,7 +164,7 @@ exports.updatePerson = async (req, res) => {
         }
 
         const ALLOWED = [
-            'name', 'birth_year', 'death_year', 'gender', 'privacy_level',
+            'name', 'maiden_name', 'former_name', 'birth_year', 'death_year', 'gender', 'privacy_level',
             'parent1_id', 'parent2_id', 'spouse_id', 'generation',
             'photo_url', 'birth_date', 'death_date',
             'is_deceased', 'birth_lunar', 'death_lunar', 'photo_position', 'biography',

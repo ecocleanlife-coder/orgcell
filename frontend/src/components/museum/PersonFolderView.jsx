@@ -8,6 +8,7 @@ import {
     ArrowLeft, User,
     Play, Pause, X, ChevronLeft, ChevronRight, Maximize2, Image,
 } from 'lucide-react';
+import MiniTree from './MiniTree';
 import axios from 'axios';
 import useUiStore from '../../store/uiStore';
 import { toast } from 'react-hot-toast';
@@ -145,7 +146,7 @@ export default function PersonFolderView() {
 
     // ── 폼 상태 ──────────────────────────────────────────────────────────────
     const [form, setForm] = useState({
-        name: '', gender: 'male',
+        name: '', maiden_name: '', former_name: '', gender: 'male',
         birth_date: '', birth_lunar: false,
         is_deceased: false, death_date: '', death_lunar: false,
         display_info1: '', display_info2: '', display_info3: '',
@@ -156,10 +157,9 @@ export default function PersonFolderView() {
     // ── 가족 추가 상태 ───────────────────────────────────────────────────────
     const [showFamilyAdd, setShowFamilyAdd]     = useState(false);
     const [addRelationType, setAddRelationType] = useState(null);
-    const [relationMode, setRelationMode]       = useState('new');
     const [relationName, setRelationName]       = useState('');
     const [relationGender, setRelationGender]   = useState('male');
-    const [existingPersonId, setExistingPersonId] = useState('');
+    const [existingPersonSearch, setExistingPersonSearch] = useState('');
     const [allPersons, setAllPersons]           = useState([]);
     const [submittingRelation, setSubmittingRelation] = useState(false);
 
@@ -199,6 +199,8 @@ export default function PersonFolderView() {
                     setPhotoUrl(found.photo_url || '');
                     setForm({
                         name:          found.name || '',
+                        maiden_name:   found.maiden_name || '',
+                        former_name:   found.former_name || '',
                         gender:        found.gender || 'male',
                         birth_date:    found.birth_date || '',
                         birth_lunar:   found.birth_lunar || false,
@@ -232,38 +234,65 @@ export default function PersonFolderView() {
         }
     };
 
-    // ── 가족 관계 연결 ────────────────────────────────────────────────────────
-    const handleAddRelation = async () => {
+    // ── 가족 관계 연결 공통 함수 ─────────────────────────────────────────────
+    const connectRelation = async (targetId) => {
+        const type = addRelationType;
+        if (type === 'parent' || type === 'birth-parent') {
+            await axios.put(`/api/persons/${siteId}/${person.id}`, { parent1_id: targetId });
+        } else if (type === 'child' || type === 'adoption') {
+            await axios.put(`/api/persons/${siteId}/${targetId}`, { parent1_id: person.id });
+        } else if (type === 'spouse') {
+            await axios.put(`/api/persons/${siteId}/${person.id}`, { spouse_id: targetId });
+        } else if (type === 'sibling') {
+            await axios.put(`/api/persons/${siteId}/${targetId}`, { parent1_id: person.parent1_id || null, parent2_id: person.parent2_id || null });
+        }
+    };
+
+    // ── [생성] 버튼: 새 인물 생성 후 연결 ────────────────────────────────────
+    const handleCreateAndConnect = async () => {
         if (!person || !siteId) return;
+        if (!addRelationType) { toast.error('관계 유형을 선택하세요'); return; }
+        if (!relationName.trim()) { toast.error('이름을 입력하세요'); return; }
         setSubmittingRelation(true);
         try {
-            let targetId = existingPersonId;
-            if (relationMode === 'new') {
-                if (!relationName.trim()) { toast.error('이름을 입력하세요'); setSubmittingRelation(false); return; }
-                let gen = person.generation || 1;
-                if (addRelationType === 'parent' || addRelationType === 'birth-parent') gen += 1;
-                if (addRelationType === 'child') gen -= 1;
-                const res = await axios.post(`/api/persons/${siteId}`, {
-                    name: relationName.trim(), gender: relationGender, generation: gen, privacy_level: 'family',
-                });
-                targetId = res.data?.data?.id;
-            }
-            if (!targetId) { toast.error('대상을 지정하세요'); setSubmittingRelation(false); return; }
-
-            if (addRelationType === 'parent' || addRelationType === 'birth-parent') {
-                await axios.put(`/api/persons/${siteId}/${person.id}`, { parent1_id: targetId });
-            } else if (addRelationType === 'child') {
-                await axios.put(`/api/persons/${siteId}/${targetId}`, { parent1_id: person.id });
-            } else if (addRelationType === 'spouse') {
-                await axios.put(`/api/persons/${siteId}/${person.id}`, { spouse_id: targetId });
-            } else if (addRelationType === 'sibling') {
-                await axios.put(`/api/persons/${siteId}/${targetId}`, { parent1_id: person.parent1_id || null, parent2_id: person.parent2_id || null });
-            }
-            toast.success('관계가 추가되었습니다');
-            setAddRelationType(null);
-            setShowFamilyAdd(false);
+            let gen = person.generation || 1;
+            if (addRelationType === 'parent' || addRelationType === 'birth-parent') gen += 1;
+            if (addRelationType === 'child' || addRelationType === 'adoption') gen -= 1;
+            const res = await axios.post(`/api/persons/${siteId}`, {
+                name: relationName.trim(), gender: relationGender, generation: gen, privacy_level: 'family',
+            });
+            const targetId = res.data?.data?.id;
+            if (!targetId) { toast.error('생성 실패'); setSubmittingRelation(false); return; }
+            await connectRelation(targetId);
+            toast.success(`${relationName.trim()}이(가) 생성되었습니다`);
+            setRelationName('');
         } catch {
-            toast.error('관계 연결에 실패했습니다');
+            toast.error('생성에 실패했습니다');
+        }
+        setSubmittingRelation(false);
+    };
+
+    // ── [연결] 버튼: 기존 인물 검색 후 연결 ──────────────────────────────────
+    const handleConnectExisting = async () => {
+        if (!person || !siteId) return;
+        if (!addRelationType) { toast.error('관계 유형을 선택하세요'); return; }
+        const q = existingPersonSearch.trim().toLowerCase();
+        if (!q) { toast.error('검색어를 입력하세요'); return; }
+        const found = allPersons.find(p =>
+            String(p.id) !== String(person?.id) && (
+                p.name?.toLowerCase().includes(q) ||
+                p.oc_id?.toLowerCase() === q
+            )
+        );
+        if (!found) { toast.error('일치하는 인물을 찾을 수 없습니다'); return; }
+        setSubmittingRelation(true);
+        try {
+            await connectRelation(found.id);
+            toast.success(`${found.name}과(와) 연결되었습니다`);
+            setExistingPersonSearch('');
+            setAddRelationType(null);
+        } catch {
+            toast.error('연결에 실패했습니다');
         }
         setSubmittingRelation(false);
     };
@@ -339,10 +368,30 @@ export default function PersonFolderView() {
                 </div>
             </header>
 
-            <main style={{ maxWidth: '960px', margin: '0 auto', padding: '24px 16px' }}>
-                <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+            <main style={{ maxWidth: '1100px', margin: '0 auto', padding: '24px 16px' }}>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
 
-                    {/* ── 좌측: 인물 정보 폼 ──────────────────────────────── */}
+                    {/* ── 최좌측: 간이 직계 트리 ──────────────────────────── */}
+                    <div style={{
+                        width: 160,
+                        flexShrink: 0,
+                        background: '#FAFAF5',
+                        border: `1px solid ${GOLD}`,
+                        borderRight: `2px solid ${GOLD_DARK}`,
+                        borderBottom: `2px solid ${GOLD_DARK}`,
+                        borderRadius: '8px',
+                        padding: '16px 10px',
+                        boxShadow: `2px 2px 0 ${GOLD}`,
+                    }}>
+                        <div style={{ fontSize: 10, color: TEXT_SUB, textAlign: 'center', marginBottom: 10, fontFamily: 'Georgia, "Noto Serif KR", serif', letterSpacing: '0.5px' }}>직계 가족</div>
+                        <MiniTree
+                            persons={allPersons}
+                            currentPersonId={id}
+                            subdomain={subdomain}
+                        />
+                    </div>
+
+                    {/* ── 중앙: 인물 정보 폼 ──────────────────────────────── */}
                     <div style={{
                         flex: 1,
                         background: BG_CARD,
@@ -392,6 +441,14 @@ export default function PersonFolderView() {
                                 <div style={rowSt}>
                                     <label style={labelSt}>이름</label>
                                     <input style={inputSt} value={form.name} onChange={e => upd('name', e.target.value)} placeholder="이름 입력" />
+                                </div>
+                                <div style={rowSt}>
+                                    <label style={labelSt}>결혼 전 성 (Maiden Name)</label>
+                                    <input style={inputSt} value={form.maiden_name} onChange={e => upd('maiden_name', e.target.value)} placeholder="예) 김, Smith" maxLength={50} />
+                                </div>
+                                <div style={rowSt}>
+                                    <label style={labelSt}>이전 이름 (개명 전)</label>
+                                    <input style={inputSt} value={form.former_name} onChange={e => upd('former_name', e.target.value)} placeholder="개명 이전 이름" maxLength={50} />
                                 </div>
                                 <div style={{ ...rowSt, fontSize: '11px', color: TEXT_SUB, fontFamily: 'Georgia, "Noto Serif KR", serif' }}>
                                     ID: {person.oc_id || '—'}
@@ -477,84 +534,100 @@ export default function PersonFolderView() {
                             </button>
                         </div>
 
-                        {/* 가족 추가 폼 (아코디언) */}
+                        {/* 가족 추가 폼 (§9 레이아웃) */}
                         {showFamilyAdd && (
                             <div style={{ marginTop: '16px', padding: '16px', background: GOLD_LIGHT, borderRadius: '6px', border: `1px solid ${GOLD}` }}>
-                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                                {/* 이름 입력 */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                                    <span style={{ color: GOLD_DARK, fontSize: '12px', whiteSpace: 'nowrap', fontFamily: 'Georgia, "Noto Serif KR", serif' }}>이름:</span>
+                                    <input
+                                        value={relationName}
+                                        onChange={e => setRelationName(e.target.value)}
+                                        placeholder="이름을 입력하세요"
+                                        style={{ ...inputSt, flex: 1 }}
+                                    />
+                                </div>
+
+                                {/* 관계 유형 체크박스 */}
+                                <div style={{ display: 'flex', gap: '16px', marginBottom: '8px', flexWrap: 'wrap' }}>
                                     {[
-                                        { id: 'parent',       label: '부모' },
-                                        { id: 'birth-parent', label: '친부모' },
-                                        { id: 'spouse',       label: '배우자' },
-                                        { id: 'child',        label: '자녀' },
-                                        { id: 'sibling',      label: '형제' },
-                                    ].map(type => (
-                                        <button
-                                            key={type.id}
-                                            type="button"
-                                            onClick={() => setAddRelationType(addRelationType === type.id ? null : type.id)}
-                                            style={{
-                                                padding: '5px 14px',
-                                                borderRadius: '12px',
-                                                border: `1px solid ${GOLD}`,
-                                                background: addRelationType === type.id ? GOLD : BG,
-                                                color: addRelationType === type.id ? '#fff' : GOLD_DARK,
-                                                fontSize: '12px',
-                                                cursor: 'pointer',
-                                                fontFamily: 'Georgia, "Noto Serif KR", serif',
-                                            }}
-                                        >
-                                            {type.label}
-                                        </button>
+                                        { type: 'parent', label: '부모' },
+                                        { type: 'sibling', label: '형제' },
+                                        { type: 'child', label: '자녀' },
+                                    ].map(({ type, label }) => (
+                                        <label key={type} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '13px', color: TEXT, fontFamily: 'Georgia, "Noto Serif KR", serif' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={addRelationType === type}
+                                                onChange={() => setAddRelationType(addRelationType === type ? null : type)}
+                                            />
+                                            {label}
+                                        </label>
                                     ))}
                                 </div>
 
-                                {addRelationType && (
-                                    <div>
-                                        <div style={{ display: 'flex', gap: '16px', marginBottom: '10px' }}>
-                                            {[{ v: 'new', l: '신규 생성' }, { v: 'existing', l: '기존 인물 연결' }].map(opt => (
-                                                <label key={opt.v} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: TEXT_SUB, cursor: 'pointer' }}>
-                                                    <input type="radio" checked={relationMode === opt.v} onChange={() => setRelationMode(opt.v)} />
-                                                    {opt.l}
-                                                </label>
-                                            ))}
-                                        </div>
+                                {/* 성별 체크박스 */}
+                                <div style={{ display: 'flex', gap: '16px', marginBottom: '8px' }}>
+                                    {[{ v: 'male', l: '남' }, { v: 'female', l: '녀' }].map(({ v, l }) => (
+                                        <label key={v} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '13px', color: TEXT, fontFamily: 'Georgia, "Noto Serif KR", serif' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={relationGender === v}
+                                                onChange={() => setRelationGender(v)}
+                                            />
+                                            {l}
+                                        </label>
+                                    ))}
+                                </div>
 
-                                        {relationMode === 'new' ? (
-                                            <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
-                                                <input placeholder="이름" style={inputSt} value={relationName} onChange={e => setRelationName(e.target.value)} />
-                                                <select style={inputSt} value={relationGender} onChange={e => setRelationGender(e.target.value)}>
-                                                    <option value="male">남성</option>
-                                                    <option value="female">여성</option>
-                                                </select>
-                                            </div>
-                                        ) : (
-                                            <select style={inputSt} value={existingPersonId} onChange={e => setExistingPersonId(e.target.value)}>
-                                                <option value="">인물을 선택하세요</option>
-                                                {allPersons.filter(p => String(p.id) !== String(person?.id)).map(p => (
-                                                    <option key={p.id} value={p.id}>{p.name} ({p.oc_id || `#${p.id}`})</option>
-                                                ))}
-                                            </select>
-                                        )}
+                                {/* 입양 체크박스 */}
+                                <div style={{ display: 'flex', gap: '16px', marginBottom: '14px' }}>
+                                    {[
+                                        { type: 'birth-parent', label: '입양후 친부모' },
+                                        { type: 'adoption', label: '입양' },
+                                    ].map(({ type, label }) => (
+                                        <label key={type} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '13px', color: TEXT, fontFamily: 'Georgia, "Noto Serif KR", serif' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={addRelationType === type}
+                                                onChange={() => setAddRelationType(addRelationType === type ? null : type)}
+                                            />
+                                            {label}
+                                        </label>
+                                    ))}
+                                </div>
 
-                                        <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                                            <button
-                                                type="button"
-                                                onClick={handleAddRelation}
-                                                disabled={submittingRelation}
-                                                style={{ flex: 1, padding: '8px', background: GOLD, border: 'none', borderRadius: '4px', color: '#fff', fontWeight: 'bold', cursor: submittingRelation ? 'wait' : 'pointer', fontSize: '13px' }}
-                                            >
-                                                {submittingRelation ? '처리 중...' : '연결하기'}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setAddRelationType(null)}
-                                                style={{ padding: '8px 16px', background: BG, border: `1px solid ${GOLD}`, borderRadius: '4px', color: TEXT_SUB, cursor: 'pointer', fontSize: '13px' }}
-                                            >
-                                                취소
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
+                                {/* 기존 인물 검색 + 연결 */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                    <span style={{ color: GOLD_DARK, fontSize: '12px', whiteSpace: 'nowrap', fontFamily: 'Georgia, "Noto Serif KR", serif' }}>기존 인물 검색:</span>
+                                    <input
+                                        value={existingPersonSearch}
+                                        onChange={e => setExistingPersonSearch(e.target.value)}
+                                        placeholder="이름 또는 ID"
+                                        style={{ ...inputSt, flex: 1 }}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleConnectExisting}
+                                        disabled={submittingRelation}
+                                        style={{ padding: '6px 14px', background: GOLD, border: 'none', borderRadius: '4px', color: '#fff', fontSize: '12px', fontWeight: 'bold', cursor: submittingRelation ? 'wait' : 'pointer', whiteSpace: 'nowrap', fontFamily: 'Georgia, "Noto Serif KR", serif' }}
+                                    >
+                                        연결
+                                    </button>
+                                </div>
+
+                                {/* 또는 생성 */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ color: TEXT_SUB, fontSize: '12px' }}>또는</span>
+                                    <button
+                                        type="button"
+                                        onClick={handleCreateAndConnect}
+                                        disabled={submittingRelation}
+                                        style={{ padding: '6px 20px', background: GOLD_DARK, border: 'none', borderRadius: '4px', color: '#fff', fontSize: '12px', fontWeight: 'bold', cursor: submittingRelation ? 'wait' : 'pointer', fontFamily: 'Georgia, "Noto Serif KR", serif' }}
+                                    >
+                                        {submittingRelation ? '처리 중...' : '생성'}
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>

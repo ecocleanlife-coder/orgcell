@@ -16,7 +16,6 @@ import useMediaQuery from '../../hooks/useMediaQuery';
 const CARD_SIZE = 180;
 const TAB_W = 40;
 const TAB_H = 10;
-const BLOCK_DEPTH = 20;       // 시각적 3D 두께
 const FRAME_COLOR = '#C4A84F'; // 금색 액자
 const INSET_COLOR = 'rgba(196,168,79,0.3)'; // 인셋 라인
 
@@ -38,23 +37,7 @@ const LINEN_BG = `
     )
 `.trim().replace(/\n\s*/g, ' ');
 
-// ── 3D 블록 box-shadow ──
-function getBlockShadow(isMainPerson, isSelected) {
-    // 우측+하단 묵직한 두께감 + 드롭 그림자
-    const thickness = `${BLOCK_DEPTH * 0.3}px ${BLOCK_DEPTH * 0.4}px 0 rgba(80,60,30,0.25)`;
-    const drop = `${BLOCK_DEPTH * 0.5}px ${BLOCK_DEPTH * 0.6}px ${BLOCK_DEPTH}px rgba(40,30,10,0.2)`;
-    const ambient = `0 2px 8px rgba(61,32,8,0.08)`;
-
-    if (isMainPerson) {
-        return `${thickness}, ${drop}, ${ambient}, 0 0 24px rgba(196,168,79,0.3)`;
-    }
-    if (isSelected) {
-        return `${thickness}, ${drop}, ${ambient}, 0 0 16px rgba(196,168,79,0.2)`;
-    }
-    return `${thickness}, ${drop}, ${ambient}`;
-}
-
-// ── 카드 기본 스타일 ──
+// ── 카드 기본 스타일 (ORGCELL_CODING_RULES.md §5) ──
 function getCardStyle(node, isSelected, isMainPerson, hasPhoto) {
     const base = {
         width: CARD_SIZE,
@@ -65,18 +48,28 @@ function getCardStyle(node, isSelected, isMainPerson, hasPhoto) {
         overflow: 'hidden',
         boxSizing: 'border-box',
         transition: 'box-shadow 0.3s',
-        border: `1.5px solid ${FRAME_COLOR}`,
-        boxShadow: getBlockShadow(isMainPerson, isSelected),
     };
 
-    if (hasPhoto) {
-        return base;
+    // 관장 부부 — 강한 입체감
+    if (isMainPerson) {
+        return {
+            ...base,
+            border: '2px solid #8B7355',
+            borderRight: '4px solid #9a7a50',
+            borderBottom: '4px solid #7a6040',
+            boxShadow: '3px 3px 0 #c4a87a, 6px 6px 0 #b09060',
+            background: hasPhoto ? undefined : `${LINEN_BG}, #FDF8F0`,
+        };
     }
 
-    // Canvas Front: 린넨 배경
+    // 일반 블록 — 약한 입체감
     return {
         ...base,
-        background: `${LINEN_BG}, #FAFAF2`,
+        border: '1px solid #C4A882',
+        borderRight: '2px solid #b09060',
+        borderBottom: '2px solid #9a7a50',
+        boxShadow: '2px 2px 0 #c4a87a',
+        background: hasPhoto ? undefined : `${LINEN_BG}, #FAFAF5`,
     };
 }
 
@@ -384,12 +377,9 @@ function FolderCard({
         ? { filter: 'grayscale(40%) brightness(0.9)', opacity: cardStyle.opacity * 0.8 }
         : {};
 
-    // 선택/주인공 테두리 강조
+    // 선택 테두리 강조 (관장은 getCardStyle에서 처리됨)
     const stateOverride = {};
-    if (isMainPerson) {
-        stateOverride.border = `2.5px solid #3D2008`;
-        stateOverride.boxShadow = cardStyle.boxShadow + ', inset 0 0 0 1px rgba(196,168,79,0.4)';
-    } else if (isSelected) {
+    if (isSelected && !isMainPerson) {
         stateOverride.border = `2px solid ${FRAME_COLOR}`;
     }
 
