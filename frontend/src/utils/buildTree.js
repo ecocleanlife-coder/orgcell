@@ -19,6 +19,9 @@ const CARD_W = 220;     // 카드 실제 폭
 const CARD_H = 220;     // 카드 실제 높이
 const CARD_GAP = 20;    // 카드 사이 간격 (부부 제외)
 
+// ── 표시 범위 상수 (ORGCELL_CODING_RULES.md §22) ────────────
+const DISPLAY_MAX_ANCESTOR_DEPTH = 2; // 조부모(depth=2)까지만 화면 표시
+
 // ── 유틸 ──────────────────────────────────────────
 
 function normalizeGender(g) {
@@ -279,6 +282,38 @@ function classifyZ(mainId, maps, depthMap, byId) {
     return z;
 }
 
+
+// ── 직계 조상 ID 집합 (mainId/spouseId 기준, maxDepth 세대까지) ──
+function getDirectAncestorIds(mainId, spouseId, maps, maxDepth) {
+    const direct = new Set();
+    function trace(id, depth) {
+        if (depth > maxDepth) return;
+        direct.add(id);
+        for (const sp of (maps.spousesOf[id] || [])) direct.add(sp);
+        for (const pid of (maps.parentOf[id] || [])) trace(pid, depth + 1);
+    }
+    trace(mainId, 0);
+    if (spouseId) trace(spouseId, 0);
+    return direct;
+}
+
+// ── 표시 범위 필터 (§22) ─────────────────────────────────────
+// depth ≥ 3 (증조부모 이상) → z=1 (숨김)
+// depth === 2 중 직계 조부모 아닌 노드 (조부모 형제) → z=1 (숨김)
+function applyDisplayRange(zMap, depthMap, directAncestors) {
+    const result = {};
+    for (const id of Object.keys(zMap)) {
+        result[id] = zMap[id];
+        if (result[id] !== 0) continue; // 이미 숨김 상태면 그대로
+        const depth = depthMap[id] || 0;
+        if (depth >= DISPLAY_MAX_ANCESTOR_DEPTH + 1) {
+            result[id] = 1; // 증조부모 이상 숨김
+        } else if (depth === DISPLAY_MAX_ANCESTOR_DEPTH && !directAncestors.has(id)) {
+            result[id] = 1; // 조부모 세대이지만 직계 아님 (조부모 형제) 숨김
+        }
+    }
+    return result;
+}
 
 // ── 노드 데이터 생성 ────────────────────────────
 
@@ -626,9 +661,14 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
         }
     }
 
-    // ── 4단계: 조상의 형제(삼촌 등) + 그 후손 ──
-    function placeAncestorSiblings(personId) {
+    // ── 4단계: 부모의 형제(삼촌/이모)만 배치 ──
+    // §22: 부모(depth=1)의 형제까지만 표시. 조부모(depth=2) 형제는 숨김.
+    // maxPersonDepth: personId의 depth가 이 값 이상이면 형제 배치 중단
+    function placeAncestorSiblings(personId, maxPersonDepth) {
         if (!personId) return;
+        const personDepth = depthMap[personId] || 0;
+        if (personDepth >= maxPersonDepth) return; // 부모 세대(depth=1) 도달 시 중단
+
         const parents = (parentOf[personId] || []).filter(p => connSet.has(p) && positions[p]);
 
         for (const pid of parents) {
@@ -658,11 +698,14 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
                     placeDescTree(sibId, sibCenter, parentY);
                 }
             }
-            placeAncestorSiblings(pid);
+            placeAncestorSiblings(pid, maxPersonDepth);
         }
     }
 
-    placeAncestorSiblings(mainId);
+    // 남편/아내 side 각각 처리 (mainId 성별 무관하게 양가 모두 커버)
+    // maxPersonDepth=1: depth<1 (=depth 0)인 personId의 부모만 형제 배치 → 삼촌/이모(depth=1)까지
+    if (husbandId) placeAncestorSiblings(husbandId, 1);
+    if (wifeId && wifeId !== husbandId) placeAncestorSiblings(wifeId, 1);
 
     // ── 5단계: 겹침 해소 (같은 Y에서 X 간격 < MIN_GAP 시 밀어내기) ──
     const MIN_GAP = SLOT_W; // 200px 최소 간격 (180px 카드 + 20px 간격)
@@ -778,16 +821,23 @@ function validateTree(nodes, links) {
     const nodesMap = {};
     for (const n of nodes) nodesMap[n.id] = n;
 
-    // 1. 겹침 검사
+    // 부부 쌍 집합 (부부는 CARD_W=220 간격, 나머지는 SLOT_W=240 최소)
+    const spouseLinks = links.filter(l => l.type === 'spouse');
+    const spousePairSet = new Set(spouseLinks.map(l => [l.source, l.target].sort().join(':')));
+
+    // 1. 겹침/간격 검사 (§22 §23: 최소 20px 간격)
     for (let i = 0; i < z0.length; i++) {
         for (let j = i + 1; j < z0.length; j++) {
-            if (z0[i].x === z0[j].x && z0[i].y === z0[j].y) {
-                errors.push(`겹침: ${z0[i].data.name}과 ${z0[j].data.name} (x=${z0[i].x}, y=${z0[i].y})`);
+            if (Math.round(z0[i].y) !== Math.round(z0[j].y)) continue;
+            const key = [z0[i].id, z0[j].id].sort().join(':');
+            const isSpouse = spousePairSet.has(key);
+            const dist = Math.abs(z0[i].x - z0[j].x);
+            const minDist = isSpouse ? CARD_W : SLOT_W; // 부부: 220, 나머지: 240(=220+20)
+            if (dist < minDist) {
+                errors.push(`간격 오류: ${z0[i].data.name}과 ${z0[j].data.name} (간격: ${dist}px, 최소: ${minDist}px)`);
             }
         }
     }
-
-    const spouseLinks = links.filter(l => l.type === 'spouse');
 
     // 2. 부부 인접 검사 (x 차이 = CARD_W = 220px, 부부는 간격 0으로 붙어있음)
     for (const l of spouseLinks) {
@@ -887,7 +937,12 @@ export function buildTree(persons, relations, overrideMainId = null) {
     const depthMap = computeDepth(mainId, maps);
 
     // Z축 분류 — 가문전환 여부 무관, 항상 classifyZ 실행
-    const zMap = classifyZ(mainId, maps, depthMap, byId);
+    const rawZMap = classifyZ(mainId, maps, depthMap, byId);
+
+    // §22 표시 범위 필터: 직계 조부모까지만 표시, 증조부모+ 숨김
+    const mainSpouseId = (maps.spousesOf[mainId] || [])[0] || null;
+    const directAncestors = getDirectAncestorIds(mainId, mainSpouseId, maps, DISPLAY_MAX_ANCESTOR_DEPTH);
+    const zMap = applyDisplayRange(rawZMap, depthMap, directAncestors);
 
     // CoupleBlock 레이아웃
     const positions = layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds);
