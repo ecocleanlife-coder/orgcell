@@ -48,6 +48,7 @@ async function convertHeicIfNeeded(req, res, next) {
         const outputPath = path.join(UPLOADS_DIR, outputName);
 
         await sharp(inputPath)
+            .rotate() // EXIF 방향 보정
             .jpeg({ quality: 85 })
             .toFile(outputPath);
 
@@ -66,5 +67,30 @@ async function convertHeicIfNeeded(req, res, next) {
     next();
 }
 
+// 일반 이미지(.jpg, .png 등) 업로드 시 EXIF 방향 보정
+async function autoRotateImage(req, res, next) {
+    if (!req.file) return next();
+
+    const ext = path.extname(req.file.filename).toLowerCase();
+    // HEIC는 위에서 이미 처리됨
+    if (ext === '.heic' || ext === '.heif') return next();
+
+    try {
+        const inputPath = req.file.path;
+        const tempPath = inputPath + '.tmp';
+
+        await sharp(inputPath)
+            .rotate() // EXIF 방향 자동 회전
+            .toFile(tempPath);
+
+        fs.unlinkSync(inputPath);
+        fs.renameSync(tempPath, inputPath);
+    } catch (err) {
+        console.error('Auto rotate error:', err);
+    }
+    next();
+}
+
 module.exports = uploadPerson;
 module.exports.convertHeicIfNeeded = convertHeicIfNeeded;
+module.exports.autoRotateImage = autoRotateImage;

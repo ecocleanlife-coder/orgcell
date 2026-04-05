@@ -1,23 +1,33 @@
+/**
+ * PersonFolderView.jsx — 인물 자료실
+ * 규칙서 8번 레이아웃 준수 (좌: 인물정보폼 / 우: 메뉴버튼 / 하단: 컨텐츠)
+ */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-    ArrowLeft, Lock, Unlock, ShieldAlert, User,
-    Play, Pause, X, ChevronLeft, ChevronRight,
-    FolderOpen, GalleryHorizontalEnd, Maximize2, Upload, Image, MessageSquare, Mic, UserPlus
+    ArrowLeft, User,
+    Play, Pause, X, ChevronLeft, ChevronRight, Maximize2, Image,
 } from 'lucide-react';
 import axios from 'axios';
 import useUiStore from '../../store/uiStore';
-import { getT } from '../../i18n/translations';
-import LanguageSwitcher from '../../components/common/LanguageSwitcher';
 import { toast } from 'react-hot-toast';
 
-import PersonEditModal from './PersonEditModal';
+import PhotoEditor from './PhotoEditor';
 import PhotoImportModal from './PhotoImportModal';
 import VoiceRecordingModal from './VoiceRecordingModal';
 import InvitationModal from './InvitationModal';
 import AccessRequestManager from './AccessRequestManager';
 
-// ── Fullscreen slideshow / video player ──
+// ── 색상 상수 ────────────────────────────────────────────────────────────────
+const GOLD      = '#C4A882';
+const GOLD_DARK = '#8B7355';
+const GOLD_LIGHT = 'rgba(196,168,130,0.15)';
+const BG        = '#FDF8F0';
+const BG_CARD   = '#FAFAF5';
+const TEXT      = '#3a3020';
+const TEXT_SUB  = '#7a6a50';
+
+// ── Fullscreen 슬라이드쇼 ────────────────────────────────────────────────────
 function FullscreenPlayer({ items, startIndex, onClose }) {
     const [idx, setIdx] = useState(startIndex);
     const [playing, setPlaying] = useState(true);
@@ -46,7 +56,7 @@ function FullscreenPlayer({ items, startIndex, onClose }) {
     return (
         <div className="fixed inset-0 z-[100] bg-black flex flex-col">
             <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent">
-                <span className="text-white/80 text-sm font-medium">{item?.caption || ''} ({idx + 1}/{items.length})</span>
+                <span className="text-white/80 text-sm">{item?.caption || ''} ({idx + 1}/{items.length})</span>
                 <div className="flex items-center gap-3">
                     <button onClick={() => setPlaying(p => !p)} className="text-white/80 hover:text-white p-2">
                         {playing ? <Pause size={20} /> : <Play size={20} />}
@@ -54,21 +64,19 @@ function FullscreenPlayer({ items, startIndex, onClose }) {
                     <button onClick={onClose} className="text-white/80 hover:text-white p-2"><X size={24} /></button>
                 </div>
             </div>
-
             <div className="flex-1 flex items-center justify-center relative">
-                <img src={item?.url} alt={item?.caption || ''} className="max-w-full max-h-full object-contain transition-opacity duration-700" />
+                <img src={item?.url} alt={item?.caption || ''} className="max-w-full max-h-full object-contain" />
                 {items.length > 1 && (
                     <>
-                        <button onClick={prev} className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white p-3 rounded-full transition-colors">
+                        <button onClick={prev} className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white p-3 rounded-full">
                             <ChevronLeft size={28} />
                         </button>
-                        <button onClick={next} className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white p-3 rounded-full transition-colors">
+                        <button onClick={next} className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white p-3 rounded-full">
                             <ChevronRight size={28} />
                         </button>
                     </>
                 )}
             </div>
-
             {items.length > 1 && (
                 <div className="bg-black/90 p-3 flex items-center gap-2 overflow-x-auto">
                     {items.map((it, i) => (
@@ -83,55 +91,102 @@ function FullscreenPlayer({ items, startIndex, onClose }) {
     );
 }
 
-// ── Page loader ──
+// ── 메뉴 버튼 컴포넌트 ───────────────────────────────────────────────────────
+function MenuBtn({ label, active, onClick }) {
+    return (
+        <button
+            onClick={onClick}
+            style={{
+                width: '100%',
+                padding: '10px 14px',
+                textAlign: 'left',
+                fontSize: '13px',
+                fontWeight: active ? '700' : '500',
+                fontFamily: 'Georgia, "Noto Serif KR", serif',
+                background: active ? GOLD_LIGHT : BG_CARD,
+                border: `1px solid ${GOLD}`,
+                borderRight: `2px solid ${GOLD_DARK}`,
+                borderBottom: `2px solid ${GOLD_DARK}`,
+                borderRadius: '6px',
+                color: active ? GOLD_DARK : TEXT,
+                cursor: 'pointer',
+                boxShadow: active ? 'inset 1px 1px 3px rgba(0,0,0,0.1)' : `1px 1px 0 ${GOLD}`,
+                transition: 'all 0.1s',
+                transform: active ? 'translate(1px, 1px)' : 'none',
+            }}
+        >
+            {label}
+        </button>
+    );
+}
+
+// ── 로딩 스피너 ──────────────────────────────────────────────────────────────
 function PageLoader() {
     return (
-        <div className="flex h-64 w-full items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
+        <div style={{ display: 'flex', height: '256px', width: '100%', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', border: `4px solid ${GOLD}`, borderTopColor: 'transparent', animation: 'spin 1s linear infinite' }} />
         </div>
     );
 }
 
+// ── 메인 컴포넌트 ────────────────────────────────────────────────────────────
 export default function PersonFolderView() {
     const { subdomain, id } = useParams();
     const navigate = useNavigate();
-    const lang = useUiStore((s) => s.lang);
-    const t = getT('familyTree', lang);
+    const role = useUiStore((s) => s.role);
 
-    const [person, setPerson] = useState(null);
-    const [photos, setPhotos] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [siteId, setSiteId] = useState(null);
+    const [person, setPerson]           = useState(null);
+    const [photos, setPhotos]           = useState([]);
+    const [loading, setLoading]         = useState(true);
+    const [error, setError]             = useState(null);
+    const [siteId, setSiteId]           = useState(null);
     const [fullscreenIdx, setFullscreenIdx] = useState(null);
-    const [activeTool, setActiveTool] = useState('photos'); // photos, upload, voice, invite, access
+    const [activeTool, setActiveTool]   = useState(null); // null = 빈 하단
 
-    const role = useUiStore((s) => s.role); // owner or viewer
-    const userRole = role === 'owner' ? 'owner' : 'viewer'; // get user's auth role if needed from somewhere, wait, let's just use role from store.
+    // ── 폼 상태 ──────────────────────────────────────────────────────────────
+    const [form, setForm] = useState({
+        name: '', gender: 'male',
+        birth_date: '', birth_lunar: false,
+        is_deceased: false, death_date: '', death_lunar: false,
+        display_info1: '', display_info2: '', display_info3: '',
+    });
+    const [photoUrl, setPhotoUrl]               = useState('');
+    const [pendingPhotoFile, setPendingPhotoFile] = useState(null);
 
-    // 1) siteId 가져오기
+    // ── 가족 추가 상태 ───────────────────────────────────────────────────────
+    const [showFamilyAdd, setShowFamilyAdd]     = useState(false);
+    const [addRelationType, setAddRelationType] = useState(null);
+    const [relationMode, setRelationMode]       = useState('new');
+    const [relationName, setRelationName]       = useState('');
+    const [relationGender, setRelationGender]   = useState('male');
+    const [existingPersonId, setExistingPersonId] = useState('');
+    const [allPersons, setAllPersons]           = useState([]);
+    const [submittingRelation, setSubmittingRelation] = useState(false);
+
+    // 1) siteId 조회
     useEffect(() => {
         if (!subdomain) return;
         axios.get(`/api/museum/${subdomain}`)
-            .then(r => {
-                if (r.data?.success) setSiteId(r.data.data.id);
-                else setError('박물관을 찾을 수 없습니다');
-            })
+            .then(r => { if (r.data?.success) setSiteId(r.data.data.id); else setError('박물관을 찾을 수 없습니다'); })
             .catch(() => setError('박물관을 찾을 수 없습니다'));
     }, [subdomain]);
 
+    // 2) 전체 인물 목록 (관계 연결용)
+    useEffect(() => {
+        if (siteId && !allPersons.length)
+            axios.get(`/api/persons/${siteId}`).then(r => setAllPersons(r.data?.data || []));
+    }, [siteId]);
+
+    // 3) 사진 새로고침
     const fetchPhotos = useCallback(() => {
         if (!siteId || !id) return;
-        axios.get(`/api/persons/${siteId}/${id}/photos`)
-             .then(r => setPhotos(r.data?.data || []))
-             .catch(() => {});
+        axios.get(`/api/persons/${siteId}/${id}/photos`).then(r => setPhotos(r.data?.data || [])).catch(() => {});
     }, [siteId, id]);
 
-    // 2) 인물 정보 + 사진 가져오기
+    // 4) 인물 + 사진 초기 로드
     useEffect(() => {
         if (!siteId || !id) return;
         setLoading(true);
-
         Promise.all([
             axios.get(`/api/persons/${siteId}`),
             axios.get(`/api/persons/${siteId}/${id}/photos`),
@@ -141,6 +196,19 @@ export default function PersonFolderView() {
                 const found = persons.find(p => String(p.id) === String(id));
                 if (found) {
                     setPerson(found);
+                    setPhotoUrl(found.photo_url || '');
+                    setForm({
+                        name:          found.name || '',
+                        gender:        found.gender || 'male',
+                        birth_date:    found.birth_date || '',
+                        birth_lunar:   found.birth_lunar || false,
+                        is_deceased:   found.is_deceased || false,
+                        death_date:    found.death_date || '',
+                        death_lunar:   found.death_lunar || false,
+                        display_info1: found.display_info1 || '',
+                        display_info2: found.display_info2 || '',
+                        display_info3: found.display_info3 || '',
+                    });
                 } else {
                     setError('인물을 찾을 수 없습니다');
                 }
@@ -150,220 +218,428 @@ export default function PersonFolderView() {
             .finally(() => setLoading(false));
     }, [siteId, id]);
 
-    const handlePersonSave = async (updated) => {
+    const upd = (field, value) => setForm(f => ({ ...f, [field]: value }));
+
+    // ── 저장 ─────────────────────────────────────────────────────────────────
+    const handleSave = async () => {
+        if (!form.name.trim()) { toast.error('이름을 입력하세요'); return; }
         try {
-            await axios.put(`/api/persons/${siteId}/${updated.id}`, updated);
-            setPerson(updated);
+            await axios.put(`/api/persons/${siteId}/${person.id}`, { ...person, ...form });
+            setPerson(prev => ({ ...prev, ...form }));
             toast.success('저장되었습니다');
-        } catch (err) {
+        } catch {
             toast.error('저장에 실패했습니다');
         }
     };
 
-    const startSlideshow = (startIdx = 0) => setFullscreenIdx(startIdx);
+    // ── 가족 관계 연결 ────────────────────────────────────────────────────────
+    const handleAddRelation = async () => {
+        if (!person || !siteId) return;
+        setSubmittingRelation(true);
+        try {
+            let targetId = existingPersonId;
+            if (relationMode === 'new') {
+                if (!relationName.trim()) { toast.error('이름을 입력하세요'); setSubmittingRelation(false); return; }
+                let gen = person.generation || 1;
+                if (addRelationType === 'parent' || addRelationType === 'birth-parent') gen += 1;
+                if (addRelationType === 'child') gen -= 1;
+                const res = await axios.post(`/api/persons/${siteId}`, {
+                    name: relationName.trim(), gender: relationGender, generation: gen, privacy_level: 'family',
+                });
+                targetId = res.data?.data?.id;
+            }
+            if (!targetId) { toast.error('대상을 지정하세요'); setSubmittingRelation(false); return; }
 
+            if (addRelationType === 'parent' || addRelationType === 'birth-parent') {
+                await axios.put(`/api/persons/${siteId}/${person.id}`, { parent1_id: targetId });
+            } else if (addRelationType === 'child') {
+                await axios.put(`/api/persons/${siteId}/${targetId}`, { parent1_id: person.id });
+            } else if (addRelationType === 'spouse') {
+                await axios.put(`/api/persons/${siteId}/${person.id}`, { spouse_id: targetId });
+            } else if (addRelationType === 'sibling') {
+                await axios.put(`/api/persons/${siteId}/${targetId}`, { parent1_id: person.parent1_id || null, parent2_id: person.parent2_id || null });
+            }
+            toast.success('관계가 추가되었습니다');
+            setAddRelationType(null);
+            setShowFamilyAdd(false);
+        } catch {
+            toast.error('관계 연결에 실패했습니다');
+        }
+        setSubmittingRelation(false);
+    };
+
+    // ── 공통 스타일 ──────────────────────────────────────────────────────────
+    const inputSt = {
+        width: '100%', padding: '6px 10px',
+        background: '#fff', border: `1px solid ${GOLD}`, borderRadius: '4px',
+        color: TEXT, fontSize: '13px', fontFamily: 'Georgia, "Noto Serif KR", serif',
+        boxSizing: 'border-box',
+    };
+    const labelSt = {
+        display: 'block', color: GOLD_DARK, fontSize: '11px',
+        marginBottom: '3px', fontFamily: 'Georgia, "Noto Serif KR", serif',
+    };
+    const rowSt = { marginBottom: '10px' };
+
+    // ── 에러 / 로딩 ──────────────────────────────────────────────────────────
     if (error) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center" style={{ background: '#FAFAF7' }}>
-                <Image size={56} className="mb-4 opacity-30" style={{ color: '#9a9a8a' }} />
-                <p className="text-gray-500 mb-4">{error}</p>
-                <button
-                    onClick={() => navigate(-1)}
-                    className="px-4 py-2 rounded-full text-sm font-bold"
-                    style={{ background: '#e8f5e0', color: '#3a7a2a' }}
-                >
-                    돌아가기
-                </button>
+            <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: BG }}>
+                <p style={{ color: TEXT_SUB, marginBottom: '16px' }}>{error}</p>
+                <button onClick={() => navigate(-1)} style={{ padding: '8px 20px', background: GOLD_LIGHT, border: `1px solid ${GOLD}`, borderRadius: '20px', color: GOLD_DARK, cursor: 'pointer' }}>돌아가기</button>
             </div>
         );
     }
-
     if (loading || !person) return <PageLoader />;
 
     const personName = person.name || '가족 구성원';
-    const lifespan = person.is_deceased && person.birth_year
-        ? `${person.birth_year}–${person.death_year || '?'}`
-        : person.birth_year ? `${person.birth_year}년생` : '';
+    const toggleTool = (key) => setActiveTool(activeTool === key ? null : key);
 
     return (
-        <div className="min-h-screen font-sans" style={{ background: '#FAFAF7' }}>
-            {/* Header */}
-            <header
-                className="sticky top-0 z-40 border-b"
-                style={{ background: 'rgba(250,250,247,0.96)', borderColor: '#e8e0d0', backdropFilter: 'blur(8px)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
-            >
-                <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-                    <div className="flex items-center gap-3 truncate">
-                        <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full transition-colors shrink-0">
-                            <ArrowLeft size={20} style={{ color: '#5a5040' }} />
-                        </button>
-                        {person.photo_url ? (
-                            <img src={person.photo_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
-                        ) : (
-                            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: '#e8f5e0' }}>
-                                <User size={16} style={{ color: '#5a8a4a' }} />
-                            </div>
-                        )}
-                        <div className="truncate">
-                            <h1 className="font-bold text-base truncate" style={{ color: '#3a3a2a' }}>
-                                {personName} 자료실
-                            </h1>
-                            {lifespan && (
-                                <span className="text-xs" style={{ color: '#9a9a8a' }}>{lifespan}</span>
-                            )}
-                        </div>
-                    </div>
-                    <LanguageSwitcher />
+        <div style={{ minHeight: '100vh', background: BG }}>
+
+            {/* PhotoEditor 오버레이 */}
+            {pendingPhotoFile && (
+                <PhotoEditor
+                    src={URL.createObjectURL(pendingPhotoFile)}
+                    initialPosition={person?.photo_position || { x: 50, y: 50 }}
+                    onSave={async (blob, position) => {
+                        if (!person || !siteId) return;
+                        const fd = new FormData();
+                        fd.append('photo', blob, 'edited.jpg');
+                        try {
+                            const res = await axios.post(`/api/persons/${siteId}/${person.id}/photo`, fd);
+                            if (res.data?.data?.photo_url) {
+                                setPhotoUrl(res.data.data.photo_url);
+                                setPendingPhotoFile(null);
+                                setPerson(prev => ({ ...prev, photo_url: res.data.data.photo_url, photo_position: position }));
+                                toast.success('사진이 저장되었습니다');
+                            }
+                        } catch {
+                            toast.error('사진 저장 실패');
+                        }
+                    }}
+                    onCancel={() => setPendingPhotoFile(null)}
+                />
+            )}
+
+            {/* ── 헤더 ─────────────────────────────────────────────────────── */}
+            <header style={{ background: BG, borderBottom: `1px solid ${GOLD}`, position: 'sticky', top: 0, zIndex: 40 }}>
+                <div style={{ maxWidth: '960px', margin: '0 auto', padding: '0 16px', height: '56px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <button onClick={() => navigate(-1)} style={{ padding: '8px', background: 'none', border: 'none', cursor: 'pointer', borderRadius: '50%' }}>
+                        <ArrowLeft size={20} style={{ color: TEXT_SUB }} />
+                    </button>
+                    {photoUrl
+                        ? <img src={photoUrl} alt="" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: `1px solid ${GOLD}` }} />
+                        : <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: GOLD_LIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={16} style={{ color: GOLD }} /></div>
+                    }
+                    <h1 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold', color: TEXT, fontFamily: 'Georgia, "Noto Serif KR", serif' }}>
+                        {personName} 자료실
+                    </h1>
                 </div>
             </header>
 
-            {/* Main content */}
-            <main className="max-w-4xl mx-auto px-4 py-6">
-                <div className="flex flex-col md:flex-row gap-6">
-                    {/* 좌측: 인물 프로필 및 수정 */}
-                    <div className="w-full md:w-1/2 flex flex-col gap-4">
-                        <div
-                            className="rounded-2xl p-5 flex items-center gap-4 shrink-0 transition"
-                            style={{ background: '#fff', border: '1px solid #e8e0d0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
-                        >
-                            {person.photo_url ? (
-                                <img src={person.photo_url} alt={personName} className="w-20 h-20 rounded-2xl object-cover shrink-0" style={{ border: '2px solid #e8e0d0' }} />
-                            ) : (
-                                <div className="w-20 h-20 rounded-2xl flex items-center justify-center shrink-0" style={{ background: '#f0ece4', border: '2px solid #e8e0d0' }}>
-                                    <User size={32} style={{ color: '#b8a88a' }} />
+            <main style={{ maxWidth: '960px', margin: '0 auto', padding: '24px 16px' }}>
+                <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+
+                    {/* ── 좌측: 인물 정보 폼 ──────────────────────────────── */}
+                    <div style={{
+                        flex: 1,
+                        background: BG_CARD,
+                        border: `1px solid ${GOLD}`,
+                        borderRight: `2px solid ${GOLD_DARK}`,
+                        borderBottom: `2px solid ${GOLD_DARK}`,
+                        borderRadius: '8px',
+                        padding: '20px',
+                        boxShadow: `2px 2px 0 ${GOLD}`,
+                    }}>
+                        {/* 사진 + 폼 필드 */}
+                        <div style={{ display: 'flex', gap: '16px', marginBottom: '4px' }}>
+
+                            {/* 사진 열 */}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', minWidth: '90px' }}>
+                                <div style={{ width: '80px', height: '90px', borderRadius: '6px', overflow: 'hidden', border: `1px solid ${GOLD}`, background: GOLD_LIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    {photoUrl
+                                        ? <img src={photoUrl} alt={personName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        : <User size={32} style={{ color: GOLD }} />
+                                    }
                                 </div>
-                            )}
-                            <div>
-                                <h2 className="text-lg font-bold" style={{ color: '#3a3a2a' }}>{personName}</h2>
-                                {lifespan && <p className="text-sm" style={{ color: '#9a9a8a' }}>{lifespan}</p>}
-                                {person.gender && (
-                                    <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: person.gender === 'M' ? '#e0eaf5' : '#f5e0ea', color: person.gender === 'M' ? '#3a5a8a' : '#8a3a5a' }}>
-                                        {person.gender === 'M' ? '남성' : '여성'}
-                                    </span>
-                                )}
+                                <label style={{
+                                    padding: '4px 8px',
+                                    background: BG,
+                                    border: `1px solid ${GOLD}`,
+                                    borderRight: `2px solid ${GOLD_DARK}`,
+                                    borderBottom: `2px solid ${GOLD_DARK}`,
+                                    borderRadius: '4px',
+                                    fontSize: '11px',
+                                    color: GOLD_DARK,
+                                    cursor: 'pointer',
+                                    textAlign: 'center',
+                                    fontFamily: 'Georgia, "Noto Serif KR", serif',
+                                    userSelect: 'none',
+                                }}>
+                                    사진불러오기
+                                    <input type="file" accept="image/*,.heic,.heif,.HEIC,.HEIF" style={{ display: 'none' }}
+                                        onChange={e => { const f = e.target.files?.[0]; if (f) setPendingPhotoFile(f); }} />
+                                </label>
+                                <div style={{ fontSize: '10px', color: TEXT_SUB, textAlign: 'center', lineHeight: '1.5' }}>
+                                    마우스/손가락으로<br />크기·위치 조정
+                                </div>
+                            </div>
+
+                            {/* 폼 필드 열 */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={rowSt}>
+                                    <label style={labelSt}>이름</label>
+                                    <input style={inputSt} value={form.name} onChange={e => upd('name', e.target.value)} placeholder="이름 입력" />
+                                </div>
+                                <div style={{ ...rowSt, fontSize: '11px', color: TEXT_SUB, fontFamily: 'Georgia, "Noto Serif KR", serif' }}>
+                                    ID: {person.oc_id || '—'}
+                                </div>
+                                <div style={rowSt}>
+                                    <label style={labelSt}>생년월일</label>
+                                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                        <input type="date" style={{ ...inputSt, flex: 1 }} value={form.birth_date} onChange={e => upd('birth_date', e.target.value)} />
+                                        <label style={{ fontSize: '11px', color: TEXT_SUB, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                            <input type="checkbox" checked={form.birth_lunar} onChange={e => upd('birth_lunar', e.target.checked)} style={{ marginRight: '3px' }} />음력
+                                        </label>
+                                    </div>
+                                </div>
+                                <div style={rowSt}>
+                                    <label style={{ fontSize: '11px', color: TEXT_SUB, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+                                        <input type="checkbox" checked={form.is_deceased} onChange={e => upd('is_deceased', e.target.checked)} />
+                                        <span style={{ color: GOLD_DARK, fontFamily: 'Georgia, "Noto Serif KR", serif' }}>사망</span>
+                                        {form.is_deceased && <span style={{ color: TEXT_SUB }}> → 사망일:</span>}
+                                    </label>
+                                    {form.is_deceased && (
+                                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                            <input type="date" style={{ ...inputSt, flex: 1 }} value={form.death_date} onChange={e => upd('death_date', e.target.value)} />
+                                            <label style={{ fontSize: '11px', color: TEXT_SUB, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                                <input type="checkbox" checked={form.death_lunar} onChange={e => upd('death_lunar', e.target.checked)} style={{ marginRight: '3px' }} />음력
+                                            </label>
+                                        </div>
+                                    )}
+                                </div>
+                                <div style={rowSt}>
+                                    <label style={labelSt}>대표정보1</label>
+                                    <input style={inputSt} value={form.display_info1} onChange={e => upd('display_info1', e.target.value)} placeholder="예) 대표이사" maxLength={50} />
+                                </div>
+                                <div style={rowSt}>
+                                    <label style={labelSt}>대표정보2</label>
+                                    <input style={inputSt} value={form.display_info2} onChange={e => upd('display_info2', e.target.value)} placeholder="예) 서울대학교 졸업" maxLength={50} />
+                                </div>
+                                <div style={{ ...rowSt, marginBottom: 0 }}>
+                                    <label style={labelSt}>대표정보3</label>
+                                    <input style={inputSt} value={form.display_info3} onChange={e => upd('display_info3', e.target.value)} placeholder="예) 서울 거주" maxLength={50} />
+                                </div>
                             </div>
                         </div>
 
-                        {/* 인물 수정 (기존 기능 인라인으로 노출) */}
-                        <div className="flex-1 rounded-2xl flex flex-col" style={{ background: '#fff', border: '1px solid #e8e0d0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-                            <PersonEditModal person={person} onSave={handlePersonSave} onClose={() => {}} inline={true} />
+                        {/* [가족 추가] [저장] 버튼 */}
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '18px', paddingTop: '14px', borderTop: `1px solid rgba(196,168,130,0.3)` }}>
+                            <button
+                                type="button"
+                                onClick={() => setShowFamilyAdd(v => !v)}
+                                style={{
+                                    padding: '8px 16px',
+                                    background: showFamilyAdd ? GOLD_LIGHT : BG,
+                                    border: `1px solid ${GOLD}`,
+                                    borderRight: `2px solid ${GOLD_DARK}`,
+                                    borderBottom: `2px solid ${GOLD_DARK}`,
+                                    borderRadius: '6px',
+                                    color: GOLD_DARK,
+                                    fontSize: '13px',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer',
+                                    fontFamily: 'Georgia, "Noto Serif KR", serif',
+                                }}
+                            >
+                                가족 추가
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleSave}
+                                style={{
+                                    padding: '8px 20px',
+                                    background: GOLD,
+                                    border: 'none',
+                                    borderRight: `2px solid ${GOLD_DARK}`,
+                                    borderBottom: `2px solid ${GOLD_DARK}`,
+                                    borderRadius: '6px',
+                                    color: '#fff',
+                                    fontSize: '13px',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer',
+                                    fontFamily: 'Georgia, "Noto Serif KR", serif',
+                                }}
+                            >
+                                저장
+                            </button>
                         </div>
-                    </div>
 
-                    {/* 우측: 4개 버튼 메뉴 */}
-                    <div className="w-full md:w-64 flex flex-col gap-3 shrink-0">
-                        <button
-                            onClick={() => setActiveTool('upload')}
-                            className="px-4 py-3.5 bg-white rounded-xl shadow-sm border text-left font-bold transition-all hover:bg-gray-50 flex items-center gap-3"
-                            style={{ borderColor: activeTool === 'upload' ? '#C4A84F' : '#e8e0d0', color: '#3a3a2a' }}
-                        >
-                            <Upload size={18} style={{ color: '#C4A84F' }} /> 사진 불러오기
-                        </button>
-                        <button
-                            onClick={() => navigate(`/${subdomain}/board`)}
-                            className="px-4 py-3.5 bg-white rounded-xl shadow-sm border text-left font-bold transition-all hover:bg-gray-50 flex items-center gap-3"
-                            style={{ borderColor: '#e8e0d0', color: '#3a3a2a' }}
-                        >
-                            <MessageSquare size={18} style={{ color: '#3498db' }} /> 게시판
-                        </button>
-                        <button
-                            onClick={() => setActiveTool('voice')}
-                            className="px-4 py-3.5 bg-white rounded-xl shadow-sm border text-left font-bold transition-all hover:bg-gray-50 flex items-center gap-3"
-                            style={{ borderColor: activeTool === 'voice' ? '#C4A84F' : '#e8e0d0', color: '#3a3a2a' }}
-                        >
-                            <Mic size={18} style={{ color: '#e74c3c' }} /> 육성녹음
-                        </button>
-                        <button
-                            onClick={() => setActiveTool('invite')}
-                            className="px-4 py-3.5 bg-white rounded-xl shadow-sm border text-left font-bold transition-all hover:bg-gray-50 flex items-center gap-3"
-                            style={{ borderColor: activeTool === 'invite' ? '#C4A84F' : '#e8e0d0', color: '#3a3a2a' }}
-                        >
-                            <UserPlus size={18} style={{ color: '#2ecc71' }} /> 초대하기
-                        </button>
+                        {/* 가족 추가 폼 (아코디언) */}
+                        {showFamilyAdd && (
+                            <div style={{ marginTop: '16px', padding: '16px', background: GOLD_LIGHT, borderRadius: '6px', border: `1px solid ${GOLD}` }}>
+                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                                    {[
+                                        { id: 'parent',       label: '부모' },
+                                        { id: 'birth-parent', label: '친부모' },
+                                        { id: 'spouse',       label: '배우자' },
+                                        { id: 'child',        label: '자녀' },
+                                        { id: 'sibling',      label: '형제' },
+                                    ].map(type => (
+                                        <button
+                                            key={type.id}
+                                            type="button"
+                                            onClick={() => setAddRelationType(addRelationType === type.id ? null : type.id)}
+                                            style={{
+                                                padding: '5px 14px',
+                                                borderRadius: '12px',
+                                                border: `1px solid ${GOLD}`,
+                                                background: addRelationType === type.id ? GOLD : BG,
+                                                color: addRelationType === type.id ? '#fff' : GOLD_DARK,
+                                                fontSize: '12px',
+                                                cursor: 'pointer',
+                                                fontFamily: 'Georgia, "Noto Serif KR", serif',
+                                            }}
+                                        >
+                                            {type.label}
+                                        </button>
+                                    ))}
+                                </div>
 
-                        {userRole === 'owner' && (
-                            <button
-                                onClick={() => setActiveTool('access')}
-                                className="px-4 py-3.5 bg-white rounded-xl shadow-sm border text-left font-bold transition-all hover:bg-gray-50 flex items-center gap-3 mt-3"
-                                style={{ borderColor: activeTool === 'access' ? '#C4A84F' : '#e8e0d0', color: '#3a3a2a' }}
-                            >
-                                <Lock size={18} style={{ color: '#5a5a4a' }} /> 접근 요청 관리
-                            </button>
-                        )}
-                        
-                        {activeTool !== 'photos' && (
-                            <button
-                                onClick={() => setActiveTool('photos')}
-                                className="px-4 py-3 rounded-xl mt-auto transition-all text-sm font-bold text-center"
-                                style={{ background: '#e8f5e0', color: '#3a7a2a' }}
-                            >
-                                사진 갤러리 닫고 돌아가기
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-                {/* 하단: 컨텐츠 표시 라우터 */}
-                <div className="mt-8 rounded-2xl overflow-hidden shadow-sm" style={{ minHeight: '500px', border: activeTool !== 'photos' ? 'none' : '1px solid #e8e0d0' }}>
-                    
-                    {activeTool === 'photos' && (
-                        <div className="flex flex-col h-full bg-white">
-                            <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: '#e8e0d0', background: '#faf8f4' }}>
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-xl" style={{ background: '#e8f5e0' }}>
-                                        <GalleryHorizontalEnd size={20} style={{ color: '#5a8a4a' }} />
-                                    </div>
+                                {addRelationType && (
                                     <div>
-                                        <h3 className="font-bold text-sm" style={{ color: '#3a3a2a' }}>사진 자료</h3>
-                                        <p className="text-xs" style={{ color: '#9a9a8a' }}>{photos.length}장</p>
-                                    </div>
-                                </div>
-                                {photos.length > 0 && (
-                                    <button
-                                        onClick={() => startSlideshow(0)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all hover:brightness-95"
-                                        style={{ background: '#5a8a4a', color: '#fff' }}
-                                    >
-                                        <Play size={12} fill="white" /> 슬라이드쇼
-                                    </button>
-                                )}
-                            </div>
+                                        <div style={{ display: 'flex', gap: '16px', marginBottom: '10px' }}>
+                                            {[{ v: 'new', l: '신규 생성' }, { v: 'existing', l: '기존 인물 연결' }].map(opt => (
+                                                <label key={opt.v} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: TEXT_SUB, cursor: 'pointer' }}>
+                                                    <input type="radio" checked={relationMode === opt.v} onChange={() => setRelationMode(opt.v)} />
+                                                    {opt.l}
+                                                </label>
+                                            ))}
+                                        </div>
 
-                            <div className="p-4 flex-1">
-                                {photos.length === 0 ? (
-                                    <div className="text-center py-12" style={{ color: '#9a9a8a' }}>
-                                        <Image size={40} className="mx-auto mb-3 opacity-30" />
-                                        <p className="text-sm">아직 등록된 사진이 없습니다. 우측 메뉴 사진 불러오기를 눌러주세요.</p>
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                                        {photos.map((photo, i) => (
-                                            <div
-                                                key={photo.id}
-                                                className="aspect-square rounded-xl overflow-hidden cursor-pointer hover:opacity-80 transition-opacity relative group"
-                                                style={{ background: '#f0ece4' }}
-                                                onClick={() => startSlideshow(i)}
-                                            >
-                                                <img src={photo.url} alt={photo.caption || ''} className="w-full h-full object-cover" />
-                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                                                    <Maximize2 size={16} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                                                </div>
+                                        {relationMode === 'new' ? (
+                                            <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
+                                                <input placeholder="이름" style={inputSt} value={relationName} onChange={e => setRelationName(e.target.value)} />
+                                                <select style={inputSt} value={relationGender} onChange={e => setRelationGender(e.target.value)}>
+                                                    <option value="male">남성</option>
+                                                    <option value="female">여성</option>
+                                                </select>
                                             </div>
-                                        ))}
+                                        ) : (
+                                            <select style={inputSt} value={existingPersonId} onChange={e => setExistingPersonId(e.target.value)}>
+                                                <option value="">인물을 선택하세요</option>
+                                                {allPersons.filter(p => String(p.id) !== String(person?.id)).map(p => (
+                                                    <option key={p.id} value={p.id}>{p.name} ({p.oc_id || `#${p.id}`})</option>
+                                                ))}
+                                            </select>
+                                        )}
+
+                                        <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                                            <button
+                                                type="button"
+                                                onClick={handleAddRelation}
+                                                disabled={submittingRelation}
+                                                style={{ flex: 1, padding: '8px', background: GOLD, border: 'none', borderRadius: '4px', color: '#fff', fontWeight: 'bold', cursor: submittingRelation ? 'wait' : 'pointer', fontSize: '13px' }}
+                                            >
+                                                {submittingRelation ? '처리 중...' : '연결하기'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setAddRelationType(null)}
+                                                style={{ padding: '8px 16px', background: BG, border: `1px solid ${GOLD}`, borderRadius: '4px', color: TEXT_SUB, cursor: 'pointer', fontSize: '13px' }}
+                                            >
+                                                취소
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
 
-                    {activeTool === 'upload' && <PhotoImportModal siteId={siteId} inline={true} onDone={fetchPhotos} onClose={() => setActiveTool('photos')} />}
-                    {activeTool === 'voice' && <VoiceRecordingModal siteId={siteId} persons={[person]} inline={true} onClose={() => setActiveTool('photos')} />}
-                    {activeTool === 'invite' && <InvitationModal siteId={siteId} personId={person.id} personName={personName} museumName={`${personName} 자료실`} inline={true} onClose={() => setActiveTool('photos')} />}
-                    {activeTool === 'access' && <AccessRequestManager siteId={siteId} inline={true} onClose={() => setActiveTool('photos')} />}
+                    {/* ── 우측: 메뉴 버튼 (세로 배치) ────────────────────── */}
+                    <div style={{ width: '156px', display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
+                        <MenuBtn label="사진자료실"   active={activeTool === 'photos'}       onClick={() => toggleTool('photos')} />
+                        <MenuBtn label="주요자료실"   active={activeTool === 'major'}        onClick={() => toggleTool('major')} />
+                        <MenuBtn label="주요약력"     active={activeTool === 'history'}      onClick={() => toggleTool('history')} />
+                        <MenuBtn label="자서전"       active={activeTool === 'autobiography'} onClick={() => toggleTool('autobiography')} />
+                        <MenuBtn label="작품실"       active={activeTool === 'works'}        onClick={() => toggleTool('works')} />
+                        <MenuBtn label="육성녹음"     active={activeTool === 'voice'}        onClick={() => toggleTool('voice')} />
+                        <MenuBtn label="공유앨범"     active={activeTool === 'album'}        onClick={() => toggleTool('album')} />
+                        <div style={{ borderTop: `1px solid ${GOLD}`, margin: '4px 0' }} />
+                        <MenuBtn label="초대하기"     active={activeTool === 'invite'}       onClick={() => toggleTool('invite')} />
+                        {role === 'owner' && (
+                            <MenuBtn label="접근요청관리" active={activeTool === 'access'} onClick={() => toggleTool('access')} />
+                        )}
+                    </div>
                 </div>
+
+                {/* ── 하단: 컨텐츠 (버튼 클릭 시만 표시) ──────────────── */}
+                {activeTool && (
+                    <div style={{ marginTop: '20px', borderRadius: '8px', overflow: 'hidden', border: `1px solid ${GOLD}`, borderRight: `2px solid ${GOLD_DARK}`, borderBottom: `2px solid ${GOLD_DARK}`, background: BG_CARD, boxShadow: `2px 2px 0 ${GOLD}` }}>
+
+                        {/* 사진자료실 */}
+                        {activeTool === 'photos' && (
+                            <div>
+                                <div style={{ padding: '14px 16px', borderBottom: `1px solid ${GOLD}`, background: BG, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <span style={{ color: TEXT, fontWeight: 'bold', fontSize: '14px', fontFamily: 'Georgia, "Noto Serif KR", serif' }}>
+                                        사진자료실 ({photos.length}장)
+                                    </span>
+                                    {photos.length > 0 && (
+                                        <button onClick={() => setFullscreenIdx(0)} style={{ padding: '6px 14px', background: GOLD, border: 'none', borderRadius: '20px', color: '#fff', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
+                                            ▶ 슬라이드쇼
+                                        </button>
+                                    )}
+                                </div>
+                                <div style={{ padding: '16px' }}>
+                                    {photos.length === 0 ? (
+                                        <div style={{ textAlign: 'center', padding: '32px 0', color: TEXT_SUB }}>
+                                            <Image size={36} style={{ margin: '0 auto 12px', opacity: 0.3, display: 'block' }} />
+                                            <p style={{ fontSize: '13px' }}>등록된 사진이 없습니다</p>
+                                        </div>
+                                    ) : (
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '10px', marginBottom: '16px' }}>
+                                            {photos.map((photo, i) => (
+                                                <div key={photo.id} onClick={() => setFullscreenIdx(i)}
+                                                    style={{ aspectRatio: '1', borderRadius: '6px', overflow: 'hidden', cursor: 'pointer', border: `1px solid ${GOLD}` }}>
+                                                    <img src={photo.url} alt={photo.caption || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <PhotoImportModal siteId={siteId} inline={true} onDone={fetchPhotos} onClose={() => {}} />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 육성녹음 */}
+                        {activeTool === 'voice' && (
+                            <VoiceRecordingModal siteId={siteId} persons={[person]} inline={true} onClose={() => setActiveTool(null)} />
+                        )}
+
+                        {/* 초대하기 */}
+                        {activeTool === 'invite' && (
+                            <InvitationModal siteId={siteId} personId={person.id} personName={personName} museumName={`${personName} 자료실`} inline={true} onClose={() => setActiveTool(null)} />
+                        )}
+
+                        {/* 접근요청관리 */}
+                        {activeTool === 'access' && (
+                            <AccessRequestManager siteId={siteId} inline={true} onClose={() => setActiveTool(null)} />
+                        )}
+
+                        {/* 준비 중 항목 */}
+                        {['major', 'history', 'autobiography', 'works', 'album'].includes(activeTool) && (
+                            <div style={{ padding: '48px', textAlign: 'center', color: TEXT_SUB }}>
+                                <p style={{ fontSize: '14px', fontFamily: 'Georgia, "Noto Serif KR", serif' }}>준비 중입니다</p>
+                            </div>
+                        )}
+                    </div>
+                )}
             </main>
 
-            {/* Fullscreen Player */}
+            {/* 풀스크린 플레이어 */}
             {fullscreenIdx !== null && photos.length > 0 && (
                 <FullscreenPlayer
                     items={photos.map(p => ({ ...p, type: 'photo' }))}
