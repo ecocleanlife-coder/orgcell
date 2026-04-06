@@ -1,17 +1,16 @@
 /**
  * CoupleBlock.jsx — 부부/솔로 박스 컴포넌트
  *
- * - 부부: FolderCard 2개를 금색 박스로 래핑
- * - 솔로(홀부모): FolderCard 1개를 금색 박스로 래핑
- * - 박스 테두리 1.5px (커넥터 선과 동일 굵기)
- * - 부부 사이 별도 선 없음 (박스가 관계를 표현)
+ * - 부부: FolderCard 2개를 미색 배경 사각형으로 감쌈 (테두리 없음)
+ * - 솔로(홀부모): FolderCard 1개, 배경/박스 없음
+ * - VISION.md §23: 배경색 레이어는 ConnectorLine SVG보다 뒤에 위치 (z-index로 보장)
  */
 import React from 'react';
 import FolderCard from './FolderCard';
 
 const CARD_SIZE = 220;
 const GAP = 0;  // 부부 카드 간 간격 = 0 (붙어있음)
-const FRAME_COLOR = '#C4A84F';
+const COUPLE_BG = '#F9F7F2';  // 부부 배경색 (연한 미색)
 
 // ── 메인 컴포넌트 ──
 function CoupleBlock({
@@ -35,10 +34,6 @@ function CoupleBlock({
     const totalW = containerW + padding * 2;
     const totalH = containerH + padding * 2 + 10; // +10 for tab
 
-    // 박스 스타일: 주인공 부부 = 진한 금색, 일반 = 옅은 금색
-    const borderColor = '#C4A84F';
-    const containerBg = 'transparent';
-
     if (!soloNode) return null;
 
     return (
@@ -52,22 +47,23 @@ function CoupleBlock({
             data-testid="couple-block"
             data-couple={isCouple ? 'true' : 'false'}
         >
-            {/* 박스 테두리 */}
-            <div
-                style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: totalW,
-                    height: totalH,
-                    border: `1.5px solid ${borderColor}`,
-                    borderRadius: '8px',
-                    background: containerBg,
-                    boxSizing: 'border-box',
-                    pointerEvents: 'none',
-                }}
-                data-testid="couple-container"
-            />
+            {/* 부부 배경: 테두리 없음, 연한 미색만. z-index=0 → ConnectorLine SVG(z=5) 뒤에 위치 */}
+            {isCouple && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: totalW,
+                        height: totalH,
+                        borderRadius: '8px',
+                        background: COUPLE_BG,
+                        zIndex: 0,
+                        pointerEvents: 'none',
+                    }}
+                    data-testid="couple-container"
+                />
+            )}
 
             {isCouple ? (
                 <>

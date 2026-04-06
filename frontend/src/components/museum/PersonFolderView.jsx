@@ -259,6 +259,20 @@ export default function PersonFolderView() {
         }
     };
 
+    // ── 인물 제거 ─────────────────────────────────────────────────────────────
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const handleDeletePerson = async () => {
+        try {
+            await axios.delete(`/api/persons/${siteId}/${person.id}`);
+            toast.success(`${person.name || '인물'}이(가) 제거되었습니다`);
+            navigate(-1);
+        } catch {
+            toast.error('인물 제거에 실패했습니다');
+        } finally {
+            setShowDeleteConfirm(false);
+        }
+    };
+
     // ── 가족 관계 연결 공통 함수 ─────────────────────────────────────────────
     const connectRelation = async (targetId) => {
         const type = addRelationType;
@@ -542,7 +556,7 @@ export default function PersonFolderView() {
                             </div>
                         </div>
 
-                        {/* [가족 추가] [저장] 버튼 */}
+                        {/* [가족 추가] [저장] [인물 제거] 버튼 */}
                         <div style={{ display: 'flex', gap: '10px', marginTop: '18px', paddingTop: '14px', borderTop: `1px solid rgba(196,168,130,0.3)` }}>
                             <button
                                 type="button"
@@ -582,7 +596,67 @@ export default function PersonFolderView() {
                             >
                                 저장
                             </button>
+                            {role === 'owner' && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                    style={{
+                                        padding: '8px 16px',
+                                        background: 'transparent',
+                                        border: '1px solid #c0392b',
+                                        borderRight: '2px solid #922b21',
+                                        borderBottom: '2px solid #922b21',
+                                        borderRadius: '6px',
+                                        color: '#c0392b',
+                                        fontSize: '13px',
+                                        fontWeight: 'bold',
+                                        cursor: 'pointer',
+                                        fontFamily: 'Georgia, "Noto Serif KR", serif',
+                                        marginLeft: 'auto',
+                                    }}
+                                >
+                                    인물 제거
+                                </button>
+                            )}
                         </div>
+
+                        {/* 인물 제거 확인 모달 */}
+                        {showDeleteConfirm && (
+                            <div style={{
+                                position: 'fixed', inset: 0, zIndex: 200,
+                                background: 'rgba(0,0,0,0.6)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>
+                                <div style={{
+                                    background: BG, borderRadius: '12px',
+                                    padding: '28px 32px', maxWidth: '360px', width: '90%',
+                                    border: `1px solid ${GOLD}`, boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+                                    fontFamily: 'Georgia, "Noto Serif KR", serif',
+                                }}>
+                                    <p style={{ fontSize: '16px', fontWeight: 'bold', color: TEXT, marginBottom: '8px' }}>
+                                        인물 제거
+                                    </p>
+                                    <p style={{ fontSize: '14px', color: TEXT_SUB, marginBottom: '24px', lineHeight: '1.6' }}>
+                                        <strong>{person?.name}</strong> 님과 관련된 모든 관계 데이터가 함께 제거됩니다.<br />
+                                        이 작업은 되돌릴 수 없습니다.
+                                    </p>
+                                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                                        <button
+                                            onClick={() => setShowDeleteConfirm(false)}
+                                            style={{ padding: '8px 20px', background: GOLD_LIGHT, border: `1px solid ${GOLD}`, borderRadius: '6px', color: GOLD_DARK, cursor: 'pointer', fontSize: '13px' }}
+                                        >
+                                            취소
+                                        </button>
+                                        <button
+                                            onClick={handleDeletePerson}
+                                            style={{ padding: '8px 20px', background: '#c0392b', border: 'none', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}
+                                        >
+                                            제거 확인
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* 가족 추가 폼 (§9 레이아웃) */}
                         {showFamilyAdd && (

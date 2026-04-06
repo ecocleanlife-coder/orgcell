@@ -997,6 +997,20 @@ export function buildTree(persons, relations, overrideMainId = null) {
     // Z축 분류
     const rawZMap = classifyZ(mainId, maps, depthMap, byId);
 
+    // ── [진단 로그] z=1 원인 추적 ──────────────────────────────────────────
+    const _diagSpouse = (maps.spousesOf[mainId] || [])[0] || null;
+    const _diagParents = maps.parentOf[mainId] || [];
+    const _diagSpouseParents = _diagSpouse ? (maps.parentOf[_diagSpouse] || []) : [];
+    console.group('[buildTree Z진단]');
+    console.log('mainId:', mainId, '이름:', byId[mainId]?.name);
+    console.log('mainSpouse:', _diagSpouse, '이름:', byId[_diagSpouse]?.name || '(없음)');
+    console.log('mainId 부모:', _diagParents.map(p => `${p}(${byId[p]?.name})`));
+    console.log('배우자 부모:', _diagSpouseParents.map(p => `${p}(${byId[p]?.name})`));
+    console.log('mainId 부모 z값:', _diagParents.map(p => `${byId[p]?.name}=z${rawZMap[p] ?? '미분류'}`));
+    console.log('배우자 부모 z값:', _diagSpouseParents.map(p => `${byId[p]?.name}=z${rawZMap[p] ?? '미분류'}`));
+    console.groupEnd();
+    // ── [진단 로그 끝] ─────────────────────────────────────────────────────
+
     // §22 표시 범위 필터: 직계 조부모까지만 표시, 증조부모+ 숨김
     const mainSpouseId = (maps.spousesOf[mainId] || [])[0] || null;
     const directAncestors = getDirectAncestorIds(mainId, mainSpouseId, maps, DISPLAY_MAX_ANCESTOR_DEPTH);
