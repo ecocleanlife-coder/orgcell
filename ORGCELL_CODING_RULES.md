@@ -322,3 +322,41 @@ const DISPLAY_MAX_ANCESTOR_DEPTH = 2; // 조부모까지
 - 검색 결과: 해당 인물의 박물관으로 이동
 - PUBLIC 정보만 검색 가능 (PRIVATE 인물은 검색에 안 나옴)
 - 거절자(RefusedPersonBox)는 검색 결과에서 제외
+
+---
+
+## 24. 외곽선 금지 및 Couple Zone 도입
+
+### 원칙
+- **CoupleBlock 외곽선 완전 금지**: 부부 박스(CoupleBlock)에 테두리(border) 렌더링 금지
+- **솔로 노드**: 배경 없음, 박스 없음 — FolderCard 단독 표시
+- **부부 노드**: 연한 미색(`#F9F7F2`) 배경 직사각형만 표시 (테두리 없음)
+
+### Z-Index 레이어링 (CRITICAL)
+- 부부 배경 레이어: `z-index: 0` (ConnectorLine SVG 뒤에 위치)
+- ConnectorLine SVG: `z-index: 5` (배경 앞, 카드 뒤)
+- FolderCard: `z-index: 10` 이상 (SVG 앞)
+
+이 순서를 반드시 지켜야 배경 영역이 연결선을 덮지 않는다.
+
+### 코드 구현 기준 (CoupleBlock.jsx)
+```jsx
+// 부부일 때만 배경 렌더링 (테두리 없음)
+{isCouple && (
+  <div style={{
+    position: 'absolute',
+    top: 0, left: 0,
+    width: totalW, height: totalH,
+    borderRadius: '8px',
+    background: '#F9F7F2',
+    zIndex: 0,
+    pointerEvents: 'none',
+  }} />
+)}
+// 솔로일 때: 위 div 없음 — FolderCard만 렌더링
+```
+
+### 위반 사례 (금지)
+- `border: 1px solid ...` — 부부 박스에 테두리 추가 금지
+- 솔로 노드에 배경/박스 추가 금지
+- 배경 레이어 `zIndex >= 5` 설정 금지 (ConnectorLine 가림)

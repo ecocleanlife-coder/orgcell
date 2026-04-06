@@ -136,6 +136,33 @@ function buildMaps(persons, relations) {
         }
     }
 
+    // ── persons 필드 기반 관계 추가 ──────────────────────────────────────────
+    // connectRelation()은 person_relations가 아닌 persons.parent1_id / spouse_id 컬럼에 저장하므로
+    // 두 소스를 병합해야 classifyZ/depthMap이 정상 작동한다.
+    for (const p of persons) {
+        const childId = String(p.id);
+
+        for (const parentKey of ['parent1_id', 'parent2_id']) {
+            if (!p[parentKey]) continue;
+            const parentId = String(p[parentKey]);
+            if (!idSet.has(parentId)) continue;
+            if (!parentOf[childId]) parentOf[childId] = [];
+            if (!parentOf[childId].includes(parentId)) parentOf[childId].push(parentId);
+            if (!childrenOf[parentId]) childrenOf[parentId] = [];
+            if (!childrenOf[parentId].includes(childId)) childrenOf[parentId].push(childId);
+        }
+
+        if (p.spouse_id) {
+            const spouseId = String(p.spouse_id);
+            if (idSet.has(spouseId)) {
+                if (!spousesOf[childId]) spousesOf[childId] = [];
+                if (!spousesOf[childId].includes(spouseId)) spousesOf[childId].push(spouseId);
+                if (!spousesOf[spouseId]) spousesOf[spouseId] = [];
+                if (!spousesOf[spouseId].includes(childId)) spousesOf[spouseId].push(childId);
+            }
+        }
+    }
+
     return { parentOf, childrenOf, spousesOf, birthParentOf, birthChildOf, birthParentSet };
 }
 
@@ -401,20 +428,29 @@ function getSiblings(personId, maps, byId) {
  * - n = 3: 130px (COUPLE_HALF)
  * - n ≥ 4: 130 + (n - 3) × 260px
  *
- * 기하 정합성 검증:
- * placeSiblingsOf에서 edge = refEdge - SLOT_W - extra
- *   sibCenter = edge - ((sibWidth-1)*SLOT_W)/2
- * 이므로 형제 서브트리 오른쪽 끝 = sibCenter + (sibWidth-1)*SLOT_W/2 = edge
- * mainId 자녀 왼쪽 끝 = mainCenter - (n*SLOT_W)/2 + SLOT_W/2 - COUPLE_HALF
- * n=3일 때: 0 - 390 + 130 - 110 = -370
- * edge = refEdge - SLOT_W - 130 ≤ -130 - 260 - 130 = -520 < -370 ✓
- * → 형제 서브트리 오른쪽이 항상 자녀 왼쪽보다 좌측. 겹침 없음.
- * 나머지 충돌은 5단계 push-apart 패스(최대 10회)가 해소.
+ * n = 자녀 세대 총 인원수 (자녀 수 + 각 자녀의 배우자 수)
+ * n ≤ 2 → Offset = 0
+ * n = 3 → 좌우 130px (COUPLE_HALF)
+ * n ≥ 4 → 좌우 130 + (n-3)*260px
  */
-export function siblingExtraOffset(numChildren) {
-    if (numChildren <= 2) return 0;
-    if (numChildren === 3) return COUPLE_HALF;
-    return COUPLE_HALF + (numChildren - 3) * SLOT_W;
+export function siblingExtraOffset(n) {
+    if (n <= 2) return 0;
+    if (n === 3) return COUPLE_HALF;
+    return COUPLE_HALF + (n - 3) * SLOT_W;
+}
+
+/**
+ * 자녀 세대 인원수 계산: 자녀 수 + 각 자녀의 배우자 수
+ * VISION.md §3.2 n 공식 기준
+ */
+function countChildGenPersons(coupleIds, getSpouseFn, getChildrenSortedFn) {
+    const children = getChildrenSortedFn(coupleIds);
+    let n = 0;
+    for (const cid of children) {
+        n += 1;                        // 자녀 본인
+        if (getSpouseFn(cid)) n += 1;  // 자녀의 배우자
+    }
+    return n;
 }
 
 // ── CoupleBlock 레이아웃 ────────────────────────
@@ -560,10 +596,10 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
         const sibs = getSiblings(personId, maps, byId).filter(s => connSet.has(s) && !positions[s]);
         if (sibs.length === 0) return;
 
-        // 직계 자녀 수로 추가 오프셋 결정
+        // n = 자녀 세대 인원수 (자녀 + 각 자녀 배우자) 기반 오프셋 — VISION.md §3.2
         const coupleIds = [personId, getSpouse(personId)].filter(Boolean);
-        const directChildren = getChildrenSorted(coupleIds);
-        const extra = siblingExtraOffset(directChildren.length);
+        const n = countChildGenPersons(coupleIds, getSpouse, getChildrenSorted);
+        const extra = siblingExtraOffset(n);
 
         for (const sibId of sibs) {
             if (positions[sibId]) continue;
@@ -728,10 +764,10 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
                 const direction = parentX <= 0 ? -1 : 1;
                 const parentY = positions[pid].y;
 
-                // 부모의 자녀 수로 추가 오프셋 결정
+                // n = 자녀 세대 인원수 (자녀 + 각 자녀 배우자) — VISION.md §3.2
                 const pCoupleIds = [pid, getSpouse(pid)].filter(Boolean);
-                const pChildren = getChildrenSorted(pCoupleIds);
-                const extra = siblingExtraOffset(pChildren.length);
+                const pN = countChildGenPersons(pCoupleIds, getSpouse, getChildrenSorted);
+                const extra = siblingExtraOffset(pN);
 
                 for (const sibId of pSibs) {
                     if (positions[sibId]) continue;
@@ -996,20 +1032,6 @@ export function buildTree(persons, relations, overrideMainId = null) {
 
     // Z축 분류
     const rawZMap = classifyZ(mainId, maps, depthMap, byId);
-
-    // ── [진단 로그] z=1 원인 추적 ──────────────────────────────────────────
-    const _diagSpouse = (maps.spousesOf[mainId] || [])[0] || null;
-    const _diagParents = maps.parentOf[mainId] || [];
-    const _diagSpouseParents = _diagSpouse ? (maps.parentOf[_diagSpouse] || []) : [];
-    console.group('[buildTree Z진단]');
-    console.log('mainId:', mainId, '이름:', byId[mainId]?.name);
-    console.log('mainSpouse:', _diagSpouse, '이름:', byId[_diagSpouse]?.name || '(없음)');
-    console.log('mainId 부모:', _diagParents.map(p => `${p}(${byId[p]?.name})`));
-    console.log('배우자 부모:', _diagSpouseParents.map(p => `${p}(${byId[p]?.name})`));
-    console.log('mainId 부모 z값:', _diagParents.map(p => `${byId[p]?.name}=z${rawZMap[p] ?? '미분류'}`));
-    console.log('배우자 부모 z값:', _diagSpouseParents.map(p => `${byId[p]?.name}=z${rawZMap[p] ?? '미분류'}`));
-    console.groupEnd();
-    // ── [진단 로그 끝] ─────────────────────────────────────────────────────
 
     // §22 표시 범위 필터: 직계 조부모까지만 표시, 증조부모+ 숨김
     const mainSpouseId = (maps.spousesOf[mainId] || [])[0] || null;
