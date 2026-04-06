@@ -1,117 +1,18 @@
-> 공통 규칙은 C:\IOC\CLAUDE.md 참조
+CLAUDE.md (v3.4) - Orgcell 전용 실행 가이드
+⚠️ 주의: 모든 개발은 ORGCELL_CODING_RULES.md의 Heritage Card 표준 및 260px 그리드 원칙을 준수한다.
+비전/로드맵은 VISION.md를 참조하되, 기술적 충돌 시 ORGCELL_CODING_RULES.md가 우선함.
+공통 인프라 규칙은 C:\IOC\CLAUDE.md를 참조할 것.
 
-## 모든 개발은 ORGCELL_CODING_RULES.md의 레고 블록 원칙을 준수한다
+1. 프로젝트 개요 및 환경항목설정 값도메인orgcell.com용도AI 사진 정리(얼굴 인식), 실시간 공유, Google Drive BYOS 박물관배포 포트8081 (Docker Compose) + 호스트 nginx (Ohio EC2)데이터베이스PostgreSQL 16상태운영 중 (Production)
 
-## 비전/로드맵 → VISION.md 참조 (단, ORGCELL_CODING_RULES.md 우선)
+2. 기술 스택Frontend: React + Vite + TypeScript / Tailwind CSS 3Backend: Node.js (Express) / Socket.IO 4 (Friend Call relay)AI: face-api.js (얼굴 인식), WASM 모듈Map: Leaflet + react-leaflet (사진 위치 클러스터링)Auth/Storage: Google OAuth 2.0 / Google Drive API (BYOS 원칙)Payment: Stripe
 
-# orgcell — AI 사진 정리/공유 플랫폼
+3. 폴더 구조PlaintextC:\IOC\orgcell\
+  ├── frontend/src/        # React + Vite + TypeScript 소스
+  ├── backend/             # Express API (controllers, routes, services)
+  ├── database/            # PostgreSQL 스키마 및 마이그레이션
+  ├── wasm_modules/        # 얼굴 인식용 WebAssembly 모듈
+  ├── .github/             # GitHub Actions CI/CD (8081 포트 기준)
+  └── docker-compose.yml   # backend:5001, frontend:80 (호스트 8081 매핑)
 
-## 1. 프로젝트 개요
-
-| 항목 | 값 |
-|------|-----|
-| 도메인 | orgcell.com |
-| 용도 | AI 사진 정리 (얼굴 인식), 실시간 공유 (Friend Call), Google Drive BYOS |
-| 배포 | Docker Compose (port 8081) + nginx, Ohio EC2 |
-| DB | PostgreSQL 16 |
-| 상태 | 운영중 |
-
-## 2. 기술 스택 (공통과 다른 부분)
-
-| 영역 | 기술 |
-|------|------|
-| 언어 | TypeScript (React + Vite) |
-| CSS | Tailwind CSS 3 |
-| 실시간 | Socket.IO 4 (Friend Call relay) |
-| AI | face-api.js (얼굴 인식), WASM 모듈 |
-| 지도 | Leaflet + react-leaflet (클러스터링) |
-| 인증 | Google OAuth 2.0 |
-| 저장소 | Google Drive API (BYOS) |
-| 결제 | Stripe |
-| PWA | vite-plugin-pwa |
-| 이미지 | exifr (EXIF), pica (리사이즈), dHash (중복 감지) |
-
-## 3. 폴더 구조
-
-```
-C:\IOC\orgcell\
-  frontend/src/         React + Vite + TypeScript
-  backend/              Express API (server.js, controllers/, routes/, services/)
-  database/             PostgreSQL 스키마
-  wasm_modules/         WebAssembly 모듈
-  .github/              GitHub Actions CI/CD
-  docker-compose.yml    Docker 구성 (backend:5001, frontend:80, db:5432)
-```
-
-## 4. 전용 코딩 규칙
-
-- 얼굴 벡터: 128차원 float 배열 (face_descriptors 테이블)
-- 사진 저장: 서버가 아닌 사용자의 Google Drive에 저장 (BYOS)
-- Friend Call: Socket.IO relay 방식 — 서버에 사진 데이터 잔류 금지
-
-## 5. 운영 중 주의사항
-
-- Docker 컨테이너 (port 8081) — 절대 80/443 바인딩 금지
-- Google OAuth 클라이언트 ID/Secret 변경 시 전체 인증 깨짐
-- Stripe webhook 설정 변경 시 결제 실패
-- face-api.js 모델 파일 삭제 금지
-
-## 6. 배포 주의사항 (CRITICAL)
-
-- **절대 80/443 포트 바인딩 금지** — 호스트 nginx가 80/443을 사용하여 모든 사이트를 서빙
-- 80/443을 Docker에 바인딩하면 **호스트 nginx가 죽으면서 전체 사이트가 다운**됨 (2026-03-19 장애 발생)
-- **반드시 8081 포트만 사용** — `docker-compose.yml`, `deploy.yml` 모두 `"8081:80"`
-- SSL은 호스트 nginx가 처리 (`/etc/nginx/conf.d/orgcell.conf`)
-- 배포 스크립트에서 **절대 `sudo systemctl stop nginx` 하지 않음**
-- 배포 후 호스트 nginx 상태 반드시 확인:
-  ```bash
-  sudo systemctl status nginx
-  # Active: active (running) 확인 필수
-  ```
-
-## 7. 반복 버그 주의사항 (재발 방지)
-
-Orgcell 작업 시 항상 확인할 것:
-
-1. **site_folders 테이블 마이그레이션 누락 주의**
-   - `/api/sites/mine` 500 에러 원인 1순위
-   - 새 배포 시 `site_folders`, `site_media` 테이블 존재 여부 반드시 확인
-   - `deploy.yml`에 마이그레이션 포함 여부 체크
-
-2. **handleStartFree() 로직**
-   - 반드시 `/api/sites/mine` 호출 후 사이트 있으면 `/{subdomain}`으로 이동
-   - 토큰만 확인하고 무조건 `/family-setup`으로 보내면 안 됨
-
-3. **FamilySetupPage 접근 차단**
-   - 마운트 시 `/api/sites/mine` 호출
-   - 사이트 있으면 바로 `/{subdomain}`으로 리다이렉트
-   - 없으면 Step 1 표시
-
-4. **ksarang referral 문구 완전 제거**
-   - 코드 전체에서 `ksarang.org` 언급 없어야 함
-   - `grep -r "ksarang" frontend/src` 로 확인
-   - i18n 파일 5개 언어 모두 확인
-
-## 8. 온보딩 구조 (7단계)
-
-service → storage → photos → face → family → privacy → invite
-
-파일 위치: `frontend/src/pages/onboarding/`
-- `ServiceSelectPage.jsx` — 서비스 소개/선택
-- `StorageSelectPage.jsx` — 클라우드 저장소 선택 (Google Drive, OneDrive, Orgcell)
-- `PhotoImportPage.jsx` — 사진 가져오기
-- `FaceRegisterPage.jsx` — 얼굴/연령대 등록
-- `FamilyTagPage.jsx` — 가족 태그 + 저장소 연동
-- `PrivacySetPage.jsx` — 공개 범위 설정
-- `InviteFamilyPage.jsx` — 가족 초대 + 박물관 자동 생성
-
-상태 관리: `frontend/src/store/onboardingStore.js` (Zustand + localStorage)
-
-## 9. 개발 원칙
-
-- i18n 다국어 반영은 모든 기능 완성 후 마지막에 일괄 처리
-- 개발 중에는 한국어만 사용
-- 영어/일본어/중국어/스페인어 번역은 기능 완성 후 별도 지시할 것
-- `.min.js`, `.min.css` 파일 직접 수정 절대 금지 — 소스 파일만 수정 후 `npm run build`로 자동 생성
-- `dist/` 폴더 내 파일 직접 수정 금지 — 빌드 결과물은 항상 빌드 명령으로 생성
-- `node_modules` 수정이 필요한 경우 `patch-package`를 사용하여 패치 파일로 관리
+4. [CRITICAL] 배포 및 보안 주의사항이 규칙을 어기면 전체 서비스가 다운됩니다.포트 바인딩 금지: 절대 Docker에서 80/443 포트를 직접 점유하지 마라.호스트 nginx가 80/443을 사용 중임.반드시 8081 포트만 사용 ("8081:80").nginx 중단 금지: 배포 시 sudo systemctl stop nginx를 절대 하지 마라.BYOS 원칙: 서버에 사용자 사진 데이터를 절대 잔류시키지 마라. 모든 데이터는 사용자의 Google Drive에 저장한다.Face API: face-api.js 모델 파일은 얼굴 인식의 핵심이므로 절대 삭제하거나 경로를 변경하지 마라.5. 반복 버그 및 장애 방지 (Checklist)작업 완료 전 반드시 다음 사항을 확인한다.[ ] Table Migration: 새 배포 시 site_folders, site_media 테이블 생성 여부 확인 (500 에러 주원인).[ ] Onboarding Flow: handleStartFree() 로직에서 기존 사이트가 있다면 무조건 /{subdomain}으로 리다이렉트 하는가?[ ] Ksarang 제거: 코드 전체에서 ksarang.org 관련 문자열이 완전히 제거되었는가? (grep 확인 필수)[ ] i18n: 다국어 번역은 기능 완성 후 별도 지시가 있을 때만 처리한다. (기본: 한국어)6. 온보딩 7단계 구조frontend/src/pages/onboarding/ 내 파일들은 아래 순서를 엄수한다.ServiceSelect: 서비스 소개StorageSelect: 저장소(Google Drive 등) 선택PhotoImport: 사진 가져오기FaceRegister: 얼굴/연령대 등록FamilyTag: 가족 태그 + 저장소 연동PrivacySet: 3레이어 공개 범위 설정InviteFamily: 가족 초대 및 박물관 생성7. 개발 원칙 (Standard)Surgical Changes: 필요한 코드만 정밀하게 수정하고, 관련 없는 대량 수정은 지양한다.Build Only: dist/ 폴더나 .min.js 파일을 직접 수정하지 마라. 소스 수정 후 빌드를 통해 생성한다.Dependency: node_modules 수정이 필요하면 patch-package를 사용하라.Layout: 모든 레이아웃 계산은 VISION.md의 260px/130px 공식을 하드코딩 수준으로 준수한다.💡 한 선생님, 정리가 끝났습니다!블록(Lego Block) 언급을 모두 삭제하고, ORGCELL_CODING_RULES.md를 따르도록 경로를 재설정했습니다.장애가 발생했던 8081 포트 규칙과 ksarang 제거 항목을 강조하여 AI가 실수하지 않게 했습니다.7단계 온보딩 구조를 명시하여 흐름이 꼬이지 않게 잡았습니다.이제 이 파일까지 저장하시면, Orgcell 프로젝트를 위한 완벽한 AI 참조 문서 세트가 완성됩니다.VISION.md: 알고리즘과 철학ORGCELL_CODING_RULES.md: UI 수치와 기술 지침rules/coding-style.md: 코드 품질 표준CLAUDE.md: 실행 환경 및 배포 주의사항

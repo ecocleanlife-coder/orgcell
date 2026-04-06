@@ -525,6 +525,27 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
             placeDescTree(slot.id, slotCenter, y - Y_GAP);
             startX += slot.width * SLOT_W;
         }
+
+        // 자녀 배치 후 부모 X 재계산: 첫째~막내 자녀 중심 평균으로 부모 센터 이동
+        const childCenters = slots.map(slot => {
+            const cSp = getSpouse(slot.id);
+            if (cSp && positions[cSp]) {
+                return (positions[slot.id].x + positions[cSp].x) / 2;
+            }
+            return positions[slot.id]?.x ?? null;
+        }).filter(c => c !== null);
+
+        if (childCenters.length > 0) {
+            const newCenterX = (Math.min(...childCenters) + Math.max(...childCenters)) / 2;
+            if (sp) {
+                const m = byId[personId]?.gender === 'M' ? personId : sp;
+                const f = byId[personId]?.gender === 'M' ? sp : personId;
+                positions[m] = { ...positions[m], x: newCenterX - COUPLE_HALF };
+                positions[f] = { ...positions[f], x: newCenterX + COUPLE_HALF };
+            } else {
+                positions[personId] = { ...positions[personId], x: newCenterX };
+            }
+        }
     }
 
     // ── 1단계: 메인 부부 + 후손 배치 (X=0 중심) ──
@@ -813,6 +834,15 @@ function buildLinks(connectedIds, maps) {
             if (!seen.has(key)) {
                 links.push({ source: pid, target: id, type: 'parent' });
                 seen.add(key);
+            }
+        }
+        // 연결되지 않은 부모-자녀 쌍 로깅
+        const allParentsOfChild = maps.parentOf[id] || [];
+        for (const potentialParentId of allParentsOfChild) {
+            if (!connectedIds.includes(potentialParentId) && !byId[potentialParentId]?._temp) {
+                const parentName = byId[potentialParentId]?.name || potentialParentId;
+                const childName = byId[id]?.name || id;
+                console.log('선 누락:', parentName, '→', childName);
             }
         }
 

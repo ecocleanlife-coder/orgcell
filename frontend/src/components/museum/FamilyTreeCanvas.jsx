@@ -307,30 +307,33 @@ export default function FamilyTreeCanvas({
             const parentPos = couplePositions[pid];
             if (!parentPos) continue;
 
-            // 부모 선 시작점: 커플 박스 중앙이 아닌 pid 본인 카드 중앙에서 내려옴
-            const pidNode = nodesMap[pid];
-            if (!pidNode) continue;
-            const parentPersonalX = toScreenX(pidNode.x);
-
             const childEntries = [...allChildren]
                 .map(cid => {
                     const cp = couplePositions[cid];
                     const node = nodesMap[cid];
                     if (!cp || !node) return null;
-                    // 개인 위치 (커플 박스 중심이 아닌 본인 카드 중심)
+                    // 자녀 끝점: 본인 카드 상단 중앙 (VISION.md §23 — 개인 카드 중앙에서 올라감)
                     const personalX = toScreenX(node.x);
-                    return { x: personalX, y: cp.top };
+                    return { x: personalX, y: cp.top + TAB_H + BOX_PAD };
                 })
                 .filter(Boolean);
-            if (childEntries.length === 0) continue;
+
+            if (childEntries.length === 0) {
+                const pNode = nodesMap[pid];
+                for (const cid of allChildren) {
+                    const cNode = nodesMap[cid];
+                    if (cNode) console.log('선 누락:', pNode?.data?.name || pid, '→', cNode?.data?.name || cid);
+                }
+                continue;
+            }
 
             result.push({
                 key: coupleKey,
-                parentX: parentPersonalX,
-                parentY: parentPos.bottom + 5,
+                parentX: parentPos.centerX,  // 부부 박스 하단 중앙에서 내려옴
+                parentY: parentPos.bottom,
                 children: childEntries.map(cp => ({
                     x: cp.x,
-                    y: cp.y - 5,
+                    y: cp.y,
                 })),
             });
         }
