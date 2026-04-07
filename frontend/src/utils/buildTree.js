@@ -630,6 +630,7 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
         }
 
         // 자녀 배치 후 부모 X 재계산: 첫째~막내 자녀 중심 평균으로 부모 센터 이동
+        // mainId는 X=0 고정 (§23: 초기화면·이동 후 화면 정중앙 원칙) — 재계산 제외
         const childCenters = slots.map(slot => {
             const cSp = getSpouse(slot.id);
             if (cSp && positions[cSp]) {
@@ -638,7 +639,7 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
             return positions[slot.id]?.x ?? null;
         }).filter(c => c !== null);
 
-        if (childCenters.length > 0) {
+        if (childCenters.length > 0 && personId !== mainId) {
             const newCenterX = (Math.min(...childCenters) + Math.max(...childCenters)) / 2;
             if (sp) {
                 const m = byId[personId]?.gender === 'M' ? personId : sp;
@@ -998,29 +999,30 @@ function validateTree(nodes, links) {
             const dist = Math.abs(z0[i].x - z0[j].x);
             const minDist = isSpouse ? SPOUSE_DIST : SLOT_W; // 260 / 260
             if (dist < minDist) {
-                errors.push(`간격 오류: ${z0[i].data.name}과 ${z0[j].data.name} (간격: ${dist}px, 최소: ${minDist}px)`);
+                errors.push(`간격 오류: ${z0[i].data.displayName}과 ${z0[j].data.displayName} (간격: ${dist}px, 최소: ${minDist}px)`);
             }
         }
     }
 
-    // 2. 부부 인접 검사 (x 차이 = 260px)
+    // 2. 부부 인접 검사 (x 차이 = 260px) — z=0만 검사
     for (const l of spouseLinks) {
         const a = nodesMap[l.source];
         const b = nodesMap[l.target];
-        if (a && b && Math.abs(a.x - b.x) !== SPOUSE_DIST) {
-            errors.push(`부부 간격 오류: ${a.data.name}과 ${b.data.name} (간격: ${Math.abs(a.x - b.x)}px, 기대: ${SPOUSE_DIST}px)`);
+        if (!a || !b || a.z !== 0 || b.z !== 0) continue;
+        if (Math.abs(a.x - b.x) !== SPOUSE_DIST) {
+            errors.push(`부부 간격 오류: ${a.data.displayName}과 ${b.data.displayName} (간격: ${Math.abs(a.x - b.x)}px, 기대: ${SPOUSE_DIST}px)`);
         }
     }
 
-    // 3. 남좌여우 검사 (남성 x < 여성 x)
+    // 3. 남좌여우 검사 (남성 x < 여성 x) — z=0만 검사
     for (const l of spouseLinks) {
         const a = nodesMap[l.source];
         const b = nodesMap[l.target];
-        if (!a || !b) continue;
+        if (!a || !b || a.z !== 0 || b.z !== 0) continue;
         const male   = a.data.gender === 'M' ? a : b;
         const female = a.data.gender === 'M' ? b : a;
         if (male.data.gender === 'M' && female.data.gender === 'F' && male.x > female.x) {
-            errors.push(`남좌여우 위반: ${male.data.name}이 오른쪽에 있음 (남x=${male.x}, 녀x=${female.x})`);
+            errors.push(`남좌여우 위반: ${male.data.displayName}이 오른쪽에 있음 (남x=${male.x}, 녀x=${female.x})`);
         }
     }
 
@@ -1030,7 +1032,7 @@ function validateTree(nodes, links) {
         const parent = nodesMap[l.source];
         const child  = nodesMap[l.target];
         if (parent && child && parent.y !== child.y + Y_GAP) {
-            errors.push(`세대간격 오류: ${parent.data.name}→${child.data.name} (부모y=${parent.y}, 자녀y=${child.y}, 기대차=${Y_GAP})`);
+            errors.push(`세대간격 오류: ${parent.data.displayName}→${child.data.displayName} (부모y=${parent.y}, 자녀y=${child.y}, 기대차=${Y_GAP})`);
         }
     }
 
@@ -1040,7 +1042,7 @@ function validateTree(nodes, links) {
     for (const n of z1Nodes) {
         const key = `${Math.round(n.x)},${Math.round(n.y)}`;
         if (z0CoordSet.has(key)) {
-            errors.push(`§22 철칙 위반: z=1인 "${n.data.name}"이 z=0 좌표(${n.x}, ${n.y})를 가짐 — 렌더링 누락 위험`);
+            errors.push(`§22 철칙 위반: z=1인 "${n.data.displayName}"이 z=0 좌표(${n.x}, ${n.y})를 가짐 — 렌더링 누락 위험`);
         }
     }
 
@@ -1085,7 +1087,6 @@ export function buildTree(persons, relations, overrideMainId = null) {
         persons = [...persons, byId[mainId]];
         maps = buildMaps(persons, relations || []);
     }
-    console.log('[buildTree] mainId:', mainId, '(override:', overrideMainId, ')');
 
     // 가문전환 시 centerId 부부의 부모가 없으면 임시 부모 생성
     if (overrideMainId) {

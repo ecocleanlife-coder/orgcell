@@ -220,8 +220,18 @@ export default function FamilyTreeCanvas({
     const { viewport: savedViewport, setViewport, clearViewport, hasValidViewport } = useTreeViewStore();
 
     // ── 관장 부부 중심 뷰: 초기 로드 시 main couple을 화면 중앙에 배치 ──
-    // buildTree에서 mainId 부부는 x=0 중앙에 배치 (husband=-COUPLE_HALF, wife=+COUPLE_HALF, 커플 중심=0)
-    const mainScreenX = useMemo(() => toScreenX(0), [bounds]);
+    // buildTree의 mainId는 X=0 기준이지만, 자녀 재배치 후 실제 위치가 다를 수 있으므로
+    // visibleNodes에서 mainId와 배우자의 실제 x 중앙값을 사용한다.
+    const mainCoupleScreenX = useMemo(() => {
+        const mainNode = visibleNodes.find(n => n.id === mainId);
+        const spouseLink = visibleLinks.find(l => l.type === 'spouse' && (l.source === mainId || l.target === mainId));
+        const spId = spouseLink
+            ? (spouseLink.source === mainId ? spouseLink.target : spouseLink.source)
+            : null;
+        const spouseNode = spId ? visibleNodes.find(n => n.id === spId) : null;
+        if (mainNode && spouseNode) return toScreenX((mainNode.x + spouseNode.x) / 2);
+        return toScreenX(mainNode?.x ?? 0);
+    }, [visibleNodes, mainId, visibleLinks, bounds]);
     const mainScreenY = useMemo(() => toScreenY(0), [screenBounds]);
 
     // 관장 중앙 배치 함수 (🏠 버튼 + wormhole 복귀 시 사용)
@@ -230,10 +240,10 @@ export default function FamilyTreeCanvas({
         const scale = 0.55;
         const vw = window.innerWidth;
         const vh = window.innerHeight - 130;
-        const tx = vw / 2 - mainScreenX * scale;
+        const tx = vw / 2 - mainCoupleScreenX * scale;
         const ty = vh / 2 - mainScreenY * scale;
         transformRef.current.setTransform(tx, ty, scale);
-    }, [mainScreenX, mainScreenY]);
+    }, [mainCoupleScreenX, mainScreenY]);
 
     // 이전 mainId 추적 (가문전환 감지)
     const prevMainIdRef = useRef(mainId);
@@ -262,7 +272,7 @@ export default function FamilyTreeCanvas({
 
         // 기본/가문전환: 관장 부부 정중앙 배치
         setTimeout(() => { centerOnMain(); }, 50);
-    }, [visibleNodes.length, mainScreenX, mainScreenY, mainId]);
+    }, [visibleNodes.length, mainCoupleScreenX, mainScreenY, mainId]);
 
     // ── pan/zoom 변경 시 뷰포트 저장 ──
     const handleTransformChange = useCallback((ref) => {
