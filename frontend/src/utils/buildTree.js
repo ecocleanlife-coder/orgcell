@@ -436,6 +436,7 @@ function buildNodeData(person) {
         privacyVariant: person.privacy_variant || null,
         isRefused: person.is_refused || false,
         relationLabel: person.relation_label || '',
+        isVirtual: !!person._temp,  // §6조 임시 부모 노드 여부
     };
 }
 

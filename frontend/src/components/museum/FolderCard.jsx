@@ -50,6 +50,19 @@ function getCardStyle(node, isSelected, isMainPerson, hasPhoto) {
         transition: 'box-shadow 0.3s',
     };
 
+    // 가상 부모 노드 — 점선 테두리 + 반투명
+    if (node.data?.isVirtual) {
+        return {
+            ...base,
+            border: '2px dashed #C4A882',
+            borderRadius: '6px',
+            background: `${LINEN_BG}, rgba(253, 250, 244, 0.45)`,
+            opacity: 0.75,
+            cursor: 'default',
+            boxShadow: 'none',
+        };
+    }
+
     // 관장 부부 — 강한 입체감
     if (isMainPerson) {
         return {
@@ -288,6 +301,52 @@ function DeceasedBadge() {
     );
 }
 
+// ── 가상 부모 노드 Front (아직 개관전입니다) ──
+function VirtualFront({ data }) {
+    return (
+        <div
+            style={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '12px 8px',
+                boxSizing: 'border-box',
+                background: 'rgba(250, 248, 242, 0.55)',
+            }}
+        >
+            <div style={{ fontSize: '30px', marginBottom: '8px', opacity: 0.5 }}>🏛️</div>
+            <div
+                style={{
+                    fontFamily: 'Georgia, "Noto Serif KR", serif',
+                    fontSize: '11px',
+                    color: '#A89880',
+                    textAlign: 'center',
+                    lineHeight: 1.5,
+                    wordBreak: 'keep-all',
+                }}
+            >
+                아직 개관전입니다
+            </div>
+            {data.displayName && !data.displayName.includes('아버지') && !data.displayName.includes('어머니') && (
+                <div
+                    style={{
+                        fontFamily: 'Georgia, "Noto Serif KR", serif',
+                        fontSize: '10px',
+                        color: '#C4B8A8',
+                        marginTop: '6px',
+                        textAlign: 'center',
+                    }}
+                >
+                    {data.displayName}
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ── 인셋 프레임 라인 ──
 function InsetFrame() {
     return (
@@ -320,6 +379,27 @@ function FolderCard({
     const [photoFailed, setPhotoFailed] = useState(false);
     const cardRef = useRef(null);
     const isMobile = useMediaQuery('(pointer: coarse)');
+
+    // ── 가상 부모 노드 (아직 개관전입니다) ──
+    if (data.isVirtual) {
+        const virtualStyle = getCardStyle(node, false, false, false);
+        return (
+            <div
+                style={{
+                    ...externalStyle,
+                    position: externalStyle?.position || 'relative',
+                    paddingTop: TAB_H,
+                }}
+                data-testid="folder-card-virtual"
+            >
+                <FolderTab gender={data.gender} isDeceased={false} />
+                <div style={virtualStyle}>
+                    <InsetFrame />
+                    <VirtualFront data={data} />
+                </div>
+            </div>
+        );
+    }
 
     // ── 거절자 빈 레고 박스: privacyLevel=private + isRefused=true ──
     const isRefused = data.privacyLevel === 'private' && data.isRefused;

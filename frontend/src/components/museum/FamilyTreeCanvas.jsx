@@ -72,7 +72,7 @@ function calcBounds(nodes) {
 }
 
 // ── 줌 컨트롤 ──
-function ZoomControls({ zoomIn, zoomOut, resetTransform, onCenterMain }) {
+function ZoomControls({ zoomIn, zoomOut, resetTransform, onCenterMain, onAutoFit }) {
     const btnStyle = {
         width: 32, height: 32,
         border: '1px solid #C4A84F',
@@ -90,6 +90,7 @@ function ZoomControls({ zoomIn, zoomOut, resetTransform, onCenterMain }) {
         <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 20, display: 'flex', gap: 6 }}>
             <button style={btnStyle} onClick={() => zoomIn()} title="확대">+</button>
             <button style={btnStyle} onClick={() => zoomOut()} title="축소">−</button>
+            <button style={{ ...btnStyle, fontSize: '12px' }} onClick={() => onAutoFit ? onAutoFit() : resetTransform()} title="전체 보기 (Auto-Fit)">⊡</button>
             <button style={{ ...btnStyle, fontSize: '12px' }} onClick={() => onCenterMain ? onCenterMain() : resetTransform()} title="관장 중앙 배치">🏠</button>
         </div>
     );
@@ -245,6 +246,55 @@ export default function FamilyTreeCanvas({
         transformRef.current.setTransform(tx, ty, scale);
     }, [mainCoupleScreenX, mainScreenY]);
 
+    // ⊡ Auto-Fit: 전체 노드가 뷰포트에 꽉 차도록 scale·위치 자동 계산
+    const autoFit = useCallback(() => {
+        if (!transformRef.current || visibleNodes.length === 0) return;
+        const PADDING = 80; // px (상하좌우 여백)
+        const vw = window.innerWidth;
+        const vh = window.innerHeight - 130;
+
+        // 각 노드의 스크린 좌표 (toScreenX/Y 인라인 계산)
+        const screenXs = visibleNodes.map(n => n.x - bounds.minX);
+        const screenYsArr = visibleNodes.map(n => -n.y - screenBounds.minY);
+
+        const minSX = Math.min(...screenXs) - CARD_HALF;
+        const maxSX = Math.max(...screenXs) + CARD_HALF;
+        const minSY = Math.min(...screenYsArr) - CARD_HALF - TAB_H;
+        const maxSY = Math.max(...screenYsArr) + CARD_HALF;
+
+        const treeW = maxSX - minSX;
+        const treeH = maxSY - minSY;
+        if (treeW <= 0 || treeH <= 0) return;
+
+        const fitScale = Math.max(
+            0.12,
+            Math.min((vw - PADDING * 2) / treeW, (vh - PADDING * 2) / treeH, 0.85),
+        );
+
+        const treeCenterSX = (minSX + maxSX) / 2;
+        const treeCenterSY = (minSY + maxSY) / 2;
+
+        const tx = vw / 2 - treeCenterSX * fitScale;
+        const ty = vh / 2 - treeCenterSY * fitScale;
+
+        // 600ms 부드러운 이징으로 전환
+        transformRef.current.setTransform(tx, ty, fitScale, 600, 'easeOut');
+    }, [visibleNodes, bounds, screenBounds]);
+
+    // ── 렌더 순서: 중심(main)에서 가까운 row → 가까운 col 순 (순차 애니메이션용) ──
+    // 정렬 기준: |y| 오름차순 (main row 먼저) → |x| 오름차순 (center 먼저)
+    const couplesSorted = useMemo(() => {
+        return [...couples].sort((a, b) => {
+            const na = a.husband || a.wife;
+            const nb = b.husband || b.wife;
+            if (!na || !nb) return 0;
+            const rowA = Math.abs(na.y);
+            const rowB = Math.abs(nb.y);
+            if (rowA !== rowB) return rowA - rowB;
+            return Math.abs(na.x) - Math.abs(nb.x);
+        });
+    }, [couples]);
+
     // 이전 mainId 추적 (가문전환 감지)
     const prevMainIdRef = useRef(mainId);
 
@@ -270,8 +320,11 @@ export default function FamilyTreeCanvas({
             return;
         }
 
-        // 기본/가문전환: 관장 부부 정중앙 배치
-        setTimeout(() => { centerOnMain(); }, 50);
+        // 기본/가문전환: Auto-Fit → 전체 노드가 뷰포트에 맞도록
+        // 순차 애니메이션 종료 후 타이밍: 마지막 노드 delay + 스프링 완료 추정 800ms
+        const totalAnimMs = Math.max(0, (couples.length - 1) * 300) + 900;
+        setTimeout(() => { autoFit(); }, 50);           // 즉시 초기 fit (레이아웃 기준)
+        setTimeout(() => { autoFit(); }, totalAnimMs);  // 전 노드 등장 완료 후 재fit
     }, [visibleNodes.length, mainCoupleScreenX, mainScreenY, mainId]);
 
     // ── pan/zoom 변경 시 뷰포트 저장 ──
@@ -469,7 +522,7 @@ export default function FamilyTreeCanvas({
             >
                 {({ zoomIn, zoomOut, resetTransform }) => (
                     <>
-                        <ZoomControls zoomIn={zoomIn} zoomOut={zoomOut} resetTransform={resetTransform} onCenterMain={centerOnMain} />
+                        <ZoomControls zoomIn={zoomIn} zoomOut={zoomOut} resetTransform={resetTransform} onCenterMain={centerOnMain} onAutoFit={autoFit} />
                         <TransformComponent
                             wrapperStyle={{ width: '100%', height: '100%' }}
                             contentStyle={{ width: canvasW, height: realCanvasH }}
@@ -504,12 +557,20 @@ export default function FamilyTreeCanvas({
                                     ))}
                                 </svg>
 
-                                {/* 모든 노드를 CoupleBlock으로 렌더링 (부부 + 솔로) */}
-                                {couples.map((couple) => {
+                                {/* 모든 노드를 CoupleBlock으로 렌더링 (부부 + 솔로) — 중심→외곽 순차 등장 */}
+                                {couplesSorted.map((couple, renderIdx) => {
                                     const { husband, wife } = couple;
                                     const isCouple = !!(husband && wife);
                                     const soloNode = husband || wife;
                                     if (!soloNode) return null;
+
+                                    // 0.3초 간격 순차 등장 딜레이
+                                    const appearDelay = renderIdx * 0.3;
+                                    const appearTransition = {
+                                        ...springTransition,
+                                        opacity: { duration: 0.35, delay: appearDelay },
+                                        scale:   { duration: 0.35, delay: appearDelay, ease: 'easeOut' },
+                                    };
 
                                     if (isCouple) {
                                         const leftNode = husband.x < wife.x ? husband : wife;
@@ -522,12 +583,14 @@ export default function FamilyTreeCanvas({
                                         return (
                                             <motion.div
                                                 key={`couple|${mainId}|${husband.id}|${wife.id}`}
-                                                initial={false}
+                                                initial={{ opacity: 0, scale: 0.85 }}
                                                 animate={{
+                                                    opacity: 1,
+                                                    scale: 1,
                                                     left: toScreenX(leftNode.x) - CARD_HALF - BOX_PAD,
                                                     top: toScreenY(leftNode.y) - CARD_HALF - TAB_H - BOX_PAD,
                                                 }}
-                                                transition={springTransition}
+                                                transition={appearTransition}
                                                 style={{
                                                     position: 'absolute',
                                                     zIndex: isMain ? 3 : 1,
@@ -552,12 +615,14 @@ export default function FamilyTreeCanvas({
                                     return (
                                         <motion.div
                                             key={`solo|${mainId}|${soloNode.id}`}
-                                            initial={false}
+                                            initial={{ opacity: 0, scale: 0.85 }}
                                             animate={{
+                                                opacity: 1,
+                                                scale: 1,
                                                 left: toScreenX(soloNode.x) - CARD_HALF - BOX_PAD,
                                                 top: toScreenY(soloNode.y) - CARD_HALF - TAB_H - BOX_PAD,
                                             }}
-                                            transition={springTransition}
+                                            transition={appearTransition}
                                             style={{
                                                 position: 'absolute',
                                                 zIndex: soloNode.id === mainId ? 3 : 1,
