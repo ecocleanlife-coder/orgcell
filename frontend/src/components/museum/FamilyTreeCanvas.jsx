@@ -111,6 +111,7 @@ export default function FamilyTreeCanvas({
     const [internalSelectedId, setInternalSelectedId] = useState(null);
     const selectedId = externalSelectedId ?? internalSelectedId;
     const transformRef = useRef(null);
+    const clickTimerRef = useRef(null);
 
     // ── 박물관 이동 확인 모달 ──
     const [navConfirm, setNavConfirm] = useState(null);    // { nodeId, name } | null
@@ -121,6 +122,12 @@ export default function FamilyTreeCanvas({
         for (const n of nodes) m[n.id] = n;
         return m;
     }, [nodes]);
+
+    // 관장 배우자 ID (더블클릭 구분용)
+    const mainSpouseId = useMemo(() => {
+        const link = links.find(l => l.type === 'spouse' && (l.source === mainId || l.target === mainId));
+        return link ? (link.source === mainId ? link.target : link.source) : null;
+    }, [links, mainId]);
 
     // Wormhole: 오직 setMainPersonId만 호출. 애니메이션/transition/setTimeout 없음.
     const handleWormhole = useCallback((newMainId) => {
@@ -139,37 +146,40 @@ export default function FamilyTreeCanvas({
         }
     }, [onWormhole, mainId]);
 
+    // Bug1 fix: 250ms 디바운스로 싱글/더블클릭 구분
+    // 관장(mainId) 또는 관장 배우자(mainSpouseId) 클릭은 자료실 진입
     const handleCardClick = useCallback((nodeId) => {
-        // 관장 본인 클릭: 기존 동작 (선택/자료실 진입)
-        if (nodeId === mainId) {
-            if (externalOnClick) externalOnClick(nodeId);
-            else setInternalSelectedId(nodeId);
-            return;
-        }
-        // 타인 카드 클릭: 이동 확인 모달 표시 (§6조)
-        const node = nodesMap[nodeId];
-        const name = node?.data?.displayName || node?.data?.name || '?';
-        setNavConfirm({ nodeId, name });
-    }, [externalOnClick, mainId, nodesMap]);
+        if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+        clickTimerRef.current = setTimeout(() => {
+            clickTimerRef.current = null;
+            if (nodeId === mainId || nodeId === mainSpouseId) {
+                if (externalOnClick) externalOnClick(nodeId);
+                else setInternalSelectedId(nodeId);
+                return;
+            }
+            const node = nodesMap[nodeId];
+            const name = node?.data?.displayName || node?.data?.name || '?';
+            setNavConfirm({ nodeId, name });
+        }, 250);
+    }, [externalOnClick, mainId, mainSpouseId, nodesMap]);
 
-    // 확인 → 전환 효과 후 이동
+    // Bug3 fix: 항상 handleWormhole 호출, setTransitioning은 1500ms 후 해제
     const handleNavConfirm = useCallback(() => {
         if (!navConfirm) return;
-        const { nodeId, name } = navConfirm;
+        const { nodeId } = navConfirm;
         setNavConfirm(null);
-        setTransitioning({ name });
-        setTimeout(() => {
-            if (externalOnClick) externalOnClick(nodeId);
-            else handleWormhole(nodeId);
-            setTransitioning(null);
-        }, 900);
-    }, [navConfirm, externalOnClick, handleWormhole]);
+        setTransitioning({ name: navConfirm.name });
+        handleWormhole(nodeId);
+        setTimeout(() => setTransitioning(null), 1500);
+    }, [navConfirm, handleWormhole]);
 
-    // onCardDoubleClick 래핑
+    // 더블클릭: 타이머 취소 후 자료실 진입
     const handleCardDoubleClick = useCallback((nodeId) => {
-        if (externalOnDoubleClick) {
-            externalOnDoubleClick(nodeId);
+        if (clickTimerRef.current) {
+            clearTimeout(clickTimerRef.current);
+            clickTimerRef.current = null;
         }
+        if (externalOnDoubleClick) externalOnDoubleClick(nodeId);
     }, [externalOnDoubleClick]);
 
     // z=0만 표시 (타가문 숨김)
@@ -503,7 +513,7 @@ export default function FamilyTreeCanvas({
                                                 transition={springTransition}
                                                 style={{
                                                     position: 'absolute',
-                                                    zIndex: 1,
+                                                    zIndex: isMain ? 3 : 1,
                                                 }}
                                             >
                                                 <CoupleBlock
@@ -532,7 +542,7 @@ export default function FamilyTreeCanvas({
                                             transition={springTransition}
                                             style={{
                                                 position: 'absolute',
-                                                zIndex: 1,
+                                                zIndex: soloNode.id === mainId ? 3 : 1,
                                             }}
                                         >
                                             <CoupleBlock
