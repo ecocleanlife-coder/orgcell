@@ -60,6 +60,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
     // 가계도 중심 인물 (URL ?person= 으로 초기값 설정)
     const [mainPersonId, setMainPersonId] = useState(initialPersonId || null);
+    // Canvas 강제 리마운트 카운터: mainPersonId 변경 시 증가 → key 변경 → 완전 재마운트
+    const [navKey, setNavKey] = useState(0);
 
     // 클릭 확인 모달
     const [confirmTarget, setConfirmTarget] = useState(null); // {person}
@@ -108,6 +110,14 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         setMainPersonId(initialPersonId || null);
         useTreeViewStore.getState().clearViewport();
     }, [siteId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // mainPersonId 변경(같은 박물관 내 인물 이동) 시 viewport 강제 초기화
+    // — 이전 좌표 캐시가 새 트리에 유입되는 것 방지
+    useEffect(() => {
+        sessionStorage.removeItem('orgcell_tree_viewport');
+        sessionStorage.removeItem('familyTree_state');
+        useTreeViewStore.getState().clearViewport();
+    }, [mainPersonId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // PersonFolderView에서 가족 저장 후 플래그가 세워지면 즉시 재조회
     const personsNeedRefresh = useTreeViewStore((s) => s.personsNeedRefresh);
@@ -799,7 +809,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             {/* FamilyTreeCanvas 렌더링 — key로 DOM 완전 초기화 */}
             <div className="relative w-full" style={{ height: 'calc(100vh - 130px)', minHeight: '500px' }}>
                 <FamilyTreeCanvas
-                    key={treeData.mainId || 'canvas'}
+                    key={`nav-${navKey}-${treeData.mainId || 'canvas'}`}
                     nodes={treeData.nodes}
                     links={treeData.links}
                     mainId={treeData.mainId}
@@ -808,7 +818,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                     onWormhole={(personId) => {
                         console.log('[FamilyTreeView] onWormhole 콜백:', mainPersonId, '→', String(personId));
                         sessionStorage.removeItem('orgcell_tree_viewport');
+                        sessionStorage.removeItem('familyTree_state');
                         useTreeViewStore.getState().clearViewport();
+                        setNavKey(prev => prev + 1);  // Canvas 강제 리마운트
                         setMainPersonId(String(personId));
                     }}
                     onHome={() => {

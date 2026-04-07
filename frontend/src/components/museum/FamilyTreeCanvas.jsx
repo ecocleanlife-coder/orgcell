@@ -521,7 +521,8 @@ export default function FamilyTreeCanvas({
 
                                         return (
                                             <motion.div
-                                                key={`couple-${husband.id}-${wife.id}`}
+                                                key={`couple|${mainId}|${husband.id}|${wife.id}`}
+                                                initial={false}
                                                 animate={{
                                                     left: toScreenX(leftNode.x) - CARD_HALF - BOX_PAD,
                                                     top: toScreenY(leftNode.y) - CARD_HALF - TAB_H - BOX_PAD,
@@ -550,7 +551,8 @@ export default function FamilyTreeCanvas({
                                     const soloChildIds = [...(childrenMap[soloNode.id] || [])];
                                     return (
                                         <motion.div
-                                            key={soloNode.id}
+                                            key={`solo|${mainId}|${soloNode.id}`}
+                                            initial={false}
                                             animate={{
                                                 left: toScreenX(soloNode.x) - CARD_HALF - BOX_PAD,
                                                 top: toScreenY(soloNode.y) - CARD_HALF - TAB_H - BOX_PAD,
