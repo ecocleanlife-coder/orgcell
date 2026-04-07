@@ -359,12 +359,8 @@ function applyPaternalFilter(zMap, maps, byId, mainId, spouseId, depthMap) {
     const { parentOf, spousesOf } = maps;
 
     function hideSiblings(parentId) {
-        const sibs = Object.keys(result).filter(id => {
-            if (id === parentId) return false;
-            const parentsOfId = parentOf[id] || [];
-            const parentsOfParent = parentOf[parentId] || [];
-            return parentsOfParent.length > 0 && parentsOfId.some(p => parentsOfParent.includes(p));
-        });
+        // getSiblings: 같은 부모를 공유하는 인물 목록 (안정적, 조부모 데이터 불필요)
+        const sibs = getSiblings(parentId, maps, byId);
         for (const sibId of sibs) {
             result[sibId] = 1;
             for (const spId of (spousesOf[sibId] || [])) result[spId] = 1;
@@ -701,7 +697,8 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
             if (sibs.length > 0) {
                 centerX = (Math.min(...groupXs) + Math.max(...groupXs)) / 2;
             } else {
-                centerX = positions[personId].x + (side === 'left' ? -COUPLE_HALF : COUPLE_HALF);
+                // §3.5 개별 직계 정렬: 당사자 X ± 40px
+                centerX = positions[personId].x + (side === 'left' ? -40 : +40);
             }
 
             const depth = (depthMap[personId] || 0) + 1;
@@ -751,7 +748,8 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
         if (sibs.length > 0) {
             centerX = (Math.min(...groupXs) + Math.max(...groupXs)) / 2;
         } else {
-            centerX = positions[personId].x + (side === 'left' ? -COUPLE_HALF : COUPLE_HALF);
+            // §3.5 개별 직계 정렬: 당사자 X ± 40px (부부 중앙이 아닌 자녀 수직 위에 밀착)
+            centerX = positions[personId].x + (side === 'left' ? -40 : +40);
         }
 
         const depth = (depthMap[personId] || 0) + 1;

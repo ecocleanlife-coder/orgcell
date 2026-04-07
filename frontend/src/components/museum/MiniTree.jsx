@@ -127,10 +127,14 @@ export default function MiniTree({ persons = [], relations = [], currentPersonId
             minWidth: 140,
             userSelect: 'none',
         }}>
-            {/* 부모 행 */}
+            {/* 부모 행: §3.5 개별 직계 정렬 — "나" 카드 수직 위에 배치 */}
             {(parent1 || parent2) && (
                 <>
-                    <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end' }}>
+                    <div style={{
+                        display: 'flex', gap: 4, alignItems: 'flex-end',
+                        // me가 male(왼쪽)이면 부모 행도 왼쪽 정렬; female(오른쪽)이면 오른쪽 정렬
+                        alignSelf: me.gender !== 'F' ? 'flex-start' : 'flex-end',
+                    }}>
                         {parent1 && <MiniCard person={parent1} isMe={false} subdomain={subdomain} onClick={handleClick} />}
                         {parent2 && <MiniCard person={parent2} isMe={false} subdomain={subdomain} onClick={handleClick} />}
                     </div>

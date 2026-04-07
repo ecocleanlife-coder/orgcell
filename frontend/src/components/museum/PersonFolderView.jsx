@@ -287,6 +287,27 @@ export default function PersonFolderView() {
         }
     };
 
+    // ── 가족 관계 제거 ────────────────────────────────────────────────────────
+    const handleRemoveRelation = async (relKey, targetId) => {
+        if (!person || !siteId) return;
+        try {
+            if (relKey === 'child') {
+                // 자녀의 parent 필드를 null로
+                await axios.put(`/api/persons/${siteId}/${targetId}`, { parent1_id: null, parent2_id: null });
+                setAllPersons(prev => prev.map(p =>
+                    String(p.id) === String(targetId) ? { ...p, parent1_id: null, parent2_id: null } : p
+                ));
+            } else {
+                // parent1_id | parent2_id | spouse_id 를 null로
+                await axios.put(`/api/persons/${siteId}/${person.id}`, { [relKey]: null });
+                setPerson(prev => ({ ...prev, [relKey]: null }));
+            }
+            toast.success('관계가 제거되었습니다');
+        } catch {
+            toast.error('관계 제거에 실패했습니다');
+        }
+    };
+
     // ── [생성] 버튼: 새 인물 생성 후 연결 ────────────────────────────────────
     const handleCreateAndConnect = async () => {
         if (!person || !siteId) return;
@@ -575,7 +596,7 @@ export default function PersonFolderView() {
                                     fontFamily: 'Georgia, "Noto Serif KR", serif',
                                 }}
                             >
-                                가족 추가
+                                가족 관리
                             </button>
                             <button
                                 type="button"
@@ -658,9 +679,51 @@ export default function PersonFolderView() {
                             </div>
                         )}
 
-                        {/* 가족 추가 폼 (§9 레이아웃) */}
+                        {/* 가족 관리 패널 (§9 레이아웃) */}
                         {showFamilyAdd && (
                             <div style={{ marginTop: '16px', padding: '16px', background: GOLD_LIGHT, borderRadius: '6px', border: `1px solid ${GOLD}` }}>
+
+                                {/* ── 현재 가족 관계 목록 ──────────────────── */}
+                                {(() => {
+                                    const currentRels = [];
+                                    if (person.parent1_id) {
+                                        const p = allPersons.find(p => String(p.id) === String(person.parent1_id));
+                                        if (p) currentRels.push({ relKey: 'parent1_id', label: `부: ${p.name}`, targetId: p.id });
+                                    }
+                                    if (person.parent2_id) {
+                                        const p = allPersons.find(p => String(p.id) === String(person.parent2_id));
+                                        if (p) currentRels.push({ relKey: 'parent2_id', label: `모: ${p.name}`, targetId: p.id });
+                                    }
+                                    if (person.spouse_id) {
+                                        const p = allPersons.find(p => String(p.id) === String(person.spouse_id));
+                                        if (p) currentRels.push({ relKey: 'spouse_id', label: `배우자: ${p.name}`, targetId: p.id });
+                                    }
+                                    const children = allPersons.filter(p =>
+                                        String(p.parent1_id) === String(person.id) || String(p.parent2_id) === String(person.id)
+                                    );
+                                    children.forEach(c => currentRels.push({ relKey: 'child', label: `자녀: ${c.name}`, targetId: c.id }));
+
+                                    if (currentRels.length === 0) return null;
+                                    return (
+                                        <div style={{ marginBottom: '14px' }}>
+                                            <div style={{ fontSize: '11px', color: GOLD_DARK, fontFamily: 'Georgia, "Noto Serif KR", serif', marginBottom: '6px', fontWeight: 'bold' }}>현재 가족 관계</div>
+                                            {currentRels.map(({ relKey, label, targetId }) => (
+                                                <div key={relKey + targetId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: '4px', background: '#fff', borderRadius: '4px', border: `1px solid ${GOLD}` }}>
+                                                    <span style={{ fontSize: '12px', color: TEXT, fontFamily: 'Georgia, "Noto Serif KR", serif' }}>{label}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveRelation(relKey, targetId)}
+                                                        style={{ padding: '3px 10px', background: 'transparent', border: '1px solid #c0392b', borderRadius: '4px', color: '#c0392b', fontSize: '11px', cursor: 'pointer', fontFamily: 'Georgia, "Noto Serif KR", serif' }}
+                                                    >
+                                                        제거
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            <div style={{ borderTop: `1px solid rgba(196,168,130,0.4)`, margin: '10px 0 12px' }} />
+                                        </div>
+                                    );
+                                })()}
+
                                 {/* 이름 입력 */}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                                     <span style={{ color: GOLD_DARK, fontSize: '12px', whiteSpace: 'nowrap', fontFamily: 'Georgia, "Noto Serif KR", serif' }}>이름:</span>

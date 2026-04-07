@@ -112,6 +112,10 @@ export default function FamilyTreeCanvas({
     const selectedId = externalSelectedId ?? internalSelectedId;
     const transformRef = useRef(null);
 
+    // ── 박물관 이동 확인 모달 ──
+    const [navConfirm, setNavConfirm] = useState(null);    // { nodeId, name } | null
+    const [transitioning, setTransitioning] = useState(null); // { name } | null
+
     const nodesMap = useMemo(() => {
         const m = {};
         for (const n of nodes) m[n.id] = n;
@@ -136,12 +140,30 @@ export default function FamilyTreeCanvas({
     }, [onWormhole, mainId]);
 
     const handleCardClick = useCallback((nodeId) => {
-        if (externalOnClick) {
-            externalOnClick(nodeId);
-        } else {
-            setInternalSelectedId(nodeId);
+        // 관장 본인 클릭: 기존 동작 (선택/자료실 진입)
+        if (nodeId === mainId) {
+            if (externalOnClick) externalOnClick(nodeId);
+            else setInternalSelectedId(nodeId);
+            return;
         }
-    }, [externalOnClick]);
+        // 타인 카드 클릭: 이동 확인 모달 표시 (§6조)
+        const node = nodesMap[nodeId];
+        const name = node?.data?.displayName || node?.data?.name || '?';
+        setNavConfirm({ nodeId, name });
+    }, [externalOnClick, mainId, nodesMap]);
+
+    // 확인 → 전환 효과 후 이동
+    const handleNavConfirm = useCallback(() => {
+        if (!navConfirm) return;
+        const { nodeId, name } = navConfirm;
+        setNavConfirm(null);
+        setTransitioning({ name });
+        setTimeout(() => {
+            if (externalOnClick) externalOnClick(nodeId);
+            else handleWormhole(nodeId);
+            setTransitioning(null);
+        }, 900);
+    }, [navConfirm, externalOnClick, handleWormhole]);
 
     // onCardDoubleClick 래핑
     const handleCardDoubleClick = useCallback((nodeId) => {
@@ -358,6 +380,59 @@ export default function FamilyTreeCanvas({
             }}
             data-testid="tree-canvas"
         >
+            {/* ── 박물관 이동 확인 모달 (§6조) ── */}
+            {navConfirm && (
+                <div style={{
+                    position: 'absolute', inset: 0, zIndex: 100,
+                    background: 'rgba(0,0,0,0.65)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                    <div style={{
+                        background: '#FDF8F0', borderRadius: '12px',
+                        padding: '28px 32px', maxWidth: '340px', width: '90%',
+                        border: '1px solid #C4A882', boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
+                        fontFamily: 'Georgia, "Noto Serif KR", serif', textAlign: 'center',
+                    }}>
+                        <p style={{ fontSize: '16px', fontWeight: 'bold', color: '#3a3020', marginBottom: '8px' }}>
+                            박물관 이동
+                        </p>
+                        <p style={{ fontSize: '14px', color: '#7a6a50', marginBottom: '24px', lineHeight: '1.7' }}>
+                            <strong style={{ color: '#8B7355' }}>{navConfirm.name}</strong> 님의<br />
+                            박물관으로 이동하시겠습니까?
+                        </p>
+                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                            <button
+                                onClick={() => setNavConfirm(null)}
+                                style={{ padding: '8px 22px', background: 'rgba(196,168,130,0.15)', border: '1px solid #C4A882', borderRadius: '6px', color: '#8B7355', cursor: 'pointer', fontSize: '13px' }}
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={handleNavConfirm}
+                                style={{ padding: '8px 22px', background: '#8B7355', border: 'none', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}
+                            >
+                                이동
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── 전환 오버레이 ── */}
+            {transitioning && (
+                <div style={{
+                    position: 'absolute', inset: 0, zIndex: 90,
+                    background: '#1E1A14',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    gap: '16px',
+                }}>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', border: '3px solid #C4A84F', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+                    <p style={{ color: '#C4A84F', fontSize: '15px', fontFamily: 'Georgia, "Noto Serif KR", serif' }}>
+                        <strong>{transitioning.name}</strong> 님의 박물관으로 이동합니다...
+                    </p>
+                </div>
+            )}
+
             <TransformWrapper
                 ref={transformRef}
                 initialScale={0.55}
