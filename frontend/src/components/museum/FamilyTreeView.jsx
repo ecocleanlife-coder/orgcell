@@ -10,6 +10,7 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
 import FamilyTreeCanvas from './FamilyTreeCanvas';
+import GenealogyList from './GenealogyList';
 import InvitationModal from './InvitationModal';
 import PhotoEditor from './PhotoEditor';
 import AccessDeniedModal from './AccessDeniedModal';
@@ -62,6 +63,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     const [mainPersonId, setMainPersonId] = useState(initialPersonId || null);
     // Canvas 강제 리마운트 카운터: mainPersonId 변경 시 증가 → key 변경 → 완전 재마운트
     const [navKey, setNavKey] = useState(0);
+
+    // 가계도 목록 사이드바 토글
+    const [showList, setShowList] = useState(false);
 
     // 클릭 확인 모달
     const [confirmTarget, setConfirmTarget] = useState(null); // {person}
@@ -835,17 +839,56 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                     }}
                     style={{ width: '100%', height: '100%' }}
                 />
+
+                {/* ── 가계도 목록 토글 버튼 (좌측 상단) ── */}
+                <button
+                    onClick={() => setShowList(v => !v)}
+                    title={lang === 'ko' ? '가계도 색인 열기' : 'Open genealogy list'}
+                    style={{
+                        position: 'absolute', top: 12, left: 12, zIndex: 20,
+                        width: 34, height: 34,
+                        background: showList ? 'rgba(196,168,79,0.25)' : 'rgba(30,26,20,0.9)',
+                        border: `1px solid ${showList ? '#C4A84F' : '#C4A84F'}`,
+                        borderRadius: 4,
+                        color: '#C4A84F',
+                        fontSize: 16,
+                        cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                >
+                    ≡
+                </button>
+
                 {mainPersonId && (
                     <button
                         onClick={() => {
                             window.location.href = `/${subdomainProp || subdomain}`;
                         }}
-                        className="absolute top-4 left-4 z-10 px-4 py-2 bg-white/90 dark:bg-gray-800/90 rounded-xl shadow-lg border border-gray-200 dark:border-gray-600 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-white transition-colors"
+                        className="absolute z-10 px-4 py-2 bg-white/90 dark:bg-gray-800/90 rounded-xl shadow-lg border border-gray-200 dark:border-gray-600 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-white transition-colors"
+                        style={{ top: 56, left: 12 }}
                     >
                         {lang === 'ko' ? '🏠 원래 가문으로' : '🏠 Back to main family'}
                     </button>
                 )}
             </div>
+
+            {/* ── 가계도 색인 사이드바 (position:fixed 오버레이) ── */}
+            {showList && (
+                <GenealogyList
+                    nodes={treeData.nodes}
+                    mainPersonId={mainPersonId || treeData.mainId}
+                    onWormhole={(personId) => {
+                        sessionStorage.removeItem('orgcell_tree_viewport');
+                        sessionStorage.removeItem('familyTree_state');
+                        useTreeViewStore.getState().clearViewport();
+                        setNavKey(prev => prev + 1);
+                        setMainPersonId(String(personId));
+                        const targetPerson = persons.find(p => String(p.id) === String(personId));
+                        if (onMainPersonChange && targetPerson?.name) onMainPersonChange(targetPerson.name);
+                    }}
+                    onClose={() => setShowList(false)}
+                />
+            )}
 
             {/* ── 클릭 확인 모달 (규칙서 4번) ── */}
             {confirmTarget && (
