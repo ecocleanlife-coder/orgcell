@@ -1061,8 +1061,14 @@ function validateTree(nodes, links) {
  * @returns {{ nodes, links, mainId, constants }}
  */
 export function buildTree(persons, relations, overrideMainId = null) {
+    // §6조: overrideMainId가 있으면 빈 배열도 허용 (임시 노드 생성 경로)
     if (!persons || persons.length === 0) {
-        return { nodes: [], links: [], mainId: null, constants: { SLOT_W, Y_GAP, CARD_W, CARD_GAP } };
+        if (!overrideMainId) {
+            return { nodes: [], links: [], mainId: null, constants: { SLOT_W, Y_GAP, CARD_W, CARD_GAP } };
+        }
+        // 유령 회원: persons 없이 overrideMainId만 있는 경우 → 스텁 생성
+        persons = [];
+        relations = [];
     }
 
     const byId = {};
@@ -1072,6 +1078,13 @@ export function buildTree(persons, relations, overrideMainId = null) {
 
     let maps = buildMaps(persons, relations || []);
     const mainId = overrideMainId ? String(overrideMainId) : pickMainId(persons);
+
+    // §6조 보완: overrideMainId가 byId에 없으면 스텁 추가 (유령 회원 방어)
+    if (overrideMainId && !byId[mainId]) {
+        byId[mainId] = { id: mainId, name: '?', gender: 'M', oc_id: '' };
+        persons = [...persons, byId[mainId]];
+        maps = buildMaps(persons, relations || []);
+    }
     console.log('[buildTree] mainId:', mainId, '(override:', overrideMainId, ')');
 
     // 가문전환 시 centerId 부부의 부모가 없으면 임시 부모 생성

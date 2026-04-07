@@ -155,7 +155,7 @@ export default function PersonFolderView() {
     const [pendingPhotoFile, setPendingPhotoFile] = useState(null);
 
     // ── 가족 추가 상태 ───────────────────────────────────────────────────────
-    const [showFamilyAdd, setShowFamilyAdd]     = useState(false);
+    const [showFamilyAdd, setShowFamilyAdd]     = useState(true); // 항상 노출
     const [addRelationKey, setAddRelationKey]   = useState(null); // 선택된 관계 키
     const [addRelationType, setAddRelationType] = useState(null); // 실제 API 관계 타입
     const [relationName, setRelationName]       = useState('');
@@ -277,7 +277,10 @@ export default function PersonFolderView() {
     const connectRelation = async (targetId) => {
         const type = addRelationType;
         if (type === 'parent' || type === 'birth-parent') {
-            await axios.put(`/api/persons/${siteId}/${person.id}`, { parent1_id: targetId });
+            // 부 → parent1_id, 모 → parent2_id (§9 규칙)
+            const isMother = addRelationKey === 'mother' || addRelationKey === 'birth-mother';
+            const field = isMother ? 'parent2_id' : 'parent1_id';
+            await axios.put(`/api/persons/${siteId}/${person.id}`, { [field]: targetId });
         } else if (type === 'child' || type === 'adoption') {
             await axios.put(`/api/persons/${siteId}/${targetId}`, { parent1_id: person.id });
         } else if (type === 'spouse') {
@@ -333,10 +336,12 @@ export default function PersonFolderView() {
             // 로컬 state 즉시 반영 (API 재호출 없이)
             const newPersonData = { ...res.data.data, id: targetId };
             if (addRelationType === 'parent' || addRelationType === 'birth-parent') {
-                // 현재 인물의 parent1_id 업데이트 + 신규 인물 추가
+                // 부 → parent1_id, 모 → parent2_id (connectRelation과 일치)
+                const isMother = addRelationKey === 'mother' || addRelationKey === 'birth-mother';
+                const field = isMother ? 'parent2_id' : 'parent1_id';
                 const updatedNewPerson = { ...newPersonData };
                 setAllPersons(prev => [...prev, updatedNewPerson]);
-                setPerson(prev => ({ ...prev, parent1_id: targetId }));
+                setPerson(prev => ({ ...prev, [field]: targetId }));
             } else if (addRelationType === 'child' || addRelationType === 'adoption') {
                 // 신규 자녀는 현재 인물을 부모로 가짐
                 const updatedNewPerson = { ...newPersonData, parent1_id: person.id };

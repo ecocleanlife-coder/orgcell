@@ -163,14 +163,16 @@ export default function FamilyTreeCanvas({
         }, 250);
     }, [externalOnClick, mainId, mainSpouseId, nodesMap]);
 
-    // Bug3 fix: 항상 handleWormhole 호출, setTransitioning은 1500ms 후 해제
+    // 오버레이 즉시 표시 → 900ms 후 wormhole → 800ms 후 해제 (§6조)
     const handleNavConfirm = useCallback(() => {
         if (!navConfirm) return;
-        const { nodeId } = navConfirm;
+        const { nodeId, name } = navConfirm;
         setNavConfirm(null);
-        setTransitioning({ name: navConfirm.name });
-        handleWormhole(nodeId);
-        setTimeout(() => setTransitioning(null), 1500);
+        setTransitioning({ name });          // 1) 즉시 전체화면 덮음
+        setTimeout(() => {
+            handleWormhole(nodeId);          // 2) 900ms 후 트리 갱신
+            setTimeout(() => setTransitioning(null), 800); // 3) 새 트리 로드 후 해제
+        }, 900);
     }, [navConfirm, handleWormhole]);
 
     // 더블클릭: 타이머 취소 후 자료실 진입
@@ -428,10 +430,10 @@ export default function FamilyTreeCanvas({
                 </div>
             )}
 
-            {/* ── 전환 오버레이 ── */}
+            {/* ── 전환 오버레이 (position: fixed → 전체 뷰포트 커버) ── */}
             {transitioning && (
                 <div style={{
-                    position: 'absolute', inset: 0, zIndex: 90,
+                    position: 'fixed', inset: 0, zIndex: 9999,
                     background: '#1E1A14',
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                     gap: '16px',
