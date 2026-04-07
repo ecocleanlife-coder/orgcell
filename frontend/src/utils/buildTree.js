@@ -352,29 +352,38 @@ function applyDisplayRange(zMap, depthMap, directAncestors) {
 }
 
 // ── 부계 방계 필터 (§22 Rule 5 & 6) ─────────────────────────────
-// Rule 5: mainId의 모계 방계(母의 형제·배우자) → z=1
-// Rule 6: spouse의 부모 형제 전체 → z=1
+// Rule 5: mainId의 모계 방계(母의 형제·배우자·자손) → z=1
+// Rule 6: spouse의 부모 형제·배우자·자손 전체 → z=1
 function applyPaternalFilter(zMap, maps, byId, mainId, spouseId, depthMap) {
     const result = { ...zMap };
-    const { parentOf, spousesOf } = maps;
+    const { parentOf, childrenOf, spousesOf } = maps;
+
+    // §22 철칙: 형제 본인 + 배우자 + 모든 후손을 재귀적으로 z=1 처리
+    function hidePersonAndDescendants(personId) {
+        if (result[personId] === 1) return; // 이미 숨김 → 중복 방지
+        result[personId] = 1;
+        for (const spId of (spousesOf[personId] || [])) result[spId] = 1;
+        for (const childId of (childrenOf[personId] || [])) {
+            hidePersonAndDescendants(childId);
+        }
+    }
 
     function hideSiblings(parentId) {
         // getSiblings: 같은 부모를 공유하는 인물 목록 (안정적, 조부모 데이터 불필요)
         const sibs = getSiblings(parentId, maps, byId);
         for (const sibId of sibs) {
-            result[sibId] = 1;
-            for (const spId of (spousesOf[sibId] || [])) result[spId] = 1;
+            hidePersonAndDescendants(sibId); // 형제 + 배우자 + 자손 전체 숨김
         }
     }
 
-    // Rule 5: mainId의 母(gender=F)의 형제 → z=1
+    // Rule 5: mainId의 母(gender=F)의 형제와 그 자손 → z=1
     for (const parentId of (parentOf[mainId] || [])) {
         if ((depthMap[parentId] ?? 0) === 1 && byId[parentId]?.gender === 'F') {
             hideSiblings(parentId);
         }
     }
 
-    // Rule 6: spouse의 부모 형제 (부계·모계 모두) → z=1
+    // Rule 6: spouse의 부모 형제와 그 자손 (부계·모계 모두) → z=1
     if (spouseId) {
         for (const parentId of (parentOf[spouseId] || [])) {
             if ((depthMap[parentId] ?? 0) === 1) {
@@ -1022,6 +1031,16 @@ function validateTree(nodes, links) {
         const child  = nodesMap[l.target];
         if (parent && child && parent.y !== child.y + Y_GAP) {
             errors.push(`세대간격 오류: ${parent.data.name}→${child.data.name} (부모y=${parent.y}, 자녀y=${child.y}, 기대차=${Y_GAP})`);
+        }
+    }
+
+    // 5. §22 철칙: z=1인 노드가 z=0 노드와 같은 좌표를 가지는지 검사
+    const z1Nodes = nodes.filter(n => n.z === 1);
+    const z0CoordSet = new Set(z0.map(n => `${Math.round(n.x)},${Math.round(n.y)}`));
+    for (const n of z1Nodes) {
+        const key = `${Math.round(n.x)},${Math.round(n.y)}`;
+        if (z0CoordSet.has(key)) {
+            errors.push(`§22 철칙 위반: z=1인 "${n.data.name}"이 z=0 좌표(${n.x}, ${n.y})를 가짐 — 렌더링 누락 위험`);
         }
     }
 
