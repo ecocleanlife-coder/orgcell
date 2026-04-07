@@ -334,7 +334,7 @@ export default function FamilyTreeCanvas({
 
         // 기본/가문전환: Auto-Fit → 전체 노드가 뷰포트에 맞도록
         // 순차 애니메이션 종료 후 타이밍: 마지막 노드 delay + 스프링 완료 추정 800ms
-        const totalAnimMs = Math.max(0, (couples.length - 1) * 500) + 900;
+        const totalAnimMs = Math.max(0, (couples.length - 1) * 300) + 900;
         setTimeout(() => { autoFit(); }, 50);           // 즉시 초기 fit (레이아웃 기준)
         setTimeout(() => { autoFit(); }, totalAnimMs);  // 전 노드 등장 완료 후 재fit
     }, [visibleNodes.length, mainCoupleScreenX, mainScreenY, mainId]);
@@ -576,8 +576,8 @@ export default function FamilyTreeCanvas({
                                     const soloNode = husband || wife;
                                     if (!soloNode) return null;
 
-                                    // 0.5초 간격 순차 등장 딜레이 (§24.4)
-                                    const appearDelay = renderIdx * 0.5;
+                                    // 0.3초 간격 순차 등장 딜레이 (§24.4)
+                                    const appearDelay = renderIdx * 0.3;
                                     const appearTransition = {
                                         ...springTransition,
                                         opacity: { duration: 0.35, delay: appearDelay },

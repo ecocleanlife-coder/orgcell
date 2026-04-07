@@ -21,7 +21,7 @@ const CARD_GAP = 40;        // 카드 사이 간격 (부부 포함 예외 없음
 const COUPLE_HALF = 130;    // 부부 center-to-center / 2 = (220 + 40) / 2
 
 // ── 표시 범위 상수 (ORGCELL_CODING_RULES.md §22) ────────────
-const DISPLAY_MAX_ANCESTOR_DEPTH = 2; // 조부모(depth=2)까지만 화면 표시
+const DISPLAY_MAX_ANCESTOR_DEPTH = 1; // 부모(depth=1)까지만 화면 표시 (조부모 제외)
 
 // ── Z축 투명도/크기 ──────────────────────────────
 export function zOpacity(z) {
@@ -334,8 +334,8 @@ function getDirectAncestorIds(mainId, spouseId, maps, maxDepth) {
 }
 
 // ── 표시 범위 필터 (§22) ─────────────────────────────────────
-// depth ≥ 3 (증조부모 이상) → z=1 (숨김)
-// depth === 2 중 직계 조부모 아닌 노드 (조부모 형제) → z=1 (숨김)
+// depth ≥ 2 (조부모 이상) → z=1 (숨김)
+// depth === 1 중 직계 부모 아닌 노드 (부모 형제) → z=1 (숨김)
 function applyDisplayRange(zMap, depthMap, directAncestors) {
     const result = {};
     for (const id of Object.keys(zMap)) {
@@ -343,11 +343,39 @@ function applyDisplayRange(zMap, depthMap, directAncestors) {
         if (result[id] !== 0) continue; // 이미 숨김 상태면 그대로
         const depth = depthMap[id] || 0;
         if (depth >= DISPLAY_MAX_ANCESTOR_DEPTH + 1) {
-            result[id] = 1; // 증조부모 이상 숨김
+            result[id] = 1; // 조부모 이상 숨김
         } else if (depth === DISPLAY_MAX_ANCESTOR_DEPTH && !directAncestors.has(id)) {
-            result[id] = 1; // 조부모 세대이지만 직계 아님 (조부모 형제) 숨김
+            result[id] = 1; // 부모 세대이지만 직계 아님 (부모 형제) 숨김
         }
     }
+    return result;
+}
+
+// ── 형제 후손 숨김 필터 (§22) ───────────────────────────────
+// §22: 형제 본인 + 배우자는 z=0 유지, 형제의 자녀 이하는 z=1 (숨김)
+function applyStrictSiblingFilter(zMap, maps, byId, mainId, spouseId) {
+    const result = { ...zMap };
+    const { childrenOf, spousesOf } = maps;
+
+    function hideDescendants(personId) {
+        for (const childId of (childrenOf[personId] || [])) {
+            if (result[childId] === 1) continue;
+            result[childId] = 1;
+            for (const spId of (spousesOf[childId] || [])) { result[spId] = 1; }
+            hideDescendants(childId);
+        }
+    }
+
+    function hideSiblingChildren(personId) {
+        const sibs = getSiblings(personId, maps, byId);
+        for (const sibId of sibs) {
+            hideDescendants(sibId);
+        }
+    }
+
+    hideSiblingChildren(mainId);
+    if (spouseId) hideSiblingChildren(spouseId);
+
     return result;
 }
 
@@ -1130,12 +1158,14 @@ export function buildTree(persons, relations, overrideMainId = null) {
     // Z축 분류
     const rawZMap = classifyZ(mainId, maps, depthMap, byId);
 
-    // §22 표시 범위 필터: 직계 조부모까지만 표시, 증조부모+ 숨김
+    // §22 표시 범위 필터: 직계 부모까지만 표시, 조부모+ 숨김
     const mainSpouseId = (maps.spousesOf[mainId] || [])[0] || null;
     const directAncestors = getDirectAncestorIds(mainId, mainSpouseId, maps, DISPLAY_MAX_ANCESTOR_DEPTH);
     const rangeFiltered = applyDisplayRange(rawZMap, depthMap, directAncestors);
     // §22 Rule 5 & 6: 모계 방계·배우자측 방계 숨김
-    const zMap = applyPaternalFilter(rangeFiltered, maps, byId, mainId, mainSpouseId, depthMap);
+    const paternalFiltered = applyPaternalFilter(rangeFiltered, maps, byId, mainId, mainSpouseId, depthMap);
+    // §22: 형제 자녀 이하 숨김 (형제 본인 + 배우자는 z=0 유지)
+    const zMap = applyStrictSiblingFilter(paternalFiltered, maps, byId, mainId, mainSpouseId);
 
     // CoupleBlock 레이아웃
     const positions = layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds);
