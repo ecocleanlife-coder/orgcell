@@ -11,6 +11,7 @@ import {
 import MiniTree from './MiniTree';
 import axios from 'axios';
 import useUiStore from '../../store/uiStore';
+import useTreeViewStore from '../../store/treeViewStore';
 import { toast } from 'react-hot-toast';
 
 import PhotoEditor from './PhotoEditor';
@@ -253,6 +254,7 @@ export default function PersonFolderView() {
         try {
             await axios.put(`/api/persons/${siteId}/${person.id}`, { ...person, ...form });
             setPerson(prev => ({ ...prev, ...form }));
+            useTreeViewStore.getState().setPersonsNeedRefresh(true); // FamilyTreeView 즉시 갱신
             toast.success('저장되었습니다');
         } catch {
             toast.error('저장에 실패했습니다');
@@ -328,6 +330,7 @@ export default function PersonFolderView() {
             if (!targetId) { toast.error('생성 실패'); setSubmittingRelation(false); return; }
             await connectRelation(targetId);
             toast.success(`${relationName.trim()}이(가) 생성되었습니다`);
+            useTreeViewStore.getState().setPersonsNeedRefresh(true); // FamilyTreeView 즉시 갱신
 
             // 이름 입력란 초기화
             const createdName = relationName.trim();
@@ -379,6 +382,7 @@ export default function PersonFolderView() {
         try {
             await connectRelation(found.id);
             toast.success(`${found.name}과(와) 연결되었습니다`);
+            useTreeViewStore.getState().setPersonsNeedRefresh(true);
             setExistingPersonSearch('');
             setAddRelationType(null);
         } catch {

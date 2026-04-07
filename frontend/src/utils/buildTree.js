@@ -1091,7 +1091,10 @@ export function buildTree(persons, relations, overrideMainId = null) {
     if (overrideMainId) {
         const centerSpouse = (maps.spousesOf[mainId] || [])[0] || null;
         for (const pid of [mainId, centerSpouse].filter(Boolean)) {
-            const hasParents = (maps.parentOf[pid] || []).length > 0;
+            // persons 배열에 부모가 없더라도 person.parent1_id/parent2_id가 설정돼 있으면 실데이터 대기
+            const personData = byId[pid];
+            const hasRealParentField = personData?.parent1_id || personData?.parent2_id;
+            const hasParents = (maps.parentOf[pid] || []).length > 0 || hasRealParentField;
             if (!hasParents) {
                 const person = byId[pid];
                 const surname = (person?.name || '').charAt(0);

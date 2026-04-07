@@ -46,6 +46,10 @@ const useTreeViewStore = create((set, get) => ({
         if (!vp) return false;
         return (Date.now() - vp.savedAt) < 5 * 60 * 1000;
     },
+
+    // persons 갱신 플래그 (PersonFolderView → FamilyTreeView 즉시 반영)
+    personsNeedRefresh: false,
+    setPersonsNeedRefresh: (val) => set({ personsNeedRefresh: val }),
 }));
 
 export default useTreeViewStore;

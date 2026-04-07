@@ -100,6 +100,14 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
     useEffect(() => { fetchPersons(); }, [fetchPersons]);
 
+    // PersonFolderView에서 가족 저장 후 플래그가 세워지면 즉시 재조회
+    const personsNeedRefresh = useTreeViewStore((s) => s.personsNeedRefresh);
+    useEffect(() => {
+        if (!personsNeedRefresh) return;
+        useTreeViewStore.getState().setPersonsNeedRefresh(false);
+        fetchPersons();
+    }, [personsNeedRefresh, fetchPersons]);
+
     // ── FamilySearch 연동 ──
     const handleFamilySearchSync = async () => {
         try {
@@ -781,7 +789,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             {/* FamilyTreeCanvas 렌더링 — key로 DOM 완전 초기화 */}
             <div className="relative w-full" style={{ height: 'calc(100vh - 130px)', minHeight: '500px' }}>
                 <FamilyTreeCanvas
-                    key="canvas"
+                    key={treeData.mainId || 'canvas'}
                     nodes={treeData.nodes}
                     links={treeData.links}
                     mainId={treeData.mainId}
