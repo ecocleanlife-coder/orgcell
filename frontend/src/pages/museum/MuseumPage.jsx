@@ -168,6 +168,11 @@ export default function MuseumPage({ initialTab }) {
     // URL ?person=ID 파라미터로 방문 인물 결정
     const visitPersonId = new URLSearchParams(window.location.search).get('person');
 
+    // 박물관 이동(Wormhole) 시 헤더 타이틀 동적 갱신용 상태
+    // URL 재로드 없이 state만 바뀔 때도 즉시 반영
+    const visitPersonName0 = new URLSearchParams(window.location.search).get('pname');
+    const [activePersonName, setActivePersonName] = useState(visitPersonName0 || null);
+
     // 친구 요청
     const [friendRequested, setFriendRequested] = useState(false);
     const [friendRequesting, setFriendRequesting] = useState(false);
@@ -344,9 +349,9 @@ export default function MuseumPage({ initialTab }) {
     }
 
     const museumName = site?.museum_name || `${subdomain} 가족유산박물관`;
-    const visitPersonName = new URLSearchParams(window.location.search).get('pname');
-    const displayMuseumName = visitPersonId && visitPersonName
-        ? `${visitPersonName} 가족유산박물관`
+    // wormhole 이동 시 activePersonName이 우선, 없으면 URL ?pname= 사용
+    const displayMuseumName = activePersonName
+        ? `${activePersonName}의 박물관`
         : museumName;
     const displayExhibitions = visitPersonId
         ? exhibitions.filter(e => String(e.person_id) === String(visitPersonId))
@@ -472,6 +477,7 @@ export default function MuseumPage({ initialTab }) {
                                 exhibitions={exhibitions}
                                 initialPersonId={visitPersonId}
                                 subdomain={subdomain}
+                                onMainPersonChange={setActivePersonName}
                             />
                         </div>
                     </Section>

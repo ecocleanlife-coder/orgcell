@@ -44,7 +44,7 @@ const PARENT_TYPE_KEYS = [
 // ════════════════════════════════════════
 // MAIN COMPONENT
 // ════════════════════════════════════════
-export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewer', exhibitions = [], initialPersonId = null, subdomain: subdomainProp }) {
+export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewer', exhibitions = [], initialPersonId = null, subdomain: subdomainProp, onMainPersonChange }) {
     const navigate = useNavigate();
     const { subdomain } = useParams();
     const lang = useUiStore((s) => s.lang);
@@ -206,8 +206,12 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 break;
             case 'wormhole':
                 console.log('[FamilyTreeView] 가문전환:', mainPersonId, '→', String(raw.id));
+                sessionStorage.removeItem('orgcell_tree_viewport');
+                sessionStorage.removeItem('familyTree_state');
                 useTreeViewStore.getState().clearViewport();
+                setNavKey(prev => prev + 1);
                 setMainPersonId(String(raw.id));
+                if (onMainPersonChange && raw.name) onMainPersonChange(raw.name);
                 break;
             case 'exhibit_public': {
                 // 일반전시관: 접근 권한 확인 → 전시관 페이지
@@ -820,8 +824,11 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                         sessionStorage.removeItem('orgcell_tree_viewport');
                         sessionStorage.removeItem('familyTree_state');
                         useTreeViewStore.getState().clearViewport();
-                        setNavKey(prev => prev + 1);  // Canvas 강제 리마운트
+                        setNavKey(prev => prev + 1);  // Canvas 강제 리마운트 (Hard Reset)
                         setMainPersonId(String(personId));
+                        // 헤더 타이틀 즉시 갱신
+                        const targetPerson = persons.find(p => String(p.id) === String(personId));
+                        if (onMainPersonChange && targetPerson?.name) onMainPersonChange(targetPerson.name);
                     }}
                     onHome={() => {
                         window.location.href = `/${subdomainProp || subdomain}`;

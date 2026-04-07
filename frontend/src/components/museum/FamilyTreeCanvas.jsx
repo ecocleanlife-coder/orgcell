@@ -164,16 +164,17 @@ export default function FamilyTreeCanvas({
         }, 250);
     }, [externalOnClick, mainId, mainSpouseId, nodesMap]);
 
-    // 오버레이 즉시 표시 → 900ms 후 wormhole → 800ms 후 해제 (§6조)
+    // 오버레이 즉시 표시 → 500ms 후 wormhole 실행 + 오버레이 동시 해제 (§6조)
+    // → 캔버스 마운트 순간부터 0.5s 순차 애니메이션이 온전히 사용자에게 보임
     const handleNavConfirm = useCallback(() => {
         if (!navConfirm) return;
         const { nodeId, name } = navConfirm;
         setNavConfirm(null);
         setTransitioning({ name });          // 1) 즉시 전체화면 덮음
         setTimeout(() => {
-            handleWormhole(nodeId);          // 2) 900ms 후 트리 갱신
-            setTimeout(() => setTransitioning(null), 800); // 3) 새 트리 로드 후 해제
-        }, 900);
+            handleWormhole(nodeId);          // 2) 500ms 후 트리 갱신 (Hard Reset)
+            setTransitioning(null);          // 3) 오버레이 동시 해제 → 애니메이션 첫 노드부터 노출
+        }, 500);
     }, [navConfirm, handleWormhole]);
 
     // 더블클릭: 타이머 취소 후 자료실 진입
