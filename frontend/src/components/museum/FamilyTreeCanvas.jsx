@@ -281,17 +281,28 @@ export default function FamilyTreeCanvas({
         transformRef.current.setTransform(tx, ty, fitScale, 600, 'easeOut');
     }, [visibleNodes, bounds, screenBounds]);
 
-    // ── 렌더 순서: 중심(main)에서 가까운 row → 가까운 col 순 (순차 애니메이션용) ──
-    // 정렬 기준: |y| 오름차순 (main row 먼저) → |x| 오름차순 (center 먼저)
+    // ── 렌더 순서: §22 표시범위 의미 순서 (순차 애니메이션용) ──
+    // 1. 관장부부(y=0, x=0)  2. 자녀(y<0)  3. 형제(y=0, x≠0)
+    // 4. 부모(y=+1단계)       5. 조부모(y=+2단계)
+    // 같은 그룹 내: |x| 오름차순 (center 먼저)
     const couplesSorted = useMemo(() => {
+        function sec22Priority(n) {
+            if (!n) return 99;
+            const y = n.y ?? 0;
+            const x = n.x ?? 0;
+            if (y === 0 && x === 0) return 0;   // 관장부부
+            if (y < 0)              return 1;    // 자녀 세대 (아래 = 음수)
+            if (y === 0)            return 2;    // 형제 (같은 행, x≠0)
+            if (y > 0)              return 3 + Math.round(y / 280); // 부모(4), 조부모(5)…
+            return 9;
+        }
         return [...couples].sort((a, b) => {
             const na = a.husband || a.wife;
             const nb = b.husband || b.wife;
-            if (!na || !nb) return 0;
-            const rowA = Math.abs(na.y);
-            const rowB = Math.abs(nb.y);
-            if (rowA !== rowB) return rowA - rowB;
-            return Math.abs(na.x) - Math.abs(nb.x);
+            const pa = sec22Priority(na);
+            const pb = sec22Priority(nb);
+            if (pa !== pb) return pa - pb;
+            return Math.abs((na?.x ?? 0)) - Math.abs((nb?.x ?? 0));
         });
     }, [couples]);
 
@@ -322,7 +333,7 @@ export default function FamilyTreeCanvas({
 
         // 기본/가문전환: Auto-Fit → 전체 노드가 뷰포트에 맞도록
         // 순차 애니메이션 종료 후 타이밍: 마지막 노드 delay + 스프링 완료 추정 800ms
-        const totalAnimMs = Math.max(0, (couples.length - 1) * 300) + 900;
+        const totalAnimMs = Math.max(0, (couples.length - 1) * 500) + 900;
         setTimeout(() => { autoFit(); }, 50);           // 즉시 초기 fit (레이아웃 기준)
         setTimeout(() => { autoFit(); }, totalAnimMs);  // 전 노드 등장 완료 후 재fit
     }, [visibleNodes.length, mainCoupleScreenX, mainScreenY, mainId]);
@@ -564,8 +575,8 @@ export default function FamilyTreeCanvas({
                                     const soloNode = husband || wife;
                                     if (!soloNode) return null;
 
-                                    // 0.3초 간격 순차 등장 딜레이
-                                    const appearDelay = renderIdx * 0.3;
+                                    // 0.5초 간격 순차 등장 딜레이 (§24.4)
+                                    const appearDelay = renderIdx * 0.5;
                                     const appearTransition = {
                                         ...springTransition,
                                         opacity: { duration: 0.35, delay: appearDelay },

@@ -708,8 +708,8 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
             if (sibs.length > 0) {
                 centerX = (Math.min(...groupXs) + Math.max(...groupXs)) / 2;
             } else {
-                // §3.5 개별 직계 정렬: 당사자 X ± 40px
-                centerX = positions[personId].x + (side === 'left' ? -40 : +40);
+                // §24.2 형제 없는 직계: 부계 -300, 모계 +300 고정
+                centerX = side === 'left' ? -300 : +300;
             }
 
             const depth = (depthMap[personId] || 0) + 1;
@@ -759,8 +759,8 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
         if (sibs.length > 0) {
             centerX = (Math.min(...groupXs) + Math.max(...groupXs)) / 2;
         } else {
-            // §3.5 개별 직계 정렬: 당사자 X ± 40px (부부 중앙이 아닌 자녀 수직 위에 밀착)
-            centerX = positions[personId].x + (side === 'left' ? -40 : +40);
+            // §24.2 형제 없는 직계: 부계 -300, 모계 +300 고정
+            centerX = side === 'left' ? -300 : +300;
         }
 
         const depth = (depthMap[personId] || 0) + 1;
