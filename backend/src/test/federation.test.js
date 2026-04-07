@@ -11,18 +11,22 @@ const mockUser = { id: 1, email: 'test@test.com' };
 const protect = (req, res, next) => { req.user = mockUser; next(); };
 
 const ctrl = require('../controllers/federationController');
+const { federationAuth, chainFederationAuth } = require('../middlewares/federationAuth');
 const router = express.Router();
 router.post('/request', protect, ctrl.createRequest);
 router.post('/accept', protect, ctrl.acceptRequest);
 router.post('/reject', protect, ctrl.rejectRequest);
 router.get('/list', protect, ctrl.listFederations);
 router.post('/token', protect, ctrl.generateToken);
-router.get('/resolve/:federationId/:nodeId', ctrl.resolveNode);
-router.post('/resolve/batch', ctrl.resolveBatch);
-router.post('/chain-resolve', ctrl.chainResolve);
+router.get('/resolve/:federationId/:nodeId', federationAuth, ctrl.resolveNode);
+router.post('/resolve/batch', federationAuth, ctrl.resolveBatch);
+router.post('/chain-resolve', chainFederationAuth, ctrl.chainResolve);
 app.use('/api/federation', router);
 
-// federationJWT 유닛 테스트
+// ════════════════════════════════════════════
+// Utils
+// ════════════════════════════════════════════
+
 const {
     generateKeyPair,
     signFederationJWT,
@@ -34,6 +38,13 @@ const {
     encryptPrivateKey,
     decryptPrivateKey,
 } = require('../utils/federationJWT');
+
+const nonceCache = require('../utils/nonceCache');
+const metaCache = require('../utils/metaCache');
+
+// ════════════════════════════════════════════
+// SUITE: Federation JWT Utils
+// ════════════════════════════════════════════
 
 describe('Federation JWT Utils', () => {
     let keys;
@@ -64,9 +75,9 @@ describe('Federation JWT Utils', () => {
             { iss: 'test-domain', sub: 'test', scope: ['profile'] },
             keys.privateKey
         );
-        // 첫 번째 사용: 성공
+        // First use: success
         verifyFederationJWT(token, keys.publicKey, []);
-        // 두 번째 사용: nonce 이미 사용됨 → 에러
+        // Second use: nonce already used → error
         expect(() => {
             verifyFederationJWT(token, keys.publicKey, [nonce]);
         }).toThrow('Nonce already used');
@@ -91,8 +102,8 @@ describe('Federation JWT Utils', () => {
     });
 
     it('should reject scope escalation', () => {
-        // 합의된 scope: profile + photos.public
-        // 요청 scope: profile + photos.family (unauthorized)
+        // Agreed scope: profile + photos.public
+        // Requested scope: profile + photos.family (unauthorized)
         expect(validateScope(
             ['profile', 'photos.family'],
             ['profile', 'photos.public']
@@ -137,9 +148,100 @@ describe('Federation JWT Utils', () => {
     });
 });
 
+// ════════════════════════════════════════════
+// SUITE: NonceCache
+// ════════════════════════════════════════════
+
+describe('NonceCache', () => {
+    beforeEach(() => {
+        nonceCache.clear();
+    });
+
+    it('should add new nonce and return false (not replay)', () => {
+        const nonce = 'test-nonce-123';
+        expect(nonceCache.add(nonce)).toBe(false);
+    });
+
+    it('should detect replay when same nonce is added twice', () => {
+        const nonce = 'test-nonce-replay';
+        expect(nonceCache.add(nonce)).toBe(false); // First use
+        expect(nonceCache.add(nonce)).toBe(true); // Replay detected
+    });
+
+    it('should check if nonce exists', () => {
+        const nonce = 'test-nonce-exists';
+        nonceCache.add(nonce);
+        expect(nonceCache.has(nonce)).toBe(true);
+    });
+
+    it('should return false for non-existent nonce', () => {
+        expect(nonceCache.has('non-existent')).toBe(false);
+    });
+
+    it('should clear cache', () => {
+        nonceCache.add('nonce-1');
+        nonceCache.add('nonce-2');
+        nonceCache.clear();
+        expect(nonceCache.has('nonce-1')).toBe(false);
+        expect(nonceCache.has('nonce-2')).toBe(false);
+    });
+});
+
+// ════════════════════════════════════════════
+// SUITE: MetaCache
+// ════════════════════════════════════════════
+
+describe('MetaCache', () => {
+    beforeEach(() => {
+        metaCache.clear();
+    });
+
+    it('should set and get data within TTL', () => {
+        const key = 'test-key';
+        const data = { name: 'John', age: 30 };
+        metaCache.set(key, data);
+        expect(metaCache.get(key)).toEqual(data);
+    });
+
+    it('should return null for missing key', () => {
+        expect(metaCache.get('missing-key')).toBeNull();
+    });
+
+    it('should invalidate single entry', () => {
+        const key = 'test-key';
+        metaCache.set(key, { name: 'John' });
+        metaCache.invalidate(key);
+        expect(metaCache.get(key)).toBeNull();
+    });
+
+    it('should invalidate pattern', () => {
+        metaCache.set('person:1:100', { id: 100 });
+        metaCache.set('person:1:101', { id: 101 });
+        metaCache.set('person:2:200', { id: 200 });
+        metaCache.invalidatePattern('person:1:');
+        expect(metaCache.get('person:1:100')).toBeNull();
+        expect(metaCache.get('person:1:101')).toBeNull();
+        expect(metaCache.get('person:2:200')).toEqual({ id: 200 });
+    });
+
+    it('should clear all entries', () => {
+        metaCache.set('key1', { data: 1 });
+        metaCache.set('key2', { data: 2 });
+        metaCache.clear();
+        expect(metaCache.get('key1')).toBeNull();
+        expect(metaCache.get('key2')).toBeNull();
+    });
+});
+
+// ════════════════════════════════════════════
+// SUITE: Federation API
+// ════════════════════════════════════════════
+
 describe('Federation API', () => {
     beforeEach(() => {
         mockQuery.mockReset();
+        nonceCache.clear();
+        metaCache.clear();
     });
 
     describe('POST /api/federation/request', () => {
@@ -175,7 +277,7 @@ describe('Federation API', () => {
             mockQuery.mockResolvedValueOnce({ rows: [{ id: 2, user_id: 2, subdomain: 'lee-family' }] });
             // check existing
             mockQuery.mockResolvedValueOnce({ rows: [] });
-            // getOrCreateDomainKeys → existing
+            // getOrCreate — no existing
             mockQuery.mockResolvedValueOnce({ rows: [] });
             // INSERT domain_public_keys
             mockQuery.mockResolvedValueOnce({ rows: [{ id: 1 }] });
@@ -207,7 +309,9 @@ describe('Federation API', () => {
         });
 
         it('should block non-owner of target site', async () => {
-            mockQuery.mockResolvedValueOnce({ rows: [{ id: 1, target_site_id: 2, target_domain: 'lee', relation_type: 'direct' }] });
+            mockQuery.mockResolvedValueOnce({
+                rows: [{ id: 1, target_site_id: 2, target_domain: 'lee', relation_type: 'direct' }],
+            });
             mockQuery.mockResolvedValueOnce({ rows: [] }); // not owner
             const res = await request(app)
                 .post('/api/federation/accept')
@@ -257,6 +361,280 @@ describe('Federation API', () => {
                 .get('/api/federation/resolve/1/1')
                 .set('X-Federation-Token', token);
             expect(res.status).toBe(401);
+        });
+    });
+
+    describe('federationAuth middleware — Scope Escalation', () => {
+        it('should strip unauthorized scopes but allow valid intersection (collateral)', async () => {
+            // JWT claims profile + photos.public + photos.family (3 scopes)
+            // collateral relation only allows profile + photos.public
+            // Expected: request succeeds with reduced scope (photos.family stripped)
+            const keys = generateKeyPair();
+            const { token } = signFederationJWT(
+                {
+                    iss: 'requester-family',
+                    sub: 'federation:1',
+                    scope: ['profile', 'photos.public', 'photos.family'],
+                },
+                keys.privateKey
+            );
+
+            // Federation: collateral — photos.family NOT in default scope
+            mockQuery.mockResolvedValueOnce({
+                rows: [{
+                    id: 1,
+                    source_domain: 'requester-family',
+                    source_public_key: keys.publicKey,
+                    target_site_id: 2,
+                    relation_type: 'collateral',
+                    agreed_scope: ['profile', 'photos.public'],
+                }],
+            });
+            // getPersonData: base person query
+            mockQuery.mockResolvedValueOnce({
+                rows: [{ id: 1, site_id: 2, name: 'Test Person', gender: 'M', generation: 1 }],
+            });
+            // getPersonData: photos.public shared folders query
+            mockQuery.mockResolvedValueOnce({ rows: [] });
+            // getOutgoingWormholes: accepted federations from target site
+            mockQuery.mockResolvedValueOnce({ rows: [] });
+
+            const res = await request(app)
+                .get('/api/federation/resolve/1/1')
+                .set('X-Federation-Token', token);
+
+            // Succeeds: effective scope = ['profile', 'photos.public'] (photos.family stripped)
+            expect(res.status).toBe(200);
+            expect(res.body.success).toBe(true);
+        });
+
+        it('should block request with no effective scope', async () => {
+            const keys = generateKeyPair();
+            const { token } = signFederationJWT(
+                {
+                    iss: 'attacker-family',
+                    sub: 'federation:1',
+                    scope: ['photos.family', 'exhibitions'],
+                },
+                keys.privateKey
+            );
+
+            mockQuery.mockResolvedValueOnce({
+                rows: [{
+                    id: 1,
+                    source_domain: 'attacker-family',
+                    source_public_key: keys.publicKey,
+                    target_site_id: 2,
+                    relation_type: 'collateral',
+                    agreed_scope: ['profile', 'photos.public'],
+                }],
+            });
+
+            const res = await request(app)
+                .get('/api/federation/resolve/1/1')
+                .set('X-Federation-Token', token);
+
+            expect(res.status).toBe(403);
+            expect(res.body.message).toContain('No effective scope');
+        });
+    });
+
+    describe('Replay Attack Prevention', () => {
+        it('should block replayed JWT within nonce TTL window', async () => {
+            nonceCache.clear();
+            const keys = generateKeyPair();
+            const { token, nonce } = signFederationJWT(
+                { iss: 'kim-family', sub: 'federation:1', scope: ['profile'] },
+                keys.privateKey
+            );
+
+            // First use
+            expect(nonceCache.add(nonce)).toBe(false);
+
+            // Second use — replay
+            expect(nonceCache.add(nonce)).toBe(true);
+        });
+
+        it('should reject replayed federation request', async () => {
+            nonceCache.clear();
+            const keys = generateKeyPair();
+            const { token } = signFederationJWT(
+                { iss: 'kim-family', sub: 'federation:1', scope: ['profile'] },
+                keys.privateKey
+            );
+
+            // First request
+            mockQuery.mockResolvedValueOnce({
+                rows: [{
+                    id: 1,
+                    source_domain: 'kim-family',
+                    source_public_key: keys.publicKey,
+                    target_site_id: 2,
+                    relation_type: 'direct',
+                    agreed_scope: ['profile'],
+                }],
+            });
+            mockQuery.mockResolvedValueOnce({ rows: [{ id: 1, site_id: 2, name: 'Person', gender: 'M', generation: 1 }] });
+
+            // getOutgoingWormholes for first request
+            mockQuery.mockResolvedValueOnce({ rows: [] });
+
+            const res1 = await request(app)
+                .get('/api/federation/resolve/1/1')
+                .set('X-Federation-Token', token);
+            expect(res1.status).toBe(200);
+
+            // Second request with same nonce — should be blocked
+            mockQuery.mockResolvedValueOnce({
+                rows: [{
+                    id: 1,
+                    source_domain: 'kim-family',
+                    source_public_key: keys.publicKey,
+                    target_site_id: 2,
+                    relation_type: 'direct',
+                    agreed_scope: ['profile'],
+                }],
+            });
+
+            const res2 = await request(app)
+                .get('/api/federation/resolve/1/1')
+                .set('X-Federation-Token', token);
+            expect(res2.status).toBe(401);
+            expect(res2.body.message).toContain('replay');
+        });
+    });
+
+    describe('Tampered Relation Information', () => {
+        it('should use DB relation_type, not JWT payload (blocks type escalation)', async () => {
+            // Attacker embeds relation_type: 'direct' in JWT payload
+            // hoping to gain photos.family access via a collateral federation
+            const keys = generateKeyPair();
+            const { token } = signFederationJWT(
+                {
+                    iss: 'attacker-family',
+                    sub: 'federation:1',
+                    scope: ['profile', 'photos.public', 'photos.family'],
+                    relation_type: 'direct', // Tampered claim — attacker claims direct
+                },
+                keys.privateKey
+            );
+
+            // DB truth: relation_type is 'collateral', not 'direct'
+            mockQuery.mockResolvedValueOnce({
+                rows: [{
+                    id: 1,
+                    source_domain: 'attacker-family',
+                    source_public_key: keys.publicKey,
+                    target_site_id: 2,
+                    relation_type: 'collateral', // DB-backed truth
+                    agreed_scope: ['profile', 'photos.public'],
+                }],
+            });
+            // getPersonData: person (scope will be ['profile','photos.public'] — photos.family stripped)
+            mockQuery.mockResolvedValueOnce({
+                rows: [{ id: 1, site_id: 2, name: 'Test', gender: 'M', generation: 1 }],
+            });
+            // getPersonData: photos.public shared folders
+            mockQuery.mockResolvedValueOnce({ rows: [] });
+            // getOutgoingWormholes
+            mockQuery.mockResolvedValueOnce({ rows: [] });
+
+            const res = await request(app)
+                .get('/api/federation/resolve/1/1')
+                .set('X-Federation-Token', token);
+
+            // Succeeds but with collateral scope — JWT payload relation_type is IGNORED
+            expect(res.status).toBe(200);
+            // Response contains no familyPhotos (photos.family was stripped by DB relation_type)
+            expect(res.body.data.person.familyPhotos).toBeUndefined();
+        });
+
+        it('should return 403 when attacker JWT scope has zero intersection with collateral default', async () => {
+            // Attacker sends only 'photos.family' + 'exhibitions' — neither in collateral default
+            const keys = generateKeyPair();
+            const { token } = signFederationJWT(
+                {
+                    iss: 'attacker-family',
+                    sub: 'federation:1',
+                    scope: ['photos.family', 'exhibitions'],
+                    relation_type: 'direct',
+                },
+                keys.privateKey
+            );
+
+            mockQuery.mockResolvedValueOnce({
+                rows: [{
+                    id: 1,
+                    source_domain: 'attacker-family',
+                    source_public_key: keys.publicKey,
+                    target_site_id: 2,
+                    relation_type: 'collateral',
+                    agreed_scope: ['profile', 'photos.public'],
+                }],
+            });
+
+            const res = await request(app)
+                .get('/api/federation/resolve/1/1')
+                .set('X-Federation-Token', token);
+
+            expect(res.status).toBe(403);
+            expect(res.body.message).toContain('No effective scope');
+        });
+
+        it('should block batch resolve with empty nodeIds array', async () => {
+            const keys = generateKeyPair();
+            const { token } = signFederationJWT(
+                { iss: 'kim-family', sub: 'federation:1', scope: ['profile'] },
+                keys.privateKey
+            );
+
+            mockQuery.mockResolvedValueOnce({
+                rows: [{
+                    id: 1,
+                    source_domain: 'kim-family',
+                    source_public_key: keys.publicKey,
+                    target_site_id: 2,
+                    relation_type: 'direct',
+                    agreed_scope: ['profile'],
+                }],
+            });
+
+            const res = await request(app)
+                .post('/api/federation/resolve/batch')
+                .set('X-Federation-Token', token)
+                .send({ federationId: 1, nodeIds: [] });
+
+            // Empty array is valid (returns empty results), but > 50 is not
+            expect(res.status).toBe(200);
+            expect(res.body.data).toEqual([]);
+        });
+
+        it('should block batch resolve exceeding 50 nodes', async () => {
+            const keys = generateKeyPair();
+            const { token } = signFederationJWT(
+                { iss: 'kim-family', sub: 'federation:1', scope: ['profile'] },
+                keys.privateKey
+            );
+
+            mockQuery.mockResolvedValueOnce({
+                rows: [{
+                    id: 1,
+                    source_domain: 'kim-family',
+                    source_public_key: keys.publicKey,
+                    target_site_id: 2,
+                    relation_type: 'direct',
+                    agreed_scope: ['profile'],
+                }],
+            });
+
+            const nodeIds = Array.from({ length: 51 }, (_, i) => i + 1);
+            const res = await request(app)
+                .post('/api/federation/resolve/batch')
+                .set('X-Federation-Token', token)
+                .send({ federationId: 1, nodeIds });
+
+            expect(res.status).toBe(400);
+            expect(res.body.message).toContain('50');
         });
     });
 
@@ -310,14 +688,10 @@ describe('Federation API', () => {
                     nonce_cache: [],
                 }],
             });
-            // nonce update
-            mockQuery.mockResolvedValueOnce({ rows: [] });
-            // getPersonData — base person query
+            // getPersonData — base person query (scope=['profile'] only, no photos.public query)
             mockQuery.mockResolvedValueOnce({
                 rows: [{ id: 100, site_id: 2, name: 'Person B', gender: 'M', generation: 1 }],
             });
-            // getPersonData — photos.public query (scope includes 'photos.public')
-            mockQuery.mockResolvedValueOnce({ rows: [] });
             // getOrCreateDomainKeys for B
             mockQuery.mockResolvedValueOnce({ rows: [] }); // no existing key
             mockQuery.mockResolvedValueOnce({ rows: [] }); // insert key
@@ -344,7 +718,7 @@ describe('Federation API', () => {
                     ],
                 });
             expect(res.status).toBe(400);
-            expect(res.body.message).toContain('사이클');
+            expect(res.body.message).toContain('Cycle');
         });
     });
 

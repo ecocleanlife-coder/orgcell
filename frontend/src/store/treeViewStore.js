@@ -36,7 +36,7 @@ const useTreeViewStore = create((set, get) => ({
 
     // 뷰포트 초기화 (새로운 mainId 전환 시)
     clearViewport: () => {
-        sessionStorage.removeItem(STORAGE_KEY);
+        try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* Private 브라우징 등 예외 무시 */ }
         set({ viewport: null });
     },
 

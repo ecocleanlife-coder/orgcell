@@ -100,6 +100,15 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
     useEffect(() => { fetchPersons(); }, [fetchPersons]);
 
+    // siteId 변경(다른 박물관으로 이동) 시 이전 도메인 상태 즉시 초기화
+    // — 새 데이터가 도착하기 전 이전 persons/relations로 buildTree가 실행되는 것 방지
+    useEffect(() => {
+        setPersons([]);
+        setRelations([]);
+        setMainPersonId(initialPersonId || null);
+        useTreeViewStore.getState().clearViewport();
+    }, [siteId]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // PersonFolderView에서 가족 저장 후 플래그가 세워지면 즉시 재조회
     const personsNeedRefresh = useTreeViewStore((s) => s.personsNeedRefresh);
     useEffect(() => {
@@ -187,6 +196,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 break;
             case 'wormhole':
                 console.log('[FamilyTreeView] 가문전환:', mainPersonId, '→', String(raw.id));
+                useTreeViewStore.getState().clearViewport();
                 setMainPersonId(String(raw.id));
                 break;
             case 'exhibit_public': {

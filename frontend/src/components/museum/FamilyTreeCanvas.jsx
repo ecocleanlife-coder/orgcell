@@ -19,10 +19,10 @@ const springTransition = { type: 'spring', stiffness: 200, damping: 25 };
 // buildTree.js에서 import한 상수만 사용 — 여기서 직접 정의 금지
 const CARD_HALF = CARD_W / 2;  // 110
 const TAB_H = 10;
-const BOX_PAD = 10;  // CoupleBlock 내부 패딩
+const BOX_PAD = 0;  // CoupleBlock 외부 패딩 = 0 (§24: 부부 총 너비 440px 확정)
 
-// CoupleBlock 전체 높이: CARD_W + padding*2 + TAB_H
-const BOX_H = CARD_W + BOX_PAD * 2 + TAB_H; // 250
+// CoupleBlock 전체 높이: CARD_W + BOX_PAD*2 + TAB_H
+const BOX_H = CARD_W + BOX_PAD * 2 + TAB_H; // 230
 
 /**
  * nodes/links → couple 단위 그룹핑
@@ -292,10 +292,14 @@ export default function FamilyTreeCanvas({
 
             if (isCouple) {
                 const leftNode = husband.x < wife.x ? husband : wife;
+                const rightNode = husband.x < wife.x ? wife : husband;
                 const boxLeft = toScreenX(leftNode.x) - CARD_HALF - BOX_PAD;
                 const boxTop = toScreenY(leftNode.y) - CARD_HALF - TAB_H - BOX_PAD;
-                const boxW = CARD_W * 2 + CARD_GAP + BOX_PAD * 2;
-                const boxCenterX = boxLeft + boxW / 2;
+                // boxW: CARD_GAP 제거 (커플 내부 gap=0), BOX_PAD=0
+                const boxW = CARD_W * 2 + BOX_PAD * 2; // 440px
+                // boxCenterX: box 폭 절반이 아닌 두 노드 screen X의 실제 중앙값 사용
+                // — BOX_PAD 제거 후 CARD_HALF 기반 계산이 20px 틀어지는 것을 방지
+                const boxCenterX = (toScreenX(leftNode.x) + toScreenX(rightNode.x)) / 2;
                 const boxBottom = boxTop + BOX_H;
 
                 // 두 사람 모두 이 박스에 매핑
@@ -305,8 +309,8 @@ export default function FamilyTreeCanvas({
             } else {
                 const boxLeft = toScreenX(soloNode.x) - CARD_HALF - BOX_PAD;
                 const boxTop = toScreenY(soloNode.y) - CARD_HALF - TAB_H - BOX_PAD;
-                const boxW = CARD_W + BOX_PAD * 2;
-                const boxCenterX = boxLeft + boxW / 2;
+                const boxW = CARD_W + BOX_PAD * 2; // 220px
+                const boxCenterX = boxLeft + boxW / 2; // 솔로는 단일 노드 중앙 = toScreenX(soloNode.x)
                 const boxBottom = boxTop + BOX_H;
 
                 positions[soloNode.id] = { key: soloNode.id, centerX: boxCenterX, top: boxTop, bottom: boxBottom };

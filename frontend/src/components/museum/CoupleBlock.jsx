@@ -9,7 +9,8 @@ import React from 'react';
 import FolderCard from './FolderCard';
 
 const CARD_SIZE = 220;
-const GAP = 0;  // 부부 카드 간 간격 = 0 (붙어있음)
+const GAP = 0;       // 부부 카드 간 간격 = 0 (밀착)
+const BOX_PAD = 0;   // 외부 패딩 = 0 → totalW = 220×2 = 440px (§24 규정)
 const COUPLE_BG = '#F9F7F2';  // 부부 배경색 (연한 미색)
 
 // ── 메인 컴포넌트 ──
@@ -27,12 +28,11 @@ function CoupleBlock({
     const isCouple = !!(husbandNode && wifeNode);
     const soloNode = husbandNode || wifeNode;
 
-    // 컨테이너 크기 계산
+    // 컨테이너 크기 계산 (§24: 부부 전체 너비 440px 확정)
     const containerW = isCouple ? CARD_SIZE * 2 + GAP : CARD_SIZE;
     const containerH = CARD_SIZE;
-    const padding = 10;
-    const totalW = containerW + padding * 2;
-    const totalH = containerH + padding * 2 + 10; // +10 for tab
+    const totalW = containerW + BOX_PAD * 2; // 440px (부부) / 220px (솔로)
+    const totalH = containerH + BOX_PAD * 2 + 10; // +10 for tab
 
     if (!soloNode) return null;
 
@@ -67,8 +67,8 @@ function CoupleBlock({
 
             {isCouple ? (
                 <>
-                    {/* 남편 (왼쪽) */}
-                    <div style={{ position: 'absolute', left: padding, top: padding }}>
+                    {/* 남편 (왼쪽): left=0, 카드 내부 여백으로 사진 중앙 배치 */}
+                    <div style={{ position: 'absolute', left: BOX_PAD, top: BOX_PAD }}>
                         <FolderCard
                             node={husbandNode}
                             isSelected={selectedId === husbandNode.id}
@@ -79,8 +79,8 @@ function CoupleBlock({
                         />
                     </div>
 
-                    {/* 아내 (오른쪽) */}
-                    <div style={{ position: 'absolute', left: padding + CARD_SIZE + GAP, top: padding }}>
+                    {/* 아내 (오른쪽): left=220, gap=0 밀착 — 사진 간 40px 시각적 간격은 카드 내부 여백으로 보장 */}
+                    <div style={{ position: 'absolute', left: BOX_PAD + CARD_SIZE + GAP, top: BOX_PAD }}>
                         <FolderCard
                             node={wifeNode}
                             isSelected={selectedId === wifeNode.id}
@@ -93,7 +93,7 @@ function CoupleBlock({
                 </>
             ) : (
                 /* 솔로 (홀부모) */
-                <div style={{ position: 'absolute', left: padding, top: padding }}>
+                <div style={{ position: 'absolute', left: BOX_PAD, top: BOX_PAD }}>
                     <FolderCard
                         node={soloNode}
                         isSelected={selectedId === soloNode.id}
