@@ -351,6 +351,45 @@ function applyDisplayRange(zMap, depthMap, directAncestors) {
     return result;
 }
 
+// ── 부계 방계 필터 (§22 Rule 5 & 6) ─────────────────────────────
+// Rule 5: mainId의 모계 방계(母의 형제·배우자) → z=1
+// Rule 6: spouse의 부모 형제 전체 → z=1
+function applyPaternalFilter(zMap, maps, byId, mainId, spouseId, depthMap) {
+    const result = { ...zMap };
+    const { parentOf, spousesOf } = maps;
+
+    function hideSiblings(parentId) {
+        const sibs = Object.keys(result).filter(id => {
+            if (id === parentId) return false;
+            const parentsOfId = parentOf[id] || [];
+            const parentsOfParent = parentOf[parentId] || [];
+            return parentsOfParent.length > 0 && parentsOfId.some(p => parentsOfParent.includes(p));
+        });
+        for (const sibId of sibs) {
+            result[sibId] = 1;
+            for (const spId of (spousesOf[sibId] || [])) result[spId] = 1;
+        }
+    }
+
+    // Rule 5: mainId의 母(gender=F)의 형제 → z=1
+    for (const parentId of (parentOf[mainId] || [])) {
+        if ((depthMap[parentId] ?? 0) === 1 && byId[parentId]?.gender === 'F') {
+            hideSiblings(parentId);
+        }
+    }
+
+    // Rule 6: spouse의 부모 형제 (부계·모계 모두) → z=1
+    if (spouseId) {
+        for (const parentId of (parentOf[spouseId] || [])) {
+            if ((depthMap[parentId] ?? 0) === 1) {
+                hideSiblings(parentId);
+            }
+        }
+    }
+
+    return result;
+}
+
 // ── 노드 데이터 생성 ────────────────────────────
 
 function buildNodeData(person) {
@@ -518,6 +557,29 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
         return result;
     }
 
+    // ── 자손 구역 X 범위 계산 (§3.4 Zone-based sibling placement) ──
+    // mainId의 배우자·자손 전체가 점유하는 X축 min/max를 반환.
+    // placeSiblingsOf가 이 경계에 밀착(snap) 배치하는 데 사용한다.
+    function computeDescZone(rootId) {
+        const xs = [];
+        function collect(id) {
+            if (!positions[id]) return;
+            xs.push(positions[id].x);
+            const sp = getSpouse(id);
+            if (sp && positions[sp]) xs.push(positions[sp].x);
+            const coupleIds = sp ? [id, sp] : [id];
+            for (const cid of getChildrenSorted(coupleIds)) {
+                if (connSet.has(cid) && !xs.includes(positions[cid]?.x)) collect(cid);
+            }
+        }
+        const rootSp = getSpouse(rootId);
+        collect(rootId);
+        if (rootSp) collect(rootSp);
+        return xs.length > 0
+            ? { min: Math.min(...xs), max: Math.max(...xs) }
+            : { min: positions[rootId]?.x ?? 0, max: positions[rootId]?.x ?? 0 };
+    }
+
     // ── 재귀 하향 배치 (본인 + 모든 후손) ──
     function placeDescTree(personId, centerX, y) {
         if (positions[personId]) return;
@@ -596,24 +658,21 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
         const sibs = getSiblings(personId, maps, byId).filter(s => connSet.has(s) && !positions[s]);
         if (sibs.length === 0) return;
 
-        // n = 자녀 세대 인원수 (자녀 + 각 자녀 배우자) 기반 오프셋 — VISION.md §3.2
-        const coupleIds = [personId, getSpouse(personId)].filter(Boolean);
-        const n = countChildGenPersons(coupleIds, getSpouse, getChildrenSorted);
-        const extra = siblingExtraOffset(n);
+        // §3.4 Zone-based: 자손 구역(min/max X) 경계에 밀착 배치 (extra 오프셋 없음)
+        const zone = computeDescZone(mainId);
 
         for (const sibId of sibs) {
             if (positions[sibId]) continue;
             const width = subtreeSlots(sibId);
 
-            // 같은 Y행(=0)의 노드만 기준으로 edge 계산 (자녀 확산 영향 차단)
+            // 같은 Y행 노드 + 자손 구역 경계 중 더 바깥쪽 edge 사용
             const sameYXs = Object.entries(positions)
                 .filter(([, pos]) => pos.y === 0)
                 .map(([, pos]) => pos.x);
-            const refXs = sameYXs.length > 0 ? sameYXs : Object.values(positions).map(p => p.x);
 
             const edge = direction === -1
-                ? Math.min(...refXs) - SLOT_W - extra
-                : Math.max(...refXs) + SLOT_W + extra;
+                ? Math.min(zone.min, ...sameYXs) - SLOT_W
+                : Math.max(zone.max, ...sameYXs) + SLOT_W;
 
             const sibCenter = direction === -1
                 ? edge - ((width - 1) * SLOT_W) / 2
@@ -759,28 +818,31 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
 
         for (const pid of parents) {
             const pSibs = getSiblings(pid, maps, byId).filter(s => connSet.has(s) && !positions[s]);
-            if (pSibs.length > 0) {
+
+            // §22 Rule 5: 부(父, gender=M) 형제만 배치. 모계(gender=F) 형제는 z=1 처리.
+            // Rule 6: personId가 배우자(wifeId)이면 부모 형제 배치 안 함.
+            const isMainSide = personId === husbandId;
+            const isPaternalUncle = isMainSide && byId[pid]?.gender === 'M';
+            // 배우자 측 형제는 §22 Rule 6: spouse parents' siblings = z=1 (배치 안 함)
+
+            if (pSibs.length > 0 && isPaternalUncle) {
                 const parentX = positions[pid].x;
                 const direction = parentX <= 0 ? -1 : 1;
                 const parentY = positions[pid].y;
-
-                // n = 자녀 세대 인원수 (자녀 + 각 자녀 배우자) — VISION.md §3.2
-                const pCoupleIds = [pid, getSpouse(pid)].filter(Boolean);
-                const pN = countChildGenPersons(pCoupleIds, getSpouse, getChildrenSorted);
-                const extra = siblingExtraOffset(pN);
 
                 for (const sibId of pSibs) {
                     if (positions[sibId]) continue;
                     const width = subtreeSlots(sibId);
 
+                    // §3.4: extra 오프셋 없이 같은 행(row) 경계에 밀착
                     const sameYXs = Object.entries(positions)
                         .filter(([, pos]) => pos.y === parentY)
                         .map(([, pos]) => pos.x);
                     const refXs = sameYXs.length > 0 ? sameYXs : Object.values(positions).map(p => p.x);
 
                     const edge = direction === -1
-                        ? Math.min(...refXs) - SLOT_W - extra
-                        : Math.max(...refXs) + SLOT_W + extra;
+                        ? Math.min(...refXs) - SLOT_W
+                        : Math.max(...refXs) + SLOT_W;
 
                     const sibCenter = direction === -1
                         ? edge - ((width - 1) * SLOT_W) / 2
@@ -1036,7 +1098,9 @@ export function buildTree(persons, relations, overrideMainId = null) {
     // §22 표시 범위 필터: 직계 조부모까지만 표시, 증조부모+ 숨김
     const mainSpouseId = (maps.spousesOf[mainId] || [])[0] || null;
     const directAncestors = getDirectAncestorIds(mainId, mainSpouseId, maps, DISPLAY_MAX_ANCESTOR_DEPTH);
-    const zMap = applyDisplayRange(rawZMap, depthMap, directAncestors);
+    const rangeFiltered = applyDisplayRange(rawZMap, depthMap, directAncestors);
+    // §22 Rule 5 & 6: 모계 방계·배우자측 방계 숨김
+    const zMap = applyPaternalFilter(rangeFiltered, maps, byId, mainId, mainSpouseId, depthMap);
 
     // CoupleBlock 레이아웃
     const positions = layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds);
@@ -1047,6 +1111,8 @@ export function buildTree(persons, relations, overrideMainId = null) {
         const pos = positions[id] || { x: 0, y: (depthMap[id] || 0) * Y_GAP };
         const depth = depthMap[id] ?? 0;
         const zLevel = zMap[id] ?? 1;
+        // §22: 3대 이후 자손(depth ≤ -3) → 안개 처리 (opacity 0.3)
+        const isFog = depth <= -3;
 
         return {
             id,
@@ -1054,7 +1120,8 @@ export function buildTree(persons, relations, overrideMainId = null) {
             y: pos.y,
             depth,
             z: zLevel,
-            zOpacity: zOpacity(zLevel),
+            fog: isFog,
+            zOpacity: isFog ? 0.3 : zOpacity(zLevel),
             zScale: zScale(zLevel),
             data: buildNodeData(person),
             rels: {
