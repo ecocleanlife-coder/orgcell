@@ -21,7 +21,8 @@ const CARD_GAP = 40;        // 카드 사이 간격 (부부 포함 예외 없음
 const COUPLE_HALF = 130;    // 부부 center-to-center / 2 = (220 + 40) / 2
 
 // ── 표시 범위 상수 (ORGCELL_CODING_RULES.md §22) ────────────
-const DISPLAY_MAX_ANCESTOR_DEPTH = 1; // 부모(depth=1)까지만 화면 표시 (조부모 제외)
+const DISPLAY_MAX_ANCESTOR_DEPTH = 1;   // 부모(depth=1)까지만 화면 표시 (조부모 제외)
+const DISPLAY_MAX_DESCENDANT_DEPTH = 3; // 증손주(depth=-3)까지 표시, 그 이하 z=1
 
 // ── Z축 투명도/크기 ──────────────────────────────
 export function zOpacity(z) {
@@ -334,18 +335,24 @@ function getDirectAncestorIds(mainId, spouseId, maps, maxDepth) {
 }
 
 // ── 표시 범위 필터 (§22) ─────────────────────────────────────
-// depth ≥ 2 (조부모 이상) → z=1 (숨김)
-// depth === 1 중 직계 부모 아닌 노드 (부모 형제) → z=1 (숨김)
+// 상향: depth ≥ 2 (조부모 이상) → z=1 (숨김)
+//       depth === 1 중 직계 부모 아닌 노드 (부모 형제) → z=1 (숨김)
+// 하향: depth ≤ -4 (증손주 이하, 고손주+) → z=1 (숨김)
 function applyDisplayRange(zMap, depthMap, directAncestors) {
     const result = {};
     for (const id of Object.keys(zMap)) {
         result[id] = zMap[id];
         if (result[id] !== 0) continue; // 이미 숨김 상태면 그대로
         const depth = depthMap[id] || 0;
+        // 상향 필터 (조상)
         if (depth >= DISPLAY_MAX_ANCESTOR_DEPTH + 1) {
             result[id] = 1; // 조부모 이상 숨김
         } else if (depth === DISPLAY_MAX_ANCESTOR_DEPTH && !directAncestors.has(id)) {
             result[id] = 1; // 부모 세대이지만 직계 아님 (부모 형제) 숨김
+        }
+        // 하향 필터 (자손): 증손주(depth=-3)까지만 표시, 고손주(depth=-4) 이하 숨김
+        else if (depth <= -(DISPLAY_MAX_DESCENDANT_DEPTH + 1)) {
+            result[id] = 1;
         }
     }
     return result;
@@ -1167,8 +1174,9 @@ export function buildTree(persons, relations, overrideMainId = null) {
     // §22: 형제 자녀 이하 숨김 (형제 본인 + 배우자는 z=0 유지)
     const zMap = applyStrictSiblingFilter(paternalFiltered, maps, byId, mainId, mainSpouseId);
 
-    // CoupleBlock 레이아웃
-    const positions = layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds);
+    // CoupleBlock 레이아웃 — z=0 노드만 공간 배치 대상 (§22: z=1 공간 제외)
+    const z0Ids = connectedIds.filter(id => zMap[id] === 0);
+    const positions = layoutCoupleBlock(mainId, maps, byId, depthMap, z0Ids);
 
     // 노드 조립
     const nodes = connectedIds.map(id => {
@@ -1176,8 +1184,8 @@ export function buildTree(persons, relations, overrideMainId = null) {
         const pos = positions[id] || { x: 0, y: (depthMap[id] || 0) * Y_GAP };
         const depth = depthMap[id] ?? 0;
         const zLevel = zMap[id] ?? 1;
-        // §22: 3대 이후 자손(depth ≤ -3) → 안개 처리 (opacity 0.3)
-        const isFog = depth <= -3;
+        // §22: 증손주(3대 이하, depth ≤ -3) → 안개 처리 (opacity 0.3)
+        const isFog = depth <= -DISPLAY_MAX_DESCENDANT_DEPTH;
 
         return {
             id,
