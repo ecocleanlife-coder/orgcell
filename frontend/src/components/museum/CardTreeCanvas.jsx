@@ -488,7 +488,7 @@ export default function CardTreeCanvas({
 
     if (!layout) {
         return (
-            <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
                 <div
                     onDoubleClick={() => onCardDoubleClick(curator || null)}
                     style={{
@@ -504,6 +504,9 @@ export default function CardTreeCanvas({
                     <div style={{ fontSize: 12, color: '#999', textAlign: 'center', lineHeight: 1.7 }}>
                         더블클릭하여<br />정보를 입력하세요
                     </div>
+                </div>
+                <div style={{ fontSize: 14, color: '#C4A882', textAlign: 'center', lineHeight: 1.7 }}>
+                    이미지카드를 더블클릭하시면<br />본인정보를 입력하실수 있습니다.
                 </div>
             </div>
         );

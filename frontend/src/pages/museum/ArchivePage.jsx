@@ -72,7 +72,7 @@ function defaultGenderFor(_layoutRole, direction) {
 function PersonModal({ modal, onClose, onSave, onDelete }) {
     const { person } = modal;
     const initForm = {
-        name: modal.isSelf ? '' : (person?.name || ''),
+        name: '',
         name_en: person?.name_en || '',
         name_suffix: person?.name_suffix || '',
         birth_date: person?.birth_date ? person.birth_date.slice(0, 10) : '',
@@ -223,7 +223,7 @@ function PersonModal({ modal, onClose, onSave, onDelete }) {
                                 </button>
                             )}
                             <button onClick={handleSave} disabled={submitting} style={{ ...MENU_BTN, flex: 1, background: '#4A7F4A', color: '#fff', border: '1px solid #4A7F4A' }}>
-                                {submitting ? '저장중…' : '완성'}
+                                {submitting ? '저장중…' : '생성'}
                             </button>
                         </div>
                     </>
@@ -459,6 +459,7 @@ export default function ArchivePage() {
             }
         }
 
+        // 카드트리 즉시 반영: loadData 완료 후 모달·대기카드 동시 해제
         await loadData();
         setModal(null);
         setPendingCard(null);
@@ -550,8 +551,11 @@ export default function ArchivePage() {
                     )}
                     <button
                         onClick={() => navigate(`/${subdomain}`)}
-                        style={{ padding: '6px 18px', borderRadius: 6, fontSize: 16, fontWeight: 600, background: '#4A7F4A', color: '#fff', border: 'none', cursor: 'pointer', borderBottom: '2px solid #3a6a3a' }}
-                    >완료</button>
+                        onMouseDown={e => { e.currentTarget.style.transform = 'translateY(2px)'; e.currentTarget.style.boxShadow = 'none'; }}
+                        onMouseUp={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '1px 2px 0 #9a7a50'; }}
+                        onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '1px 2px 0 #9a7a50'; }}
+                        style={{ padding: '6px 16px', borderRadius: 6, fontSize: 14, fontWeight: 600, background: '#FDF8F0', color: TEXT_DARK, border: `1px solid ${GOLD}`, borderRight: `2px solid #b09060`, borderBottom: `2px solid #9a7a50`, boxShadow: '1px 2px 0 #9a7a50', cursor: 'pointer', transition: 'transform 0.1s' }}
+                    >🏠 박물관으로 돌아가기</button>
                     <button
                         onClick={async () => { await logout(); navigate('/auth/login'); }}
                         style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: `1px solid ${GOLD}`, borderRadius: 6, padding: '6px 12px', cursor: 'pointer', color: TEXT_MID, fontSize: 14 }}
