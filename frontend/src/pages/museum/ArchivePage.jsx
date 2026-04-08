@@ -1,12 +1,12 @@
 /**
  * ArchivePage.jsx — 자료실 (§8, §9)
- * 관계 탭 + 좌측 인물 입력(60%) + 우측 메뉴(40%) + 하단 MiniTree
+ * 관계 탭 + 좌60% 인물입력 + 우40% 메뉴 + 하단 MiniTree
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Loader2, LogOut, Plus } from 'lucide-react';
+import { Camera, Loader2, LogOut, Plus, QrCode } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 import MiniTree from '../../components/museum/MiniTree';
 
@@ -24,10 +24,11 @@ const BLOCK_STYLE = {
     borderRight: '2px solid #b09060',
     borderBottom: '2px solid #9a7a50',
     boxShadow: '2px 2px 0 #c4a87a',
+    borderRadius: 8,
 };
 
-// 자판기 버튼 스타일 (§12)
-const MENU_BTN = {
+// §12 자판기 버튼
+const MENU_BTN_STYLE = {
     background: '#FDF8F0',
     border: `1px solid ${GOLD}`,
     borderRight: '2px solid #b09060',
@@ -35,56 +36,65 @@ const MENU_BTN = {
     boxShadow: '1px 1px 0 #c4a87a',
     color: TEXT_DARK,
     borderRadius: 6,
-    padding: '8px 12px',
-    fontSize: 13,
+    padding: '10px 14px',
+    fontSize: 20,
     fontWeight: 500,
     cursor: 'pointer',
     textAlign: 'left',
     width: '100%',
-    transition: 'transform 0.1s, box-shadow 0.1s',
+    transition: 'transform 0.1s',
 };
 
 // ── 탭 정의 ──────────────────────────────────────────────────────────
 const STATIC_TABS = [
-    { key: 'self',        label: '본인',      numbered: false },
-    { key: 'spouse',      label: '배우자',    numbered: false },
-    { key: 'father',      label: '부',        numbered: false },
-    { key: 'mother',      label: '모',        numbered: false },
-    { key: 'hyeong',      label: '형',        numbered: true  },
-    { key: 'je',          label: '제',        numbered: true  },
-    { key: 'ja',          label: '자',        numbered: true  },
-    { key: 'mae',         label: '매',        numbered: true  },
-    { key: 'son',         label: '아들',      numbered: true  },
-    { key: 'daughter',    label: '딸',        numbered: true  },
-    { key: 'birthfather', label: '입적전친부', numbered: false },
-    { key: 'birthmother', label: '입적전친모', numbered: false },
+    { key: 'self',        label: '본인',       numbered: false },
+    { key: 'spouse',      label: '배우자',     numbered: false },
+    { key: 'father',      label: '부',         numbered: false },
+    { key: 'mother',      label: '모',         numbered: false },
+    { key: 'hyeong',      label: '형',         numbered: true  },
+    { key: 'je',          label: '제',         numbered: true  },
+    { key: 'ja',          label: '자',         numbered: true  },
+    { key: 'mae',         label: '매',         numbered: true  },
+    { key: 'son',         label: '아들',       numbered: true  },
+    { key: 'daughter',    label: '딸',         numbered: true  },
+    { key: 'birthfather', label: '입적전친부',  numbered: false },
+    { key: 'birthmother', label: '입적전친모',  numbered: false },
 ];
 
 const EMPTY_FORM = {
-    name: '', birth_date: '', gender: '',
+    name: '', birth_date: '', birth_lunar: false, gender: '',
     is_deceased: false, death_date: '',
     bio1: '', bio2: '', bio3: '',
 };
+
+// 탭별 기본 성별
+function getDefaultGender(tabKey) {
+    if (['father', 'hyeong', 'je', 'son', 'birthfather'].includes(tabKey)) return 'male';
+    if (['mother', 'ja', 'mae', 'daughter', 'birthmother'].includes(tabKey)) return 'female';
+    return '';
+}
 
 // ── 관계 탐색 헬퍼 ────────────────────────────────────────────────────
 function findPersonForTab(tabKey, tabIndex, curator, persons, relations) {
     if (!curator) return null;
     const cid = curator.id;
 
-    const spouseRel = relations.find(r =>
-        r.relation_type === 'spouse' &&
-        (r.person1_id === cid || r.person2_id === cid)
-    );
-
     switch (tabKey) {
         case 'self': return curator;
         case 'spouse': {
-            if (!spouseRel) return null;
-            const sid = spouseRel.person1_id === cid ? spouseRel.person2_id : spouseRel.person1_id;
+            const rel = relations.find(r =>
+                r.relation_type === 'spouse' && (r.person1_id === cid || r.person2_id === cid)
+            );
+            if (!rel) return null;
+            const sid = rel.person1_id === cid ? rel.person2_id : rel.person1_id;
             return persons.find(p => p.id === sid) || null;
         }
-        case 'father': return persons.find(p => p.id === curator.parent1_id && p.gender === 'male') || null;
-        case 'mother': return persons.find(p => p.id === curator.parent2_id && p.gender === 'female') || null;
+        case 'father':
+            return persons.find(p => p.id === curator.parent1_id && p.gender === 'male') ||
+                   persons.find(p => p.id === curator.parent2_id && p.gender === 'male') || null;
+        case 'mother':
+            return persons.find(p => p.id === curator.parent2_id && p.gender === 'female') ||
+                   persons.find(p => p.id === curator.parent1_id && p.gender === 'female') || null;
         case 'son': {
             const sons = persons.filter(p =>
                 (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'male'
@@ -101,29 +111,57 @@ function findPersonForTab(tabKey, tabIndex, curator, persons, relations) {
         case 'je':
         case 'ja':
         case 'mae': {
-            const siblingGender = (tabKey === 'hyeong' || tabKey === 'je') ? 'male' : 'female';
-            const siblingRels = relations.filter(r =>
-                r.relation_type === 'sibling' &&
-                (r.person1_id === cid || r.person2_id === cid)
+            const isMale = tabKey === 'hyeong' || tabKey === 'je';
+            const sibRels = relations.filter(r =>
+                r.relation_type === 'sibling' && (r.person1_id === cid || r.person2_id === cid)
             );
-            const siblings = siblingRels.map(r => {
+            const siblings = sibRels.map(r => {
                 const pid = r.person1_id === cid ? r.person2_id : r.person1_id;
                 return persons.find(p => p.id === pid);
-            }).filter(p => p && p.gender === siblingGender);
+            }).filter(p => p && (isMale ? p.gender === 'male' : p.gender === 'female'));
             return siblings[tabIndex] || null;
         }
         case 'birthfather':
         case 'birthmother': {
             const bpGender = tabKey === 'birthfather' ? 'male' : 'female';
-            const bpRels = relations.filter(r =>
-                r.relation_type === 'birth-parent' && r.person2_id === cid
-            );
-            const bpPersons = bpRels.map(r => persons.find(p => p.id === r.person1_id))
-                .filter(p => p && p.gender === bpGender);
-            return bpPersons[0] || null;
+            const bpRels = relations.filter(r => r.relation_type === 'birth-parent' && r.person2_id === cid);
+            return bpRels.map(r => persons.find(p => p.id === r.person1_id))
+                         .find(p => p && p.gender === bpGender) || null;
         }
         default: return null;
     }
+}
+
+// 트리 카드 클릭 → 해당 탭 찾기
+function findTabForPerson(personId, curator, persons, relations) {
+    if (!curator || !personId) return null;
+    const cid = curator.id;
+    if (personId === cid) return { key: 'self', index: 0 };
+
+    const spouseRel = relations.find(r =>
+        r.relation_type === 'spouse' &&
+        ((r.person1_id === cid && r.person2_id === personId) ||
+         (r.person2_id === cid && r.person1_id === personId))
+    );
+    if (spouseRel) return { key: 'spouse', index: 0 };
+
+    const person = persons.find(p => p.id === personId);
+    if (!person) return null;
+
+    if (person.id === curator.parent1_id || person.id === curator.parent2_id) {
+        return person.gender === 'female' ? { key: 'mother', index: 0 } : { key: 'father', index: 0 };
+    }
+
+    if (person.parent1_id === cid || person.parent2_id === cid) {
+        if (person.gender === 'male') {
+            const sons = persons.filter(p => (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'male');
+            return { key: 'son', index: Math.max(0, sons.findIndex(p => p.id === personId)) };
+        } else {
+            const daughters = persons.filter(p => (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'female');
+            return { key: 'daughter', index: Math.max(0, daughters.findIndex(p => p.id === personId)) };
+        }
+    }
+    return null;
 }
 
 function personToForm(p) {
@@ -131,6 +169,7 @@ function personToForm(p) {
     return {
         name: p.name || '',
         birth_date: p.birth_date ? p.birth_date.slice(0, 10) : '',
+        birth_lunar: p.birth_lunar || false,
         gender: p.gender || '',
         is_deceased: p.is_deceased || false,
         death_date: p.death_date ? p.death_date.slice(0, 10) : '',
@@ -140,11 +179,24 @@ function personToForm(p) {
     };
 }
 
+// 입력 스타일 공통
+const INPUT_STYLE = {
+    width: '100%',
+    padding: '8px 12px',
+    borderRadius: 6,
+    border: '1.5px solid #DDD5C8',
+    background: '#FAFAF7',
+    fontSize: 22,
+    color: TEXT_DARK,
+    outline: 'none',
+    boxSizing: 'border-box',
+};
+
 // ── 메인 컴포넌트 ─────────────────────────────────────────────────────
 export default function ArchivePage() {
     const { subdomain } = useParams();
     const navigate = useNavigate();
-    const { isAuthenticated, logout } = useAuthStore();
+    const { logout } = useAuthStore();
 
     const [site, setSite] = useState(null);
     const [persons, setPersons] = useState([]);
@@ -152,9 +204,7 @@ export default function ArchivePage() {
     const [curator, setCurator] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // 탭: { key, index }
     const [activeTab, setActiveTab] = useState({ key: 'self', index: 0 });
-    // numbered 탭 인스턴스 수: { hyeong: 1, son: 2, ... }
     const [tabCounts, setTabCounts] = useState({
         hyeong: 1, je: 1, ja: 1, mae: 1, son: 1, daughter: 1,
     });
@@ -164,23 +214,30 @@ export default function ArchivePage() {
     const [photoPreview, setPhotoPreview] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
-    const fileInputRef = useRef(null);
 
-    // ── 데이터 로드 ──
+    // 입장권 발급 상태
+    const [showPassForm, setShowPassForm] = useState(false);
+    const [passName, setPassName] = useState('');
+    const [passDuration, setPassDuration] = useState('7days');
+    const [passQRUrl, setPassQRUrl] = useState(null);
+
+    const fileInputRef = useRef(null);
+    const formRef = useRef(null);
+    const skipNextFormSync = useRef(false);
+
+    // ── 데이터 로드 ──────────────────────────────────────────────────
     const loadData = useCallback(async () => {
         try {
             const [siteRes, personsRes] = await Promise.all([
                 axios.get('/api/sites/mine'),
                 axios.get(`/api/persons/${subdomain}`),
             ]);
-
             const siteData = siteRes.data.data;
             setSite(siteData);
 
             const ps = personsRes.data.data || [];
             setPersons(ps);
 
-            // relations 로드
             let rels = [];
             if (siteData?.id) {
                 try {
@@ -193,25 +250,24 @@ export default function ArchivePage() {
             const cur = ps.find(p => p.match_status === 'linked');
             setCurator(cur || null);
 
-            // numbered tab counts 동기화
             if (cur) {
                 const cid = cur.id;
                 const sons = ps.filter(p => (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'male');
                 const daughters = ps.filter(p => (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'female');
-                const maleRels = rels.filter(r => r.relation_type === 'sibling' && (r.person1_id === cid || r.person2_id === cid));
-                const maleSiblings = maleRels.filter(r => {
+                const sibRels = rels.filter(r => r.relation_type === 'sibling' && (r.person1_id === cid || r.person2_id === cid));
+                const maleSibs = sibRels.filter(r => {
                     const pid = r.person1_id === cid ? r.person2_id : r.person1_id;
                     return ps.find(p => p.id === pid)?.gender === 'male';
                 });
-                const femaleSiblings = maleRels.filter(r => {
+                const femaleSibs = sibRels.filter(r => {
                     const pid = r.person1_id === cid ? r.person2_id : r.person1_id;
                     return ps.find(p => p.id === pid)?.gender === 'female';
                 });
                 setTabCounts({
-                    hyeong: Math.max(1, Math.ceil(maleSiblings.length / 2)),
-                    je: Math.max(1, Math.floor(maleSiblings.length / 2) + (maleSiblings.length % 2)),
-                    ja: Math.max(1, Math.ceil(femaleSiblings.length / 2)),
-                    mae: Math.max(1, Math.floor(femaleSiblings.length / 2)),
+                    hyeong: Math.max(1, maleSibs.length),
+                    je: Math.max(1, maleSibs.length),
+                    ja: Math.max(1, femaleSibs.length),
+                    mae: Math.max(1, femaleSibs.length),
                     son: Math.max(1, sons.length),
                     daughter: Math.max(1, daughters.length),
                 });
@@ -225,10 +281,16 @@ export default function ArchivePage() {
 
     useEffect(() => { loadData(); }, [loadData]);
 
-    // 탭 전환 시 폼 동기화
+    // 탭 전환 시 폼 동기화 (버그2: skipNextFormSync, 버그4: 성별 자동)
     useEffect(() => {
+        if (skipNextFormSync.current) {
+            skipNextFormSync.current = false;
+            return;
+        }
         const person = findPersonForTab(activeTab.key, activeTab.index, curator, persons, relations);
-        setForm(personToForm(person));
+        const base = personToForm(person);
+        if (!person) base.gender = getDefaultGender(activeTab.key);
+        setForm(base);
         setPhoto(null);
         setPhotoPreview(person?.photo_url || null);
         setError('');
@@ -237,15 +299,15 @@ export default function ArchivePage() {
     const currentPerson = findPersonForTab(activeTab.key, activeTab.index, curator, persons, relations);
     const isRegistered = !!currentPerson;
 
-    // ── 폼 초기화 ──
+    // 폼 초기화 (버그2)
     const resetForm = () => {
-        setForm({ ...EMPTY_FORM });
+        skipNextFormSync.current = true;
+        setForm({ ...EMPTY_FORM, gender: getDefaultGender(activeTab.key) });
         setPhoto(null);
         setPhotoPreview(null);
         setError('');
     };
 
-    // ── 사진 처리 ──
     const handlePhotoChange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -253,21 +315,17 @@ export default function ArchivePage() {
         setPhotoPreview(URL.createObjectURL(file));
     };
 
-    // ── [생성] ──
+    // ── [생성] ──────────────────────────────────────────────────────
     const handleCreate = async () => {
         if (!form.name.trim()) return setError('이름을 입력해주세요.');
         if (!site?.id) return;
         setSubmitting(true);
         setError('');
         try {
-            const payload = buildCreatePayload(activeTab.key, form, curator, persons);
+            const payload = buildCreatePayload(activeTab.key, form, curator);
             const res = await axios.post(`/api/persons/${site.id}`, payload);
             const newPerson = res.data.data;
-
-            // 관계 연결
             await linkRelation(activeTab.key, newPerson, site.id, curator);
-
-            // 사진 업로드
             if (photo && newPerson.id) {
                 const fd = new FormData();
                 fd.append('photo', photo);
@@ -275,7 +333,6 @@ export default function ArchivePage() {
                     headers: { 'Content-Type': 'multipart/form-data' },
                 }).catch(() => {});
             }
-
             await loadData();
             resetForm();
         } catch (err) {
@@ -285,7 +342,7 @@ export default function ArchivePage() {
         }
     };
 
-    // ── [수정] ──
+    // ── [수정] ──────────────────────────────────────────────────────
     const handleUpdate = async () => {
         if (!currentPerson || !site?.id) return;
         if (!form.name.trim()) return setError('이름을 입력해주세요.');
@@ -295,14 +352,14 @@ export default function ArchivePage() {
             await axios.put(`/api/persons/${site.id}/${currentPerson.id}`, {
                 name: form.name.trim(),
                 birth_date: form.birth_date || null,
+                birth_lunar: form.birth_lunar,
                 gender: form.gender || null,
                 is_deceased: form.is_deceased,
-                death_date: form.is_deceased ? (form.death_date || null) : null,
+                death_date: form.is_deceased ? form.death_date || null : null,
                 bio1: form.bio1 || null,
                 bio2: form.bio2 || null,
                 bio3: form.bio3 || null,
             });
-
             if (photo && currentPerson.id) {
                 const fd = new FormData();
                 fd.append('photo', photo);
@@ -310,7 +367,6 @@ export default function ArchivePage() {
                     headers: { 'Content-Type': 'multipart/form-data' },
                 }).catch(() => {});
             }
-
             await loadData();
             resetForm();
         } catch (err) {
@@ -320,7 +376,7 @@ export default function ArchivePage() {
         }
     };
 
-    // ── [제거] ──
+    // ── [제거] ──────────────────────────────────────────────────────
     const handleDelete = async () => {
         if (!currentPerson || !site?.id) return;
         if (!window.confirm('정말 관계를 해제하시겠습니까?')) return;
@@ -337,7 +393,25 @@ export default function ArchivePage() {
         }
     };
 
-    // ── 탭 목록 생성 ──
+    // 트리 카드 클릭 → 탭 이동 (버그7)
+    const handleTreePersonClick = useCallback((personId) => {
+        const tab = findTabForPerson(personId, curator, persons, relations);
+        if (!tab) return;
+        setActiveTab(tab);
+        setTimeout(() => {
+            formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+    }, [curator, persons, relations]);
+
+    // 입장권 QR 생성 (버그9)
+    const handleGeneratePass = () => {
+        const token = Math.random().toString(36).slice(2, 14).toUpperCase();
+        const passUrl = `https://orgcell.com/${subdomain}/visit?pass=${token}&dur=${passDuration}`;
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(passUrl)}&size=200x200`;
+        setPassQRUrl(qrUrl);
+    };
+
+    // ── 탭 목록 생성 ────────────────────────────────────────────────
     const tabList = [];
     for (const t of STATIC_TABS) {
         if (t.numbered) {
@@ -351,79 +425,82 @@ export default function ArchivePage() {
         }
     }
 
-    const registeredKeys = new Set(
-        persons.filter(p => p.id !== curator?.id).map(p => {
-            // 간단히 관계 있는 person들의 id → tab key 매핑은 생략, 탭 강조는 currentPerson 기준
-            return null;
-        })
-    );
-
     if (loading) {
         return (
             <div style={{ minHeight: '100vh', background: BG_PAGE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Loader2 size={32} className="animate-spin" style={{ color: '#8a7040' }} />
+                <Loader2 size={40} className="animate-spin" style={{ color: '#8a7040' }} />
             </div>
         );
     }
 
     return (
         <div style={{ minHeight: '100vh', background: BG_PAGE, fontFamily: 'system-ui, sans-serif' }}>
-            {/* 헤더 */}
+            {/* ── 헤더 ── */}
             <div style={{
-                background: '#FEFCF8',
-                borderBottom: `1px solid ${GOLD}`,
-                padding: '10px 20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
+                background: '#FEFCF8', borderBottom: `1px solid ${GOLD}`,
+                padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
-                <div style={{ fontFamily: 'Georgia, serif', color: TEXT_DARK, fontWeight: 800, fontSize: 18, cursor: 'pointer' }}
+                <div style={{ fontFamily: 'Georgia, serif', color: TEXT_DARK, fontWeight: 800, fontSize: 22, cursor: 'pointer' }}
                     onClick={() => navigate(`/${subdomain}`)}>
                     Orgcell
                 </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <span style={{ fontSize: 13, color: TEXT_MID }}>{subdomain} 자료실</span>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    {/* [완료] 버튼 (버그6) */}
+                    <button
+                        onClick={() => navigate(`/${subdomain}`)}
+                        style={{
+                            padding: '6px 18px', borderRadius: 6, fontSize: 18, fontWeight: 600,
+                            background: '#4A7F4A', color: '#fff', border: 'none', cursor: 'pointer',
+                            borderBottom: '2px solid #3a6a3a',
+                        }}
+                    >완료</button>
+                    {/* 로그아웃 (버그8) */}
                     <button
                         onClick={async () => { await logout(); navigate('/auth/login'); }}
-                        style={{ fontSize: 12, color: TEXT_LIGHT, background: 'none', border: 'none', cursor: 'pointer' }}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            background: 'none', border: `1px solid ${GOLD}`, borderRadius: 6,
+                            padding: '6px 12px', cursor: 'pointer', color: TEXT_MID, fontSize: 16,
+                        }}
                         title="로그아웃"
                     >
-                        <LogOut size={14} />
+                        <LogOut size={16} /> 로그아웃
                     </button>
                 </div>
             </div>
 
-            <div style={{ maxWidth: 960, margin: '0 auto', padding: '16px 16px 0' }}>
-                {/* 안내문 (첫 방문 시: curator 이름이 없거나 subdomain과 같을 때) */}
+            <div style={{ maxWidth: 1000, margin: '0 auto', padding: '20px 20px 0' }}>
+                {/* 안내문 */}
                 {curator && (!curator.name || curator.name === subdomain) && (
-                    <div style={{ textAlign: 'center', marginBottom: 12, fontSize: 14, color: TEXT_MID }}>
+                    <div style={{ textAlign: 'center', marginBottom: 16, fontSize: 20, color: TEXT_MID }}>
                         본인과 가족들의 정보를 입력해 주세요
                     </div>
                 )}
 
-                {/* ─── 관계 탭 ─── */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
-                    {tabList.map((t, idx) => {
-                        const isActive = activeTab.key === t.key && activeTab.index === t.index && !t.isAdd;
-                        const tabPerson = t.isAdd ? null : findPersonForTab(t.key, t.index, curator, persons, relations);
-                        const hasData = !!tabPerson;
+                {/* ── 관계 탭 ── */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+                    {tabList.map((t) => {
+                        const isActive = !t.isAdd && activeTab.key === t.key && activeTab.index === t.index;
+                        const hasData = !t.isAdd && !!findPersonForTab(t.key, t.index, curator, persons, relations);
 
                         if (t.isAdd) {
                             return (
                                 <button
                                     key={`${t.key}-add`}
-                                    onClick={() => setTabCounts(prev => ({ ...prev, [t.key]: (prev[t.key] || 1) + 1 }))}
-                                    style={{
-                                        ...MENU_BTN,
-                                        width: 'auto',
-                                        padding: '4px 8px',
-                                        fontSize: 12,
-                                        color: TEXT_LIGHT,
-                                        background: '#F5F0E8',
+                                    onClick={() => {
+                                        const newCount = (tabCounts[t.key] || 1) + 1;
+                                        setTabCounts(prev => ({ ...prev, [t.key]: newCount }));
+                                        setActiveTab({ key: t.key, index: newCount - 1 });
                                     }}
-                                    title={`${STATIC_TABS.find(s => s.key === t.key)?.label} 추가`}
+                                    style={{
+                                        padding: '5px 10px', fontSize: 16, borderRadius: 6,
+                                        border: `1px solid ${GOLD}`, background: '#F5F0E8',
+                                        color: TEXT_LIGHT, cursor: 'pointer',
+                                        borderRight: '2px solid #b09060', borderBottom: '2px solid #9a7a50',
+                                    }}
+                                    title="탭 추가"
                                 >
-                                    <Plus size={10} />
+                                    <Plus size={12} />
                                 </button>
                             );
                         }
@@ -433,14 +510,12 @@ export default function ArchivePage() {
                                 key={`${t.key}-${t.index}`}
                                 onClick={() => setActiveTab({ key: t.key, index: t.index })}
                                 style={{
-                                    padding: '5px 10px',
-                                    fontSize: 13,
-                                    fontWeight: isActive ? 700 : 500,
+                                    padding: '7px 14px', fontSize: 20, fontWeight: isActive ? 700 : 500,
                                     borderRadius: 6,
-                                    border: `1px solid ${GOLD}`,
+                                    border: `1.5px solid ${GOLD}`,
                                     borderRight: '2px solid #b09060',
-                                    borderBottom: isActive ? '0px' : '2px solid #9a7a50',
-                                    borderTop: isActive ? '2px solid #9a7a50' : '1px solid #C4A882',
+                                    borderBottom: isActive ? '0' : '2px solid #9a7a50',
+                                    borderTop: isActive ? '2px solid #9a7a50' : `1.5px solid ${GOLD}`,
                                     background: isActive ? GOLD : (hasData ? '#FDF0DC' : '#FDF8F0'),
                                     color: isActive ? '#fff' : TEXT_DARK,
                                     cursor: 'pointer',
@@ -455,54 +530,57 @@ export default function ArchivePage() {
                     })}
                 </div>
 
-                {/* ─── 메인 영역 ─── */}
-                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                    {/* 좌측 60% — 인물 입력 */}
-                    <div style={{ flex: '0 0 60%', ...BLOCK_STYLE, borderRadius: 8, padding: 16 }}>
-                        {/* 사진 + 기본정보 */}
-                        <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}>
-                            {/* 사진 */}
+                {/* ── 메인 영역 ── */}
+                <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                    {/* 좌측 60% */}
+                    <div ref={formRef} style={{ flex: '0 0 60%', ...BLOCK_STYLE, padding: 20 }}>
+                        {/* 사진 + 이름/날짜/성별 */}
+                        <div style={{ display: 'flex', gap: 18, marginBottom: 16 }}>
                             <button
                                 type="button"
                                 onClick={() => fileInputRef.current?.click()}
                                 style={{
-                                    width: 80, height: 80, borderRadius: '50%', flexShrink: 0,
+                                    width: 96, height: 96, borderRadius: '50%', flexShrink: 0,
                                     border: `2px dashed ${GOLD}`, background: '#F0EBE0',
                                     display: 'flex', flexDirection: 'column', alignItems: 'center',
                                     justifyContent: 'center', cursor: 'pointer', overflow: 'hidden',
                                 }}
                             >
-                                {photoPreview ? (
-                                    <img src={photoPreview} alt="사진" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : (
-                                    <>
-                                        <Camera size={20} style={{ color: TEXT_LIGHT }} />
-                                        <span style={{ fontSize: 9, color: TEXT_LIGHT, marginTop: 2 }}>사진</span>
-                                    </>
-                                )}
+                                {photoPreview
+                                    ? <img src={photoPreview} alt="사진" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    : <><Camera size={24} style={{ color: TEXT_LIGHT }} /><span style={{ fontSize: 11, color: TEXT_LIGHT, marginTop: 3 }}>사진</span></>
+                                }
                             </button>
-                            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+                            <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoChange} />
 
-                            {/* 이름 + 생년월일 + 성별 */}
-                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
                                 <input
                                     type="text"
                                     value={form.name}
                                     onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                                     placeholder="이름"
-                                    style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: `1px solid #DDD5C8`, background: '#FAFAF7', fontSize: 14, color: TEXT_DARK, outline: 'none', boxSizing: 'border-box' }}
+                                    style={INPUT_STYLE}
                                 />
-                                <div style={{ display: 'flex', gap: 8 }}>
+                                {/* 생년월일 + 양력/음력 + 성별 (버그1) */}
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                                     <input
                                         type="date"
                                         value={form.birth_date}
                                         onChange={e => setForm(f => ({ ...f, birth_date: e.target.value }))}
-                                        style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: `1px solid #DDD5C8`, background: '#FAFAF7', fontSize: 13, color: TEXT_DARK, outline: 'none' }}
+                                        style={{ ...INPUT_STYLE, flex: 1, minWidth: 140, width: 'auto' }}
                                     />
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 18, color: TEXT_MID, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                        <input type="radio" name="lunar" checked={!form.birth_lunar} onChange={() => setForm(f => ({ ...f, birth_lunar: false }))} />
+                                        양력
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 18, color: TEXT_MID, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                        <input type="radio" name="lunar" checked={form.birth_lunar} onChange={() => setForm(f => ({ ...f, birth_lunar: true }))} />
+                                        음력
+                                    </label>
                                     <select
                                         value={form.gender}
                                         onChange={e => setForm(f => ({ ...f, gender: e.target.value }))}
-                                        style={{ width: 72, padding: '6px 6px', borderRadius: 6, border: `1px solid #DDD5C8`, background: '#FAFAF7', fontSize: 13, color: form.gender ? TEXT_DARK : TEXT_LIGHT, outline: 'none' }}
+                                        style={{ ...INPUT_STYLE, width: 90, flex: 'none' }}
                                     >
                                         <option value="">성별</option>
                                         <option value="male">남</option>
@@ -512,8 +590,8 @@ export default function ArchivePage() {
                             </div>
                         </div>
 
-                        {/* 사망 체크 */}
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, fontSize: 13, color: TEXT_MID, cursor: 'pointer' }}>
+                        {/* 사망 체크 (버그2: death_date 연동) */}
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontSize: 20, color: TEXT_MID, cursor: 'pointer' }}>
                             <input
                                 type="checkbox"
                                 checked={form.is_deceased}
@@ -525,89 +603,109 @@ export default function ArchivePage() {
                                     type="date"
                                     value={form.death_date}
                                     onChange={e => setForm(f => ({ ...f, death_date: e.target.value }))}
-                                    style={{ marginLeft: 8, padding: '3px 8px', borderRadius: 6, border: `1px solid #DDD5C8`, background: '#FAFAF7', fontSize: 13, color: TEXT_DARK, outline: 'none' }}
+                                    style={{ ...INPUT_STYLE, width: 'auto', marginLeft: 8 }}
                                 />
                             )}
                         </label>
 
                         {/* 대표정보 */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
                             {[
-                                { key: 'bio1', ph: '대표정보1 (직업, 별칭 등)' },
-                                { key: 'bio2', ph: '대표정보2 (출생지 등)' },
-                                { key: 'bio3', ph: '대표정보3 (가문 정보 등)' },
-                            ].map(({ key, ph }) => (
-                                <input
-                                    key={key}
-                                    type="text"
-                                    value={form[key]}
-                                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                    placeholder={ph}
-                                    style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: `1px solid #DDD5C8`, background: '#FAFAF7', fontSize: 13, color: TEXT_DARK, outline: 'none', boxSizing: 'border-box' }}
-                                />
+                                { k: 'bio1', ph: '대표정보1 (직업, 별칭 등)' },
+                                { k: 'bio2', ph: '대표정보2 (출생지 등)' },
+                                { k: 'bio3', ph: '대표정보3 (가문 정보 등)' },
+                            ].map(({ k, ph }) => (
+                                <input key={k} type="text" value={form[k]}
+                                    onChange={e => setForm(f => ({ ...f, [k]: e.target.value }))}
+                                    placeholder={ph} style={INPUT_STYLE} />
                             ))}
                         </div>
 
-                        {/* 에러 */}
                         {error && (
-                            <div style={{ background: '#FDF0EE', color: '#c0392b', border: '1px solid #F5C6C0', borderRadius: 6, padding: '8px 12px', fontSize: 13, marginBottom: 10 }}>
+                            <div style={{ background: '#FDF0EE', color: '#c0392b', border: '1px solid #F5C6C0', borderRadius: 6, padding: '10px 14px', fontSize: 18, marginBottom: 12 }}>
                                 {error}
                             </div>
                         )}
 
                         {/* 액션 버튼 */}
-                        <div style={{ display: 'flex', gap: 8 }}>
-                            <ActionBtn
-                                label="생성"
-                                disabled={isRegistered || submitting}
-                                onClick={handleCreate}
-                                color="#4A7F4A"
-                            />
-                            <ActionBtn
-                                label="수정"
-                                disabled={!isRegistered || submitting}
-                                onClick={handleUpdate}
-                                color="#5A6A8A"
-                            />
-                            <ActionBtn
-                                label="제거"
-                                disabled={!isRegistered || activeTab.key === 'self' || submitting}
-                                onClick={handleDelete}
-                                color="#8A4A4A"
-                            />
+                        <div style={{ display: 'flex', gap: 10 }}>
+                            <ActionBtn label="생성" disabled={isRegistered || submitting} onClick={handleCreate} color="#4A7F4A" />
+                            <ActionBtn label="수정" disabled={!isRegistered || submitting} onClick={handleUpdate} color="#5A6A8A" />
+                            <ActionBtn label="제거" disabled={!isRegistered || activeTab.key === 'self' || submitting} onClick={handleDelete} color="#8A4A4A" />
                         </div>
                     </div>
 
-                    {/* 우측 40% — 메뉴 */}
-                    <div style={{ flex: '0 0 calc(40% - 12px)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {[
-                            '사진자료실', '주요자료실', '주요약력', '자서전',
-                            '작품실', '육성녹음', '공유앨범',
-                        ].map(label => (
-                            <button key={label} style={MENU_BTN}
-                                onMouseDown={e => e.currentTarget.style.transform = 'translateY(2px)'}
-                                onMouseUp={e => e.currentTarget.style.transform = 'none'}
-                                onMouseLeave={e => e.currentTarget.style.transform = 'none'}
-                            >
-                                {label}
-                            </button>
+                    {/* 우측 40% — 메뉴 + 입장권 */}
+                    <div style={{ flex: '0 0 calc(40% - 14px)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {['사진자료실', '주요자료실', '주요약력', '자서전', '작품실', '육성녹음', '공유앨범'].map(label => (
+                            <button key={label} style={MENU_BTN_STYLE}
+                                onMouseDown={e => { e.currentTarget.style.transform = 'translateY(2px)'; e.currentTarget.style.boxShadow = 'none'; }}
+                                onMouseUp={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '1px 1px 0 #c4a87a'; }}
+                                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '1px 1px 0 #c4a87a'; }}
+                            >{label}</button>
                         ))}
                         <div style={{ borderTop: `1px solid ${GOLD}`, margin: '4px 0' }} />
-                        {['초대하기', '접근요청관리'].map(label => (
-                            <button key={label} style={{ ...MENU_BTN, color: '#7a5a3a' }}
-                                onMouseDown={e => e.currentTarget.style.transform = 'translateY(2px)'}
-                                onMouseUp={e => e.currentTarget.style.transform = 'none'}
-                                onMouseLeave={e => e.currentTarget.style.transform = 'none'}
-                            >
-                                {label}
-                            </button>
-                        ))}
+                        {/* 초대하기 */}
+                        <button style={MENU_BTN_STYLE}
+                            onMouseDown={e => { e.currentTarget.style.transform = 'translateY(2px)'; }}
+                            onMouseUp={e => { e.currentTarget.style.transform = 'none'; }}
+                            onMouseLeave={e => { e.currentTarget.style.transform = 'none'; }}
+                        >초대하기</button>
+                        {/* 입장권 발급 (버그9) */}
+                        <button
+                            style={{ ...MENU_BTN_STYLE, display: 'flex', alignItems: 'center', gap: 8 }}
+                            onClick={() => { setShowPassForm(p => !p); setPassQRUrl(null); }}
+                            onMouseDown={e => { e.currentTarget.style.transform = 'translateY(2px)'; }}
+                            onMouseUp={e => { e.currentTarget.style.transform = 'none'; }}
+                            onMouseLeave={e => { e.currentTarget.style.transform = 'none'; }}
+                        >
+                            <QrCode size={18} /> 입장권 발급
+                        </button>
+                        <button style={MENU_BTN_STYLE}
+                            onMouseDown={e => { e.currentTarget.style.transform = 'translateY(2px)'; }}
+                            onMouseUp={e => { e.currentTarget.style.transform = 'none'; }}
+                            onMouseLeave={e => { e.currentTarget.style.transform = 'none'; }}
+                        >접근요청관리</button>
+
+                        {/* 입장권 폼 */}
+                        {showPassForm && (
+                            <div style={{ ...BLOCK_STYLE, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                <div style={{ fontSize: 18, fontWeight: 700, color: TEXT_DARK, marginBottom: 4 }}>입장권 발급</div>
+                                <input
+                                    type="text"
+                                    value={passName}
+                                    onChange={e => setPassName(e.target.value)}
+                                    placeholder="방문자 이름 (선택)"
+                                    style={{ ...INPUT_STYLE, fontSize: 18 }}
+                                />
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, fontSize: 18 }}>
+                                    {[{ v: '3days', l: '3일' }, { v: '7days', l: '1주' }, { v: '30days', l: '1개월' }, { v: 'unlimited', l: '무제한' }].map(({ v, l }) => (
+                                        <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', color: TEXT_MID }}>
+                                            <input type="radio" name="passDur" value={v} checked={passDuration === v} onChange={() => setPassDuration(v)} />
+                                            {l}
+                                        </label>
+                                    ))}
+                                </div>
+                                <button
+                                    onClick={handleGeneratePass}
+                                    style={{ ...MENU_BTN_STYLE, background: '#5A6A8A', color: '#fff', textAlign: 'center', fontSize: 18 }}
+                                >QR코드 생성</button>
+                                {passQRUrl && (
+                                    <div style={{ textAlign: 'center' }}>
+                                        <img src={passQRUrl} alt="입장권 QR" style={{ width: 160, height: 160, border: `1px solid ${GOLD}`, borderRadius: 6 }} />
+                                        <div style={{ fontSize: 14, color: TEXT_LIGHT, marginTop: 4 }}>
+                                            {passName || '방문자'} · {({ '3days': '3일', '7days': '1주', '30days': '1개월', unlimited: '무제한' })[passDuration]}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* ─── 하단 MiniTree ─── */}
-                <div style={{ marginTop: 16, ...BLOCK_STYLE, borderRadius: 8, padding: 16, minHeight: 120 }}>
-                    <div style={{ fontSize: 12, color: TEXT_LIGHT, marginBottom: 8 }}>가족나무 미리보기</div>
+                {/* ── 하단 MiniTree ── */}
+                <div style={{ marginTop: 20, ...BLOCK_STYLE, padding: 20, minHeight: 140 }}>
+                    <div style={{ fontSize: 16, color: TEXT_LIGHT, marginBottom: 10 }}>가족나무 미리보기</div>
                     <AnimatePresence>
                         {curator ? (
                             <motion.div
@@ -622,41 +720,38 @@ export default function ArchivePage() {
                                     relations={relations}
                                     currentPersonId={curator.id}
                                     subdomain={subdomain}
+                                    onPersonClick={handleTreePersonClick}
                                 />
                             </motion.div>
                         ) : (
-                            <div style={{ textAlign: 'center', color: TEXT_LIGHT, fontSize: 13, paddingTop: 24 }}>
+                            <div style={{ textAlign: 'center', color: TEXT_LIGHT, fontSize: 20, paddingTop: 30 }}>
                                 첫 가족을 등록해보세요
                             </div>
                         )}
                     </AnimatePresence>
                 </div>
 
-                <div style={{ height: 32 }} />
+                <div style={{ height: 40 }} />
             </div>
         </div>
     );
 }
 
-// ── 액션 버튼 ─────────────────────────────────────────────────────────
+// ── 액션 버튼 ────────────────────────────────────────────────────────
 function ActionBtn({ label, disabled, onClick, color }) {
     return (
         <button
             onClick={onClick}
             disabled={disabled}
             style={{
-                flex: 1,
-                padding: '8px 0',
-                borderRadius: 6,
+                flex: 1, padding: '10px 0', borderRadius: 6, fontSize: 20, fontWeight: 600,
                 border: disabled ? '1px solid #DDD5C8' : `1px solid ${color}`,
                 borderRight: disabled ? '2px solid #C8BCA8' : `2px solid ${color}88`,
-                borderBottom: disabled ? '2px solid #C8BCA8' : `2px solid ${color}AA`,
+                borderBottom: disabled ? '2px solid #C8BCA8' : `2px solid ${color}BB`,
                 background: disabled ? '#F0EBE0' : color,
                 color: disabled ? TEXT_LIGHT : '#fff',
-                fontSize: 14,
-                fontWeight: 600,
                 cursor: disabled ? 'not-allowed' : 'pointer',
-                boxShadow: disabled ? 'none' : '1px 1px 0 rgba(0,0,0,0.15)',
+                boxShadow: disabled ? 'none' : '1px 2px 0 rgba(0,0,0,0.12)',
                 transition: 'all 0.1s',
             }}
         >
@@ -665,11 +760,12 @@ function ActionBtn({ label, disabled, onClick, color }) {
     );
 }
 
-// ── 생성 payload 빌더 ─────────────────────────────────────────────────
-function buildCreatePayload(tabKey, form, curator, persons) {
+// ── 생성 payload ──────────────────────────────────────────────────────
+function buildCreatePayload(tabKey, form, curator) {
     const base = {
         name: form.name.trim(),
         birth_date: form.birth_date || null,
+        birth_lunar: form.birth_lunar,
         gender: form.gender || null,
         is_deceased: form.is_deceased,
         death_date: form.is_deceased ? form.death_date || null : null,
@@ -677,16 +773,20 @@ function buildCreatePayload(tabKey, form, curator, persons) {
         bio2: form.bio2 || null,
         bio3: form.bio3 || null,
     };
-
     if (!curator) return base;
     const cid = curator.id;
-
     switch (tabKey) {
-        case 'father':  return { ...base, gender: 'male' };
-        case 'mother':  return { ...base, gender: 'female' };
-        case 'son':     return { ...base, gender: 'male',   parent1_id: cid };
-        case 'daughter':return { ...base, gender: 'female', parent1_id: cid };
-        default:        return base;
+        case 'father':   return { ...base, gender: 'male' };
+        case 'mother':   return { ...base, gender: 'female' };
+        case 'son':      return { ...base, gender: 'male',   parent1_id: cid };
+        case 'daughter': return { ...base, gender: 'female', parent1_id: cid };
+        case 'hyeong':   return { ...base, gender: 'male' };
+        case 'je':       return { ...base, gender: 'male' };
+        case 'ja':       return { ...base, gender: 'female' };
+        case 'mae':      return { ...base, gender: 'female' };
+        case 'birthfather': return { ...base, gender: 'male' };
+        case 'birthmother': return { ...base, gender: 'female' };
+        default:         return base;
     }
 }
 
@@ -695,16 +795,12 @@ async function linkRelation(tabKey, newPerson, siteId, curator) {
     if (!curator) return;
     const cid = curator.id;
     const nid = newPerson.id;
-
     try {
         switch (tabKey) {
             case 'spouse':
                 await axios.post(`/api/persons/${siteId}/relations`, {
-                    person1_id: Math.min(cid, nid),
-                    person2_id: Math.max(cid, nid),
-                    relation_type: 'spouse',
+                    person1_id: Math.min(cid, nid), person2_id: Math.max(cid, nid), relation_type: 'spouse',
                 });
-                // curator spouse_id 업데이트
                 await axios.put(`/api/persons/${siteId}/${cid}`, { spouse_id: nid });
                 break;
             case 'father':
@@ -719,31 +815,22 @@ async function linkRelation(tabKey, newPerson, siteId, curator) {
                     person1_id: nid, person2_id: cid, relation_type: 'parent',
                 });
                 break;
-            case 'hyeong':
-            case 'je':
-            case 'ja':
-            case 'mae':
+            case 'hyeong': case 'je': case 'ja': case 'mae':
                 await axios.post(`/api/persons/${siteId}/relations`, {
-                    person1_id: Math.min(cid, nid),
-                    person2_id: Math.max(cid, nid),
-                    relation_type: 'sibling',
+                    person1_id: Math.min(cid, nid), person2_id: Math.max(cid, nid), relation_type: 'sibling',
                 });
                 break;
-            case 'birthfather':
-            case 'birthmother':
-                await axios.post(`/api/persons/${siteId}/relations`, {
-                    person1_id: nid, person2_id: cid, relation_type: 'birth-parent',
-                });
-                break;
-            // son, daughter: parent1_id already set in payload, but also add to relations
-            case 'son':
-            case 'daughter':
+            case 'son': case 'daughter':
                 await axios.post(`/api/persons/${siteId}/relations`, {
                     person1_id: cid, person2_id: nid, relation_type: 'parent',
                 });
                 break;
-            default:
+            case 'birthfather': case 'birthmother':
+                await axios.post(`/api/persons/${siteId}/relations`, {
+                    person1_id: nid, person2_id: cid, relation_type: 'birth-parent',
+                });
                 break;
+            default: break;
         }
     } catch (err) {
         console.warn('linkRelation error (non-fatal):', err.message);
