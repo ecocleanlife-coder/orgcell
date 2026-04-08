@@ -243,6 +243,13 @@ export default function ArchivePage() {
             ]);
             const siteData = siteRes.data.data;
             setSite(siteData);
+
+            // Bug 2: 내 subdomain과 URL subdomain이 다르면 내 사이트로 리다이렉트
+            if (siteData?.subdomain && siteData.subdomain !== subdomain) {
+                navigate(`/${siteData.subdomain}/archive`, { replace: true });
+                return;
+            }
+
             const ps = personsRes.data.data || [];
             setPersons(ps);
 
@@ -277,19 +284,23 @@ export default function ArchivePage() {
 
     /* ─ 카드 더블클릭 → 모달 열기 ─────────────────────────── */
     const handleCardDoubleClick = useCallback((person) => {
+        if (!person && !pendingCard) {
+            // 최초 진입 (관장 미등록/fallback 카드): 관장 편집 또는 신규 생성
+            setModal({ person: curator || null, suggestGender: null, relation: null, isSelf: true });
+            return;
+        }
         if (!person) {
-            // 대기 카드 더블클릭 → 모달 열기 (대기 카드 정보 유지)
-            if (!pendingCard) return;
+            // 대기 카드 더블클릭 → 모달 열기
             setModal({
                 person: null,
                 suggestGender: pendingCard.suggestGender,
                 relation: pendingCard,
             });
-        } else {
-            // 완성 카드 더블클릭 → 편집 모달
-            setModal({ person, suggestGender: null, relation: null });
+            return;
         }
-    }, [pendingCard]);
+        // 완성 카드 더블클릭 → 편집 모달
+        setModal({ person, suggestGender: null, relation: null });
+    }, [pendingCard, curator]);
 
     const handleCardClick = useCallback((_person) => {
         // 단순 클릭은 별도 동작 없음 (선택 상태 표시용 예비)

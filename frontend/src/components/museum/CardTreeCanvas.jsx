@@ -3,6 +3,7 @@
  * 카드 중심 확장. 모든 완성 카드에 사방 화살표.
  */
 import React, { useMemo } from 'react';
+import { motion } from 'framer-motion';
 
 /* ─── 상수 ─────────────────────────────────────────────────── */
 const CARD_W = 160;
@@ -146,7 +147,11 @@ function PersonCard({ node, curatorId, curatorSpouseId, hasPendingCard, onArrowC
             )}
 
             {/* 카드 본체 */}
-            <div
+            <motion.div
+                key={node.id}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
                 onClick={() => person && onCardClick(person)}
                 onDoubleClick={() => onCardDoubleClick(person || null)}
                 style={{
@@ -205,7 +210,7 @@ function PersonCard({ node, curatorId, curatorSpouseId, hasPendingCard, onArrowC
                         )}
                     </>
                 )}
-            </div>
+            </motion.div>
         </div>
     );
 }
