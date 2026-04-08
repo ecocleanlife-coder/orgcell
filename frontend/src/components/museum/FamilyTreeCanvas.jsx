@@ -320,24 +320,12 @@ export default function FamilyTreeCanvas({
             clearViewport();
         }
 
-        // 일반 복원: 가문전환 아닌 경우만 저장된 뷰포트 사용
-        if (!isWormholeSwitch && hasValidViewport()) {
-            setTimeout(() => {
-                transformRef.current?.setTransform(
-                    savedViewport.positionX,
-                    savedViewport.positionY,
-                    savedViewport.scale,
-                );
-            }, 50);
-            return;
-        }
-
-        // 기본/가문전환: Auto-Fit → 전체 노드가 뷰포트에 맞도록
-        // 순차 애니메이션 종료 후 타이밍: 마지막 노드 delay + 스프링 완료 추정 800ms
+        // §23: 초기 로드 / 가문전환 모두 관장 부부 박스 중심 = 화면 정중앙
+        // savedViewport 복원 제거 — 항상 centerOnMain() 우선
         const totalAnimMs = Math.max(0, (couples.length - 1) * 300) + 900;
-        setTimeout(() => { autoFit(); }, 50);           // 즉시 초기 fit (레이아웃 기준)
-        setTimeout(() => { autoFit(); }, totalAnimMs);  // 전 노드 등장 완료 후 재fit
-    }, [visibleNodes.length, mainCoupleScreenX, mainScreenY, mainId]);
+        setTimeout(() => { centerOnMain(); }, 50);           // 레이아웃 확정 직후 중앙 배치
+        setTimeout(() => { centerOnMain(); }, totalAnimMs);  // 전 노드 등장 완료 후 재보정
+    }, [visibleNodes.length, mainId, centerOnMain]);
 
     // ── pan/zoom 변경 시 뷰포트 저장 ──
     const handleTransformChange = useCallback((ref) => {
