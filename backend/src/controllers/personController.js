@@ -1,7 +1,11 @@
 const db = require('../config/db');
+const fs = require('fs');
+const path = require('path');
 const { generateOcId, resolveCountryCode } = require('../utils/ocIdGenerator');
 const { assignPath } = require('../services/pathAssigner');
 const { matchAndMerge } = require('../services/personMatcher');
+
+const PERSON_UPLOADS_DIR = path.join(__dirname, '../../uploads/persons');
 
 // 사이트 접근 권한 확인 (owner 또는 member)
 async function checkSiteAccess(userId, siteId) {
@@ -153,6 +157,14 @@ exports.createPerson = async (req, res) => {
 
         const newPerson = rows[0];
         const newPersonId = newPerson.id;
+
+        // 개인 폴더 자동 생성 (§19)
+        try {
+            const personDir = path.join(PERSON_UPLOADS_DIR, String(newPersonId));
+            fs.mkdirSync(personDir, { recursive: true });
+        } catch (e) {
+            console.error('person folder creation failed:', e.message);
+        }
 
         // oc_id 자동 부여
         try {
@@ -415,7 +427,15 @@ exports.uploadPhoto = async (req, res) => {
             return res.status(400).json({ success: false, message: 'No file uploaded' });
         }
 
-        const photo_url = `/uploads/persons/${req.file.filename}`;
+        // 개인 폴더에 profile.jpg로 저장 (§19)
+        const personDir = path.join(PERSON_UPLOADS_DIR, String(personId));
+        fs.mkdirSync(personDir, { recursive: true });
+        const profilePath = path.join(personDir, 'profile.jpg');
+
+        // 업로드된 파일을 profile.jpg로 이동
+        fs.renameSync(req.file.path, profilePath);
+
+        const photo_url = `/uploads/persons/${personId}/profile.jpg`;
 
         const { rows } = await db.query(
             `UPDATE persons SET photo_url = $1 WHERE id = $2 AND site_id = $3 RETURNING *`,

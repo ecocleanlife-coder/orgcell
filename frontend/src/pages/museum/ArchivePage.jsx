@@ -45,20 +45,33 @@ const MENU_BTN_STYLE = {
     transition: 'transform 0.1s',
 };
 
-// ── 탭 정의 ──────────────────────────────────────────────────────────
-const STATIC_TABS = [
-    { key: 'self',        label: '본인',       numbered: false },
-    { key: 'spouse',      label: '배우자',     numbered: false },
-    { key: 'father',      label: '부',         numbered: false },
-    { key: 'mother',      label: '모',         numbered: false },
-    { key: 'hyeong',      label: '형',         numbered: true  },
-    { key: 'je',          label: '제',         numbered: true  },
-    { key: 'ja',          label: '자',         numbered: true  },
-    { key: 'mae',         label: '매',         numbered: true  },
-    { key: 'son',         label: '아들',       numbered: true  },
-    { key: 'daughter',    label: '딸',         numbered: true  },
-    { key: 'birthfather', label: '입적전친부',  numbered: false },
-    { key: 'birthmother', label: '입적전친모',  numbered: false },
+// ── 탭 정의 (3줄 구조) ───────────────────────────────────────────────
+const TAB_ROWS = [
+    // 1줄: 본인~매
+    [
+        { key: 'self',        label: '본인',       numbered: false },
+        { key: 'spouse',      label: '배우자',     numbered: false },
+        { key: 'father',      label: '부',         numbered: false },
+        { key: 'mother',      label: '모',         numbered: false },
+        { key: 'hyeong',      label: '형',         numbered: true  },
+        { key: 'je',          label: '제',         numbered: true  },
+        { key: 'ja',          label: '자',         numbered: true  },
+        { key: 'mae',         label: '매',         numbered: true  },
+    ],
+    // 2줄: 아들~손녀 (며느리/사위는 아들/딸 연동, [+] 없음)
+    [
+        { key: 'son',         label: '아들',       numbered: true  },
+        { key: 'meuri',       label: '며느리',     numbered: true,  linkedTo: 'son'      },
+        { key: 'daughter',    label: '딸',         numbered: true  },
+        { key: 'saui',        label: '사위',       numbered: true,  linkedTo: 'daughter' },
+        { key: 'grandson',    label: '손자',       numbered: true  },
+        { key: 'granddaughter', label: '손녀',     numbered: true  },
+    ],
+    // 3줄: 입적전
+    [
+        { key: 'birthfather', label: '입적전친부',  numbered: false },
+        { key: 'birthmother', label: '입적전친모',  numbered: false },
+    ],
 ];
 
 const EMPTY_FORM = {
@@ -69,8 +82,8 @@ const EMPTY_FORM = {
 
 // 탭별 기본 성별
 function getDefaultGender(tabKey) {
-    if (['father', 'hyeong', 'je', 'son', 'birthfather'].includes(tabKey)) return 'male';
-    if (['mother', 'ja', 'mae', 'daughter', 'birthmother'].includes(tabKey)) return 'female';
+    if (['father', 'hyeong', 'je', 'son', 'birthfather', 'grandson', 'saui'].includes(tabKey)) return 'male';
+    if (['mother', 'ja', 'mae', 'daughter', 'birthmother', 'granddaughter', 'meuri'].includes(tabKey)) return 'female';
     return '';
 }
 
@@ -120,6 +133,54 @@ function findPersonForTab(tabKey, tabIndex, curator, persons, relations) {
                 return persons.find(p => p.id === pid);
             }).filter(p => p && (isMale ? p.gender === 'male' : p.gender === 'female'));
             return siblings[tabIndex] || null;
+        }
+        case 'meuri': {
+            // 며느리 = tabIndex번째 아들의 배우자(여)
+            const sons = persons.filter(p =>
+                (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'male'
+            );
+            const son = sons[tabIndex];
+            if (!son) return null;
+            const spouseRel = relations.find(r =>
+                r.relation_type === 'spouse' &&
+                (r.person1_id === son.id || r.person2_id === son.id)
+            );
+            if (!spouseRel) return null;
+            const meuriId = spouseRel.person1_id === son.id ? spouseRel.person2_id : spouseRel.person1_id;
+            return persons.find(p => p.id === meuriId && p.gender === 'female') || null;
+        }
+        case 'saui': {
+            // 사위 = tabIndex번째 딸의 배우자(남)
+            const daughters = persons.filter(p =>
+                (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'female'
+            );
+            const daughter = daughters[tabIndex];
+            if (!daughter) return null;
+            const spouseRel = relations.find(r =>
+                r.relation_type === 'spouse' &&
+                (r.person1_id === daughter.id || r.person2_id === daughter.id)
+            );
+            if (!spouseRel) return null;
+            const sauiId = spouseRel.person1_id === daughter.id ? spouseRel.person2_id : spouseRel.person1_id;
+            return persons.find(p => p.id === sauiId && p.gender === 'male') || null;
+        }
+        case 'grandson': {
+            const childIds = new Set(
+                persons.filter(p => p.parent1_id === cid || p.parent2_id === cid).map(p => p.id)
+            );
+            const grandsons = persons.filter(p =>
+                (childIds.has(p.parent1_id) || childIds.has(p.parent2_id)) && p.gender === 'male'
+            );
+            return grandsons[tabIndex] || null;
+        }
+        case 'granddaughter': {
+            const childIds = new Set(
+                persons.filter(p => p.parent1_id === cid || p.parent2_id === cid).map(p => p.id)
+            );
+            const granddaughters = persons.filter(p =>
+                (childIds.has(p.parent1_id) || childIds.has(p.parent2_id)) && p.gender === 'female'
+            );
+            return granddaughters[tabIndex] || null;
         }
         case 'birthfather':
         case 'birthmother': {
@@ -206,7 +267,9 @@ export default function ArchivePage() {
 
     const [activeTab, setActiveTab] = useState({ key: 'self', index: 0 });
     const [tabCounts, setTabCounts] = useState({
-        hyeong: 1, je: 1, ja: 1, mae: 1, son: 1, daughter: 1,
+        hyeong: 1, je: 1, ja: 1, mae: 1,
+        son: 1, daughter: 1,
+        grandson: 1, granddaughter: 1,
     });
 
     const [form, setForm] = useState({ ...EMPTY_FORM });
@@ -263,6 +326,13 @@ export default function ArchivePage() {
                     const pid = r.person1_id === cid ? r.person2_id : r.person1_id;
                     return ps.find(p => p.id === pid)?.gender === 'female';
                 });
+                const childIds = new Set([...sons, ...daughters].map(p => p.id));
+                const grandsons = ps.filter(p =>
+                    (childIds.has(p.parent1_id) || childIds.has(p.parent2_id)) && p.gender === 'male'
+                );
+                const granddaughters = ps.filter(p =>
+                    (childIds.has(p.parent1_id) || childIds.has(p.parent2_id)) && p.gender === 'female'
+                );
                 setTabCounts({
                     hyeong: Math.max(1, maleSibs.length),
                     je: Math.max(1, maleSibs.length),
@@ -270,6 +340,8 @@ export default function ArchivePage() {
                     mae: Math.max(1, femaleSibs.length),
                     son: Math.max(1, sons.length),
                     daughter: Math.max(1, daughters.length),
+                    grandson: Math.max(1, grandsons.length),
+                    granddaughter: Math.max(1, granddaughters.length),
                 });
             }
         } catch (err) {
@@ -322,10 +394,10 @@ export default function ArchivePage() {
         setSubmitting(true);
         setError('');
         try {
-            const payload = buildCreatePayload(activeTab.key, form, curator);
+            const payload = buildCreatePayload(activeTab.key, form, curator, persons);
             const res = await axios.post(`/api/persons/${site.id}`, payload);
             const newPerson = res.data.data;
-            await linkRelation(activeTab.key, newPerson, site.id, curator);
+            await linkRelation(activeTab.key, newPerson, site.id, curator, persons, activeTab.index);
             if (photo && newPerson.id) {
                 const fd = new FormData();
                 fd.append('photo', photo);
@@ -411,19 +483,31 @@ export default function ArchivePage() {
         setPassQRUrl(qrUrl);
     };
 
-    // ── 탭 목록 생성 ────────────────────────────────────────────────
-    const tabList = [];
-    for (const t of STATIC_TABS) {
-        if (t.numbered) {
-            const count = tabCounts[t.key] || 1;
-            for (let i = 0; i < count; i++) {
-                tabList.push({ key: t.key, label: count > 1 ? `${t.label}${i + 1}` : t.label, index: i });
+    // ── 탭 행 생성 헬퍼 ────────────────────────────────────────────
+    function buildTabRow(rowDefs) {
+        const items = [];
+        for (const t of rowDefs) {
+            if (!t.numbered) {
+                items.push({ key: t.key, label: t.label, index: 0 });
+            } else {
+                // linkedTo: 다른 탭 count를 따름 (며느리→아들, 사위→딸)
+                const count = t.linkedTo
+                    ? (tabCounts[t.linkedTo] || 1)
+                    : (tabCounts[t.key] || 1);
+                for (let i = 0; i < count; i++) {
+                    items.push({ key: t.key, label: count > 1 ? `${t.label}${i + 1}` : t.label, index: i });
+                }
+                // linkedTo가 있으면 [+] 버튼 없음
+                if (!t.linkedTo) {
+                    items.push({ key: t.key, label: '+', index: count, isAdd: true });
+                }
             }
-            tabList.push({ key: t.key, label: '+', index: count, isAdd: true });
-        } else {
-            tabList.push({ key: t.key, label: t.label, index: 0 });
         }
+        return items;
     }
+    const tabRow1 = buildTabRow(TAB_ROWS[0]);
+    const tabRow2 = buildTabRow(TAB_ROWS[1]);
+    const tabRow3 = buildTabRow(TAB_ROWS[2]);
 
     if (loading) {
         return (
@@ -477,57 +561,61 @@ export default function ArchivePage() {
                     </div>
                 )}
 
-                {/* ── 관계 탭 ── */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
-                    {tabList.map((t) => {
-                        const isActive = !t.isAdd && activeTab.key === t.key && activeTab.index === t.index;
-                        const hasData = !t.isAdd && !!findPersonForTab(t.key, t.index, curator, persons, relations);
+                {/* ── 관계 탭 (3줄) ── */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+                    {[tabRow1, tabRow2, tabRow3].map((row, rowIdx) => (
+                        <div key={rowIdx} style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {row.map((t) => {
+                                const isActive = !t.isAdd && activeTab.key === t.key && activeTab.index === t.index;
+                                const hasData = !t.isAdd && !!findPersonForTab(t.key, t.index, curator, persons, relations);
 
-                        if (t.isAdd) {
-                            return (
-                                <button
-                                    key={`${t.key}-add`}
-                                    onClick={() => {
-                                        const newCount = (tabCounts[t.key] || 1) + 1;
-                                        setTabCounts(prev => ({ ...prev, [t.key]: newCount }));
-                                        setActiveTab({ key: t.key, index: newCount - 1 });
-                                    }}
-                                    style={{
-                                        padding: '5px 10px', fontSize: 16, borderRadius: 6,
-                                        border: `1px solid ${GOLD}`, background: '#F5F0E8',
-                                        color: TEXT_LIGHT, cursor: 'pointer',
-                                        borderRight: '2px solid #b09060', borderBottom: '2px solid #9a7a50',
-                                    }}
-                                    title="탭 추가"
-                                >
-                                    <Plus size={12} />
-                                </button>
-                            );
-                        }
+                                if (t.isAdd) {
+                                    return (
+                                        <button
+                                            key={`${t.key}-add`}
+                                            onClick={() => {
+                                                const newCount = (tabCounts[t.key] || 1) + 1;
+                                                setTabCounts(prev => ({ ...prev, [t.key]: newCount }));
+                                                setActiveTab({ key: t.key, index: newCount - 1 });
+                                            }}
+                                            style={{
+                                                padding: '5px 10px', fontSize: 16, borderRadius: 6,
+                                                border: `1px solid ${GOLD}`, background: '#F5F0E8',
+                                                color: TEXT_LIGHT, cursor: 'pointer',
+                                                borderRight: '2px solid #b09060', borderBottom: '2px solid #9a7a50',
+                                            }}
+                                            title="탭 추가"
+                                        >
+                                            <Plus size={12} />
+                                        </button>
+                                    );
+                                }
 
-                        return (
-                            <button
-                                key={`${t.key}-${t.index}`}
-                                onClick={() => setActiveTab({ key: t.key, index: t.index })}
-                                style={{
-                                    padding: '7px 14px', fontSize: 20, fontWeight: isActive ? 700 : 500,
-                                    borderRadius: 6,
-                                    border: `1.5px solid ${GOLD}`,
-                                    borderRight: '2px solid #b09060',
-                                    borderBottom: isActive ? '0' : '2px solid #9a7a50',
-                                    borderTop: isActive ? '2px solid #9a7a50' : `1.5px solid ${GOLD}`,
-                                    background: isActive ? GOLD : (hasData ? '#FDF0DC' : '#FDF8F0'),
-                                    color: isActive ? '#fff' : TEXT_DARK,
-                                    cursor: 'pointer',
-                                    transform: isActive ? 'translateY(1px)' : 'none',
-                                    boxShadow: isActive ? 'none' : '1px 1px 0 #c4a87a',
-                                    transition: 'all 0.1s',
-                                }}
-                            >
-                                {t.label}
-                            </button>
-                        );
-                    })}
+                                return (
+                                    <button
+                                        key={`${t.key}-${t.index}`}
+                                        onClick={() => setActiveTab({ key: t.key, index: t.index })}
+                                        style={{
+                                            padding: '7px 14px', fontSize: 20, fontWeight: isActive ? 700 : 500,
+                                            borderRadius: 6,
+                                            border: `1.5px solid ${GOLD}`,
+                                            borderRight: '2px solid #b09060',
+                                            borderBottom: isActive ? '0' : '2px solid #9a7a50',
+                                            borderTop: isActive ? '2px solid #9a7a50' : `1.5px solid ${GOLD}`,
+                                            background: isActive ? GOLD : (hasData ? '#FDF0DC' : '#FDF8F0'),
+                                            color: isActive ? '#fff' : TEXT_DARK,
+                                            cursor: 'pointer',
+                                            transform: isActive ? 'translateY(1px)' : 'none',
+                                            boxShadow: isActive ? 'none' : '1px 1px 0 #c4a87a',
+                                            transition: 'all 0.1s',
+                                        }}
+                                    >
+                                        {t.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    ))}
                 </div>
 
                 {/* ── 메인 영역 ── */}
@@ -761,7 +849,7 @@ function ActionBtn({ label, disabled, onClick, color }) {
 }
 
 // ── 생성 payload ──────────────────────────────────────────────────────
-function buildCreatePayload(tabKey, form, curator) {
+function buildCreatePayload(tabKey, form, curator, persons = []) {
     const base = {
         name: form.name.trim(),
         birth_date: form.birth_date || null,
@@ -775,6 +863,8 @@ function buildCreatePayload(tabKey, form, curator) {
     };
     if (!curator) return base;
     const cid = curator.id;
+    const sons = persons.filter(p => (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'male');
+    const daughters = persons.filter(p => (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'female');
     switch (tabKey) {
         case 'father':   return { ...base, gender: 'male' };
         case 'mother':   return { ...base, gender: 'female' };
@@ -784,6 +874,18 @@ function buildCreatePayload(tabKey, form, curator) {
         case 'je':       return { ...base, gender: 'male' };
         case 'ja':       return { ...base, gender: 'female' };
         case 'mae':      return { ...base, gender: 'female' };
+        case 'meuri':    return { ...base, gender: 'female' };
+        case 'saui':     return { ...base, gender: 'male' };
+        case 'grandson': {
+            // 첫 아들의 자녀로 등록
+            const parentId = sons[0]?.id || null;
+            return { ...base, gender: 'male', ...(parentId ? { parent1_id: parentId } : {}) };
+        }
+        case 'granddaughter': {
+            // 첫 딸의 자녀로 등록
+            const parentId = daughters[0]?.id || null;
+            return { ...base, gender: 'female', ...(parentId ? { parent1_id: parentId } : {}) };
+        }
         case 'birthfather': return { ...base, gender: 'male' };
         case 'birthmother': return { ...base, gender: 'female' };
         default:         return base;
@@ -791,7 +893,7 @@ function buildCreatePayload(tabKey, form, curator) {
 }
 
 // ── 관계 연결 ─────────────────────────────────────────────────────────
-async function linkRelation(tabKey, newPerson, siteId, curator) {
+async function linkRelation(tabKey, newPerson, siteId, curator, persons = [], tabIndex = 0) {
     if (!curator) return;
     const cid = curator.id;
     const nid = newPerson.id;
@@ -824,6 +926,35 @@ async function linkRelation(tabKey, newPerson, siteId, curator) {
                 await axios.post(`/api/persons/${siteId}/relations`, {
                     person1_id: cid, person2_id: nid, relation_type: 'parent',
                 });
+                break;
+            case 'meuri': {
+                // tabIndex번째 아들의 배우자로 연결
+                const sons = persons.filter(p =>
+                    (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'male'
+                );
+                const son = sons[tabIndex];
+                if (son) {
+                    await axios.post(`/api/persons/${siteId}/relations`, {
+                        person1_id: Math.min(son.id, nid), person2_id: Math.max(son.id, nid), relation_type: 'spouse',
+                    });
+                }
+                break;
+            }
+            case 'saui': {
+                // tabIndex번째 딸의 배우자로 연결
+                const daughters = persons.filter(p =>
+                    (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'female'
+                );
+                const daughter = daughters[tabIndex];
+                if (daughter) {
+                    await axios.post(`/api/persons/${siteId}/relations`, {
+                        person1_id: Math.min(daughter.id, nid), person2_id: Math.max(daughter.id, nid), relation_type: 'spouse',
+                    });
+                }
+                break;
+            }
+            case 'grandson': case 'granddaughter':
+                // parent_id는 buildCreatePayload에서 이미 설정됨
                 break;
             case 'birthfather': case 'birthmother':
                 await axios.post(`/api/persons/${siteId}/relations`, {

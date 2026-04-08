@@ -197,7 +197,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             }
             const raw = persons.find(p => String(p.id) === String(personId));
             if (!raw) return;
-            navigate(`/${subdomain}/archive/${raw.id}`);
+            navigate(`/${subdomain}/archive`);
         }
     }, [role, persons, navigate, subdomain]);
 
@@ -244,13 +244,13 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             case 'archive': {
                 // 관장은 무조건 진입 가능
                 if (role === 'owner') {
-                    navigate(`/${subdomain}/archive/${raw.id}`);
+                    navigate(`/${subdomain}/archive`);
                     break;
                 }
                 // 그 외: 접근 권한 확인
                 const result = await checkAccess(raw.id);
                 if (result?.access === 'granted') {
-                    navigate(`/${subdomain}/archive/${raw.id}`);
+                    navigate(`/${subdomain}/archive`);
                 } else {
                     setAccessTarget(raw);
                 }
