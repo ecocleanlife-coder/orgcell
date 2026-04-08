@@ -34,6 +34,7 @@ const DropboxCallback = lazy(() => import('./pages/DropboxCallback'));
 const HomePage = lazy(() => import('./pages/home/HomePage'));
 const OnboardingNamePage = lazy(() => import('./pages/onboarding/OnboardingNamePage'));
 const OnboardingInvitePage = lazy(() => import('./pages/onboarding/OnboardingInvitePage'));
+const OnboardingSetupPage = lazy(() => import('./pages/onboarding/OnboardingSetupPage'));
 const FamilySearchCallback = lazy(() => import('./pages/auth/FamilySearchCallback'));
 const FamilySearchImportPage = lazy(() => import('./pages/museum/FamilySearchImportPage'));
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'));
@@ -64,10 +65,9 @@ function AuthHome() {
         if (cancelled) return;
         const data = await res.json();
         if (data.data?.subdomain) {
-          navigate(`/${data.data.subdomain}`, { replace: true });
+          navigate(`/${data.data.subdomain}/archive`, { replace: true });
         } else {
-          // 모바일/데스크탑 동일하게 /home으로 — 온보딩은 /home에서 안내
-          navigate('/home', { replace: true });
+          navigate('/onboarding/setup', { replace: true });
         }
       } catch {
         if (!cancelled) navigate('/home', { replace: true });
@@ -172,6 +172,7 @@ function App() {
 
         {/* ══════ 온보딩 2단계 (레이아웃 없음) ══════ */}
         <Route path="/onboarding/start" element={<Navigate to="/auth/login?next=onboarding/name" replace />} />
+        <Route path="/onboarding/setup" element={<Suspense fallback={<PageLoader />}><OnboardingSetupPage /></Suspense>} />
         <Route path="/onboarding/name" element={<Suspense fallback={<PageLoader />}><OnboardingNamePage /></Suspense>} />
         <Route path="/onboarding/invite" element={<Suspense fallback={<PageLoader />}><OnboardingInvitePage /></Suspense>} />
 

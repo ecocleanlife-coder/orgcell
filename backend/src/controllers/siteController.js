@@ -5,7 +5,8 @@ const { assignCuratorPath } = require('../services/pathAssigner');
 // @desc    Create family site + 관장 person 자동 생성 (OPS §26)
 // @route   POST /api/sites
 exports.createSite = async (req, res) => {
-    const { subdomain, theme = 'modern', curator_name, curator_gender } = req.body;
+    const { subdomain, theme = 'modern', curator_name, curator_gender,
+            birth_date, bio1, bio2, bio3 } = req.body;
     const userId = req.user.id;
 
     if (!subdomain || subdomain.length < 3) {
@@ -53,13 +54,17 @@ exports.createSite = async (req, res) => {
         const countryCode = resolveCountryCode(lang, geo);
         const curatorPersonId = await generateOcId(client, countryCode);
 
-        await client.query(
+        const { rows: personRows } = await client.query(
             `INSERT INTO persons
-               (site_id, name, gender, oc_id, person_id, nationality, match_status, user_id)
-             VALUES ($1, $2, $3, $4, $4, $5, 'linked', $6)`,
+               (site_id, name, gender, oc_id, person_id, nationality, match_status, user_id,
+                birth_date, bio1, bio2, bio3)
+             VALUES ($1, $2, $3, $4, $4, $5, 'linked', $6, $7, $8, $9, $10)
+             RETURNING id`,
             [site.id, curator_name || subdomain, curator_gender || null,
-             curatorPersonId, countryCode, userId]
+             curatorPersonId, countryCode, userId,
+             birth_date || null, bio1 || null, bio2 || null, bio3 || null]
         );
+        const curatorIntId = personRows[0]?.id;
 
         // 3. 관장 canonical path 배정: {subdomain}
         await assignCuratorPath(client, curatorPersonId, subdomain.toLowerCase());
@@ -72,6 +77,7 @@ exports.createSite = async (req, res) => {
                 ...site,
                 url: `https://orgcell.com/${subdomain.toLowerCase()}`,
                 curator_person_id: curatorPersonId,
+                curator_int_id: curatorIntId,
             },
         });
     } catch (error) {
