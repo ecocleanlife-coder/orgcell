@@ -14,6 +14,7 @@ export default function OnboardingSetupPage() {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [subdomainStatus, setSubdomainStatus] = useState(null); // null | 'checking' | 'ok' | 'taken' | 'invalid'
+    const [koreanWarning, setKoreanWarning] = useState(false);
 
     useEffect(() => {
         if (!isLoading && !isAuthenticated) {
@@ -48,7 +49,7 @@ export default function OnboardingSetupPage() {
         setSubmitting(true);
         try {
             await axios.post('/api/sites', { subdomain });
-            navigate(`/${subdomain}/archive`, { replace: true });
+            navigate(`/${subdomain}/archive?setup=1`, { replace: true });
         } catch (err) {
             setError(err.response?.data?.message || '박물관 생성에 실패했습니다. 다시 시도해주세요.');
         } finally {
@@ -105,7 +106,16 @@ export default function OnboardingSetupPage() {
                             <input
                                 type="text"
                                 value={subdomain}
-                                onChange={e => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
+                                onChange={e => {
+                                    const raw = e.target.value;
+                                    if (/[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(raw)) {
+                                        setKoreanWarning(true);
+                                        setTimeout(() => setKoreanWarning(false), 3000);
+                                    } else {
+                                        setKoreanWarning(false);
+                                    }
+                                    setSubdomain(raw.toLowerCase().replace(/[^a-z0-9]/g, ''));
+                                }}
                                 placeholder="lee, kim, park..."
                                 className="flex-1 px-3 py-2.5 outline-none text-sm bg-transparent"
                                 style={{ color: '#3D2008' }}
@@ -113,7 +123,12 @@ export default function OnboardingSetupPage() {
                                 autoFocus
                             />
                         </div>
-                        {hint && (
+                        {koreanWarning && (
+                            <p className="mt-1 text-xs" style={{ color: '#c0392b' }}>
+                                도메인은 영문 소문자와 숫자만 입력해주세요
+                            </p>
+                        )}
+                        {!koreanWarning && hint && (
                             <p className="mt-1 text-xs" style={{ color: hint.color }}>{hint.text}</p>
                         )}
                         <p className="mt-1 text-xs" style={{ color: '#B0A090' }}>

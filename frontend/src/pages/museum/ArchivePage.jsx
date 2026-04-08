@@ -3,12 +3,16 @@
  * 카드 중심 확장 방식. 화살표 클릭으로 가족 추가.
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { Loader2, LogOut, QrCode, Camera } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 import CardTreeCanvas from '../../components/museum/CardTreeCanvas';
 import DateInputKo from '../../components/museum/DateInputKo';
+
+/* ─── API URL (로컬 dev: 4000, 프로덕션: 상대경로) ───────── */
+const API_URL = import.meta.env.VITE_API_URL || '';
+const resolveUrl = (url) => (url && url.startsWith('/uploads')) ? `${API_URL}${url}` : (url || '');
 
 /* ─── 스타일 상수 ──────────────────────────────────────────── */
 const GOLD     = '#C4A882';
@@ -68,7 +72,7 @@ function defaultGenderFor(_layoutRole, direction) {
 function PersonModal({ modal, onClose, onSave, onDelete }) {
     const { person } = modal;
     const initForm = {
-        name: person?.name || '',
+        name: modal.isSelf ? '' : (person?.name || ''),
         name_en: person?.name_en || '',
         name_suffix: person?.name_suffix || '',
         birth_date: person?.birth_date ? person.birth_date.slice(0, 10) : '',
@@ -82,7 +86,7 @@ function PersonModal({ modal, onClose, onSave, onDelete }) {
     };
     const [form, setForm]             = useState(initForm);
     const [photo, setPhoto]           = useState(null);
-    const [photoPreview, setPreview]  = useState(person?.photo_url || null);
+    const [photoPreview, setPreview]  = useState(person?.photo_url ? resolveUrl(person.photo_url) : null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError]           = useState('');
     const [confirmDel, setConfirmDel] = useState(false);
@@ -268,6 +272,8 @@ function DuplicateModal({ existingPerson, pendingName, onChoice, onClose }) {
 export default function ArchivePage() {
     const { subdomain } = useParams();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const isSetup = searchParams.get('setup') === '1';
     const { logout } = useAuthStore();
 
     const [site, setSite]         = useState(null);
@@ -323,6 +329,13 @@ export default function ArchivePage() {
     }, [subdomain]);
 
     useEffect(() => { loadData(); }, [loadData]);
+
+    // 버그 2: 최초 설정 시 자동으로 본인 정보 입력 모달 열기
+    useEffect(() => {
+        if (!loading && isSetup && !modal) {
+            setModal({ person: curator, suggestGender: null, relation: null, isSelf: true });
+        }
+    }, [loading, isSetup]); // curator/modal 의존성 제외 — 최초 1회만
 
     /* ─ 화살표 클릭 → 대기 카드 생성 ─────────────────────── */
     const handleArrowClick = useCallback((node, direction) => {

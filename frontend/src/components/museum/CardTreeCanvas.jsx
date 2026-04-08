@@ -6,6 +6,10 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
+/* ─── API URL (로컬 dev: 4000, 프로덕션: 상대경로) ───────── */
+const API_URL = import.meta.env.VITE_API_URL || '';
+const resolveUrl = (url) => (url && url.startsWith('/uploads')) ? `${API_URL}${url}` : (url || '');
+
 /* ─── 상수 ─────────────────────────────────────────────────── */
 const CARD_W  = 220;   // §24-1: 부부 440px = 220×2
 const CARD_H  = 260;   // 사진180 + 텍스트 + 여백
@@ -165,11 +169,22 @@ function PersonCard({ node, curatorId, curatorSpouseId, hasPendingCard, onArrowC
                     <>
                         {/* 사진 180×180 사각형 */}
                         {person.photo_url ? (
-                            <img
-                                src={person.photo_url}
-                                alt={person.name}
-                                style={{ width: 180, height: 180, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
-                            />
+                            <>
+                                <img
+                                    src={resolveUrl(person.photo_url)}
+                                    alt={person.name}
+                                    style={{ width: 180, height: 180, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
+                                    onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }}
+                                />
+                                <div style={{
+                                    width: 180, height: 180, borderRadius: 8, flexShrink: 0,
+                                    background: isCuratorCouple ? '#DDD0BA' : '#E0E0E0',
+                                    display: 'none', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: 52,
+                                }}>
+                                    {person.gender === 'male' ? '👨' : person.gender === 'female' ? '👩' : '👤'}
+                                </div>
+                            </>
                         ) : (
                             <div style={{
                                 width: 180, height: 180, borderRadius: 8, flexShrink: 0,
