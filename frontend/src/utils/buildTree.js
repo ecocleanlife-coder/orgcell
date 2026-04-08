@@ -86,6 +86,7 @@ function buildMaps(persons, relations) {
     const parentOf = {};
     const childrenOf = {};
     const spousesOf = {};
+    const siblingsOf = {};      // 직접 형제 관계 (부모 없어도 연결)
     const birthParentOf = {};  // 입양아 → 친부모 (birth-parent)
     const birthChildOf = {};   // 친부모 → 입양아 (역방향)
     const birthParentSet = new Set(); // 친부모 ID (가문전환 대상)
@@ -119,6 +120,13 @@ function buildMaps(persons, relations) {
         }
 
         if (rel.relation_type === 'sibling') {
+            // 직접 형제 맵 (항상 등록 — 부모 유무 무관)
+            if (!siblingsOf[p1]) siblingsOf[p1] = [];
+            if (!siblingsOf[p1].includes(p2)) siblingsOf[p1].push(p2);
+            if (!siblingsOf[p2]) siblingsOf[p2] = [];
+            if (!siblingsOf[p2].includes(p1)) siblingsOf[p2].push(p1);
+
+            // 한쪽만 부모 있으면 부모 추론
             const parents1 = parentOf[p1] || [];
             const parents2 = parentOf[p2] || [];
             if (parents1.length > 0 && parents2.length === 0) {
@@ -164,7 +172,7 @@ function buildMaps(persons, relations) {
         }
     }
 
-    return { parentOf, childrenOf, spousesOf, birthParentOf, birthChildOf, birthParentSet };
+    return { parentOf, childrenOf, spousesOf, siblingsOf, birthParentOf, birthChildOf, birthParentSet };
 }
 
 // ── 연결된 노드 필터 (BFS) ──────────────────────
@@ -173,7 +181,7 @@ function filterConnected(personIds, maps, mainId) {
     const mainStr = String(mainId);
     if (!personIds.includes(mainStr)) return personIds;
 
-    const { parentOf, childrenOf, spousesOf, birthParentOf, birthChildOf } = maps;
+    const { parentOf, childrenOf, spousesOf, siblingsOf, birthParentOf, birthChildOf } = maps;
     const visited = new Set();
     const queue = [mainStr];
 
@@ -185,6 +193,7 @@ function filterConnected(personIds, maps, mainId) {
             ...(parentOf[current] || []),
             ...(childrenOf[current] || []),
             ...(spousesOf[current] || []),
+            ...(siblingsOf[current] || []),  // 직접 형제 링크 (부모 없어도 연결)
             ...(birthParentOf[current] || []),
             ...(birthChildOf[current] || []),
         ];
@@ -488,6 +497,10 @@ function getSiblings(personId, maps, byId) {
         for (const cid of (maps.childrenOf[pid] || [])) {
             if (cid !== personId) sibSet.add(cid);
         }
+    }
+    // 직접 형제 관계 보완 (부모 미등록 시)
+    for (const sid of (maps.siblingsOf?.[personId] || [])) {
+        sibSet.add(sid);
     }
     const sibs = [...sibSet];
     sibs.sort((a, b) => {

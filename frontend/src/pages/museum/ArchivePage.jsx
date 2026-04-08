@@ -45,33 +45,21 @@ const MENU_BTN_STYLE = {
     transition: 'transform 0.1s',
 };
 
-// ── 탭 정의 (3줄 구조) ───────────────────────────────────────────────
-const TAB_ROWS = [
-    // 1줄: 본인~매
-    [
-        { key: 'self',        label: '본인',       numbered: false },
-        { key: 'spouse',      label: '배우자',     numbered: false },
-        { key: 'father',      label: '부',         numbered: false },
-        { key: 'mother',      label: '모',         numbered: false },
-        { key: 'hyeong',      label: '형',         numbered: true  },
-        { key: 'je',          label: '제',         numbered: true  },
-        { key: 'ja',          label: '자',         numbered: true  },
-        { key: 'mae',         label: '매',         numbered: true  },
-    ],
-    // 2줄: 아들~손녀 (며느리/사위는 아들/딸 연동, [+] 없음)
-    [
-        { key: 'son',         label: '아들',       numbered: true  },
-        { key: 'meuri',       label: '며느리',     numbered: true,  linkedTo: 'son'      },
-        { key: 'daughter',    label: '딸',         numbered: true  },
-        { key: 'saui',        label: '사위',       numbered: true,  linkedTo: 'daughter' },
-        { key: 'grandson',    label: '손자',       numbered: true  },
-        { key: 'granddaughter', label: '손녀',     numbered: true  },
-    ],
-    // 3줄: 입적전
-    [
-        { key: 'birthfather', label: '입적전친부',  numbered: false },
-        { key: 'birthmother', label: '입적전친모',  numbered: false },
-    ],
+// ── 탭 정의 (anchor 기준) ────────────────────────────────────────────
+// 첫 등록 (관장 미등록)
+const INIT_TAB = { key: 'self', label: '본인', numbered: false };
+
+// anchor 선택 후 사용 (anchor 기준 관계 탭)
+const ANCHOR_TABS = [
+    { key: 'spouse',   label: '배우자', numbered: false },
+    { key: 'son',      label: '아들',   numbered: true  },
+    { key: 'daughter', label: '딸',     numbered: true  },
+    { key: 'father',   label: '부',     numbered: false },
+    { key: 'mother',   label: '모',     numbered: false },
+    { key: 'hyeong',   label: '형',     numbered: true  },
+    { key: 'je',       label: '제',     numbered: true  },
+    { key: 'ja',       label: '자',     numbered: true  },
+    { key: 'mae',      label: '매',     numbered: true  },
 ];
 
 const EMPTY_FORM = {
@@ -82,41 +70,54 @@ const EMPTY_FORM = {
 
 // 탭별 기본 성별
 function getDefaultGender(tabKey) {
-    if (['father', 'hyeong', 'je', 'son', 'birthfather', 'grandson', 'saui'].includes(tabKey)) return 'male';
-    if (['mother', 'ja', 'mae', 'daughter', 'birthmother', 'granddaughter', 'meuri'].includes(tabKey)) return 'female';
+    if (['father', 'hyeong', 'je', 'son', 'birthfather'].includes(tabKey)) return 'male';
+    if (['mother', 'ja', 'mae', 'daughter', 'birthmother'].includes(tabKey)) return 'female';
     return '';
 }
 
-// ── 관계 탐색 헬퍼 ────────────────────────────────────────────────────
-function findPersonForTab(tabKey, tabIndex, curator, persons, relations) {
-    if (!curator) return null;
-    const cid = curator.id;
+// ── 관계 탐색 헬퍼 (anchor 기준) ────────────────────────────────────
+function findPersonForTab(tabKey, tabIndex, anchor, persons, relations) {
+    if (!anchor) return null;
+    const aid = anchor.id;
 
     switch (tabKey) {
-        case 'self': return curator;
+        case 'self': return anchor;
         case 'spouse': {
+            // anchor의 배우자 (spouse_id 우선, 없으면 relations 검색)
+            if (anchor.spouse_id) {
+                return persons.find(p => p.id === anchor.spouse_id) || null;
+            }
             const rel = relations.find(r =>
-                r.relation_type === 'spouse' && (r.person1_id === cid || r.person2_id === cid)
+                r.relation_type === 'spouse' && (r.person1_id === aid || r.person2_id === aid)
             );
             if (!rel) return null;
-            const sid = rel.person1_id === cid ? rel.person2_id : rel.person1_id;
+            const sid = rel.person1_id === aid ? rel.person2_id : rel.person1_id;
             return persons.find(p => p.id === sid) || null;
         }
         case 'father':
-            return persons.find(p => p.id === curator.parent1_id && p.gender === 'male') ||
-                   persons.find(p => p.id === curator.parent2_id && p.gender === 'male') || null;
+            return persons.find(p => p.id === anchor.parent1_id && p.gender === 'male') ||
+                   persons.find(p => p.id === anchor.parent2_id && p.gender === 'male') ||
+                   (() => {
+                       const pRel = relations.find(r => r.relation_type === 'parent' && r.person2_id === aid);
+                       if (!pRel) return null;
+                       return persons.find(p => p.id === pRel.person1_id && p.gender === 'male') || null;
+                   })();
         case 'mother':
-            return persons.find(p => p.id === curator.parent2_id && p.gender === 'female') ||
-                   persons.find(p => p.id === curator.parent1_id && p.gender === 'female') || null;
+            return persons.find(p => p.id === anchor.parent2_id && p.gender === 'female') ||
+                   persons.find(p => p.id === anchor.parent1_id && p.gender === 'female') ||
+                   (() => {
+                       const pRels = relations.filter(r => r.relation_type === 'parent' && r.person2_id === aid);
+                       return pRels.map(r => persons.find(p => p.id === r.person1_id)).find(p => p?.gender === 'female') || null;
+                   })();
         case 'son': {
             const sons = persons.filter(p =>
-                (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'male'
+                (p.parent1_id === aid || p.parent2_id === aid) && p.gender === 'male'
             );
             return sons[tabIndex] || null;
         }
         case 'daughter': {
             const daughters = persons.filter(p =>
-                (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'female'
+                (p.parent1_id === aid || p.parent2_id === aid) && p.gender === 'female'
             );
             return daughters[tabIndex] || null;
         }
@@ -126,104 +127,20 @@ function findPersonForTab(tabKey, tabIndex, curator, persons, relations) {
         case 'mae': {
             const isMale = tabKey === 'hyeong' || tabKey === 'je';
             const sibRels = relations.filter(r =>
-                r.relation_type === 'sibling' && (r.person1_id === cid || r.person2_id === cid)
+                r.relation_type === 'sibling' && (r.person1_id === aid || r.person2_id === aid)
             );
             const siblings = sibRels.map(r => {
-                const pid = r.person1_id === cid ? r.person2_id : r.person1_id;
+                const pid = r.person1_id === aid ? r.person2_id : r.person1_id;
                 return persons.find(p => p.id === pid);
             }).filter(p => p && (isMale ? p.gender === 'male' : p.gender === 'female'));
             return siblings[tabIndex] || null;
-        }
-        case 'meuri': {
-            // 며느리 = tabIndex번째 아들의 배우자(여)
-            const sons = persons.filter(p =>
-                (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'male'
-            );
-            const son = sons[tabIndex];
-            if (!son) return null;
-            const spouseRel = relations.find(r =>
-                r.relation_type === 'spouse' &&
-                (r.person1_id === son.id || r.person2_id === son.id)
-            );
-            if (!spouseRel) return null;
-            const meuriId = spouseRel.person1_id === son.id ? spouseRel.person2_id : spouseRel.person1_id;
-            return persons.find(p => p.id === meuriId && p.gender === 'female') || null;
-        }
-        case 'saui': {
-            // 사위 = tabIndex번째 딸의 배우자(남)
-            const daughters = persons.filter(p =>
-                (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'female'
-            );
-            const daughter = daughters[tabIndex];
-            if (!daughter) return null;
-            const spouseRel = relations.find(r =>
-                r.relation_type === 'spouse' &&
-                (r.person1_id === daughter.id || r.person2_id === daughter.id)
-            );
-            if (!spouseRel) return null;
-            const sauiId = spouseRel.person1_id === daughter.id ? spouseRel.person2_id : spouseRel.person1_id;
-            return persons.find(p => p.id === sauiId && p.gender === 'male') || null;
-        }
-        case 'grandson': {
-            const childIds = new Set(
-                persons.filter(p => p.parent1_id === cid || p.parent2_id === cid).map(p => p.id)
-            );
-            const grandsons = persons.filter(p =>
-                (childIds.has(p.parent1_id) || childIds.has(p.parent2_id)) && p.gender === 'male'
-            );
-            return grandsons[tabIndex] || null;
-        }
-        case 'granddaughter': {
-            const childIds = new Set(
-                persons.filter(p => p.parent1_id === cid || p.parent2_id === cid).map(p => p.id)
-            );
-            const granddaughters = persons.filter(p =>
-                (childIds.has(p.parent1_id) || childIds.has(p.parent2_id)) && p.gender === 'female'
-            );
-            return granddaughters[tabIndex] || null;
-        }
-        case 'birthfather':
-        case 'birthmother': {
-            const bpGender = tabKey === 'birthfather' ? 'male' : 'female';
-            const bpRels = relations.filter(r => r.relation_type === 'birth-parent' && r.person2_id === cid);
-            return bpRels.map(r => persons.find(p => p.id === r.person1_id))
-                         .find(p => p && p.gender === bpGender) || null;
         }
         default: return null;
     }
 }
 
-// 트리 카드 클릭 → 해당 탭 찾기
-function findTabForPerson(personId, curator, persons, relations) {
-    if (!curator || !personId) return null;
-    const cid = curator.id;
-    if (personId === cid) return { key: 'self', index: 0 };
-
-    const spouseRel = relations.find(r =>
-        r.relation_type === 'spouse' &&
-        ((r.person1_id === cid && r.person2_id === personId) ||
-         (r.person2_id === cid && r.person1_id === personId))
-    );
-    if (spouseRel) return { key: 'spouse', index: 0 };
-
-    const person = persons.find(p => p.id === personId);
-    if (!person) return null;
-
-    if (person.id === curator.parent1_id || person.id === curator.parent2_id) {
-        return person.gender === 'female' ? { key: 'mother', index: 0 } : { key: 'father', index: 0 };
-    }
-
-    if (person.parent1_id === cid || person.parent2_id === cid) {
-        if (person.gender === 'male') {
-            const sons = persons.filter(p => (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'male');
-            return { key: 'son', index: Math.max(0, sons.findIndex(p => p.id === personId)) };
-        } else {
-            const daughters = persons.filter(p => (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'female');
-            return { key: 'daughter', index: Math.max(0, daughters.findIndex(p => p.id === personId)) };
-        }
-    }
-    return null;
-}
+// 트리 카드 클릭 → 해당 인물을 anchor로 설정 (탭 위치는 별도 계산 불필요)
+// (anchor 기반 UX에서는 클릭한 인물 자체가 새 anchor가 됨)
 
 function personToForm(p) {
     if (!p) return { ...EMPTY_FORM };
@@ -265,11 +182,10 @@ export default function ArchivePage() {
     const [curator, setCurator] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    const [anchorPerson, setAnchorPerson] = useState(null); // 관계 기준 인물 (기본: 관장)
     const [activeTab, setActiveTab] = useState({ key: 'self', index: 0 });
     const [tabCounts, setTabCounts] = useState({
-        hyeong: 1, je: 1, ja: 1, mae: 1,
-        son: 1, daughter: 1,
-        grandson: 1, granddaughter: 1,
+        hyeong: 1, je: 1, ja: 1, mae: 1, son: 1, daughter: 1,
     });
 
     const [form, setForm] = useState({ ...EMPTY_FORM });
@@ -287,6 +203,31 @@ export default function ArchivePage() {
     const fileInputRef = useRef(null);
     const formRef = useRef(null);
     const skipNextFormSync = useRef(false);
+
+    // anchor 기준 tabCounts 재계산
+    const updateTabCountsForAnchor = useCallback((anchor, ps, rels) => {
+        if (!anchor) return;
+        const aid = anchor.id;
+        const sons = ps.filter(p => (p.parent1_id === aid || p.parent2_id === aid) && p.gender === 'male');
+        const daughters = ps.filter(p => (p.parent1_id === aid || p.parent2_id === aid) && p.gender === 'female');
+        const sibRels = rels.filter(r => r.relation_type === 'sibling' && (r.person1_id === aid || r.person2_id === aid));
+        const maleSibs = sibRels.filter(r => {
+            const pid = r.person1_id === aid ? r.person2_id : r.person1_id;
+            return ps.find(p => p.id === pid)?.gender === 'male';
+        });
+        const femaleSibs = sibRels.filter(r => {
+            const pid = r.person1_id === aid ? r.person2_id : r.person1_id;
+            return ps.find(p => p.id === pid)?.gender === 'female';
+        });
+        setTabCounts({
+            hyeong: Math.max(1, maleSibs.length),
+            je: Math.max(1, maleSibs.length),
+            ja: Math.max(1, femaleSibs.length),
+            mae: Math.max(1, femaleSibs.length),
+            son: Math.max(1, sons.length),
+            daughter: Math.max(1, daughters.length),
+        });
+    }, []);
 
     // ── 데이터 로드 ──────────────────────────────────────────────────
     const loadData = useCallback(async () => {
@@ -313,36 +254,12 @@ export default function ArchivePage() {
             const cur = ps.find(p => p.match_status === 'linked');
             setCurator(cur || null);
 
+            // anchor: 이미 설정된 anchor 유지. 첫 로드 시 curator로 초기화
+            const nextAnchor = cur || null;
+            setAnchorPerson(prev => prev || nextAnchor);
+
             if (cur) {
-                const cid = cur.id;
-                const sons = ps.filter(p => (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'male');
-                const daughters = ps.filter(p => (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'female');
-                const sibRels = rels.filter(r => r.relation_type === 'sibling' && (r.person1_id === cid || r.person2_id === cid));
-                const maleSibs = sibRels.filter(r => {
-                    const pid = r.person1_id === cid ? r.person2_id : r.person1_id;
-                    return ps.find(p => p.id === pid)?.gender === 'male';
-                });
-                const femaleSibs = sibRels.filter(r => {
-                    const pid = r.person1_id === cid ? r.person2_id : r.person1_id;
-                    return ps.find(p => p.id === pid)?.gender === 'female';
-                });
-                const childIds = new Set([...sons, ...daughters].map(p => p.id));
-                const grandsons = ps.filter(p =>
-                    (childIds.has(p.parent1_id) || childIds.has(p.parent2_id)) && p.gender === 'male'
-                );
-                const granddaughters = ps.filter(p =>
-                    (childIds.has(p.parent1_id) || childIds.has(p.parent2_id)) && p.gender === 'female'
-                );
-                setTabCounts({
-                    hyeong: Math.max(1, maleSibs.length),
-                    je: Math.max(1, maleSibs.length),
-                    ja: Math.max(1, femaleSibs.length),
-                    mae: Math.max(1, femaleSibs.length),
-                    son: Math.max(1, sons.length),
-                    daughter: Math.max(1, daughters.length),
-                    grandson: Math.max(1, grandsons.length),
-                    granddaughter: Math.max(1, granddaughters.length),
-                });
+                updateTabCountsForAnchor(cur, ps, rels);
             }
         } catch (err) {
             console.error('ArchivePage loadData error:', err);
@@ -353,22 +270,33 @@ export default function ArchivePage() {
 
     useEffect(() => { loadData(); }, [loadData]);
 
+    // anchor 변경 시 탭/폼 초기화
+    useEffect(() => {
+        if (!anchorPerson) return;
+        updateTabCountsForAnchor(anchorPerson, persons, relations);
+        // curator와 같으면 self 탭, 아니면 배우자 탭으로
+        const isCurator = curator && anchorPerson.id === curator.id;
+        if (!isCurator) {
+            setActiveTab({ key: 'spouse', index: 0 });
+        }
+    }, [anchorPerson]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // 탭 전환 시 폼 동기화 (버그2: skipNextFormSync, 버그4: 성별 자동)
     useEffect(() => {
         if (skipNextFormSync.current) {
             skipNextFormSync.current = false;
             return;
         }
-        const person = findPersonForTab(activeTab.key, activeTab.index, curator, persons, relations);
+        const person = findPersonForTab(activeTab.key, activeTab.index, anchorPerson, persons, relations);
         const base = personToForm(person);
         if (!person) base.gender = getDefaultGender(activeTab.key);
         setForm(base);
         setPhoto(null);
         setPhotoPreview(person?.photo_url || null);
         setError('');
-    }, [activeTab, curator, persons, relations]);
+    }, [activeTab, anchorPerson, persons, relations]);
 
-    const currentPerson = findPersonForTab(activeTab.key, activeTab.index, curator, persons, relations);
+    const currentPerson = findPersonForTab(activeTab.key, activeTab.index, anchorPerson, persons, relations);
     const isRegistered = !!currentPerson;
 
     // 폼 초기화 (버그2)
@@ -394,10 +322,11 @@ export default function ArchivePage() {
         setSubmitting(true);
         setError('');
         try {
-            const payload = buildCreatePayload(activeTab.key, form, curator, persons);
+            const anchor = activeTab.key === 'self' ? null : anchorPerson;
+            const payload = buildCreatePayload(activeTab.key, form, anchor);
             const res = await axios.post(`/api/persons/${site.id}`, payload);
             const newPerson = res.data.data;
-            await linkRelation(activeTab.key, newPerson, site.id, curator, persons, activeTab.index);
+            await linkRelation(activeTab.key, newPerson, site.id, anchor);
             if (photo && newPerson.id) {
                 const fd = new FormData();
                 fd.append('photo', photo);
@@ -406,6 +335,10 @@ export default function ArchivePage() {
                 }).catch(() => {});
             }
             await loadData();
+            // self 탭이었으면 새로 생성된 인물을 anchor로 설정
+            if (activeTab.key === 'self') {
+                setAnchorPerson(newPerson);
+            }
             resetForm();
         } catch (err) {
             setError(err.response?.data?.message || '생성에 실패했습니다.');
@@ -465,15 +398,15 @@ export default function ArchivePage() {
         }
     };
 
-    // 트리 카드 클릭 → 탭 이동 (버그7)
+    // 트리 카드 클릭 → anchor 변경 (anchor 기반 UX)
     const handleTreePersonClick = useCallback((personId) => {
-        const tab = findTabForPerson(personId, curator, persons, relations);
-        if (!tab) return;
-        setActiveTab(tab);
+        const person = persons.find(p => String(p.id) === String(personId));
+        if (!person) return;
+        setAnchorPerson(person);
         setTimeout(() => {
             formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 100);
-    }, [curator, persons, relations]);
+    }, [persons]);
 
     // 입장권 QR 생성 (버그9)
     const handleGeneratePass = () => {
@@ -483,31 +416,21 @@ export default function ArchivePage() {
         setPassQRUrl(qrUrl);
     };
 
-    // ── 탭 행 생성 헬퍼 ────────────────────────────────────────────
-    function buildTabRow(rowDefs) {
-        const items = [];
-        for (const t of rowDefs) {
-            if (!t.numbered) {
-                items.push({ key: t.key, label: t.label, index: 0 });
-            } else {
-                // linkedTo: 다른 탭 count를 따름 (며느리→아들, 사위→딸)
-                const count = t.linkedTo
-                    ? (tabCounts[t.linkedTo] || 1)
-                    : (tabCounts[t.key] || 1);
-                for (let i = 0; i < count; i++) {
-                    items.push({ key: t.key, label: count > 1 ? `${t.label}${i + 1}` : t.label, index: i });
-                }
-                // linkedTo가 있으면 [+] 버튼 없음
-                if (!t.linkedTo) {
-                    items.push({ key: t.key, label: '+', index: count, isAdd: true });
-                }
+    // ── 탭 목록 생성 ────────────────────────────────────────────────
+    const hasCurator = !!curator;
+    const tabDefs = hasCurator ? ANCHOR_TABS : [INIT_TAB];
+    const tabList = [];
+    for (const t of tabDefs) {
+        if (!t.numbered) {
+            tabList.push({ key: t.key, label: t.label, index: 0 });
+        } else {
+            const count = tabCounts[t.key] || 1;
+            for (let i = 0; i < count; i++) {
+                tabList.push({ key: t.key, label: count > 1 ? `${t.label}${i + 1}` : t.label, index: i });
             }
+            tabList.push({ key: t.key, label: '+', index: count, isAdd: true });
         }
-        return items;
     }
-    const tabRow1 = buildTabRow(TAB_ROWS[0]);
-    const tabRow2 = buildTabRow(TAB_ROWS[1]);
-    const tabRow3 = buildTabRow(TAB_ROWS[2]);
 
     if (loading) {
         return (
@@ -561,61 +484,78 @@ export default function ArchivePage() {
                     </div>
                 )}
 
-                {/* ── 관계 탭 (3줄) ── */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
-                    {[tabRow1, tabRow2, tabRow3].map((row, rowIdx) => (
-                        <div key={rowIdx} style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                            {row.map((t) => {
-                                const isActive = !t.isAdd && activeTab.key === t.key && activeTab.index === t.index;
-                                const hasData = !t.isAdd && !!findPersonForTab(t.key, t.index, curator, persons, relations);
+                {/* ── anchor 헤더 ── */}
+                {hasCurator && anchorPerson && (
+                    <div style={{
+                        marginBottom: 10, padding: '6px 14px',
+                        background: anchorPerson.id === curator?.id ? '#FDF0DC' : '#EEF4FF',
+                        border: `1px solid ${GOLD}`, borderRadius: 6,
+                        fontSize: 18, color: TEXT_MID, display: 'flex', alignItems: 'center', gap: 8,
+                    }}>
+                        <span style={{ fontWeight: 700, color: TEXT_DARK }}>{anchorPerson.name}</span>
+                        <span>님과의 관계</span>
+                        {anchorPerson.id !== curator?.id && (
+                            <button
+                                onClick={() => setAnchorPerson(curator)}
+                                style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 14, color: TEXT_LIGHT, cursor: 'pointer' }}
+                            >
+                                ← 본인으로 돌아가기
+                            </button>
+                        )}
+                    </div>
+                )}
 
-                                if (t.isAdd) {
-                                    return (
-                                        <button
-                                            key={`${t.key}-add`}
-                                            onClick={() => {
-                                                const newCount = (tabCounts[t.key] || 1) + 1;
-                                                setTabCounts(prev => ({ ...prev, [t.key]: newCount }));
-                                                setActiveTab({ key: t.key, index: newCount - 1 });
-                                            }}
-                                            style={{
-                                                padding: '5px 10px', fontSize: 16, borderRadius: 6,
-                                                border: `1px solid ${GOLD}`, background: '#F5F0E8',
-                                                color: TEXT_LIGHT, cursor: 'pointer',
-                                                borderRight: '2px solid #b09060', borderBottom: '2px solid #9a7a50',
-                                            }}
-                                            title="탭 추가"
-                                        >
-                                            <Plus size={12} />
-                                        </button>
-                                    );
-                                }
+                {/* ── 관계 탭 ── */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+                    {tabList.map((t) => {
+                        const isActive = !t.isAdd && activeTab.key === t.key && activeTab.index === t.index;
+                        const hasData = !t.isAdd && !!findPersonForTab(t.key, t.index, anchorPerson, persons, relations);
 
-                                return (
-                                    <button
-                                        key={`${t.key}-${t.index}`}
-                                        onClick={() => setActiveTab({ key: t.key, index: t.index })}
-                                        style={{
-                                            padding: '7px 14px', fontSize: 20, fontWeight: isActive ? 700 : 500,
-                                            borderRadius: 6,
-                                            border: `1.5px solid ${GOLD}`,
-                                            borderRight: '2px solid #b09060',
-                                            borderBottom: isActive ? '0' : '2px solid #9a7a50',
-                                            borderTop: isActive ? '2px solid #9a7a50' : `1.5px solid ${GOLD}`,
-                                            background: isActive ? GOLD : (hasData ? '#FDF0DC' : '#FDF8F0'),
-                                            color: isActive ? '#fff' : TEXT_DARK,
-                                            cursor: 'pointer',
-                                            transform: isActive ? 'translateY(1px)' : 'none',
-                                            boxShadow: isActive ? 'none' : '1px 1px 0 #c4a87a',
-                                            transition: 'all 0.1s',
-                                        }}
-                                    >
-                                        {t.label}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    ))}
+                        if (t.isAdd) {
+                            return (
+                                <button
+                                    key={`${t.key}-add`}
+                                    onClick={() => {
+                                        const newCount = (tabCounts[t.key] || 1) + 1;
+                                        setTabCounts(prev => ({ ...prev, [t.key]: newCount }));
+                                        setActiveTab({ key: t.key, index: newCount - 1 });
+                                    }}
+                                    style={{
+                                        padding: '5px 10px', fontSize: 16, borderRadius: 6,
+                                        border: `1px solid ${GOLD}`, background: '#F5F0E8',
+                                        color: TEXT_LIGHT, cursor: 'pointer',
+                                        borderRight: '2px solid #b09060', borderBottom: '2px solid #9a7a50',
+                                    }}
+                                    title="탭 추가"
+                                >
+                                    <Plus size={12} />
+                                </button>
+                            );
+                        }
+
+                        return (
+                            <button
+                                key={`${t.key}-${t.index}`}
+                                onClick={() => setActiveTab({ key: t.key, index: t.index })}
+                                style={{
+                                    padding: '7px 14px', fontSize: 20, fontWeight: isActive ? 700 : 500,
+                                    borderRadius: 6,
+                                    border: `1.5px solid ${GOLD}`,
+                                    borderRight: '2px solid #b09060',
+                                    borderBottom: isActive ? '0' : '2px solid #9a7a50',
+                                    borderTop: isActive ? '2px solid #9a7a50' : `1.5px solid ${GOLD}`,
+                                    background: isActive ? GOLD : (hasData ? '#FDF0DC' : '#FDF8F0'),
+                                    color: isActive ? '#fff' : TEXT_DARK,
+                                    cursor: 'pointer',
+                                    transform: isActive ? 'translateY(1px)' : 'none',
+                                    boxShadow: isActive ? 'none' : '1px 1px 0 #c4a87a',
+                                    transition: 'all 0.1s',
+                                }}
+                            >
+                                {t.label}
+                            </button>
+                        );
+                    })}
                 </div>
 
                 {/* ── 메인 영역 ── */}
@@ -849,7 +789,7 @@ function ActionBtn({ label, disabled, onClick, color }) {
 }
 
 // ── 생성 payload ──────────────────────────────────────────────────────
-function buildCreatePayload(tabKey, form, curator, persons = []) {
+function buildCreatePayload(tabKey, form, anchor) {
     const base = {
         name: form.name.trim(),
         birth_date: form.birth_date || null,
@@ -861,104 +801,54 @@ function buildCreatePayload(tabKey, form, curator, persons = []) {
         bio2: form.bio2 || null,
         bio3: form.bio3 || null,
     };
-    if (!curator) return base;
-    const cid = curator.id;
-    const sons = persons.filter(p => (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'male');
-    const daughters = persons.filter(p => (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'female');
+    if (!anchor) return base; // 본인(self) 등록 시 anchor 없음
+    const aid = anchor.id;
     switch (tabKey) {
         case 'father':   return { ...base, gender: 'male' };
         case 'mother':   return { ...base, gender: 'female' };
-        case 'son':      return { ...base, gender: 'male',   parent1_id: cid };
-        case 'daughter': return { ...base, gender: 'female', parent1_id: cid };
+        case 'son':      return { ...base, gender: 'male',   parent1_id: aid };
+        case 'daughter': return { ...base, gender: 'female', parent1_id: aid };
         case 'hyeong':   return { ...base, gender: 'male' };
         case 'je':       return { ...base, gender: 'male' };
         case 'ja':       return { ...base, gender: 'female' };
         case 'mae':      return { ...base, gender: 'female' };
-        case 'meuri':    return { ...base, gender: 'female' };
-        case 'saui':     return { ...base, gender: 'male' };
-        case 'grandson': {
-            // 첫 아들의 자녀로 등록
-            const parentId = sons[0]?.id || null;
-            return { ...base, gender: 'male', ...(parentId ? { parent1_id: parentId } : {}) };
-        }
-        case 'granddaughter': {
-            // 첫 딸의 자녀로 등록
-            const parentId = daughters[0]?.id || null;
-            return { ...base, gender: 'female', ...(parentId ? { parent1_id: parentId } : {}) };
-        }
-        case 'birthfather': return { ...base, gender: 'male' };
-        case 'birthmother': return { ...base, gender: 'female' };
         default:         return base;
     }
 }
 
-// ── 관계 연결 ─────────────────────────────────────────────────────────
-async function linkRelation(tabKey, newPerson, siteId, curator, persons = [], tabIndex = 0) {
-    if (!curator) return;
-    const cid = curator.id;
+// ── 관계 연결 (anchor 기준) ───────────────────────────────────────────
+async function linkRelation(tabKey, newPerson, siteId, anchor) {
+    if (!anchor) return; // self 등록 시 링크 없음
+    const aid = anchor.id;
     const nid = newPerson.id;
     try {
         switch (tabKey) {
             case 'spouse':
                 await axios.post(`/api/persons/${siteId}/relations`, {
-                    person1_id: Math.min(cid, nid), person2_id: Math.max(cid, nid), relation_type: 'spouse',
+                    person1_id: Math.min(aid, nid), person2_id: Math.max(aid, nid), relation_type: 'spouse',
                 });
-                await axios.put(`/api/persons/${siteId}/${cid}`, { spouse_id: nid });
+                await axios.put(`/api/persons/${siteId}/${aid}`, { spouse_id: nid });
                 break;
             case 'father':
-                await axios.put(`/api/persons/${siteId}/${cid}`, { parent1_id: nid });
+                await axios.put(`/api/persons/${siteId}/${aid}`, { parent1_id: nid });
                 await axios.post(`/api/persons/${siteId}/relations`, {
-                    person1_id: nid, person2_id: cid, relation_type: 'parent',
+                    person1_id: nid, person2_id: aid, relation_type: 'parent',
                 });
                 break;
             case 'mother':
-                await axios.put(`/api/persons/${siteId}/${cid}`, { parent2_id: nid });
+                await axios.put(`/api/persons/${siteId}/${aid}`, { parent2_id: nid });
                 await axios.post(`/api/persons/${siteId}/relations`, {
-                    person1_id: nid, person2_id: cid, relation_type: 'parent',
+                    person1_id: nid, person2_id: aid, relation_type: 'parent',
                 });
                 break;
             case 'hyeong': case 'je': case 'ja': case 'mae':
                 await axios.post(`/api/persons/${siteId}/relations`, {
-                    person1_id: Math.min(cid, nid), person2_id: Math.max(cid, nid), relation_type: 'sibling',
+                    person1_id: Math.min(aid, nid), person2_id: Math.max(aid, nid), relation_type: 'sibling',
                 });
                 break;
             case 'son': case 'daughter':
                 await axios.post(`/api/persons/${siteId}/relations`, {
-                    person1_id: cid, person2_id: nid, relation_type: 'parent',
-                });
-                break;
-            case 'meuri': {
-                // tabIndex번째 아들의 배우자로 연결
-                const sons = persons.filter(p =>
-                    (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'male'
-                );
-                const son = sons[tabIndex];
-                if (son) {
-                    await axios.post(`/api/persons/${siteId}/relations`, {
-                        person1_id: Math.min(son.id, nid), person2_id: Math.max(son.id, nid), relation_type: 'spouse',
-                    });
-                }
-                break;
-            }
-            case 'saui': {
-                // tabIndex번째 딸의 배우자로 연결
-                const daughters = persons.filter(p =>
-                    (p.parent1_id === cid || p.parent2_id === cid) && p.gender === 'female'
-                );
-                const daughter = daughters[tabIndex];
-                if (daughter) {
-                    await axios.post(`/api/persons/${siteId}/relations`, {
-                        person1_id: Math.min(daughter.id, nid), person2_id: Math.max(daughter.id, nid), relation_type: 'spouse',
-                    });
-                }
-                break;
-            }
-            case 'grandson': case 'granddaughter':
-                // parent_id는 buildCreatePayload에서 이미 설정됨
-                break;
-            case 'birthfather': case 'birthmother':
-                await axios.post(`/api/persons/${siteId}/relations`, {
-                    person1_id: nid, person2_id: cid, relation_type: 'birth-parent',
+                    person1_id: aid, person2_id: nid, relation_type: 'parent',
                 });
                 break;
             default: break;
