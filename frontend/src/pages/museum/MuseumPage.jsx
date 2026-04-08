@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import {
     GalleryThumbnails, Settings,
-    LogIn, Bell, Star, Calendar, MessageSquare, Download,
+    LogIn, LogOut, Bell, Star, Calendar, MessageSquare, Download,
     Plus, X, Pencil, UserPlus, Sparkles,
     Upload, Users, Network, CalendarDays, Image, HelpCircle,
 } from 'lucide-react';
@@ -129,6 +129,7 @@ export default function MuseumPage({ initialTab }) {
     const t = getT('museum', lang);
     const pt = getT('pwa', lang);
     const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+    const logout = useAuthStore((s) => s.logout);
 
     const [site, setSite] = useState(null);
     const [role, setRole] = useState(null);
@@ -436,6 +437,16 @@ export default function MuseumPage({ initialTab }) {
                             <HelpCircle size={16} />
                         </button>
                         <LanguageSwitcher />
+                        {isAuthenticated && (
+                            <button
+                                onClick={async () => { await logout(); navigate('/auth/login'); }}
+                                className="w-8 h-8 rounded-full flex items-center justify-center"
+                                style={{ background: '#f5ede8', color: '#8a5a4a' }}
+                                title={lang === 'en' ? 'Logout' : '로그아웃'}
+                            >
+                                <LogOut size={15} />
+                            </button>
+                        )}
                     </div>
                 </div>
             </header>

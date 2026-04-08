@@ -157,9 +157,7 @@ function App() {
             ) : isAuthenticated ? (
               <AuthHome />
             ) : (
-              <Suspense fallback={<PageLoader />}>
-                <LandingPage />
-              </Suspense>
+              <Navigate to="/auth/login" replace />
             )
           }
         />
