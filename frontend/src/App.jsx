@@ -203,6 +203,7 @@ function App() {
         {/* ══════ 동적 서브도메인 (자체 헤더 사용) ══════ */}
         <Route path="/:subdomain/gallery/:id" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><ExhibitionDetailPage /></Suspense></ErrorBoundary>} />
         <Route path="/:subdomain/archive/:id" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><PersonFolderView /></Suspense></ErrorBoundary>} />
+        <Route path="/:subdomain/archive" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><MuseumPage initialTab="tree" /></Suspense></ErrorBoundary>} />
         <Route path="/:subdomain/board" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><MuseumPage initialTab="calendar" /></Suspense></ErrorBoundary>} />
         <Route path="/:subdomain" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><MuseumPage /></Suspense></ErrorBoundary>} />
       </Routes>
