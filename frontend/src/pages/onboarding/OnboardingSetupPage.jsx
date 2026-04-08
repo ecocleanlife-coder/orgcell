@@ -49,7 +49,7 @@ export default function OnboardingSetupPage() {
         setSubmitting(true);
         try {
             await axios.post('/api/sites', { subdomain });
-            navigate(`/${subdomain}/archive?setup=1`, { replace: true });
+            navigate(`/${subdomain}/archive`, { replace: true });
         } catch (err) {
             setError(err.response?.data?.message || '박물관 생성에 실패했습니다. 다시 시도해주세요.');
         } finally {

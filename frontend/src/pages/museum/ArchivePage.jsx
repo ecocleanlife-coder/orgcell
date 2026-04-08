@@ -3,7 +3,7 @@
  * 카드 중심 확장 방식. 화살표 클릭으로 가족 추가.
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Loader2, LogOut, QrCode, Camera } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
@@ -272,9 +272,8 @@ function DuplicateModal({ existingPerson, pendingName, onChoice, onClose }) {
 export default function ArchivePage() {
     const { subdomain } = useParams();
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
-    const isSetup = searchParams.get('setup') === '1';
     const { logout } = useAuthStore();
+    const autoOpenedRef = useRef(false);
 
     const [site, setSite]         = useState(null);
     const [persons, setPersons]   = useState([]);
@@ -330,12 +329,13 @@ export default function ArchivePage() {
 
     useEffect(() => { loadData(); }, [loadData]);
 
-    // 버그 2: 최초 설정 시 자동으로 본인 정보 입력 모달 열기
+    // persons 없으면 본인 정보 입력 모달 자동 열기 (최초 1회)
     useEffect(() => {
-        if (!loading && isSetup && !modal) {
-            setModal({ person: curator, suggestGender: null, relation: null, isSelf: true });
+        if (!loading && persons.length === 0 && !autoOpenedRef.current) {
+            autoOpenedRef.current = true;
+            setModal({ person: null, suggestGender: null, relation: null, isSelf: true });
         }
-    }, [loading, isSetup]); // curator/modal 의존성 제외 — 최초 1회만
+    }, [loading, persons.length]);
 
     /* ─ 화살표 클릭 → 대기 카드 생성 ─────────────────────── */
     const handleArrowClick = useCallback((node, direction) => {
