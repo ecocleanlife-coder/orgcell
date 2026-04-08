@@ -9,6 +9,7 @@ import {
     Play, Pause, X, ChevronLeft, ChevronRight, Maximize2, Image,
 } from 'lucide-react';
 import MiniTree from './MiniTree';
+import DateInputKo from './DateInputKo';
 import axios from 'axios';
 import useUiStore from '../../store/uiStore';
 import useTreeViewStore from '../../store/treeViewStore';
@@ -532,12 +533,14 @@ export default function PersonFolderView() {
                                 </div>
                                 <div style={rowSt}>
                                     <label style={labelSt}>생년월일</label>
-                                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                        <input type="date" style={{ ...inputSt, flex: 1 }} value={form.birth_date} onChange={e => upd('birth_date', e.target.value)} />
-                                        <label style={{ fontSize: '11px', color: TEXT_SUB, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                                            <input type="checkbox" checked={form.birth_lunar} onChange={e => upd('birth_lunar', e.target.checked)} style={{ marginRight: '3px' }} />음력
-                                        </label>
-                                    </div>
+                                    <DateInputKo
+                                        value={form.birth_date}
+                                        onChange={v => upd('birth_date', v)}
+                                        inputStyle={{ ...inputSt, textAlign: 'center' }}
+                                    />
+                                    <label style={{ fontSize: '11px', color: TEXT_SUB, cursor: 'pointer', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        <input type="checkbox" checked={form.birth_lunar} onChange={e => upd('birth_lunar', e.target.checked)} />음력
+                                    </label>
                                 </div>
                                 <div style={rowSt}>
                                     <label style={{ fontSize: '11px', color: TEXT_SUB, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
@@ -546,10 +549,14 @@ export default function PersonFolderView() {
                                         {form.is_deceased && <span style={{ color: TEXT_SUB }}> → 사망일:</span>}
                                     </label>
                                     {form.is_deceased && (
-                                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                            <input type="date" style={{ ...inputSt, flex: 1 }} value={form.death_date} onChange={e => upd('death_date', e.target.value)} />
-                                            <label style={{ fontSize: '11px', color: TEXT_SUB, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                                                <input type="checkbox" checked={form.death_lunar} onChange={e => upd('death_lunar', e.target.checked)} style={{ marginRight: '3px' }} />음력
+                                        <div>
+                                            <DateInputKo
+                                                value={form.death_date}
+                                                onChange={v => upd('death_date', v)}
+                                                inputStyle={{ ...inputSt, textAlign: 'center' }}
+                                            />
+                                            <label style={{ fontSize: '11px', color: TEXT_SUB, cursor: 'pointer', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                <input type="checkbox" checked={form.death_lunar} onChange={e => upd('death_lunar', e.target.checked)} />음력
                                             </label>
                                         </div>
                                     )}

@@ -10,6 +10,7 @@ import PhotoEditor from './PhotoEditor';
 import { Camera } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import DateInputKo from './DateInputKo';
 
 const FRAME_COLOR = '#C4A84F';
 
@@ -226,50 +227,30 @@ export default function PersonEditModal({ siteId, person, onSave, onClose, inlin
 
                 <div style={rowStyle}>
                     <label style={labelStyle}>생년월일</label>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <input
-                            type="date"
-                            style={{ ...inputStyle, flex: 1 }}
-                            value={form.birth_date}
-                            onChange={(e) => update('birth_date', e.target.value)}
-                        />
-                        <label style={{ color: '#7A6E5E', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                            <input
-                                type="checkbox"
-                                checked={form.birth_lunar}
-                                onChange={(e) => update('birth_lunar', e.target.checked)}
-                                style={{ marginRight: '4px' }}
-                            />
-                            음력
-                        </label>
-                    </div>
+                    <DateInputKo
+                        value={form.birth_date}
+                        onChange={v => update('birth_date', v)}
+                        inputStyle={{ background: '#1E1A14', border: '1px solid rgba(196,168,79,0.3)', color: '#E8D5A0' }}
+                    />
+                    <label style={{ color: '#7A6E5E', fontSize: '12px', cursor: 'pointer', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <input type="checkbox" checked={form.birth_lunar} onChange={e => update('birth_lunar', e.target.checked)} />음력
+                    </label>
                 </div>
 
                 <div style={rowStyle}>
                     <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <input
-                            type="checkbox"
-                            checked={form.is_deceased}
-                            onChange={(e) => update('is_deceased', e.target.checked)}
-                        />
+                        <input type="checkbox" checked={form.is_deceased} onChange={e => update('is_deceased', e.target.checked)} />
                         사망
                     </label>
                     {form.is_deceased && (
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px' }}>
-                            <input
-                                type="date"
-                                style={{ ...inputStyle, flex: 1 }}
+                        <div style={{ marginTop: 8 }}>
+                            <DateInputKo
                                 value={form.death_date}
-                                onChange={(e) => update('death_date', e.target.value)}
+                                onChange={v => update('death_date', v)}
+                                inputStyle={{ background: '#1E1A14', border: '1px solid rgba(196,168,79,0.3)', color: '#E8D5A0' }}
                             />
-                            <label style={{ color: '#7A6E5E', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={form.death_lunar}
-                                    onChange={(e) => update('death_lunar', e.target.checked)}
-                                    style={{ marginRight: '4px' }}
-                                />
-                                음력
+                            <label style={{ color: '#7A6E5E', fontSize: '12px', cursor: 'pointer', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <input type="checkbox" checked={form.death_lunar} onChange={e => update('death_lunar', e.target.checked)} />음력
                             </label>
                         </div>
                     )}

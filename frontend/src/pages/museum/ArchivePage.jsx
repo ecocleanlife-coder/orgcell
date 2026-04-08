@@ -8,6 +8,7 @@ import axios from 'axios';
 import { Loader2, LogOut, QrCode, Camera } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 import CardTreeCanvas from '../../components/museum/CardTreeCanvas';
+import DateInputKo from '../../components/museum/DateInputKo';
 
 /* ─── 스타일 상수 ──────────────────────────────────────────── */
 const GOLD     = '#C4A882';
@@ -160,17 +161,17 @@ function PersonModal({ modal, onClose, onSave, onDelete }) {
                         </div>
 
                         {/* 생년월일 */}
-                        <div style={{ marginBottom: 10, display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-                            <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 12, color: TEXT_LIGHT, marginBottom: 3 }}>생년월일</div>
-                                <input type="date" value={form.birth_date} onChange={e => setF('birth_date', e.target.value)} style={INPUT_STYLE} />
+                        <div style={{ marginBottom: 10 }}>
+                            <div style={{ fontSize: 12, color: TEXT_LIGHT, marginBottom: 3 }}>생년월일</div>
+                            <DateInputKo value={form.birth_date} onChange={v => setF('birth_date', v)} />
+                            <div style={{ display: 'flex', gap: 12, marginTop: 5 }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: TEXT_MID, cursor: 'pointer' }}>
+                                    <input type="radio" name="lunar" checked={!form.birth_lunar} onChange={() => setF('birth_lunar', false)} /> 양력
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: TEXT_MID, cursor: 'pointer' }}>
+                                    <input type="radio" name="lunar" checked={form.birth_lunar} onChange={() => setF('birth_lunar', true)} /> 음력
+                                </label>
                             </div>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: TEXT_MID, marginBottom: 2, whiteSpace: 'nowrap' }}>
-                                <input type="radio" name="lunar" checked={!form.birth_lunar} onChange={() => setF('birth_lunar', false)} /> 양력
-                            </label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: TEXT_MID, marginBottom: 2, whiteSpace: 'nowrap' }}>
-                                <input type="radio" name="lunar" checked={form.birth_lunar} onChange={() => setF('birth_lunar', true)} /> 음력
-                            </label>
                         </div>
 
                         {/* 성별 */}
@@ -192,8 +193,10 @@ function PersonModal({ modal, onClose, onSave, onDelete }) {
                                 고인
                             </label>
                             {form.is_deceased && (
-                                <input type="date" value={form.death_date} onChange={e => setF('death_date', e.target.value)}
-                                    style={{ ...INPUT_STYLE, marginTop: 6 }} placeholder="사망일" />
+                                <div style={{ marginTop: 6 }}>
+                                    <div style={{ fontSize: 12, color: TEXT_LIGHT, marginBottom: 3 }}>사망일</div>
+                                    <DateInputKo value={form.death_date} onChange={v => setF('death_date', v)} />
+                                </div>
                             )}
                         </div>
 
