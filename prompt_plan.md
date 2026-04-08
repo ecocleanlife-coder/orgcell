@@ -1,6 +1,27 @@
-# d3.js 가족트리 완전 재구현
+# 가족 트리 [Visual + List] 하이브리드 아키텍처
 
-> 확정: 2026-04-02 | 상태: **Phase 1 진행중**
+> 확정: 2026-04-07 | 상태: **완료**
+
+## 구현 완료 내역
+
+### Phase 1: GenealogyList.jsx 신규 생성 ✅
+- `frontend/src/components/museum/GenealogyList.jsx`
+- 세대별 그룹핑 (Y좌표: 뿌리/부모/우리/자녀/손자녀)
+- z=1 방계 → 수장고(🗄), position:fixed 오버레이
+
+### Phase 2: FamilyTreeView.jsx 수정 ✅
+- `showList` 토글 + ≡ 버튼 (좌측 상단)
+- Hard Reset Wormhole 전 경로 통일
+
+### Phase 3: 데이터 정합성 검수 ✅
+- 배우자 부모 X=+300, 외조부모 z=1, Rule 6 ✓
+- 0.5s 순차 등장 + navKey Hard Reset ✓
+
+---
+
+## 이전 계획: d3.js 가족트리 완전 재구현
+
+> 확정: 2026-04-02 | 상태: **완료 (buildTree.js 기반으로 전환)**
 
 ## 목표
 - family-chart 라이브러리 완전 제거
