@@ -358,6 +358,12 @@ exports.deletePerson = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Person not found' });
         }
 
+        // 개인 폴더 삭제 (§19)
+        const personDir = path.join(PERSON_UPLOADS_DIR, String(personId));
+        if (fs.existsSync(personDir)) {
+            fs.rmSync(personDir, { recursive: true, force: true });
+        }
+
         res.json({ success: true, message: 'Person deleted' });
     } catch (err) {
         console.error('deletePerson error:', err);
