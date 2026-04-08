@@ -216,6 +216,7 @@ exports.updatePerson = async (req, res) => {
             'parent1_id', 'parent2_id', 'spouse_id', 'generation',
             'photo_url', 'birth_date', 'death_date',
             'is_deceased', 'birth_lunar', 'death_lunar', 'photo_position', 'biography',
+            'bio1', 'bio2', 'bio3',
         ];
 
         const setClauses = [];

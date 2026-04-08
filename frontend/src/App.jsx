@@ -26,6 +26,7 @@ const LiveSharingPage = lazy(() => import('./pages/sharing/LiveSharingPage'));
 const RedeemPage = lazy(() => import('./pages/redeem/RedeemPage'));
 const PaymentSuccessPage = lazy(() => import('./pages/payment/PaymentSuccessPage'));
 const FamilyTreeView = lazy(() => import('./components/museum/FamilyTreeView'));
+const ArchivePage = lazy(() => import('./pages/museum/ArchivePage'));
 const PersonFolderView = lazy(() => import('./components/museum/PersonFolderView'));
 const ExhibitionDetailPage = lazy(() => import('./pages/museum/ExhibitionDetailPage'));
 const InvitePage = lazy(() => import('./pages/invite/InvitePage'));
@@ -203,7 +204,7 @@ function App() {
         {/* ══════ 동적 서브도메인 (자체 헤더 사용) ══════ */}
         <Route path="/:subdomain/gallery/:id" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><ExhibitionDetailPage /></Suspense></ErrorBoundary>} />
         <Route path="/:subdomain/archive/:id" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><PersonFolderView /></Suspense></ErrorBoundary>} />
-        <Route path="/:subdomain/archive" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><MuseumPage initialTab="tree" /></Suspense></ErrorBoundary>} />
+        <Route path="/:subdomain/archive" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><ArchivePage /></Suspense></ErrorBoundary>} />
         <Route path="/:subdomain/board" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><MuseumPage initialTab="calendar" /></Suspense></ErrorBoundary>} />
         <Route path="/:subdomain" element={<ErrorBoundary><Suspense fallback={<PageLoader />}><MuseumPage /></Suspense></ErrorBoundary>} />
       </Routes>
