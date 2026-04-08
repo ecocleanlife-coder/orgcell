@@ -56,12 +56,10 @@ const INPUT_STYLE = {
 };
 
 /* ─── 성별 기본값 (화살표 방향·역할 기반) ─────────────────── */
-function defaultGenderFor(layoutRole, direction) {
-    if (direction === 'up') return null; // 부모: 사용자 선택
-    if (layoutRole === 'husb' && direction === 'right') return 'female'; // 배우자
-    if (layoutRole === 'wife' && direction === 'right') return null;      // 형제
-    if (layoutRole === 'child' && direction === 'right') return 'female'; // 며느리
-    if (layoutRole === 'child_sp' && direction === 'right') return null;  // 형제
+function defaultGenderFor(_layoutRole, direction) {
+    if (direction === 'up')    return null;     // 부모: 사용자 선택
+    if (direction === 'right') return 'female'; // 남성 카드 → 배우자(여성)
+    if (direction === 'left')  return 'male';   // 여성 카드 → 배우자(남성)
     return null;
 }
 
@@ -353,14 +351,9 @@ export default function ArchivePage() {
                 if (dir === 'up') {
                     // 새 인물 = 부모, anchor = 자녀
                     relType = 'parent'; p1 = newPerson.id; p2 = anchorId;
-                } else if (dir === 'left') {
-                    relType = 'sibling'; p1 = anchorId; p2 = newPerson.id;
-                } else if (dir === 'right') {
-                    if (role === 'wife' || role === 'w_sib' || role === 'child_sp') {
-                        relType = 'sibling'; p1 = anchorId; p2 = newPerson.id;
-                    } else {
-                        relType = 'spouse'; p1 = anchorId; p2 = newPerson.id;
-                    }
+                } else if (dir === 'left' || dir === 'right') {
+                    // ← 여성 카드의 배우자(남성) / → 남성 카드의 배우자(여성)
+                    relType = 'spouse'; p1 = anchorId; p2 = newPerson.id;
                 }
                 if (relType) {
                     await axios.post(`/api/persons/${site.id}/relations`, {
