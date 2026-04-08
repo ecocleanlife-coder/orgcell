@@ -9,14 +9,14 @@ exports.createSite = async (req, res) => {
             birth_date, bio1, bio2, bio3 } = req.body;
     const userId = req.user.id;
 
-    if (!subdomain || subdomain.length < 3) {
-        return res.status(400).json({ success: false, message: 'Subdomain required (min 3 chars)' });
+    if (!subdomain || subdomain.length < 2) {
+        return res.status(400).json({ success: false, message: 'Subdomain required (min 2 chars)' });
     }
 
-    // 서브도메인 형식 검증 (CWE-20)
-    const subdomainRegex = /^[a-z0-9][a-z0-9-]{1,29}[a-z0-9]$/;
+    // 서브도메인 형식 검증 (영문 소문자·숫자만, 2~30자)
+    const subdomainRegex = /^[a-z0-9]{2,30}$/;
     if (!subdomainRegex.test(subdomain.toLowerCase())) {
-        return res.status(400).json({ success: false, message: 'Invalid subdomain format' });
+        return res.status(400).json({ success: false, message: 'Invalid subdomain format (lowercase letters and numbers only)' });
     }
 
     // 예약어 차단
@@ -29,45 +29,67 @@ exports.createSite = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // 중복 체크 (family_sites)
+        // 중복 체크: 다른 유저 사이트 → 409, 같은 유저 사이트 → upsert
         const dup = await client.query(
-            `SELECT id FROM family_sites WHERE subdomain = $1`,
+            `SELECT id, user_id FROM family_sites WHERE subdomain = $1`,
             [subdomain.toLowerCase()]
         );
-        if (dup.rows.length > 0) {
+        if (dup.rows.length > 0 && dup.rows[0].user_id !== userId) {
             await client.query('ROLLBACK');
             return res.status(409).json({ success: false, message: 'Subdomain already taken' });
         }
 
-        // 1. family_sites 저장 (기존 호환 유지)
-        const { rows: siteRows } = await client.query(
-            `INSERT INTO family_sites (user_id, subdomain, theme, status)
-             VALUES ($1, $2, $3, 'active')
-             RETURNING *`,
-            [userId, subdomain.toLowerCase(), theme]
-        );
-        const site = siteRows[0];
+        // 1. family_sites 저장 (같은 유저면 status만 active 업데이트)
+        let site;
+        if (dup.rows.length > 0) {
+            const { rows: siteRows } = await client.query(
+                `UPDATE family_sites SET status = 'active', theme = $1 WHERE id = $2 RETURNING *`,
+                [theme, dup.rows[0].id]
+            );
+            site = siteRows[0];
+        } else {
+            const { rows: siteRows } = await client.query(
+                `INSERT INTO family_sites (user_id, subdomain, theme, status)
+                 VALUES ($1, $2, $3, 'active')
+                 RETURNING *`,
+                [userId, subdomain.toLowerCase(), theme]
+            );
+            site = siteRows[0];
+        }
 
         // 2. 관장 person 생성 (OPS §26-2) — 기존 persons 스키마 호환
-        const lang = req.headers['accept-language'] || 'ko';
-        const geo  = req.headers['cf-ipcountry'] || req.headers['x-country-code'] || 'KR';
-        const countryCode = resolveCountryCode(lang, geo);
-        const curatorPersonId = await generateOcId(client, countryCode);
-
-        const { rows: personRows } = await client.query(
-            `INSERT INTO persons
-               (site_id, name, gender, oc_id, person_id, nationality, match_status, user_id,
-                birth_date, bio1, bio2, bio3)
-             VALUES ($1, $2, $3, $4, $4, $5, 'linked', $6, $7, $8, $9, $10)
-             RETURNING id`,
-            [site.id, curator_name || subdomain, curator_gender || null,
-             curatorPersonId, countryCode, userId,
-             birth_date || null, bio1 || null, bio2 || null, bio3 || null]
+        //    같은 유저 재시도 시 기존 관장 person이 있으면 스킵
+        const existingCurator = await client.query(
+            `SELECT id, person_id FROM persons WHERE site_id = $1 AND match_status = 'linked' LIMIT 1`,
+            [site.id]
         );
-        const curatorIntId = personRows[0]?.id;
 
-        // 3. 관장 canonical path 배정: {subdomain}
-        await assignCuratorPath(client, curatorPersonId, subdomain.toLowerCase());
+        let curatorIntId, curatorPersonId;
+
+        if (existingCurator.rows.length > 0) {
+            curatorIntId    = existingCurator.rows[0].id;
+            curatorPersonId = existingCurator.rows[0].person_id;
+        } else {
+            const lang = req.headers['accept-language'] || 'ko';
+            const geo  = req.headers['cf-ipcountry'] || req.headers['x-country-code'] || 'KR';
+            const countryCode = resolveCountryCode(lang, geo);
+            curatorPersonId = await generateOcId(client, countryCode);
+
+            const { rows: personRows } = await client.query(
+                `INSERT INTO persons
+                   (site_id, name, gender, oc_id, person_id, nationality, match_status, user_id,
+                    birth_date, bio1, bio2, bio3)
+                 VALUES ($1, $2, $3, $4, $4, $5, 'linked', $6, $7, $8, $9, $10)
+                 RETURNING id`,
+                [site.id, curator_name || subdomain, curator_gender || null,
+                 curatorPersonId, countryCode, userId,
+                 birth_date || null, bio1 || null, bio2 || null, bio3 || null]
+            );
+            curatorIntId = personRows[0]?.id;
+
+            // 3. 관장 canonical path 배정: {subdomain}
+            await assignCuratorPath(client, curatorPersonId, subdomain.toLowerCase());
+        }
 
         await client.query('COMMIT');
 
