@@ -134,18 +134,8 @@ function App() {
   const fetchMe = useAuthStore(state => state.fetchMe);
 
   useEffect(() => {
-    const DEV_AUTO = import.meta.env.VITE_DEV_AUTO_LOGIN === 'true' && !import.meta.env.PROD;
-    if (DEV_AUTO) {
-      // 개발 자동 로그인: dev-login → fetchMe 순서
-      const email = import.meta.env.VITE_DEV_USER_EMAIL || 'dev@orgcell.com';
-      import('axios').then(({ default: axios }) => {
-        axios.post('/api/auth/dev-login', { email, name: '개발자' })
-          .catch(() => {}) // 실패해도 fetchMe 시도
-          .finally(() => fetchMe());
-      });
-    } else {
-      fetchMe();
-    }
+    // 개발 자동 로그인: devAuthMiddleware가 서버에서 쿠키 주입 → fetchMe만 호출
+    fetchMe();
     initTheme();
   }, [fetchMe]);
 
