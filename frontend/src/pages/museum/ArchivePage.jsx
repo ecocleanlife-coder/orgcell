@@ -259,7 +259,8 @@ export default function ArchivePage() {
                 } catch { /* 무시 */ }
             }
             setRelations(rels);
-            setCurator(ps.find(p => p.match_status === 'linked') || null);
+            // linked 우선, 없으면 첫 번째 인물을 관장으로 사용
+            setCurator(ps.find(p => p.match_status === 'linked') || ps[0] || null);
         } catch (err) {
             console.error('ArchivePage loadData error:', err);
         } finally {

@@ -161,16 +161,16 @@ function PersonCard({ node, curatorId, curatorSpouseId, hasPendingCard, onArrowC
                     </div>
                 ) : (
                     <>
-                        {/* 사진 180×180 원형 크롭 */}
+                        {/* 사진 180×180 사각형 */}
                         {person.photo_url ? (
                             <img
                                 src={person.photo_url}
                                 alt={person.name}
-                                style={{ width: 180, height: 180, borderRadius: 90, objectFit: 'cover', flexShrink: 0 }}
+                                style={{ width: 180, height: 180, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
                             />
                         ) : (
                             <div style={{
-                                width: 180, height: 180, borderRadius: 90, flexShrink: 0,
+                                width: 180, height: 180, borderRadius: 8, flexShrink: 0,
                                 background: isCuratorCouple ? '#DDD0BA' : '#E0E0E0',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 fontSize: 52,
@@ -219,9 +219,11 @@ function buildLayout(persons, relations, curator, pendingCard) {
 
     function hasSpouseRel(pid) {
         const p = byId.get(pid);
-        if (p?.spouse_id) return true;
+        // spouse_id가 실제로 로드된 인물을 가리키는 경우만 유효
+        if (p?.spouse_id && (byId.has(p.spouse_id) || byId.has(Number(p.spouse_id)))) return true;
         return relations.some(r =>
-            r.relation_type === 'spouse' && (r.person1_id === pid || r.person2_id === pid)
+            r.relation_type === 'spouse' &&
+            (Number(r.person1_id) === Number(pid) || Number(r.person2_id) === Number(pid))
         );
     }
 

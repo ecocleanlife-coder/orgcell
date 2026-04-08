@@ -93,7 +93,7 @@ exports.listPersons = async (req, res) => {
 
             // person_relations에서 부모/배우자 보완 (persons 직접 컬럼과 병합)
             const parentRels = relations.filter(
-                r => r.relation_type === 'parent' && r.person2_id === intId
+                r => (r.relation_type === 'parent' || r.relation_type === 'parent-child') && r.person2_id === intId
             );
             if (parentRels.length > 0) {
                 const sortedParents = parentRels.map(r => ({
@@ -474,12 +474,12 @@ exports.uploadPhoto = async (req, res) => {
 // [relation_type, id_1_role, id_2_role]
 // id_1_role: 'new'=신규인물, 'anchor'=기준인물
 const RELATION_RULES = {
-  father:          { type: 'parent-child',  id1: 'new',    id2: 'anchor' }, // 부→자(anchor)
-  mother:          { type: 'parent-child',  id1: 'new',    id2: 'anchor' },
+  father:          { type: 'parent',       id1: 'new',    id2: 'anchor' }, // 부→자(anchor)
+  mother:          { type: 'parent',       id1: 'new',    id2: 'anchor' },
   'birth-father':  { type: 'birth-parent', id1: 'new',    id2: 'anchor' },
   'birth-mother':  { type: 'birth-parent', id1: 'new',    id2: 'anchor' },
-  son:             { type: 'parent-child',  id1: 'anchor', id2: 'new'    }, // anchor→자(new)
-  daughter:        { type: 'parent-child',  id1: 'anchor', id2: 'new'    },
+  son:             { type: 'parent',       id1: 'anchor', id2: 'new'    }, // anchor→자(new)
+  daughter:        { type: 'parent',       id1: 'anchor', id2: 'new'    },
   hyeong:          { type: 'sibling',       id1: 'anchor', id2: 'new'    },
   je:              { type: 'sibling',       id1: 'anchor', id2: 'new'    },
   sister:          { type: 'sibling',       id1: 'anchor', id2: 'new'    },
@@ -504,15 +504,27 @@ exports.createPersonOPS = async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // 1. anchor 인물 조회 (person_id/oc_id 문자열 → INTEGER id + site_id 확정)
-    const { rows: anchorRows } = await client.query(
-      `SELECT id, site_id, person_id, oc_id, nationality, birth_country
-       FROM persons
-       WHERE person_id = $1 OR oc_id = $1
-       LIMIT 1`,
-      [anchor_person_id]
-    );
-    if (!anchorRows[0]) {
+    // 1. anchor 인물 조회 (person_id/oc_id 문자열 또는 정수 id 모두 허용)
+    let anchorRows;
+    if (!isNaN(anchor_person_id)) {
+      // 정수 id로 조회
+      ({ rows: anchorRows } = await client.query(
+        `SELECT id, site_id, person_id, oc_id, nationality, birth_country
+         FROM persons WHERE id = $1 LIMIT 1`,
+        [parseInt(anchor_person_id)]
+      ));
+    }
+    // varchar 조회 (fallback 또는 문자열인 경우)
+    if (!anchorRows?.length) {
+      ({ rows: anchorRows } = await client.query(
+        `SELECT id, site_id, person_id, oc_id, nationality, birth_country
+         FROM persons
+         WHERE person_id = $1 OR oc_id = $1
+         LIMIT 1`,
+        [String(anchor_person_id)]
+      ));
+    }
+    if (!anchorRows?.[0]) {
       await client.query('ROLLBACK');
       return res.status(404).json({ success: false, message: 'anchor_person_id를 찾을 수 없습니다' });
     }
