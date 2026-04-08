@@ -313,54 +313,37 @@ export default function PersonFolderView() {
         }
     };
 
-    // ── [생성] 버튼: 새 인물 생성 후 연결 ────────────────────────────────────
+    // ── [생성] 버튼: OPS 파이프라인 (§26) — 생성 + 관계 + path 배정 한 번에 ──
     const handleCreateAndConnect = async () => {
-        if (!person || !siteId) return;
-        if (!addRelationType) { toast.error('관계 유형을 선택하세요'); return; }
+        if (!addRelationKey) { toast.error('관계 유형을 선택하세요'); return; }
         if (!relationName.trim()) { toast.error('이름을 입력하세요'); return; }
+        // 관장 person_id: person.person_id (새 스키마) 또는 person.oc_id (구 호환)
+        const anchorPersonId = person?.person_id || person?.oc_id;
+        if (!anchorPersonId) { toast.error('관장 정보를 불러올 수 없습니다'); return; }
         setSubmittingRelation(true);
         try {
-            let gen = person.generation || 1;
-            if (addRelationType === 'parent' || addRelationType === 'birth-parent') gen += 1;
-            if (addRelationType === 'child' || addRelationType === 'adoption') gen -= 1;
-            const res = await axios.post(`/api/persons/${siteId}`, {
-                name: relationName.trim(), gender: relationGender, generation: gen, privacy_level: 'family',
+            const res = await axios.post('/api/persons', {
+                name:             relationName.trim(),
+                gender:           relationGender,
+                site_subdomain:   subdomain,
+                anchor_person_id: anchorPersonId,
+                relation_key:     addRelationKey,  // §26-1 relation_key (father/mother/son/daughter...)
             });
-            const targetId = res.data?.data?.id;
-            if (!targetId) { toast.error('생성 실패'); setSubmittingRelation(false); return; }
-            await connectRelation(targetId);
-            toast.success(`${relationName.trim()}이(가) 생성되었습니다`);
-            useTreeViewStore.getState().setPersonsNeedRefresh(true); // FamilyTreeView 즉시 갱신
+            const newPerson = res.data?.data;
+            if (!newPerson) { toast.error('생성 실패'); setSubmittingRelation(false); return; }
 
-            // 이름 입력란 초기화
-            const createdName = relationName.trim();
+            toast.success(`${relationName.trim()}이(가) 등록되었습니다 (${newPerson.person_id})`);
+            useTreeViewStore.getState().setPersonsNeedRefresh(true);
+
             setRelationName('');
+            setAddRelationKey(null);
+            setAddRelationType(null);
 
-            // 로컬 state 즉시 반영 (API 재호출 없이)
-            const newPersonData = { ...res.data.data, id: targetId };
-            if (addRelationType === 'parent' || addRelationType === 'birth-parent') {
-                // 부 → parent1_id, 모 → parent2_id (connectRelation과 일치)
-                const isMother = addRelationKey === 'mother' || addRelationKey === 'birth-mother';
-                const field = isMother ? 'parent2_id' : 'parent1_id';
-                const updatedNewPerson = { ...newPersonData };
-                setAllPersons(prev => [...prev, updatedNewPerson]);
-                setPerson(prev => ({ ...prev, [field]: targetId }));
-            } else if (addRelationType === 'child' || addRelationType === 'adoption') {
-                // 신규 자녀는 현재 인물을 부모로 가짐
-                const updatedNewPerson = { ...newPersonData, parent1_id: person.id };
-                setAllPersons(prev => [...prev, updatedNewPerson]);
-            } else if (addRelationType === 'spouse') {
-                const updatedNewPerson = { ...newPersonData, spouse_id: person.id };
-                setAllPersons(prev => [...prev, updatedNewPerson]);
-                setPerson(prev => ({ ...prev, spouse_id: targetId }));
-            } else if (addRelationType === 'sibling') {
-                const updatedNewPerson = { ...newPersonData, parent1_id: person.parent1_id || null, parent2_id: person.parent2_id || null };
-                setAllPersons(prev => [...prev, updatedNewPerson]);
-            } else {
-                setAllPersons(prev => [...prev, newPersonData]);
-            }
-        } catch {
-            toast.error('생성에 실패했습니다');
+            // 로컬 persons 목록에 즉시 반영
+            setAllPersons(prev => [...prev, { ...newPerson, id: newPerson.person_id }]);
+        } catch (err) {
+            const msg = err.response?.data?.message || '생성에 실패했습니다';
+            toast.error(msg);
         }
         setSubmittingRelation(false);
     };

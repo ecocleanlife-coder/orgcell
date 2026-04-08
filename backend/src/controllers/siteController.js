@@ -1,53 +1,85 @@
 const db = require('../config/db');
+const { generateOcId, resolveCountryCode } = require('../utils/ocIdGenerator');
+const { assignCuratorPath } = require('../services/pathAssigner');
 
-// @desc    Create family site
+// @desc    Create family site + 관장 person 자동 생성 (OPS §26)
 // @route   POST /api/sites
 exports.createSite = async (req, res) => {
+    const { subdomain, theme = 'modern', curator_name, curator_gender } = req.body;
+    const userId = req.user.id;
+
+    if (!subdomain || subdomain.length < 3) {
+        return res.status(400).json({ success: false, message: 'Subdomain required (min 3 chars)' });
+    }
+
+    // 서브도메인 형식 검증 (CWE-20)
+    const subdomainRegex = /^[a-z0-9][a-z0-9-]{1,29}[a-z0-9]$/;
+    if (!subdomainRegex.test(subdomain.toLowerCase())) {
+        return res.status(400).json({ success: false, message: 'Invalid subdomain format' });
+    }
+
+    // 예약어 차단
+    const reserved = ['admin', 'api', 'www', 'demo', 'test', 'orgcell', 'mail', 'ftp', 'smtp', 'pop', 'imap'];
+    if (reserved.includes(subdomain.toLowerCase())) {
+        return res.status(400).json({ success: false, message: 'This subdomain is reserved' });
+    }
+
+    const client = await db.pool.connect();
     try {
-        const userId = req.user.id;
-        const { subdomain, theme = 'modern' } = req.body;
+        await client.query('BEGIN');
 
-        if (!subdomain || subdomain.length < 3) {
-            return res.status(400).json({ success: false, message: 'Subdomain required (min 3 chars)' });
-        }
-
-        // 서브도메인 형식 검증 (CWE-20)
-        const subdomainRegex = /^[a-z0-9][a-z0-9-]{1,29}[a-z0-9]$/;
-        if (!subdomainRegex.test(subdomain.toLowerCase())) {
-            return res.status(400).json({ success: false, message: 'Invalid subdomain format' });
-        }
-
-        // 예약어 차단
-        const reserved = ['admin', 'api', 'www', 'demo', 'test', 'orgcell', 'mail', 'ftp', 'smtp', 'pop', 'imap'];
-        if (reserved.includes(subdomain.toLowerCase())) {
-            return res.status(400).json({ success: false, message: 'This subdomain is reserved' });
-        }
-
-        // Check subdomain availability
-        const existing = await db.query(
-            `SELECT id FROM family_sites WHERE subdomain = $1`, [subdomain.toLowerCase()]
+        // 중복 체크 (family_sites)
+        const dup = await client.query(
+            `SELECT id FROM family_sites WHERE subdomain = $1`,
+            [subdomain.toLowerCase()]
         );
-        if (existing.rows.length > 0) {
+        if (dup.rows.length > 0) {
+            await client.query('ROLLBACK');
             return res.status(409).json({ success: false, message: 'Subdomain already taken' });
         }
 
-        const { rows } = await db.query(
+        // 1. family_sites 저장 (기존 호환 유지)
+        const { rows: siteRows } = await client.query(
             `INSERT INTO family_sites (user_id, subdomain, theme, status)
-             VALUES ($1, $2, $3, 'pending')
+             VALUES ($1, $2, $3, 'active')
              RETURNING *`,
             [userId, subdomain.toLowerCase(), theme]
         );
+        const site = siteRows[0];
 
-        res.status(201).json({
+        // 2. 관장 person 생성 (OPS §26-2) — 기존 persons 스키마 호환
+        const lang = req.headers['accept-language'] || 'ko';
+        const geo  = req.headers['cf-ipcountry'] || req.headers['x-country-code'] || 'KR';
+        const countryCode = resolveCountryCode(lang, geo);
+        const curatorPersonId = await generateOcId(client, countryCode);
+
+        await client.query(
+            `INSERT INTO persons
+               (site_id, name, gender, oc_id, person_id, nationality, match_status, user_id)
+             VALUES ($1, $2, $3, $4, $4, $5, 'linked', $6)`,
+            [site.id, curator_name || subdomain, curator_gender || null,
+             curatorPersonId, countryCode, userId]
+        );
+
+        // 3. 관장 canonical path 배정: {subdomain}
+        await assignCuratorPath(client, curatorPersonId, subdomain.toLowerCase());
+
+        await client.query('COMMIT');
+
+        return res.status(201).json({
             success: true,
             data: {
-                ...rows[0],
+                ...site,
                 url: `https://orgcell.com/${subdomain.toLowerCase()}`,
+                curator_person_id: curatorPersonId,
             },
         });
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('createSite Error:', error.message);
-        res.status(500).json({ success: false, message: 'Failed to create site' });
+        return res.status(500).json({ success: false, message: 'Failed to create site' });
+    } finally {
+        client.release();
     }
 };
 

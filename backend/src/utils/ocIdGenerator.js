@@ -52,8 +52,9 @@ async function generateOcId(pool, countryCode = 'XX') {
     const cc = (countryCode || 'XX').toUpperCase().slice(0, 2);
     for (let attempt = 0; attempt < 5; attempt++) {
         const id = `${cc}-${generateRandomPart()}`;
+        // 신규 스키마: person_id PK 중복 체크
         const { rows } = await pool.query(
-            'SELECT 1 FROM persons WHERE oc_id = $1 LIMIT 1',
+            'SELECT 1 FROM persons WHERE person_id = $1 LIMIT 1',
             [id]
         );
         if (rows.length === 0) return id;
@@ -73,7 +74,10 @@ async function backfillOcIds(pool, defaultCountry = 'KR') {
     for (const row of rows) {
         const cc = row.birth_country || row.residence_country || defaultCountry;
         const ocId = await generateOcId(pool, cc);
-        await pool.query('UPDATE persons SET oc_id = $1 WHERE id = $2', [ocId, row.id]);
+        await pool.query(
+            'UPDATE persons SET oc_id = $1, person_id = COALESCE(person_id, $1) WHERE id = $2',
+            [ocId, row.id]
+        );
     }
     return rows.length;
 }

@@ -1,5 +1,7 @@
 const db = require('../config/db');
 const { generateOcId, resolveCountryCode } = require('../utils/ocIdGenerator');
+const { assignPath } = require('../services/pathAssigner');
+const { matchAndMerge } = require('../services/personMatcher');
 
 // 사이트 접근 권한 확인 (owner 또는 member)
 async function checkSiteAccess(userId, siteId) {
@@ -13,63 +15,109 @@ async function checkSiteAccess(userId, siteId) {
 }
 
 // GET /api/persons/:siteId
-// person_relations를 정본으로 사용하되, 과도기에 persons 컬럼도 함께 반환
+// siteId = family_sites.id(정수) 또는 subdomain(문자열) 모두 수용
 exports.listPersons = async (req, res) => {
     try {
         const { siteId } = req.params;
 
-        // 인물 목록 조회 (persons 컬럼은 과도기 호환용으로 유지)
+        // siteId 정수 or subdomain 문자열 → site 레코드 확정
+        let siteIntId, subdomain;
+        if (!isNaN(siteId)) {
+            const { rows } = await db.query(
+                `SELECT id, subdomain FROM family_sites WHERE id = $1`, [siteId]
+            );
+            if (!rows[0]) return res.status(404).json({ success: false, message: 'Site not found' });
+            siteIntId = rows[0].id;
+            subdomain = rows[0].subdomain;
+        } else {
+            const { rows } = await db.query(
+                `SELECT id, subdomain FROM family_sites WHERE subdomain = $1`, [siteId]
+            );
+            if (!rows[0]) return res.status(404).json({ success: false, message: 'Site not found' });
+            siteIntId = rows[0].id;
+            subdomain = rows[0].subdomain;
+        }
+
+        // 인물 조회 (site_id 기반 — 기존 스키마 호환)
         const { rows: persons } = await db.query(
-            `SELECT id, site_id, name, maiden_name, former_name, birth_year, death_year, gender,
-                    privacy_level, parent1_id, parent2_id, spouse_id,
-                    generation, photo_url, birth_date, death_date,
-                    is_deceased, birth_lunar, death_lunar,
-                    fs_person_id, photo_position, biography, oc_id, created_at
-             FROM persons WHERE site_id = $1
-             ORDER BY generation ASC, id ASC`,
-            [siteId]
+            `SELECT p.id, p.person_id, p.oc_id, p.name, p.gender,
+                    p.birth_date, p.birth_year, p.death_date, p.death_year,
+                    p.is_deceased, p.birth_lunar, p.death_lunar,
+                    p.bio1, p.bio2, p.bio3, p.biography,
+                    p.photo_url, p.photo_position, p.match_status,
+                    p.parent1_id, p.parent2_id, p.spouse_id,
+                    p.privacy_level, p.generation, p.created_at
+             FROM persons p
+             WHERE p.site_id = $1
+             ORDER BY p.id ASC`,
+            [siteIntId]
         );
 
-        // person_relations에서 parent/spouse 관계 조회하여 persons 컬럼 덮어쓰기
-        const { rows: relations } = await db.query(
-            `SELECT person1_id, person2_id, relation_type
-             FROM person_relations
-             WHERE site_id = $1 AND relation_type IN ('parent', 'spouse')`,
-            [siteId]
-        );
+        // person_relations에서 최신 관계 조회 (정규화 테이블 우선)
+        const personIntIds = persons.map(p => p.id);
+        let relations = [];
+        if (personIntIds.length > 0) {
+            const { rows } = await db.query(
+                `SELECT person1_id, person2_id, relation_type
+                 FROM person_relations
+                 WHERE site_id = $1
+                   AND (person1_id = ANY($2) OR person2_id = ANY($2))
+                   AND is_active = TRUE`,
+                [siteIntId, personIntIds]
+            );
+            relations = rows;
+        }
 
-        // 관계 데이터로 persons 컬럼 값 재구성 (person_relations가 정본)
-        if (relations.length > 0) {
-            const personMap = new Map(persons.map(p => [p.id, p]));
-
-            for (const person of persons) {
-                // parent 관계: person1_id=부모, person2_id=자녀
-                const parents = relations
-                    .filter(r => r.relation_type === 'parent' && r.person2_id === person.id)
-                    .map(r => {
-                        const parent = personMap.get(r.person1_id);
-                        return { id: r.person1_id, gender: parent?.gender };
-                    });
-
-                // 부모를 gender 기준 정렬: M → parent1, F → parent2
-                parents.sort((a, b) => {
-                    if (a.gender === 'M' && b.gender !== 'M') return -1;
-                    if (a.gender !== 'M' && b.gender === 'M') return 1;
-                    return a.id - b.id;
-                });
-
-                person.parent1_id = parents[0]?.id || null;
-                person.parent2_id = parents[1]?.id || null;
-
-                // spouse 관계: LEAST/GREATEST 정규화
-                const spouseRel = relations.find(r =>
-                    r.relation_type === 'spouse' &&
-                    (r.person1_id === person.id || r.person2_id === person.id)
+        // OPS path 조회 (person_paths 테이블이 있는 경우)
+        let pathMap = new Map();
+        try {
+            const personVarIds = persons.map(p => p.person_id || p.oc_id).filter(Boolean);
+            if (personVarIds.length > 0) {
+                const { rows: pathRows } = await db.query(
+                    `SELECT person_id, path FROM person_paths WHERE person_id = ANY($1) AND is_canonical = TRUE`,
+                    [personVarIds]
                 );
-                person.spouse_id = spouseRel
-                    ? (spouseRel.person1_id === person.id ? spouseRel.person2_id : spouseRel.person1_id)
-                    : null;
+                pathRows.forEach(r => pathMap.set(r.person_id, r.path));
             }
+        } catch { /* person_paths 없으면 무시 */ }
+
+        // 프론트엔드 호환 필드 파생
+        const idMap = new Map(persons.map(p => [p.id, p]));
+        for (const person of persons) {
+            const intId = person.id;
+            const varId = person.person_id || person.oc_id;
+
+            // person_relations에서 부모/배우자 보완 (persons 직접 컬럼과 병합)
+            const parentRels = relations.filter(
+                r => r.relation_type === 'parent' && r.person2_id === intId
+            );
+            if (parentRels.length > 0) {
+                const sortedParents = parentRels.map(r => ({
+                    id: r.person1_id,
+                    gender: idMap.get(r.person1_id)?.gender,
+                })).sort((a, b) => {
+                    if (a.gender === 'male' && b.gender !== 'male') return -1;
+                    if (a.gender !== 'male' && b.gender === 'male') return 1;
+                    return 0;
+                });
+                person.parent1_id = person.parent1_id || sortedParents[0]?.id || null;
+                person.parent2_id = person.parent2_id || sortedParents[1]?.id || null;
+            }
+
+            const spouseRel = relations.find(r =>
+                r.relation_type === 'spouse' && (r.person1_id === intId || r.person2_id === intId)
+            );
+            if (spouseRel) {
+                person.spouse_id = person.spouse_id ||
+                    (spouseRel.person1_id === intId ? spouseRel.person2_id : spouseRel.person1_id);
+            }
+
+            // OPS path
+            if (varId) person.ops_path = pathMap.get(varId) || null;
+
+            // 프론트엔드 호환 alias (oc_id / person_id 통일)
+            person.oc_id      = varId || String(intId);
+            person.person_id  = varId || String(intId);
         }
 
         res.set({ 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0' });
@@ -382,4 +430,135 @@ exports.uploadPhoto = async (req, res) => {
         console.error('uploadPhoto error:', err);
         res.status(500).json({ success: false, message: 'Failed to upload photo' });
     }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OPS 파이프라인 (§26 신규 스키마 기반)
+// POST /api/persons
+// Body: { name, gender, birth_date?, site_subdomain, anchor_person_id, relation_key }
+//
+// relation_key 목록:
+//   father | mother | birth-father | birth-mother
+//   son | daughter | hyeong | je | sister
+//   spouse_wife | spouse_husband
+// ─────────────────────────────────────────────────────────────────────────────
+
+// relation_key → person_relations 저장 방식
+// [relation_type, id_1_role, id_2_role]
+// id_1_role: 'new'=신규인물, 'anchor'=기준인물
+const RELATION_RULES = {
+  father:          { type: 'parent-child',  id1: 'new',    id2: 'anchor' }, // 부→자(anchor)
+  mother:          { type: 'parent-child',  id1: 'new',    id2: 'anchor' },
+  'birth-father':  { type: 'birth-parent', id1: 'new',    id2: 'anchor' },
+  'birth-mother':  { type: 'birth-parent', id1: 'new',    id2: 'anchor' },
+  son:             { type: 'parent-child',  id1: 'anchor', id2: 'new'    }, // anchor→자(new)
+  daughter:        { type: 'parent-child',  id1: 'anchor', id2: 'new'    },
+  hyeong:          { type: 'sibling',       id1: 'anchor', id2: 'new'    },
+  je:              { type: 'sibling',       id1: 'anchor', id2: 'new'    },
+  sister:          { type: 'sibling',       id1: 'anchor', id2: 'new'    },
+  spouse_wife:     { type: 'spouse',        id1: 'anchor', id2: 'new'    },
+  spouse_husband:  { type: 'spouse',        id1: 'anchor', id2: 'new'    },
+};
+
+exports.createPersonOPS = async (req, res) => {
+  const { name, gender, birth_date, death_date, bio1, bio2, bio3,
+          site_subdomain, anchor_person_id, relation_key } = req.body;
+
+  // ── 입력 검증 ──
+  if (!name?.trim())          return res.status(400).json({ success: false, message: 'name 필수' });
+  if (!anchor_person_id)      return res.status(400).json({ success: false, message: 'anchor_person_id 필수' });
+  if (!relation_key)          return res.status(400).json({ success: false, message: 'relation_key 필수' });
+  if (!site_subdomain)        return res.status(400).json({ success: false, message: 'site_subdomain 필수' });
+  if (!RELATION_RULES[relation_key]) {
+    return res.status(400).json({ success: false, message: `지원하지 않는 relation_key: ${relation_key}` });
+  }
+
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. anchor 인물 조회 (person_id/oc_id 문자열 → INTEGER id + site_id 확정)
+    const { rows: anchorRows } = await client.query(
+      `SELECT id, site_id, person_id, oc_id, nationality, birth_country
+       FROM persons
+       WHERE person_id = $1 OR oc_id = $1
+       LIMIT 1`,
+      [anchor_person_id]
+    );
+    if (!anchorRows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'anchor_person_id를 찾을 수 없습니다' });
+    }
+    const anchor = anchorRows[0];
+    const countryCode = anchor.nationality || anchor.birth_country || 'KR';
+
+    // 2. 새 VARCHAR person_id (= oc_id) 생성
+    const lang = req.headers['accept-language'] || '';
+    const geo  = req.headers['cf-ipcountry'] || req.headers['x-country-code'] || '';
+    const cc = resolveCountryCode(lang, geo) || countryCode;
+    const newPersonId = await generateOcId(client, cc);
+
+    // 3. persons 테이블에 인물 저장 (기존 스키마 호환)
+    const { rows: personRows } = await client.query(
+      `INSERT INTO persons
+         (site_id, name, gender, birth_date, death_date,
+          bio1, bio2, bio3, nationality, oc_id, person_id, match_status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10, 'ghost')
+       RETURNING *`,
+      [anchor.site_id, name.trim(), gender || null,
+       birth_date || null, death_date || null,
+       bio1 || null, bio2 || null, bio3 || null,
+       cc, newPersonId]
+    );
+    const newPerson = personRows[0];
+
+    // 4. person_relations에 관계 저장 (INTEGER ids + site_id)
+    const rule = RELATION_RULES[relation_key];
+    const [intId1, intId2] = rule.id1 === 'new'
+      ? [newPerson.id, anchor.id]
+      : [anchor.id, newPerson.id];
+
+    await client.query(
+      `INSERT INTO person_relations (site_id, person1_id, person2_id, relation_type, is_active)
+       VALUES ($1, $2, $3, $4, TRUE)
+       ON CONFLICT (site_id, person1_id, person2_id, relation_type) DO NOTHING`,
+      [anchor.site_id, intId1, intId2, rule.type]
+    );
+
+    // 5. OPS path 배정 (VARCHAR person_id 기반)
+    const anchorVarId = anchor.person_id || anchor.oc_id;
+    const assignedPath = await assignPath(client, newPersonId, anchorVarId, relation_key, anchorVarId);
+
+    await client.query('COMMIT');
+
+    // 6. personMatcher (트랜잭션 외부 — 실패해도 생성은 유지)
+    try {
+      await matchAndMerge({
+        person_id: newPersonId,
+        name: newPerson.name,
+        birth_date: newPerson.birth_date,
+        gender: newPerson.gender,
+        new_path: assignedPath,
+        created_by: anchorVarId,
+      });
+    } catch (matchErr) {
+      console.error('personMatcher 오류 (무시):', matchErr.message);
+    }
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        ...newPerson,
+        person_id:     newPersonId,
+        oc_id:         newPersonId,
+        assigned_path: assignedPath,
+      },
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('createPersonOPS error:', err);
+    return res.status(500).json({ success: false, message: '인물 생성에 실패했습니다' });
+  } finally {
+    client.release();
+  }
 };

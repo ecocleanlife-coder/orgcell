@@ -5,6 +5,10 @@ const uploadPerson = require('../middlewares/uploadPerson');
 const { convertHeicIfNeeded, autoRotateImage } = require('../middlewares/uploadPerson');
 const ctrl = require('../controllers/personController');
 
+// ── OPS 파이프라인 (§26): 인물 생성 + 관계 + path 배정 ──
+// POST /api/persons  (siteId 없음 — subdomain + anchor로 식별)
+router.post('/', protect, ctrl.createPersonOPS);
+
 // 조회는 optionalAuth (비로그인도 public 데이터 볼 수 있음)
 router.get('/:siteId', optionalAuth, ctrl.listPersons);
 
