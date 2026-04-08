@@ -25,6 +25,10 @@ app.use(express.json({ limit: '10mb' }));
 // CSRF protection (CWE-352)
 app.use('/api', require('./src/middlewares/csrfProtection'));
 
+// 개발 자동 인증 (production에서 완전 비활성화)
+const { devAuthMiddleware } = require('./src/middlewares/devAuth');
+app.use(devAuthMiddleware);
+
 // Rate limiting (CWE-770)
 const { generalLimiter, loginLimiter, authMeLimiter, uploadLimiter } = require('./src/middlewares/rateLimiter');
 // 로그인 시도만 strict 제한 (10 req/15min)
@@ -165,6 +169,10 @@ const server = http.createServer(app);
 const { initRelay } = require('./src/services/relayService');
 initRelay(server);
 
-server.listen(PORT, () => {
-    console.log(`Orgcell API + Relay running on port ${PORT}`);
+// 개발 환경 시딩 후 서버 시작
+const { seedDevEnvironment } = require('./src/middlewares/devAuth');
+seedDevEnvironment().finally(() => {
+    server.listen(PORT, () => {
+        console.log(`Orgcell API + Relay running on port ${PORT}`);
+    });
 });

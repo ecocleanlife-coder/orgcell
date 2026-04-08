@@ -46,6 +46,24 @@ export default function LoginPage() {
         }
     };
 
+    // 개발 자동 로그인 모드: /auth/login 건너뜀
+    if (import.meta.env.VITE_DEV_AUTO_LOGIN === 'true' && !import.meta.env.PROD) {
+        const sub = import.meta.env.VITE_DEV_SUBDOMAIN || 'han';
+        if (isAuthenticated) {
+            navigate(`/${sub}/archive`, { replace: true });
+            return null;
+        }
+        return (
+            <div style={{ minHeight: '100vh', background: '#FAFAF7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
+                <div style={{ background: '#FFF9E6', border: '2px dashed #C4A882', borderRadius: 12, padding: '24px 40px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 28, marginBottom: 8 }}>🔧</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: '#5A4020', marginBottom: 4 }}>개발 모드</div>
+                    <div style={{ fontSize: 13, color: '#8A7060' }}>자동 로그인 처리 중...</div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div style={{ minHeight: '100vh', background: '#FAFAF7', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
             <Helmet>
