@@ -68,6 +68,8 @@ function PersonModal({ modal, onClose, onSave, onDelete }) {
     const { person } = modal;
     const initForm = {
         name: person?.name || '',
+        name_en: person?.name_en || '',
+        name_suffix: person?.name_suffix || '',
         birth_date: person?.birth_date ? person.birth_date.slice(0, 10) : '',
         birth_lunar: person?.birth_lunar || false,
         gender: person?.gender || modal.suggestGender || '',
@@ -141,8 +143,20 @@ function PersonModal({ modal, onClose, onSave, onDelete }) {
 
                         {/* 이름 */}
                         <div style={{ marginBottom: 10 }}>
-                            <div style={{ fontSize: 12, color: TEXT_LIGHT, marginBottom: 3 }}>이름 *</div>
+                            <div style={{ fontSize: 12, color: TEXT_LIGHT, marginBottom: 3 }}>한글 이름 *</div>
                             <input value={form.name} onChange={e => setF('name', e.target.value)} placeholder="이름을 입력하세요" style={INPUT_STYLE} autoFocus />
+                        </div>
+
+                        {/* 영어 이름 */}
+                        <div style={{ marginBottom: 10 }}>
+                            <div style={{ fontSize: 12, color: TEXT_LIGHT, marginBottom: 3 }}>영어 이름 <span style={{ color: TEXT_LIGHT, fontWeight: 400 }}>(여권명, 선택)</span></div>
+                            <input value={form.name_en} onChange={e => setF('name_en', e.target.value)} placeholder="예: Kim, Jisoo" style={INPUT_STYLE} />
+                        </div>
+
+                        {/* 별칭/구분 */}
+                        <div style={{ marginBottom: 10 }}>
+                            <div style={{ fontSize: 12, color: TEXT_LIGHT, marginBottom: 3 }}>별칭/구분 <span style={{ color: TEXT_LIGHT, fontWeight: 400 }}>(Jr., 2nd 등, 선택)</span></div>
+                            <input value={form.name_suffix} onChange={e => setF('name_suffix', e.target.value)} placeholder="예: Jr., 2nd, 둘째" style={INPUT_STYLE} />
                         </div>
 
                         {/* 생년월일 */}
@@ -212,6 +226,41 @@ function PersonModal({ modal, onClose, onSave, onDelete }) {
     );
 }
 
+/* ─── DuplicateModal ───────────────────────────────────────── */
+function DuplicateModal({ existingPerson, pendingName, onChoice, onClose }) {
+    const [customSuffix, setCustomSuffix] = useState('');
+    const [showCustom, setShowCustom]     = useState(false);
+
+    return (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ background: BG_CARD, borderRadius: 12, padding: 24, width: 340, ...BLOCK_STYLE }}>
+                <div style={{ fontSize: 15, color: TEXT_DARK, marginBottom: 16, lineHeight: 1.6 }}>
+                    <strong>{pendingName}</strong>님이 이미 등록되어 있습니다.<br />
+                    <span style={{ fontSize: 13, color: TEXT_MID }}>같은 분인가요, 다른 분인가요?</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <button onClick={() => onChoice('suffix', 'Jr.')} style={{ ...MENU_BTN }}>Jr. 로 등록</button>
+                    <button onClick={() => onChoice('suffix', '2nd')} style={{ ...MENU_BTN }}>2nd 로 등록</button>
+                    {showCustom ? (
+                        <div style={{ display: 'flex', gap: 6 }}>
+                            <input value={customSuffix} onChange={e => setCustomSuffix(e.target.value)}
+                                placeholder="구분 입력 (예: 셋째)" style={{ ...INPUT_STYLE, flex: 1 }} autoFocus />
+                            <button onClick={() => onChoice('suffix', customSuffix.trim())}
+                                style={{ ...MENU_BTN, width: 'auto', padding: '7px 14px' }}>확인</button>
+                        </div>
+                    ) : (
+                        <button onClick={() => setShowCustom(true)} style={{ ...MENU_BTN }}>직접 구분 입력</button>
+                    )}
+                    <button onClick={() => onChoice('link', existingPerson.id)}
+                        style={{ ...MENU_BTN, borderColor: GOLD }}>기존 인물과 연결</button>
+                    <button onClick={onClose}
+                        style={{ ...MENU_BTN, color: TEXT_LIGHT }}>취소</button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 /* ─── 메인 컴포넌트 ────────────────────────────────────────── */
 export default function ArchivePage() {
     const { subdomain } = useParams();
@@ -228,6 +277,8 @@ export default function ArchivePage() {
     const [pendingCard, setPendingCard] = useState(null);
     // 모달: { person (편집 시), suggestGender, relation }
     const [modal, setModal]       = useState(null);
+    // 중복 이름 확인: { existingPerson, pendingForm, pendingPhoto, pendingPayload }
+    const [duplicateInfo, setDuplicateInfo] = useState(null);
     // 입장권 폼
     const [showPassForm, setShowPassForm] = useState(false);
     const [passQRUrl, setPassQRUrl]       = useState(null);
@@ -314,6 +365,8 @@ export default function ArchivePage() {
 
         const payload = {
             name: form.name.trim(),
+            name_en: form.name_en?.trim() || null,
+            name_suffix: form.name_suffix?.trim() || null,
             gender: form.gender || null,
             birth_date: form.birth_date || null,
             birth_lunar: form.birth_lunar,
@@ -339,8 +392,17 @@ export default function ArchivePage() {
                 }
             }
 
-            const res = await axios.post(`/api/persons/${site.id}`, payload);
-            const newPerson = res.data.data;
+            let postRes;
+            try {
+                postRes = await axios.post(`/api/persons/${site.id}`, payload);
+            } catch (e) {
+                if (e.response?.status === 409) {
+                    setDuplicateInfo({ existingPerson: e.response.data.existingPerson, pendingForm: form, pendingPhoto: photoFile, pendingPayload: payload });
+                    return;
+                }
+                throw e;
+            }
+            const newPerson = postRes.data.data;
 
             // 관계 생성
             if (relation && relation.direction !== 'down') {
@@ -399,6 +461,46 @@ export default function ArchivePage() {
         setModal(null);
         setPendingCard(null);
     };
+
+    /* ─ 중복 이름 선택 처리 ─────────────────────────────────── */
+    const handleDuplicateChoice = useCallback(async (type, value) => {
+        if (!duplicateInfo || !site?.id) return;
+        const { pendingForm, pendingPhoto, pendingPayload } = duplicateInfo;
+
+        if (type === 'link') {
+            // 기존 인물과 연결: 새 등록 없이 모달 닫기
+            setDuplicateInfo(null);
+            setModal(null);
+            setPendingCard(null);
+            return;
+        }
+
+        // 구분자 추가 후 force_create로 재시도
+        const newPayload = { ...pendingPayload, name_suffix: value, force_create: true };
+        try {
+            const postRes = await axios.post(`/api/persons/${site.id}`, newPayload);
+            const newPerson = postRes.data.data;
+
+            const { relation } = modal || {};
+            if (relation && relation.direction !== 'down') {
+                let relType, p1, p2;
+                const dir = relation.direction;
+                const anchorId = relation.anchorId;
+                if (dir === 'up') { relType = 'parent'; p1 = newPerson.id; p2 = anchorId; }
+                else if (dir === 'left' || dir === 'right') { relType = 'spouse'; p1 = anchorId; p2 = newPerson.id; }
+                if (relType) await axios.post(`/api/persons/${site.id}/relations`, { person1_id: p1, person2_id: p2, relation_type: relType });
+            }
+            if (pendingPhoto) {
+                const fd = new FormData(); fd.append('photo', pendingPhoto);
+                await axios.post(`/api/persons/${site.id}/${newPerson.id}/photo`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }).catch(() => {});
+            }
+        } catch { /* 실패는 무시 */ }
+
+        setDuplicateInfo(null);
+        await loadData();
+        setModal(null);
+        setPendingCard(null);
+    }, [duplicateInfo, modal, site, loadData]);
 
     /* ─ 입장권 QR 생성 ────────────────────────────────────── */
     const handleGeneratePass = () => {
@@ -498,6 +600,16 @@ export default function ArchivePage() {
                     onClose={handleModalClose}
                     onSave={handleSave}
                     onDelete={handleDelete}
+                />
+            )}
+
+            {/* ── DuplicateModal ── */}
+            {duplicateInfo && (
+                <DuplicateModal
+                    existingPerson={duplicateInfo.existingPerson}
+                    pendingName={duplicateInfo.pendingForm.name}
+                    onChoice={handleDuplicateChoice}
+                    onClose={() => setDuplicateInfo(null)}
                 />
             )}
         </div>

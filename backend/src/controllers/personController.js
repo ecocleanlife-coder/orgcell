@@ -44,7 +44,7 @@ exports.listPersons = async (req, res) => {
 
         // 인물 조회 (site_id 기반 — 기존 스키마 호환)
         const { rows: persons } = await db.query(
-            `SELECT p.id, p.person_id, p.oc_id, p.name, p.gender,
+            `SELECT p.id, p.person_id, p.oc_id, p.name, p.name_en, p.name_suffix, p.gender,
                     p.birth_date, p.birth_year, p.death_date, p.death_year,
                     p.is_deceased, p.birth_lunar, p.death_lunar,
                     p.bio1, p.bio2, p.bio3, p.biography,
@@ -141,18 +141,50 @@ exports.createPerson = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Forbidden' });
         }
 
-        const { name, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date, is_deceased, birth_lunar, death_lunar, photo_position } = req.body;
+        const { name, name_en, name_suffix, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date, is_deceased, birth_lunar, death_lunar, photo_position } = req.body;
 
         if (!name) {
             return res.status(400).json({ success: false, message: 'name is required' });
         }
 
-        // persons 테이블에 INSERT (과도기: 컬럼도 유지)
+        // ── 중복 이름 체크 ──────────────────────────────────────
+        // 1. 한글 이름 + 생년월일 완전 일치 → 400
+        if (birth_date) {
+            const { rows: exact } = await db.query(
+                `SELECT id, name FROM persons WHERE site_id = $1 AND name = $2 AND birth_date = $3 LIMIT 1`,
+                [siteId, name.trim(), birth_date]
+            );
+            if (exact.length > 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: '이미 등록된 분입니다',
+                    code: 'EXACT_DUPLICATE',
+                    existingId: exact[0].id,
+                });
+            }
+        }
+
+        // 2. 한글 이름만 일치 → 409 (프론트가 확인 모달 표시)
+        const { rows: nameOnly } = await db.query(
+            `SELECT id, name, birth_date, gender FROM persons WHERE site_id = $1 AND name = $2 LIMIT 1`,
+            [siteId, name.trim()]
+        );
+        if (nameOnly.length > 0 && !req.body.force_create) {
+            return res.status(409).json({
+                success: false,
+                message: `${name.trim()}님이 이미 등록되어 있습니다. 같은 분인가요?`,
+                code: 'NAME_DUPLICATE',
+                existingPerson: nameOnly[0],
+            });
+        }
+        // ────────────────────────────────────────────────────────
+
+        // persons 테이블에 INSERT
         const { rows } = await db.query(
-            `INSERT INTO persons (site_id, name, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date, is_deceased, birth_lunar, death_lunar, photo_position)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+            `INSERT INTO persons (site_id, name, name_en, name_suffix, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date, is_deceased, birth_lunar, death_lunar, photo_position)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
              RETURNING *`,
-            [siteId, name, birth_year || null, death_year || null, gender || null, privacy_level || 'family', parent1_id || null, parent2_id || null, spouse_id || null, generation || 0, photo_url || null, birth_date || null, death_date || null, is_deceased ?? false, birth_lunar ?? false, death_lunar ?? false, photo_position ? JSON.stringify(photo_position) : '{"x":50,"y":50}']
+            [siteId, name.trim(), name_en || null, name_suffix || null, birth_year || null, death_year || null, gender || null, privacy_level || 'family', parent1_id || null, parent2_id || null, spouse_id || null, generation || 0, photo_url || null, birth_date || null, death_date || null, is_deceased ?? false, birth_lunar ?? false, death_lunar ?? false, photo_position ? JSON.stringify(photo_position) : '{"x":50,"y":50}']
         );
 
         const newPerson = rows[0];
@@ -224,7 +256,7 @@ exports.updatePerson = async (req, res) => {
         }
 
         const ALLOWED = [
-            'name', 'maiden_name', 'former_name', 'birth_year', 'death_year', 'gender', 'privacy_level',
+            'name', 'name_en', 'name_suffix', 'maiden_name', 'former_name', 'birth_year', 'death_year', 'gender', 'privacy_level',
             'parent1_id', 'parent2_id', 'spouse_id', 'generation',
             'photo_url', 'birth_date', 'death_date',
             'is_deceased', 'birth_lunar', 'death_lunar', 'photo_position', 'biography',

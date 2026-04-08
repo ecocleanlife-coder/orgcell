@@ -3,7 +3,7 @@
  * 화살표: ↑부모 ↓자녀 ←배우자(여성) →배우자(남성)
  */
 import React, { useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 /* ─── 상수 ─────────────────────────────────────────────────── */
@@ -98,7 +98,7 @@ function PersonCard({ node, curatorId, curatorSpouseId, hasPendingCard, onArrowC
 
     const isCuratorCouple = person && (person.id === curatorId || person.id === curatorSpouseId);
     const borderStyle = isPending
-        ? { border: '2px dashed #BDBDBD', background: '#FAFAFA', boxShadow: 'none' }
+        ? { border: '2px dashed #C4A882', background: '#FAFAF5', boxShadow: 'none' }
         : cardBorderStyle(isCuratorCouple, person?.gender);
 
     const arrows = isComplete
@@ -136,8 +136,10 @@ function PersonCard({ node, curatorId, curatorSpouseId, hasPendingCard, onArrowC
 
             <motion.div
                 key={node.id}
+                layout
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ duration: 0.3, ease: 'easeOut' }}
                 onClick={() => person && onCardClick(person)}
                 onDoubleClick={() => onCardDoubleClick(person || null)}
@@ -332,18 +334,29 @@ function buildLayout(persons, relations, curator, pendingCard) {
 
     // 자녀 행 (y=ROW) + 형제 연결선 (§23 버스 패턴)
     const kids = childrenOf(husb?.id, wife?.id);
-    const kidItems = kids.map(c => {
+
+    // 대기 카드가 자녀 방향인지 확인 (앵커 = 관장 부부 중 한 명)
+    const pendingIsChild = pendingCard?.direction === 'down' &&
+        (pendingCard.anchorId === husb?.id || pendingCard.anchorId === wife?.id);
+
+    const kidItemsBase = kids.map(c => {
         const cs = spouseOf(c.id);
-        return { c, cs, slots: cs ? 2 : 1 };
+        return { c, cs, slots: cs ? 2 : 1, pending: false };
     });
+    const kidItems = pendingIsChild
+        ? [...kidItemsBase, { c: null, cs: null, slots: 1, pending: true }]
+        : kidItemsBase;
+
     const totalKidW = kidItems.reduce((s, ki) => s + ki.slots, 0);
-    let kx = coupleCenter - ((totalKidW - 1) * SLOT) / 2;
+    let kx = totalKidW > 0 ? coupleCenter - ((totalKidW - 1) * SLOT) / 2 : coupleCenter;
     const kidCenters = [];
 
     for (const ki of kidItems) {
         const kc = kx + (ki.slots - 1) * SLOT / 2;
         kidCenters.push(kc);
-        if (ki.cs) {
+        if (ki.pending) {
+            P['pending'] = { x: kc, y: ROW, hasParents: false, hasSpouseRel: false };
+        } else if (ki.cs) {
             if (ki.c.gender !== 'female') {
                 sP(ki.c.id,  kx,        ROW);
                 sP(ki.cs.id, kx + SLOT, ROW);
@@ -370,23 +383,39 @@ function buildLayout(persons, relations, curator, pendingCard) {
 
     // 손자녀 행 (y=2*ROW) + 형제 연결선
     kidItems.forEach((ki, i) => {
+        if (ki.pending) return; // 대기 자녀는 자손 없음
         const kc = kidCenters[i];
         const gcs = childrenOf(ki.c.id, ki.cs?.id);
-        if (!gcs.length) return;
+
+        // 이 자녀 카드의 ↓ 화살표 클릭 시 손자 대기 카드 포함
+        const pendingIsGrandchild = pendingCard?.direction === 'down' && !pendingIsChild &&
+            (pendingCard.anchorId === ki.c?.id || (ki.cs && pendingCard.anchorId === ki.cs?.id));
+
+        const totalGcSlots = gcs.length + (pendingIsGrandchild ? 1 : 0);
+        if (!totalGcSlots) return;
+
         const busY2 = ROW + ROW / 2;
-        let gcx = kc - ((gcs.length - 1) * SLOT) / 2;
-        const gcCenters = gcs.map(gc => {
-            const cx = gcx; gcx += SLOT;
-            sP(gc.id, cx, 2 * ROW);
-            return cx;
+        let gcx = kc - ((totalGcSlots - 1) * SLOT) / 2;
+        const gcCenters = [];
+
+        gcs.forEach(gc => {
+            sP(gc.id, gcx, 2 * ROW);
+            gcCenters.push(gcx);
+            gcx += SLOT;
         });
+
+        if (pendingIsGrandchild) {
+            P['pending'] = { x: gcx, y: 2 * ROW, hasParents: false, hasSpouseRel: false };
+            gcCenters.push(gcx);
+        }
+
         aL(kc, ROW, kc, busY2);
         if (gcCenters.length > 1) aL(gcCenters[0], busY2, gcCenters[gcCenters.length - 1], busY2);
         gcCenters.forEach(cx => aL(cx, busY2, cx, 2 * ROW));
     });
 
-    // 대기 카드 (pendingCard)
-    if (pendingCard) {
+    // 대기 카드 (비-자녀 방향: 부모↑, 배우자←→ 또는 깊은 후손)
+    if (pendingCard && !P['pending']) {
         const anchor = P[pendingCard.anchorId];
         if (anchor) {
             const { x: ax, y: ay } = anchor;
@@ -482,18 +511,20 @@ export default function CardTreeCanvas({
                         />
                     ))}
                 </svg>
-                {nodes.map(node => (
-                    <PersonCard
-                        key={node.id}
-                        node={node}
-                        curatorId={curator?.id}
-                        curatorSpouseId={curatorSpouseId}
-                        hasPendingCard={!!pendingCard}
-                        onArrowClick={onArrowClick}
-                        onCardClick={onCardClick}
-                        onCardDoubleClick={onCardDoubleClick}
-                    />
-                ))}
+                <AnimatePresence>
+                    {nodes.map(node => (
+                        <PersonCard
+                            key={node.id}
+                            node={node}
+                            curatorId={curator?.id}
+                            curatorSpouseId={curatorSpouseId}
+                            hasPendingCard={!!pendingCard}
+                            onArrowClick={onArrowClick}
+                            onCardClick={onCardClick}
+                            onCardDoubleClick={onCardDoubleClick}
+                        />
+                    ))}
+                </AnimatePresence>
             </div>
         </div>
     );
