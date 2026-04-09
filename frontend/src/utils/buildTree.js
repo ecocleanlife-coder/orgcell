@@ -468,7 +468,7 @@ function buildNodeData(person) {
         gender,
         initials: getInitials(person.name),
         birthday: person.birth_date || '',
-        avatar: person.photo_url || '',
+        avatar: person.photo_url ? `${person.photo_url}?v=${person.id}` : '',
         photoPosition: person.photo_position || { x: 50, y: 50 },
         dateLabel,
         isDeceased,

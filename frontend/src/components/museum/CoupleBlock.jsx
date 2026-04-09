@@ -120,6 +120,8 @@ export default React.memo(CoupleBlock, (prev, next) => {
     return (
         prev.husbandNode?.id === next.husbandNode?.id &&
         prev.wifeNode?.id === next.wifeNode?.id &&
+        prev.husbandNode?.data?.avatar === next.husbandNode?.data?.avatar &&
+        prev.wifeNode?.data?.avatar === next.wifeNode?.data?.avatar &&
         prev.isMainCouple === next.isMainCouple &&
         prev.selectedId === next.selectedId &&
         prev.childrenIds?.length === next.childrenIds?.length &&
