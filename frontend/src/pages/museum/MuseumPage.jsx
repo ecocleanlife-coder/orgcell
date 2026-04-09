@@ -168,6 +168,7 @@ export default function MuseumPage({ initialTab }) {
 
     // 가족트리 인물 목록 (녹음 인물 선택용)
     const [treePersons, setTreePersons] = useState([]);
+    const [treePersonsLoaded, setTreePersonsLoaded] = useState(false);
 
     // URL ?person=ID 파라미터로 방문 인물 결정
     const visitPersonId = new URLSearchParams(window.location.search).get('person');
@@ -215,15 +216,20 @@ export default function MuseumPage({ initialTab }) {
     }, [subdomain]);
 
     // ── Onboarding for owner ──
+    // treePersonsLoaded 이후에만 판단: 기존 트리 데이터가 있으면 온보딩 스킵
     useEffect(() => {
-        if (role === 'owner' && site) {
-            const key = `onboarding_seen_${site.id}`;
-            if (!localStorage.getItem(key)) {
-                setShowOnboarding(true);
-                localStorage.setItem(key, '1');
-            }
+        if (role !== 'owner' || !site || !treePersonsLoaded) return;
+        const key = `onboarding_seen_${site.id}`;
+        if (treePersons.length > 0) {
+            // 이미 가족트리 작업 이력 있음 → 온보딩 불필요, seen 마킹
+            localStorage.setItem(key, '1');
+            return;
         }
-    }, [role, site]);
+        if (!localStorage.getItem(key)) {
+            setShowOnboarding(true);
+            localStorage.setItem(key, '1');
+        }
+    }, [role, site, treePersonsLoaded, treePersons.length]);
 
     // ── §22 전시 기준 안내 1회 표시 ──
     useEffect(() => {
@@ -328,7 +334,8 @@ export default function MuseumPage({ initialTab }) {
         if (!site) return;
         axios.get(`/api/persons/${site.id}`)
             .then(r => { if (r.data?.data) setTreePersons(r.data.data); })
-            .catch(() => {});
+            .catch(() => {})
+            .finally(() => setTreePersonsLoaded(true));
     }, [site]);
 
     // ── Feature panel handler ──
