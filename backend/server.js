@@ -115,6 +115,7 @@ const ROUTE_MAP = {
     'requestRoutes': '/api/request',
     'accessRoutes': '/api/access',
     'voiceRoutes': '/api/voice',
+    'subdomainRoutes': '/api/subdomain',
 };
 
 const routesDir = path.join(__dirname, 'src', 'routes');
