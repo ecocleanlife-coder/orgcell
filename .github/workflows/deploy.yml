@@ -638,6 +638,13 @@ jobs:
               -c "ALTER TABLE family_sites ADD COLUMN IF NOT EXISTS subdomain_prefix VARCHAR(20);" \
               -c "UPDATE family_sites SET subdomain_prefix = regexp_replace(subdomain, '-[0-9]+\$', '') WHERE subdomain IS NOT NULL AND subdomain_prefix IS NULL;" \
               -c "CREATE INDEX IF NOT EXISTS idx_family_sites_subdomain_prefix ON family_sites(subdomain_prefix);"
+            # ── 042: persons 법적 이름 + 다른 이름 컬럼 ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS name_legal_last  VARCHAR(50);" \
+              -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS name_legal_first VARCHAR(50);" \
+              -c "ALTER TABLE persons ADD COLUMN IF NOT EXISTS name_other JSONB NOT NULL DEFAULT '[]'::JSONB;" \
+              -c "CREATE INDEX IF NOT EXISTS idx_persons_name_legal ON persons(name_legal_last, name_legal_first) WHERE name_legal_last IS NOT NULL;" \
+              -c "CREATE INDEX IF NOT EXISTS idx_persons_name_other ON persons USING GIN (name_other) WHERE name_other <> '[]'::JSONB;"
             echo "Migrations done"
             # ─────────────────────────────────────────────────────────────
 

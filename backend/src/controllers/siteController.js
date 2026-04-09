@@ -6,11 +6,12 @@ const { assignSubdomain } = require('../services/subdomainAssigner');
 // @desc    Create family site + 관장 person 자동 생성 (OPS §26)
 // @route   POST /api/sites
 // body: { surname_ko, bon_gwan_ko?, given_name, nationality?, surname_en?,
-//         curator_gender?, birth_date?, bio1?, bio2?, bio3?,
-//         subdomain? (레거시 — 미전달 시 자동배정) }
+//         curator_gender?, birth_date?, birth_lunar?, bio1?, bio2?, bio3?,
+//         name_other?: [{name,type},...], subdomain? (레거시 — 미전달 시 자동배정) }
 exports.createSite = async (req, res) => {
     const { surname_ko, bon_gwan_ko, given_name, nationality = 'KR', surname_en,
-            theme = 'modern', curator_gender, birth_date, bio1, bio2, bio3 } = req.body;
+            theme = 'modern', curator_gender, birth_date, birth_lunar,
+            bio1, bio2, bio3, name_other } = req.body;
     let { subdomain } = req.body;
     const userId = req.user.id;
 
@@ -94,15 +95,19 @@ exports.createSite = async (req, res) => {
             const countryCode = resolveCountryCode(lang, geo);
             curatorPersonId = await generateOcId(client, countryCode);
 
+            const nameOtherJson = Array.isArray(name_other) ? JSON.stringify(name_other) : '[]';
             const { rows: personRows } = await client.query(
                 `INSERT INTO persons
                    (site_id, name, gender, oc_id, person_id, nationality, match_status, user_id,
-                    birth_date, bio1, bio2, bio3)
-                 VALUES ($1, $2, $3, $4, $4, $5, 'linked', $6, $7, $8, $9, $10)
+                    birth_date, birth_lunar, bio1, bio2, bio3,
+                    name_legal_last, name_legal_first, name_other)
+                 VALUES ($1, $2, $3, $4, $4, $5, 'linked', $6, $7, $8, $9, $10, $11, $12, $13, $14)
                  RETURNING id`,
                 [site.id, curator_name, curator_gender || null,
                  curatorPersonId, countryCode, userId,
-                 birth_date || null, bio1 || null, bio2 || null, bio3 || null]
+                 birth_date || null, !!birth_lunar,
+                 bio1 || null, bio2 || null, bio3 || null,
+                 surname_ko || null, given_name || null, nameOtherJson]
             );
             curatorIntId = personRows[0]?.id;
 

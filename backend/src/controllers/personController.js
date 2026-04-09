@@ -691,7 +691,10 @@ exports.getPersonByPath = async (req, res) => {
 // Ghost(외부 노출 금지) 제외, linked 인물만 반환
 exports.searchPersons = async (req, res) => {
     try {
-        const { surname_ko, given_name, birth_date, bon_gwan_ko, parent_names } = req.body;
+        const {
+            surname_ko, given_name, birth_date, birth_lunar,
+            bon_gwan_ko, parent_name1, parent_name2, name_other,
+        } = req.body;
 
         if (!surname_ko || typeof surname_ko !== 'string' || surname_ko.trim().length > 10) {
             return res.status(400).json({ success: false, message: '성(surname_ko) 필수 (10자 이내)' });
@@ -704,11 +707,19 @@ exports.searchPersons = async (req, res) => {
         const givenName  = given_name.trim();
         const fullName   = `${surnameKo}${givenName}`;
         const birthDate  = birth_date || null;
+        const isLunar    = !!birth_lunar;
 
-        // §26-3 Level 3/4: 이름 + 생년월일 매칭 (linked 인물만)
+        // 다른 이름 목록 (어릴때, 개명전, 별명 등)
+        const otherNames = Array.isArray(name_other)
+            ? name_other.map(n => (typeof n === 'object' ? n.name : n)).filter(Boolean)
+            : [];
+
+        // §26-3: 이름 + 생년월일 매칭 (linked 인물만)
+        // name 컬럼(기존) OR name_legal 컬럼(신규) OR name_other JSONB 포함
         const { rows } = await db.query(
             `SELECT
-               p.id, p.name, p.birth_date, p.gender, p.oc_id, p.match_status,
+               p.id, p.name, p.name_legal_last, p.name_legal_first,
+               p.birth_date, p.birth_lunar, p.gender, p.oc_id, p.match_status,
                fs.subdomain, fs.id AS site_id
              FROM persons p
              JOIN family_sites fs ON fs.id = p.site_id
@@ -716,9 +727,15 @@ exports.searchPersons = async (req, res) => {
                AND (
                  p.name ILIKE $1
                  OR p.name ILIKE $2
+                 OR (p.name_legal_last || p.name_legal_first) ILIKE $1
+                 OR p.name_legal_first ILIKE $2
+                 OR EXISTS (
+                   SELECT 1 FROM jsonb_array_elements(COALESCE(p.name_other,'[]'::jsonb)) n
+                   WHERE n->>'name' ILIKE $2
+                 )
                )
              ORDER BY
-               CASE WHEN p.birth_date = $3 THEN 0 ELSE 1 END,
+               CASE WHEN p.birth_date::date = $3::date THEN 0 ELSE 1 END,
                p.created_at ASC
              LIMIT 10`,
             [`%${fullName}%`, `%${givenName}%`, birthDate]
@@ -727,14 +744,24 @@ exports.searchPersons = async (req, res) => {
         // 매칭 강도 계산 (§26-3)
         const candidates = rows.map(row => {
             let strength = 'weak'; // 이름만 일치
-            if (row.birth_date && birthDate &&
-                new Date(row.birth_date).toISOString().slice(0,10) === birthDate) {
-                strength = 'strong'; // 이름 + 생년월일 = Level 3 (일반)
+            if (row.birth_date && birthDate) {
+                const dbDate = new Date(row.birth_date).toISOString().slice(0, 10);
+                const sameDate = dbDate === birthDate;
+                const sameLunar = row.birth_lunar === isLunar;
+                if (sameDate && sameLunar) {
+                    strength = 'strong'; // 이름 + 생년월일 + 음/양력 = Level 3
+                } else if (sameDate) {
+                    strength = 'medium'; // 이름 + 날짜 일치, 음/양력 미확인
+                }
             }
+            const displayName = row.name_legal_last && row.name_legal_first
+                ? `${row.name_legal_last}${row.name_legal_first}`
+                : row.name;
             return {
                 person_id: row.oc_id,
-                name: row.name,
+                name: displayName,
                 birth_date: row.birth_date,
+                birth_lunar: row.birth_lunar,
                 gender: row.gender,
                 subdomain: row.subdomain,
                 site_id: row.site_id,
