@@ -692,20 +692,38 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
             // §22: 조부모(generation>=3) 이상은 z=1 수장고 보관 → 안내 표시
             const newParentGen = (childNode?.generation || 0) + 1;
-            if (newParentGen >= 3 && onShowGuide) {
+            if (newParentGen >= 3) {
+                const childName = childNode?.name || '';
+                const suffix = lang === 'ko'
+                    ? (childName.endsWith('이') || childName.endsWith('을') ? '을' : '을')
+                    : '';
                 toast(
                     (t2) => (
-                        <span style={{ fontSize: 13 }}>
-                            📦 수장고에 보관되었습니다.{' '}
-                            <button
-                                onClick={() => { toast.dismiss(t2.id); onShowGuide(); }}
-                                style={{ color: '#C4A882', fontWeight: 'bold', textDecoration: 'underline', cursor: 'pointer', border: 'none', background: 'none', padding: 0, fontSize: 13 }}
-                            >
-                                전시 기준 보기 [?]
-                            </button>
+                        <span style={{ fontSize: 13, lineHeight: 1.6 }}>
+                            {lang === 'ko'
+                                ? <>
+                                    <b>{childName}</b>의 부모님이 기록되었습니다.<br />
+                                    전시되지 않으며, <b>{childName}</b>을(를) 클릭하시면 보실 수 있습니다.
+                                  </>
+                                : <>
+                                    Parents of <b>{childName}</b> have been saved.<br />
+                                    They are not displayed directly — click <b>{childName}</b> to view them.
+                                  </>
+                            }
+                            {onShowGuide && (
+                                <>
+                                    {' '}
+                                    <button
+                                        onClick={() => { toast.dismiss(t2.id); onShowGuide(); }}
+                                        style={{ color: '#C4A882', fontWeight: 'bold', textDecoration: 'underline', cursor: 'pointer', border: 'none', background: 'none', padding: 0, fontSize: 13 }}
+                                    >
+                                        {lang === 'ko' ? '전시 기준 보기 [?]' : 'View display rules [?]'}
+                                    </button>
+                                </>
+                            )}
                         </span>
                     ),
-                    { icon: null, duration: 6000 }
+                    { icon: '📦', duration: 7000 }
                 );
             }
         } catch (err) {
