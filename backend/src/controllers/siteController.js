@@ -11,7 +11,7 @@ const { assignSubdomain } = require('../services/subdomainAssigner');
 exports.createSite = async (req, res) => {
     const { surname_ko, bon_gwan_ko, given_name, nationality = 'KR', surname_en,
             theme = 'modern', curator_gender, birth_date, birth_lunar,
-            bio1, bio2, bio3, name_other } = req.body;
+            bio1, bio2, bio3, name_other, name_en } = req.body;
     let { subdomain } = req.body;
     const userId = req.user.id;
 
@@ -98,12 +98,12 @@ exports.createSite = async (req, res) => {
             const nameOtherJson = Array.isArray(name_other) ? JSON.stringify(name_other) : '[]';
             const { rows: personRows } = await client.query(
                 `INSERT INTO persons
-                   (site_id, name, gender, oc_id, person_id, nationality, match_status, user_id,
+                   (site_id, name, name_en, gender, oc_id, person_id, nationality, match_status, user_id,
                     birth_date, birth_lunar, bio1, bio2, bio3,
                     name_legal_last, name_legal_first, name_other)
-                 VALUES ($1, $2, $3, $4, $4, $5, 'linked', $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                 VALUES ($1, $2, $3, $4, $5, $5, $6, 'linked', $7, $8, $9, $10, $11, $12, $13, $14, $15)
                  RETURNING id`,
-                [site.id, curator_name, curator_gender || null,
+                [site.id, curator_name, name_en || null, curator_gender || null,
                  curatorPersonId, countryCode, userId,
                  birth_date || null, !!birth_lunar,
                  bio1 || null, bio2 || null, bio3 || null,

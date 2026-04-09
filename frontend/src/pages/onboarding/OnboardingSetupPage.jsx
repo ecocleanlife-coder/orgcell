@@ -1,16 +1,16 @@
 /**
  * OnboardingSetupPage.jsx — 3단계 온보딩 흐름
  *
- * 1단계: 본인 확인 (법적이름/다른이름/생년월일음양력/본관/부모이름)
+ * 1단계: 본인 확인 (법적이름/영문이름/다른이름/생년월일음양력/본관/부모이름)
  * 2단계: 검색 결과 처리 (후보 있음 → 추가확인 / 후보 없음 → 바로 생성)
- * 3단계: 박물관 생성 확인 (subdomain 자동배정 결과 표시)
+ * 3단계: 박물관 생성 확인 (subdomain 자동배정 결과 표시, 1단계 정보 그대로 표시)
  *
  * §26-1-1, §26-3, §27
  */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Building2, ChevronRight, Loader2, Search, User, CheckCircle, Plus, X } from 'lucide-react';
+import { Building2, ChevronRight, ChevronLeft, Loader2, Search, User, CheckCircle, Plus, X } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 
 // ── 공통 스타일 ──
@@ -83,14 +83,26 @@ function OtherNameRow({ item, onChange, onRemove }) {
     );
 }
 
+// ── 생년월일 년/월/일 헬퍼 ──
+function birthPartsToDate(y, m, d) {
+    if (!y) return '';
+    const mm = (m || '').padStart(2, '0');
+    const dd = (d || '').padStart(2, '0');
+    if (m && d) return `${y}-${mm}-${dd}`;
+    if (m) return `${y}-${mm}-01`;
+    return `${y}-01-01`;
+}
+
 // ── Step 1: 본인 확인 ────────────────────────────────────────────────────────
-function Step1({ onNext }) {
-    const [form, setForm] = useState({
-        surname_ko: '', given_name: '',
-        birth_date: '', birth_lunar: false,
-        bon_gwan_ko: '', parent_name1: '', parent_name2: '',
+function Step1({ onNext, initialForm }) {
+    const [form, setForm] = useState(() => initialForm || {
+        surname_ko: '', given_name: '', name_en: '',
+        birth_year: '', birth_month: '', birth_day: '', birth_lunar: false,
+        bon_gwan_ko: '',
+        parent1_surname: '', parent1_given: '',
+        parent2_surname: '', parent2_given: '',
     });
-    const [otherNames, setOtherNames] = useState([]); // [{name, type}]
+    const [otherNames, setOtherNames] = useState(initialForm?.name_other || []);
     const [loading, setLoading] = useState(false);
     const [error, setError]     = useState('');
 
@@ -107,26 +119,38 @@ function Step1({ onNext }) {
         if (!form.surname_ko.trim()) return setError('성(姓)을 입력해주세요.');
         if (!form.given_name.trim()) return setError('이름을 입력해주세요.');
 
+        const birthDate = birthPartsToDate(form.birth_year, form.birth_month, form.birth_day);
+        const parent1Full = [form.parent1_surname, form.parent1_given].map(s => s.trim()).filter(Boolean).join('');
+        const parent2Full = [form.parent2_surname, form.parent2_given].map(s => s.trim()).filter(Boolean).join('');
+
         setLoading(true);
         try {
             const validOtherNames = otherNames.filter(n => n.name.trim());
             const res = await axios.post('/api/persons/search', {
                 surname_ko:   form.surname_ko.trim(),
                 given_name:   form.given_name.trim(),
-                birth_date:   form.birth_date || null,
+                birth_date:   birthDate || null,
                 birth_lunar:  form.birth_lunar,
                 bon_gwan_ko:  form.bon_gwan_ko.trim() || null,
-                parent_name1: form.parent_name1.trim() || null,
-                parent_name2: form.parent_name2.trim() || null,
+                parent_name1: parent1Full || null,
+                parent_name2: parent2Full || null,
                 name_other:   validOtherNames,
             });
-            onNext({ form: { ...form, name_other: validOtherNames }, candidates: res.data.candidates || [] });
+            onNext({
+                form: { ...form, birth_date: birthDate, name_other: validOtherNames },
+                candidates: res.data.candidates || [],
+            });
         } catch (err) {
             setError(err.response?.data?.message || '검색 중 오류가 발생했습니다.');
         } finally {
             setLoading(false);
         }
     };
+
+    // 년도 옵션 생성 (1900 ~ 올해)
+    const currentYear = new Date().getFullYear();
+    const yearOptions = [];
+    for (let y = currentYear; y >= 1900; y--) yearOptions.push(y);
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -149,6 +173,12 @@ function Step1({ onNext }) {
                     </Field>
                 </div>
             </div>
+
+            {/* 영문이름 */}
+            <Field label="영문이름 (선택)" hint="여권 기재 영문명">
+                <Input value={form.name_en} onChange={set('name_en')}
+                    placeholder="예: Hanbong Lee" maxLength={60} />
+            </Field>
 
             {/* 다른 이름 */}
             <div>
@@ -176,16 +206,29 @@ function Step1({ onNext }) {
                 </div>
             </div>
 
-            {/* 생년월일 + 음양력 */}
+            {/* 생년월일 년/월/일 + 음양력 */}
             <Field label="생년월일">
                 <div className="flex gap-2 items-center">
-                    <input
-                        type="date"
-                        value={form.birth_date}
-                        onChange={set('birth_date')}
-                        className="flex-1 rounded-xl px-3 py-2.5 outline-none text-sm"
-                        style={{ border: '1.5px solid #DDD5C8', background: '#FAFAF7', color: TEXT_MAIN }}
-                    />
+                    <select value={form.birth_year} onChange={set('birth_year')}
+                        className="flex-1 rounded-xl px-2 py-2.5 outline-none text-sm"
+                        style={{ border: '1.5px solid #DDD5C8', background: '#FAFAF7', color: form.birth_year ? TEXT_MAIN : TEXT_MUTED }}>
+                        <option value="">년</option>
+                        {yearOptions.map(y => <option key={y} value={String(y)}>{y}</option>)}
+                    </select>
+                    <select value={form.birth_month} onChange={set('birth_month')}
+                        className="w-[70px] rounded-xl px-2 py-2.5 outline-none text-sm"
+                        style={{ border: '1.5px solid #DDD5C8', background: '#FAFAF7', color: form.birth_month ? TEXT_MAIN : TEXT_MUTED }}>
+                        <option value="">월</option>
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map(m =>
+                            <option key={m} value={String(m).padStart(2, '0')}>{m}</option>)}
+                    </select>
+                    <select value={form.birth_day} onChange={set('birth_day')}
+                        className="w-[70px] rounded-xl px-2 py-2.5 outline-none text-sm"
+                        style={{ border: '1.5px solid #DDD5C8', background: '#FAFAF7', color: form.birth_day ? TEXT_MAIN : TEXT_MUTED }}>
+                        <option value="">일</option>
+                        {Array.from({ length: 31 }, (_, i) => i + 1).map(d =>
+                            <option key={d} value={String(d).padStart(2, '0')}>{d}</option>)}
+                    </select>
                     <button
                         type="button"
                         onClick={toggle('birth_lunar')}
@@ -209,21 +252,33 @@ function Step1({ onNext }) {
                 </p>
             </Field>
 
-            {/* 부모 이름 */}
-            <div className="flex gap-3">
-                <div className="flex-1">
-                    <Field label="부(父) 이름 (선택)">
-                        <Input value={form.parent_name1} onChange={set('parent_name1')}
-                            placeholder="아버지 성함" maxLength={30} />
-                    </Field>
+            {/* 부(父) 이름 — 성/이름 분리 */}
+            <Field label="부(父) 이름 (선택)">
+                <div className="flex gap-2">
+                    <input value={form.parent1_surname} onChange={set('parent1_surname')}
+                        placeholder="성" maxLength={10}
+                        className="w-1/3 rounded-xl px-3 py-2.5 outline-none text-sm"
+                        style={{ border: '1.5px solid #DDD5C8', background: '#FAFAF7', color: TEXT_MAIN }} />
+                    <input value={form.parent1_given} onChange={set('parent1_given')}
+                        placeholder="이름" maxLength={20}
+                        className="flex-1 rounded-xl px-3 py-2.5 outline-none text-sm"
+                        style={{ border: '1.5px solid #DDD5C8', background: '#FAFAF7', color: TEXT_MAIN }} />
                 </div>
-                <div className="flex-1">
-                    <Field label="모(母) 이름 (선택)">
-                        <Input value={form.parent_name2} onChange={set('parent_name2')}
-                            placeholder="어머니 성함" maxLength={30} />
-                    </Field>
+            </Field>
+
+            {/* 모(母) 이름 — 성/이름 분리 */}
+            <Field label="모(母) 이름 (선택)">
+                <div className="flex gap-2">
+                    <input value={form.parent2_surname} onChange={set('parent2_surname')}
+                        placeholder="성" maxLength={10}
+                        className="w-1/3 rounded-xl px-3 py-2.5 outline-none text-sm"
+                        style={{ border: '1.5px solid #DDD5C8', background: '#FAFAF7', color: TEXT_MAIN }} />
+                    <input value={form.parent2_given} onChange={set('parent2_given')}
+                        placeholder="이름" maxLength={20}
+                        className="flex-1 rounded-xl px-3 py-2.5 outline-none text-sm"
+                        style={{ border: '1.5px solid #DDD5C8', background: '#FAFAF7', color: TEXT_MAIN }} />
                 </div>
-            </div>
+            </Field>
 
             {error && (
                 <div className="rounded-xl px-4 py-3 text-sm"
@@ -244,7 +299,7 @@ function Step1({ onNext }) {
 }
 
 // ── Step 2: 검색 결과 처리 ───────────────────────────────────────────────────
-function Step2({ data, onSelectExisting, onCreateNew }) {
+function Step2({ data, onSelectExisting, onCreateNew, onBack }) {
     const { candidates } = data;
     const [extra, setExtra]       = useState({ birth_place: '', spouse_name: '', children: '', siblings: '' });
     const [selected, setSelected] = useState(null);
@@ -340,6 +395,12 @@ function Step2({ data, onSelectExisting, onCreateNew }) {
                         style={{ background: 'transparent', color: TEXT_SUB, border: '1.5px solid #DDD5C8' }}>
                         아닙니다, 새로 만듭니다
                     </button>
+
+                    <button onClick={onBack}
+                        className="w-full py-2 rounded-xl text-sm flex items-center justify-center gap-1"
+                        style={{ background: 'transparent', color: TEXT_MUTED }}>
+                        <ChevronLeft size={14} /> 정보 수정하기
+                    </button>
                 </>
             ) : (
                 <>
@@ -357,6 +418,12 @@ function Step2({ data, onSelectExisting, onCreateNew }) {
                         style={{ background: BTN_OK, cursor: 'pointer' }}>
                         <Building2 size={18} /> 새 박물관 만들기 <ChevronRight size={16} />
                     </button>
+
+                    <button onClick={onBack}
+                        className="w-full py-2 rounded-xl text-sm flex items-center justify-center gap-1"
+                        style={{ background: 'transparent', color: TEXT_MUTED }}>
+                        <ChevronLeft size={14} /> 정보 수정하기
+                    </button>
                 </>
             )}
         </div>
@@ -364,7 +431,13 @@ function Step2({ data, onSelectExisting, onCreateNew }) {
 }
 
 // ── Step 3: 박물관 생성 확인 ─────────────────────────────────────────────────
-function Step3({ form, previewSubdomain, onConfirm, submitting, error }) {
+function Step3({ form, previewSubdomain, onConfirm, onBack, submitting, error }) {
+    const parent1 = [form.parent1_surname, form.parent1_given].filter(Boolean);
+    const parent2 = [form.parent2_surname, form.parent2_given].filter(Boolean);
+    const birthDisplay = form.birth_date
+        ? form.birth_date.replace(/-/g, '.') + (form.birth_lunar ? ' (음력)' : ' (양력)')
+        : '';
+
     return (
         <div className="space-y-5">
             <div className="text-center py-2">
@@ -381,20 +454,24 @@ function Step3({ form, previewSubdomain, onConfirm, submitting, error }) {
                 </p>
             </div>
 
-            <div className="rounded-xl px-4 py-3 space-y-1 text-sm"
+            <div className="rounded-xl px-4 py-3 space-y-1.5 text-sm"
                 style={{ background: '#F9F7F2', border: '1px solid #E8E0D0' }}>
                 <div className="flex justify-between">
                     <span style={{ color: TEXT_SUB }}>이름</span>
                     <span style={{ color: TEXT_MAIN, fontWeight: 600 }}>
-                        {form.surname_ko}{form.given_name}
+                        {form.surname_ko} {form.given_name}
                     </span>
                 </div>
-                {form.birth_date && (
+                {form.name_en && (
+                    <div className="flex justify-between">
+                        <span style={{ color: TEXT_SUB }}>영문이름</span>
+                        <span style={{ color: TEXT_MAIN }}>{form.name_en}</span>
+                    </div>
+                )}
+                {birthDisplay && (
                     <div className="flex justify-between">
                         <span style={{ color: TEXT_SUB }}>생년월일</span>
-                        <span style={{ color: TEXT_MAIN }}>
-                            {form.birth_date}{form.birth_lunar ? ' (음력)' : ' (양력)'}
-                        </span>
+                        <span style={{ color: TEXT_MAIN }}>{birthDisplay}</span>
                     </div>
                 )}
                 {form.bon_gwan_ko && (
@@ -408,6 +485,22 @@ function Step3({ form, previewSubdomain, onConfirm, submitting, error }) {
                         <span style={{ color: TEXT_SUB }}>다른 이름</span>
                         <span style={{ color: TEXT_MAIN }}>
                             {form.name_other.map(n => `${n.name}(${n.type})`).join(', ')}
+                        </span>
+                    </div>
+                )}
+                {parent1.length > 0 && (
+                    <div className="flex justify-between">
+                        <span style={{ color: TEXT_SUB }}>부(父)</span>
+                        <span style={{ color: TEXT_MAIN }}>
+                            {parent1.join(' ')}
+                        </span>
+                    </div>
+                )}
+                {parent2.length > 0 && (
+                    <div className="flex justify-between">
+                        <span style={{ color: TEXT_SUB }}>모(母)</span>
+                        <span style={{ color: TEXT_MAIN }}>
+                            {parent2.join(' ')}
                         </span>
                     </div>
                 )}
@@ -429,6 +522,12 @@ function Step3({ form, previewSubdomain, onConfirm, submitting, error }) {
                 {submitting
                     ? <><Loader2 size={18} className="animate-spin" /> 만드는 중...</>
                     : <><Building2 size={18} /> 박물관 만들기 <ChevronRight size={16} /></>}
+            </button>
+
+            <button onClick={onBack}
+                className="w-full py-2 rounded-xl text-sm flex items-center justify-center gap-1"
+                style={{ background: 'transparent', color: TEXT_MUTED }}>
+                <ChevronLeft size={14} /> 정보 수정하기
             </button>
         </div>
     );
@@ -455,6 +554,16 @@ export default function OnboardingSetupPage() {
         setStep(2);
     };
 
+    // 이전 단계로 돌아가기
+    const handleBackToStep1 = () => {
+        setError('');
+        setStep(1);
+    };
+    const handleBackToStep2 = () => {
+        setError('');
+        setStep(2);
+    };
+
     // Step2: 기존 박물관 연결
     const handleSelectExisting = (candidate) => {
         navigate(`/${candidate.subdomain}/archive`, { replace: true });
@@ -470,20 +579,21 @@ export default function OnboardingSetupPage() {
                 bonGwanKo:  form.bon_gwan_ko?.trim() || null,
                 nationality: 'KR',
             });
-            setPreviewSubdomain(res.data.subdomain);
+            setPreviewSubdomain(res.data.subdomain || 'lee-1');
         } catch {
-            setPreviewSubdomain('lee-1'); // 폴백
+            setPreviewSubdomain('lee-1');
         }
         setStep(3);
     };
 
     // Step3: 박물관 생성 확정
     const handleConfirm = async () => {
+        if (submitting || !previewSubdomain) return;
         setError('');
         setSubmitting(true);
         const { form } = searchData;
         try {
-            await axios.post('/api/sites', {
+            const res = await axios.post('/api/sites', {
                 subdomain:      previewSubdomain,
                 surname_ko:     form.surname_ko.trim(),
                 bon_gwan_ko:    form.bon_gwan_ko?.trim() || null,
@@ -491,8 +601,10 @@ export default function OnboardingSetupPage() {
                 birth_date:     form.birth_date || null,
                 birth_lunar:    form.birth_lunar,
                 name_other:     form.name_other || [],
+                name_en:        form.name_en?.trim() || null,
             });
-            navigate(`/${previewSubdomain}/archive`, { replace: true });
+            const subdomain = res.data?.data?.subdomain || previewSubdomain;
+            navigate(`/${subdomain}/archive`, { replace: true });
         } catch (err) {
             setError(err.response?.data?.message || '박물관 생성에 실패했습니다. 다시 시도해주세요.');
         } finally {
@@ -557,13 +669,19 @@ export default function OnboardingSetupPage() {
             <div className="w-full max-w-sm rounded-2xl p-8 shadow-sm"
                 style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
 
-                {step === 1 && <Step1 onNext={handleSearchDone} />}
+                {step === 1 && (
+                    <Step1
+                        onNext={handleSearchDone}
+                        initialForm={searchData?.form}
+                    />
+                )}
 
                 {step === 2 && searchData && (
                     <Step2
                         data={searchData}
                         onSelectExisting={handleSelectExisting}
                         onCreateNew={handleCreateNew}
+                        onBack={handleBackToStep1}
                     />
                 )}
 
@@ -572,6 +690,7 @@ export default function OnboardingSetupPage() {
                         form={searchData.form}
                         previewSubdomain={previewSubdomain}
                         onConfirm={handleConfirm}
+                        onBack={handleBackToStep2}
                         submitting={submitting}
                         error={error}
                     />
