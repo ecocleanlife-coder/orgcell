@@ -19,7 +19,7 @@ const springTransition = { type: 'spring', stiffness: 200, damping: 25 };
 // buildTree.js에서 import한 상수만 사용 — 여기서 직접 정의 금지
 const CARD_HALF = CARD_W / 2;  // 110
 const TAB_H = 10;
-const BOX_PAD = 0;  // CoupleBlock 외부 패딩 = 0 (§24: 부부 총 너비 440px 확정)
+const BOX_PAD = 20; // CoupleBlock 외부 패딩 = 20px (§24: 부부 총 너비 480px)
 
 // CoupleBlock 전체 높이: CARD_W + BOX_PAD*2 + TAB_H
 const BOX_H = CARD_W + BOX_PAD * 2 + TAB_H; // 230
@@ -354,10 +354,9 @@ export default function FamilyTreeCanvas({
                 const rightNode = husband.x < wife.x ? wife : husband;
                 const boxLeft = toScreenX(leftNode.x) - CARD_HALF - BOX_PAD;
                 const boxTop = toScreenY(leftNode.y) - CARD_HALF - TAB_H - BOX_PAD;
-                // boxW: CARD_GAP 제거 (커플 내부 gap=0), BOX_PAD=0
-                const boxW = CARD_W * 2 + BOX_PAD * 2; // 440px
+                // boxW: 카드 2개 + BOX_PAD 양쪽 (gap=0)
+                const boxW = CARD_W * 2 + BOX_PAD * 2; // 480px
                 // boxCenterX: box 폭 절반이 아닌 두 노드 screen X의 실제 중앙값 사용
-                // — BOX_PAD 제거 후 CARD_HALF 기반 계산이 20px 틀어지는 것을 방지
                 const boxCenterX = (toScreenX(leftNode.x) + toScreenX(rightNode.x)) / 2;
                 const boxBottom = boxTop + BOX_H;
 

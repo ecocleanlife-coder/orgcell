@@ -18,7 +18,7 @@ const Y_GAP = 280;          // 세대 간 수직 간격 = 220px + 60px
 const CARD_W = 220;         // 카드 실제 폭
 const CARD_H = 220;         // 카드 실제 높이
 const CARD_GAP = 40;        // 카드 사이 간격 (부부 포함 예외 없음)
-const COUPLE_HALF = 130;    // 부부 center-to-center / 2 = (220 + 40) / 2
+const COUPLE_HALF = 220;    // 부부 블록 기준: BOX_PAD(20) 포함 우측 카드 중심까지 = CARD_W
 
 // ── 표시 범위 상수 (ORGCELL_CODING_RULES.md §22) ────────────
 const DISPLAY_MAX_ANCESTOR_DEPTH = 1;   // 부모(depth=1)까지만 화면 표시 (조부모 제외)

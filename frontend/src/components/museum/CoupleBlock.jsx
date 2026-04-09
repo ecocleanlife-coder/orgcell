@@ -9,9 +9,10 @@ import React from 'react';
 import FolderCard from './FolderCard';
 
 const CARD_SIZE = 220;
-const GAP = 0;       // 부부 카드 간 간격 = 0 (밀착)
-const BOX_PAD = 0;   // 외부 패딩 = 0 → totalW = 220×2 = 440px (§24 규정)
-const COUPLE_BG = '#F9F7F2';  // 부부 배경색 (연한 미색)
+const GAP = 0;          // 부부 카드 간 간격 = 0 (밀착)
+const BOX_PAD = 20;     // 외부 패딩 = 20px → totalW = 220×2 + 40 = 480px
+const COUPLE_BG = '#F9F7F2';       // 부부 배경색 (연한 미색)
+const COUPLE_BORDER = '3px solid #8B7355'; // 부부 박스 외곽 테두리 (§5)
 
 // ── 메인 컴포넌트 ──
 function CoupleBlock({
@@ -48,7 +49,7 @@ function CoupleBlock({
             data-testid="couple-block"
             data-couple={isCouple ? 'true' : 'false'}
         >
-            {/* 부부 배경: 테두리 없음, 연한 미색만. z-index=0 → ConnectorLine SVG(z=5) 뒤에 위치 */}
+            {/* 부부 배경: 외곽 테두리 + 미색. z-index=0 → ConnectorLine SVG(z=5) 뒤에 위치 */}
             {isCouple && (
                 <div
                     style={{
@@ -58,6 +59,7 @@ function CoupleBlock({
                         width: totalW,
                         height: totalH,
                         borderRadius: '8px',
+                        border: COUPLE_BORDER,
                         background: COUPLE_BG,
                         zIndex: 0,
                         pointerEvents: 'none',
@@ -68,12 +70,13 @@ function CoupleBlock({
 
             {isCouple ? (
                 <>
-                    {/* 남편 (왼쪽): left=0, 카드 내부 여백으로 사진 중앙 배치 */}
+                    {/* 남편 (왼쪽): BOX_PAD 안쪽, 개별 테두리 제거 */}
                     <div style={{ position: 'absolute', left: BOX_PAD, top: BOX_PAD }}>
                         <FolderCard
                             node={husbandNode}
                             isSelected={selectedId === husbandNode.id}
                             isMainPerson={isMainCouple && husbandNode.id === selectedId}
+                            inCouple={true}
                             onClick={onCardClick}
                             onDoubleClick={onCardDoubleClick}
                             onContextMenu={onContextMenu}
@@ -81,12 +84,13 @@ function CoupleBlock({
                         />
                     </div>
 
-                    {/* 아내 (오른쪽): left=220, gap=0 밀착 — 사진 간 40px 시각적 간격은 카드 내부 여백으로 보장 */}
+                    {/* 아내 (오른쪽): gap=0 밀착, 개별 테두리 제거 */}
                     <div style={{ position: 'absolute', left: BOX_PAD + CARD_SIZE + GAP, top: BOX_PAD }}>
                         <FolderCard
                             node={wifeNode}
                             isSelected={selectedId === wifeNode.id}
                             isMainPerson={isMainCouple && wifeNode.id === selectedId}
+                            inCouple={true}
                             onClick={onCardClick}
                             onDoubleClick={onCardDoubleClick}
                             onContextMenu={onContextMenu}

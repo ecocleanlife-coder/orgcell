@@ -39,7 +39,8 @@ const LINEN_BG = `
 `.trim().replace(/\n\s*/g, ' ');
 
 // ── 카드 기본 스타일 (ORGCELL_CODING_RULES.md §5) ──
-function getCardStyle(node, isSelected, isMainPerson, hasPhoto) {
+// inCouple=true: 부부 박스 외곽에 테두리가 있으므로 개별 테두리 제거
+function getCardStyle(node, isSelected, isMainPerson, hasPhoto, inCouple) {
     const base = {
         width: CARD_SIZE,
         height: CARD_SIZE,
@@ -64,24 +65,24 @@ function getCardStyle(node, isSelected, isMainPerson, hasPhoto) {
         };
     }
 
-    // 관장 부부 — 강한 입체감
+    // 관장 부부 — 강한 입체감 (부부 박스 안이면 테두리 제거)
     if (isMainPerson) {
         return {
             ...base,
-            border: '2px solid #8B7355',
-            borderRight: '4px solid #9a7a50',
-            borderBottom: '4px solid #7a6040',
+            border: inCouple ? 'none' : '2px solid #8B7355',
+            borderRight: inCouple ? 'none' : '4px solid #9a7a50',
+            borderBottom: inCouple ? 'none' : '4px solid #7a6040',
             boxShadow: '3px 3px 0 #c4a87a, 6px 6px 0 #b09060',
             background: hasPhoto ? undefined : `${LINEN_BG}, #FDF8F0`,
         };
     }
 
-    // 일반 블록 — 약한 입체감
+    // 일반 블록 — 약한 입체감 (부부 박스 안이면 테두리 제거)
     return {
         ...base,
-        border: '1px solid #C4A882',
-        borderRight: '2px solid #b09060',
-        borderBottom: '2px solid #9a7a50',
+        border: inCouple ? 'none' : '1px solid #C4A882',
+        borderRight: inCouple ? 'none' : '2px solid #b09060',
+        borderBottom: inCouple ? 'none' : '2px solid #9a7a50',
         boxShadow: '2px 2px 0 #c4a87a',
         background: hasPhoto ? undefined : `${LINEN_BG}, #FAFAF5`,
     };
@@ -382,6 +383,7 @@ function FolderCard({
     node,
     isSelected = false,
     isMainPerson = false,
+    inCouple = false,
     onClick,
     onDoubleClick,
     onContextMenu,
@@ -464,7 +466,7 @@ function FolderCard({
         }
     };
 
-    const cardStyle = getCardStyle(node, isSelected, isMainPerson, hasPhoto);
+    const cardStyle = getCardStyle(node, isSelected, isMainPerson, hasPhoto, inCouple);
 
     // 사망자 필터
     const deceasedFilter = isDeceased
@@ -646,6 +648,7 @@ export default React.memo(FolderCard, (prev, next) => {
         prev.node.y === next.node.y &&
         prev.isSelected === next.isSelected &&
         prev.isMainPerson === next.isMainPerson &&
+        prev.inCouple === next.inCouple &&
         prev.node.data?.avatar === next.node.data?.avatar &&
         prevRelCount === nextRelCount
     );
