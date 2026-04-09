@@ -80,7 +80,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
     // ── Fetch persons + relations from API ──
     const fetchPersons = useCallback(async (retry = 0) => {
-        if (!siteId) { setIsLoading(false); return; }
+        if (!siteId) { setIsLoading(false); return null; }
         try {
             setIsLoading(true);
             const noCache = { headers: { 'Cache-Control': 'no-cache' } };
@@ -92,10 +92,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             const relationsData = relationsRes.data?.data || [];
             setPersons(personsData);
             setRelations(relationsData);
-            return personsData;
+            return { persons: personsData, relations: relationsData };
         } catch (err) {
             console.error('Failed to load persons:', err);
-            // 첫 실패 시 1회 재시도 (incognito 등 초기 로딩 실패 대비)
             if (retry < 1) {
                 return fetchPersons(retry + 1);
             }
@@ -469,20 +468,41 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         setSingleParent(false);
     };
 
+    // ── 표시 범위 초과 인물 안내 토스트 ──
+    const showHiddenPersonToast = (createdName, clickTargetName) => {
+        toast(
+            (t2) => (
+                <span style={{ fontSize: 13, lineHeight: 1.6 }}>
+                    {lang === 'ko'
+                        ? <><b>{createdName}</b>이(가) 기록되었습니다.<br />
+                            전시되지 않으며, <b>{clickTargetName}</b>을(를) 클릭하시면 보실 수 있습니다.</>
+                        : <><b>{createdName}</b> has been saved.<br />
+                            Not displayed — click <b>{clickTargetName}</b> to view.</>
+                    }
+                </span>
+            ),
+            { icon: '📦', duration: 7000 }
+        );
+    };
+
     // ── Submits ──
     const handleMemberSubmit = async () => {
         if (!newName.trim()) return;
         setSubmitting(true);
 
+        let createdId = null;
+        let createdName = newName.trim();
+        let parentNodeRef = null;
+
         try {
-            const parentNode = persons.find(p => String(p.id) === String(modal.parentId));
-            const parentGen = parentNode?.generation || 1;
+            parentNodeRef = persons.find(p => String(p.id) === String(modal.parentId));
+            const parentGen = parentNodeRef?.generation || 1;
             let gen = parentGen;
             if (modal.relation === 'child') gen = parentGen + 1;
             if (modal.relation === 'spouse' || modal.relation === 'sibling') gen = parentGen;
 
             const data = {
-                name: newName.trim(),
+                name: createdName,
                 birth_date: newBirthDate || null,
                 birth_lunar: newBirthLunar,
                 is_deceased: newDeceased,
@@ -499,6 +519,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             }
 
             const created = await apiCreatePerson(data);
+            if (created) createdId = created.id;
 
             // 사진이 선택된 경우 업로드
             if (created && newPhotoBlob) {
@@ -568,7 +589,14 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             console.error('handleMemberSubmit error:', err);
             toast(lang === 'ko' ? '저장 중 오류가 발생했습니다.' : 'Error saving.', { icon: '❌' });
         } finally {
-            await fetchPersons();
+            const updated = await fetchPersons();
+            if (createdId && updated) {
+                const newTree = buildTree(updated.persons, updated.relations, mainPersonId);
+                const node = newTree.nodes.find(n => String(n.id) === String(createdId));
+                if (node?.z === 1) {
+                    showHiddenPersonToast(createdName, parentNodeRef?.name || '');
+                }
+            }
             setSubmitting(false);
             setModal(null);
         }
@@ -647,11 +675,14 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         if (!parent1Name.trim()) return;
         setSubmitting(true);
 
+        let p1Id = null;
+        let childNodeRef = null;
+
         try {
-            const childNode = persons.find(p => String(p.id) === String(modal.childId));
+            childNodeRef = persons.find(p => String(p.id) === String(modal.childId));
 
             // 이미 부모가 있으면 중복 생성 방지
-            if (childNode?.parent1_id) {
+            if (childNodeRef?.parent1_id) {
                 toast(lang === 'ko' ? '이미 부모가 등록되어 있습니다.' : 'Parents already registered.', { icon: '⚠️' });
                 setSubmitting(false);
                 setModal(null);
@@ -659,7 +690,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             }
 
             // 부모는 자녀보다 한 세대 위 (숫자가 큰 쪽이 윗세대)
-            const parentGen = (childNode?.generation || 0) + 1;
+            const parentGen = (childNodeRef?.generation || 0) + 1;
 
             const p1 = await apiCreatePerson({
                 name: parent1Name.trim(),
@@ -667,6 +698,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 generation: parentGen,
                 privacy_level: 'family',
             });
+            if (p1) p1Id = p1.id;
 
             let p2 = null;
             if (!singleParent && parent2Name.trim()) {
@@ -679,7 +711,6 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             }
 
             if (p1 && p2) {
-                // 백엔드가 person_relations + 상대방 spouse_id 동기화 처리
                 await apiUpdatePerson(p1.id, { spouse_id: p2.id });
             }
 
@@ -689,48 +720,18 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                     parent2_id: p2?.id || null,
                 });
             }
-
-            // §22: 조부모(generation>=3) 이상은 z=1 수장고 보관 → 안내 표시
-            const newParentGen = (childNode?.generation || 0) + 1;
-            if (newParentGen >= 3) {
-                const childName = childNode?.name || '';
-                const suffix = lang === 'ko'
-                    ? (childName.endsWith('이') || childName.endsWith('을') ? '을' : '을')
-                    : '';
-                toast(
-                    (t2) => (
-                        <span style={{ fontSize: 13, lineHeight: 1.6 }}>
-                            {lang === 'ko'
-                                ? <>
-                                    <b>{childName}</b>의 부모님이 기록되었습니다.<br />
-                                    전시되지 않으며, <b>{childName}</b>을(를) 클릭하시면 보실 수 있습니다.
-                                  </>
-                                : <>
-                                    Parents of <b>{childName}</b> have been saved.<br />
-                                    They are not displayed directly — click <b>{childName}</b> to view them.
-                                  </>
-                            }
-                            {onShowGuide && (
-                                <>
-                                    {' '}
-                                    <button
-                                        onClick={() => { toast.dismiss(t2.id); onShowGuide(); }}
-                                        style={{ color: '#C4A882', fontWeight: 'bold', textDecoration: 'underline', cursor: 'pointer', border: 'none', background: 'none', padding: 0, fontSize: 13 }}
-                                    >
-                                        {lang === 'ko' ? '전시 기준 보기 [?]' : 'View display rules [?]'}
-                                    </button>
-                                </>
-                            )}
-                        </span>
-                    ),
-                    { icon: '📦', duration: 7000 }
-                );
-            }
         } catch (err) {
             console.error('handleParentsSubmit error:', err);
             toast(lang === 'ko' ? '부모 등록 중 오류가 발생했습니다.' : 'Error registering parents.', { icon: '❌' });
         } finally {
-            await fetchPersons();
+            const updated = await fetchPersons();
+            if (p1Id && updated) {
+                const newTree = buildTree(updated.persons, updated.relations, mainPersonId);
+                const node = newTree.nodes.find(n => String(n.id) === String(p1Id));
+                if (node?.z === 1) {
+                    showHiddenPersonToast(parent1Name.trim(), childNodeRef?.name || '');
+                }
+            }
             setSubmitting(false);
             setModal(null);
         }
