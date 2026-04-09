@@ -1,4 +1,17 @@
 import { create } from 'zustand';
+import i18n from '../i18n';
+
+// navigator.language에서 지원 언어 감지 (localStorage 없는 첫 방문 대응)
+function detectInitialLang() {
+    const stored = localStorage.getItem('orgcell_lang');
+    if (stored) return stored;
+    const nav = (navigator.languages?.[0] || navigator.language || 'en').toLowerCase();
+    if (nav.startsWith('ko')) return 'ko';
+    if (nav.startsWith('ja')) return 'ja';
+    if (nav.startsWith('zh')) return 'zh-CN';
+    if (nav.startsWith('es')) return 'es';
+    return 'en';
+}
 
 const useUiStore = create((set) => ({
     // Mobile Tab Navigation ('people', 'sync', 'gallery', 'settings')
@@ -19,12 +32,11 @@ const useUiStore = create((set) => ({
         return { isDarkMode: nextMode };
     }),
 
-    // Language (persists to localStorage)
-    lang: localStorage.getItem('orgcell_lang') || 'en',
+    // Language (persists to localStorage, navigator 자동 감지)
+    lang: detectInitialLang(),
     setLang: (lang) => set(() => {
         localStorage.setItem('orgcell_lang', lang);
-        // Sync with i18next (imported lazily to avoid circular deps)
-        import('i18next').then(({ default: i18n }) => i18n.changeLanguage(lang));
+        i18n.changeLanguage(lang);  // 직접 호출 (lazy import 제거 → 즉시 반영)
         return { lang };
     }),
 

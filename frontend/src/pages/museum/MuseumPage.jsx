@@ -116,10 +116,10 @@ function PageLoader() {
 // ═══════════════════════════════════════════════
 // MAIN COMPONENT — 스크롤형 박물관
 // ═══════════════════════════════════════════════
-const MUSEUM_TABS = [
-    { key: 'tree', label: '가족트리', icon: Network },
-    { key: 'calendar', label: '행사', icon: CalendarDays },
-    { key: 'gallery', label: '전시관', icon: Image },
+const MUSEUM_TAB_KEYS = [
+    { key: 'tree',     tKey: 'tabTree',     icon: Network },
+    { key: 'calendar', tKey: 'tabCalendar', icon: CalendarDays },
+    { key: 'gallery',  tKey: 'tabGallery',  icon: Image },
 ];
 
 export default function MuseumPage({ initialTab }) {
@@ -502,7 +502,7 @@ export default function MuseumPage({ initialTab }) {
             {/* ════ 탭 메뉴 (가족트리 / 행사 / 전시관) ════ */}
             <div className="sticky top-[57px] z-30 bg-white border-b" style={{ borderColor: '#e8e0d0' }}>
                 <div className="max-w-5xl mx-auto flex">
-                    {MUSEUM_TABS.map(({ key, label, icon: Icon }) => (
+                    {MUSEUM_TAB_KEYS.map(({ key, tKey, icon: Icon }) => (
                         <button
                             key={key}
                             onClick={() => setActiveTab(key)}
@@ -513,7 +513,7 @@ export default function MuseumPage({ initialTab }) {
                             }}
                         >
                             <Icon size={15} />
-                            {label}
+                            {t[tKey] || tKey}
                             {activeTab === key && (
                                 <div className="absolute bottom-0 left-1/4 right-1/4 h-[2px] rounded-full" style={{ background: '#C4A84F' }} />
                             )}
