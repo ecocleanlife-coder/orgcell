@@ -199,8 +199,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             clickTimeoutRef.current = null;
             const raw = persons.find(p => String(p.id) === String(personId));
             if (!raw) return;
-            // ghost = 아직 박물관 미개관
-            if (raw.match_status === 'ghost') {
+            // ghost = 아직 박물관 미개관 (owner는 같은 박물관 내 ghost도 이동 가능)
+            if (raw.match_status === 'ghost' && role !== 'owner') {
                 toast(
                     lang === 'ko'
                         ? `${raw.name}님은 아직 박물관을 개관하지 않았습니다.`
