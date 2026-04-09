@@ -512,7 +512,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             if (modal.relation === 'spouse' || modal.relation === 'sibling') gen = parentGen;
 
             // OPS relation_key 결정
-            const anchorVarId = parentNodeRef?.person_id || parentNodeRef?.oc_id;
+            const anchorVarId = parentNodeRef?.person_id || parentNodeRef?.oc_id
+                || (parentNodeRef?.id ? String(parentNodeRef.id) : null);
             let relationKey = null;
             if (modal.relation === 'child') {
                 relationKey = newGender === 'female' ? 'daughter' : 'son';
@@ -746,7 +747,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
             // 부모는 자녀보다 한 세대 위 (숫자가 큰 쪽이 윗세대)
             const parentGen = (childNodeRef?.generation || 0) + 1;
-            const childVarId = childNodeRef?.person_id || childNodeRef?.oc_id;
+            const childVarId = childNodeRef?.person_id || childNodeRef?.oc_id
+                || (childNodeRef?.id ? String(childNodeRef.id) : null);
 
             const createParentOPS = async (name, gender, relationKey) => {
                 if (childVarId) {

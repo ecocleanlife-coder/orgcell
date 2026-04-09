@@ -204,8 +204,9 @@ exports.createPerson = async (req, res) => {
             const geo = req.headers['cf-ipcountry'] || req.headers['x-country-code'] || '';
             const countryCode = resolveCountryCode(lang, geo);
             const ocId = await generateOcId(db, countryCode);
-            await db.query('UPDATE persons SET oc_id = $1 WHERE id = $2', [ocId, newPersonId]);
+            await db.query('UPDATE persons SET oc_id = $1, person_id = $1 WHERE id = $2', [ocId, newPersonId]);
             newPerson.oc_id = ocId;
+            newPerson.person_id = ocId;
         } catch (err) {
             console.error('oc_id generation failed:', err.message);
         }
