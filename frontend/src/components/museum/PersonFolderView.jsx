@@ -148,7 +148,8 @@ export default function PersonFolderView() {
 
     // ── 폼 상태 ──────────────────────────────────────────────────────────────
     const [form, setForm] = useState({
-        name: '', maiden_name: '', former_name: '', gender: 'male',
+        name: '', name_en: '', name_legal_last: '', name_legal_first: '',
+        maiden_name: '', former_name: '', gender: 'male',
         birth_date: '', birth_lunar: false,
         is_deceased: false, death_date: '', death_lunar: false,
         display_info1: '', display_info2: '', display_info3: '',
@@ -225,14 +226,17 @@ export default function PersonFolderView() {
                     setPerson(found);
                     setPhotoUrl(found.photo_url || '');
                     setForm({
-                        name:          found.name || '',
-                        maiden_name:   found.maiden_name || '',
-                        former_name:   found.former_name || '',
-                        gender:        found.gender || 'male',
-                        birth_date:    found.birth_date || '',
-                        birth_lunar:   found.birth_lunar || false,
-                        is_deceased:   found.is_deceased || false,
-                        death_date:    found.death_date || '',
+                        name:              found.name || '',
+                        name_en:           found.name_en || '',
+                        name_legal_last:   found.name_legal_last || '',
+                        name_legal_first:  found.name_legal_first || '',
+                        maiden_name:       found.maiden_name || '',
+                        former_name:       found.former_name || '',
+                        gender:            found.gender || 'male',
+                        birth_date:        found.birth_date || '',
+                        birth_lunar:       found.birth_lunar || false,
+                        is_deceased:       found.is_deceased || false,
+                        death_date:        found.death_date || '',
                         death_lunar:   found.death_lunar || false,
                         display_info1: found.display_info1 || '',
                         display_info2: found.display_info2 || '',
@@ -334,14 +338,19 @@ export default function PersonFolderView() {
             if (!newPerson) { toast.error('생성 실패'); setSubmittingRelation(false); return; }
 
             toast.success(`${relationName.trim()}이(가) 등록되었습니다 (${newPerson.person_id})`);
-            useTreeViewStore.getState().setPersonsNeedRefresh(true);
 
             setRelationName('');
             setAddRelationKey(null);
             setAddRelationType(null);
 
-            // 로컬 persons 목록에 즉시 반영
-            setAllPersons(prev => [...prev, { ...newPerson, id: newPerson.person_id }]);
+            // persons 재조회로 로컬 상태 완전 동기화 (배우자 등 양방향 관계 반영)
+            const refreshRes = await axios.get(`/api/persons/${siteId}`);
+            const refreshed = refreshRes.data?.data || [];
+            setAllPersons(refreshed);
+            const updatedPerson = refreshed.find(p => String(p.id) === String(person.id));
+            if (updatedPerson) setPerson(updatedPerson);
+
+            useTreeViewStore.getState().setPersonsNeedRefresh(true);
         } catch (err) {
             const msg = err.response?.data?.message || '생성에 실패했습니다';
             toast.error(msg);
@@ -366,9 +375,18 @@ export default function PersonFolderView() {
         try {
             await connectRelation(found.id);
             toast.success(`${found.name}과(와) 연결되었습니다`);
+
+            // 로컬 person/allPersons 상태 즉시 반영 (배우자/부모 등)
+            const refreshRes = await axios.get(`/api/persons/${siteId}`);
+            const refreshed = refreshRes.data?.data || [];
+            setAllPersons(refreshed);
+            const updatedPerson = refreshed.find(p => String(p.id) === String(person.id));
+            if (updatedPerson) setPerson(updatedPerson);
+
             useTreeViewStore.getState().setPersonsNeedRefresh(true);
             setExistingPersonSearch('');
             setAddRelationType(null);
+            setAddRelationKey(null);
         } catch {
             toast.error('연결에 실패했습니다');
         }
@@ -517,8 +535,27 @@ export default function PersonFolderView() {
                             {/* 폼 필드 열 */}
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={rowSt}>
-                                    <label style={labelSt}>이름</label>
-                                    <input style={inputSt} value={form.name} onChange={e => upd('name', e.target.value)} placeholder="이름 입력" />
+                                    <label style={labelSt}>이름 (성/이름 분리)</label>
+                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                        <input style={{ ...inputSt, width: '35%' }}
+                                            value={form.name_legal_last}
+                                            onChange={e => {
+                                                upd('name_legal_last', e.target.value);
+                                                upd('name', `${e.target.value}${form.name_legal_first}`);
+                                            }}
+                                            placeholder="성" maxLength={10} />
+                                        <input style={{ ...inputSt, flex: 1 }}
+                                            value={form.name_legal_first}
+                                            onChange={e => {
+                                                upd('name_legal_first', e.target.value);
+                                                upd('name', `${form.name_legal_last}${e.target.value}`);
+                                            }}
+                                            placeholder="이름" maxLength={20} />
+                                    </div>
+                                </div>
+                                <div style={rowSt}>
+                                    <label style={labelSt}>영문이름</label>
+                                    <input style={inputSt} value={form.name_en} onChange={e => upd('name_en', e.target.value)} placeholder="예: Hanbong Lee" maxLength={60} />
                                 </div>
                                 <div style={rowSt}>
                                     <label style={labelSt}>결혼 전 성 (Maiden Name)</label>

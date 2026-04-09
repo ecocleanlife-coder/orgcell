@@ -11,6 +11,7 @@ import { Camera } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import DateInputKo from './DateInputKo';
+import useTreeViewStore from '../../store/treeViewStore';
 
 const FRAME_COLOR = '#C4A84F';
 
@@ -130,6 +131,7 @@ export default function PersonEditModal({ siteId, person, onSave, onClose, inlin
 
             toast.success('관계가 추가되었습니다.');
             setAddRelationType(null); // 폼 닫기
+            useTreeViewStore.getState().setPersonsNeedRefresh(true); // 트리 즉시 갱신
             if (onSave) onSave(person); // trigger reload
         } catch (err) {
             toast.error('관계 연결에 실패했습니다');
@@ -140,6 +142,9 @@ export default function PersonEditModal({ siteId, person, onSave, onClose, inlin
 
     const [form, setForm] = useState({
         name: person?.name || '',
+        name_en: person?.name_en || '',
+        name_legal_last: person?.name_legal_last || '',
+        name_legal_first: person?.name_legal_first || '',
         gender: person?.gender || 'male',
         birth_date: person?.birth_date || '',
         birth_lunar: person?.birth_lunar || false,
@@ -210,13 +215,40 @@ export default function PersonEditModal({ siteId, person, onSave, onClose, inlin
                 </div>
 
                 <div style={rowStyle}>
-                    <label style={labelStyle}>이름</label>
+                    <label style={labelStyle}>이름 (§27 성/이름 분리)</label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <input
+                            style={{ ...inputStyle, width: '35%' }}
+                            value={form.name_legal_last}
+                            onChange={(e) => {
+                                update('name_legal_last', e.target.value);
+                                update('name', `${e.target.value}${form.name_legal_first}`);
+                            }}
+                            placeholder="성"
+                            autoFocus
+                            maxLength={10}
+                        />
+                        <input
+                            style={{ ...inputStyle, flex: 1 }}
+                            value={form.name_legal_first}
+                            onChange={(e) => {
+                                update('name_legal_first', e.target.value);
+                                update('name', `${form.name_legal_last}${e.target.value}`);
+                            }}
+                            placeholder="이름"
+                            maxLength={20}
+                        />
+                    </div>
+                </div>
+
+                <div style={rowStyle}>
+                    <label style={labelStyle}>영문이름 (선택)</label>
                     <input
                         style={inputStyle}
-                        value={form.name}
-                        onChange={(e) => update('name', e.target.value)}
-                        placeholder="이름 입력"
-                        autoFocus
+                        value={form.name_en}
+                        onChange={(e) => update('name_en', e.target.value)}
+                        placeholder="예: Hanbong Lee"
+                        maxLength={60}
                     />
                 </div>
 
@@ -332,7 +364,7 @@ export default function PersonEditModal({ siteId, person, onSave, onClose, inlin
                             {relationMode === 'new' ? (
                                 <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
                                     <input
-                                        placeholder="이름"
+                                        placeholder="이름 (예: 이한봉)"
                                         style={inputStyle}
                                         value={relationName}
                                         onChange={e => setRelationName(e.target.value)}

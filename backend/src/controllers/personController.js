@@ -257,7 +257,8 @@ exports.updatePerson = async (req, res) => {
         }
 
         const ALLOWED = [
-            'name', 'name_en', 'name_suffix', 'maiden_name', 'former_name', 'birth_year', 'death_year', 'gender', 'privacy_level',
+            'name', 'name_en', 'name_suffix', 'name_legal_last', 'name_legal_first',
+            'maiden_name', 'former_name', 'birth_year', 'death_year', 'gender', 'privacy_level',
             'parent1_id', 'parent2_id', 'spouse_id', 'generation',
             'photo_url', 'birth_date', 'death_date',
             'is_deceased', 'birth_lunar', 'death_lunar', 'photo_position', 'biography',
