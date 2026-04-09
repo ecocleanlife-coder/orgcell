@@ -4,11 +4,11 @@
 
 @layer base {
   html {
-    font-size: 16px;
+    font-size: 32px;
   }
   body {
     @apply bg-gray-50 text-gray-900;
-    font-size: 16px;
+    font-size: 32px;
     line-height: 1.6;
   }
   /* 노년층 접근성: 최소 터치 영역 + 입력 폰트 줌 방지 */
@@ -16,7 +16,7 @@
     min-height: 44px;
   }
   input, select, textarea {
-    font-size: 16px;
+    font-size: 32px;
   }
   img {
     image-orientation: from-image;

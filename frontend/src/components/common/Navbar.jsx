@@ -58,13 +58,13 @@ export default function Navbar({ onCtaClick }) {
                     className="flex items-baseline gap-1 select-none cursor-pointer"
                 >
                     <span
-                        className="text-[26px] font-black text-[#3D2008] leading-none"
+                        className="text-[52px] font-black text-[#3D2008] leading-none"
                         style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
                     >
                         Orgcell
                     </span>
                     <span
-                        className="text-[17px] font-bold text-[#8a7040] leading-none"
+                        className="text-[34px] font-bold text-[#8a7040] leading-none"
                         style={{ fontFamily: 'Georgia, serif' }}
                     >
                         .com
@@ -77,13 +77,13 @@ export default function Navbar({ onCtaClick }) {
                         <button
                             key={link.path}
                             onClick={() => navigate(link.path)}
-                            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[13.5px] font-semibold transition-all cursor-pointer"
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[27px] font-semibold transition-all cursor-pointer"
                             style={{
                                 color: location.pathname === link.path ? '#3D2008' : '#7A6E5E',
                                 background: location.pathname === link.path ? '#EDE7D9' : 'transparent',
                             }}
                         >
-                            <span className="text-[15px]">{link.emoji}</span>
+                            <span className="text-[30px]">{link.emoji}</span>
                             {link.label}
                         </button>
                     ))}
@@ -95,14 +95,14 @@ export default function Navbar({ onCtaClick }) {
                     {isAuthenticated ? (
                         <button
                             onClick={logout}
-                            className="text-[13px] font-semibold text-[#7A6E5E] hover:text-[#3D2008] transition cursor-pointer"
+                            className="text-[26px] font-semibold text-[#7A6E5E] hover:text-[#3D2008] transition cursor-pointer"
                         >
                             {t('navbar.logout')}
                         </button>
                     ) : (
                         <button
                             onClick={handleCta}
-                            className="px-5 py-2 rounded-full text-[13.5px] font-bold text-white transition-all cursor-pointer hover:brightness-110 active:scale-95"
+                            className="px-5 py-2 rounded-full text-[27px] font-bold text-white transition-all cursor-pointer hover:brightness-110 active:scale-95"
                             style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
                         >
                             {t('navbar.startFree')}
@@ -129,7 +129,7 @@ export default function Navbar({ onCtaClick }) {
                         <button
                             key={link.path}
                             onClick={() => { navigate(link.path); setMenuOpen(false); }}
-                            className="w-full flex items-center gap-2 px-4 py-3 rounded-xl text-[14px] font-semibold text-[#3D2008] hover:bg-[#EDE7D9] transition cursor-pointer"
+                            className="w-full flex items-center gap-2 px-4 py-3 rounded-xl text-[28px] font-semibold text-[#3D2008] hover:bg-[#EDE7D9] transition cursor-pointer"
                         >
                             <span>{link.emoji}</span> {link.label}
                         </button>
@@ -139,7 +139,7 @@ export default function Navbar({ onCtaClick }) {
                         {!isAuthenticated && (
                             <button
                                 onClick={handleCta}
-                                className="flex-1 py-2.5 rounded-full text-[13px] font-bold text-white cursor-pointer"
+                                className="flex-1 py-2.5 rounded-full text-[26px] font-bold text-white cursor-pointer"
                                 style={{ background: 'linear-gradient(135deg, #5A9460, #4A7F4A)' }}
                             >
                                 {t('navbar.startFree')}

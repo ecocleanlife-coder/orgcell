@@ -128,8 +128,6 @@ export default function PersonEditModal({ siteId, person, onSave, onClose, inlin
         death_date: person?.death_date || '',
         death_lunar: person?.death_lunar || false,
         display_info1: person?.display_info1 || '',
-        display_info2: person?.display_info2 || '',
-        display_info3: person?.display_info3 || '',
     });
 
     const update = (field, value) => {
@@ -266,27 +264,6 @@ export default function PersonEditModal({ siteId, person, onSave, onClose, inlin
                         maxLength={50}
                     />
                 </div>
-                <div style={rowStyle}>
-                    <label style={labelStyle}>대표정보 2 (학력 등 최대 50자)</label>
-                    <input
-                        style={inputStyle}
-                        value={form.display_info2}
-                        onChange={(e) => update('display_info2', e.target.value)}
-                        placeholder="예) 서울대학교 졸업"
-                        maxLength={50}
-                    />
-                </div>
-                <div style={rowStyle}>
-                    <label style={labelStyle}>대표정보 3 (거주지 등 최대 50자)</label>
-                    <input
-                        style={inputStyle}
-                        value={form.display_info3}
-                        onChange={(e) => update('display_info3', e.target.value)}
-                        placeholder="예) 서울 거주"
-                        maxLength={50}
-                    />
-                </div>
-
                 {/* 가족 추가 (아코디언/인라인) */}
                 <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid rgba(196,168,79,0.3)' }}>
                     <div style={{ color: FRAME_COLOR, fontSize: '14px', fontWeight: 'bold', marginBottom: '12px' }}>

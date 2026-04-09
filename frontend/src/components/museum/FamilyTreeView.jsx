@@ -15,6 +15,7 @@ import InvitationModal from './InvitationModal';
 import PhotoEditor from './PhotoEditor';
 import AccessDeniedModal from './AccessDeniedModal';
 import { buildTree } from '../../utils/buildTree';
+import DateInputKo from './DateInputKo';
 import useUiStore from '../../store/uiStore';
 import useAuthStore from '../../store/authStore';
 import useAccessCheck from '../../hooks/useAccessCheck';
@@ -191,7 +192,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
     const handleCardSingleClick = useCallback((personId) => {
         if (clickTimeoutRef.current) return;
-        // §6: 본인(관장) 카드 싱글클릭 → 무반응
+        // §6: 관장 본인 카드 싱글클릭 → 무반응 (이미 자기 박물관이므로 이동 의미 없음)
+        if (String(personId) === String(curatorPersonIdRef.current)) return;
+        // 현재 화면 중심 인물 → 무반응
         if (String(personId) === String(mainIdRef.current)) return;
         clickTimeoutRef.current = setTimeout(() => {
             clickTimeoutRef.current = null;
@@ -204,6 +207,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
     // treeData.mainId는 컴포넌트 하단에서 선언되므로 ref로 우회
     const mainIdRef = useRef(null);
+    // 관장 본인 인물 ID: 최초 로딩 시 mainId를 한 번만 캡처 (탐색 후에도 불변)
+    const curatorPersonIdRef = useRef(null);
     const handleCardDoubleClick = useCallback((personId) => {
         // §6: 더블클릭 → 인물 정보 모달 오픈 (본인/타인 모두)
         if (role !== 'owner') return;
@@ -320,6 +325,13 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         mainIdRef.current = treeData.mainId;
     }, [treeData.mainId]);
 
+    // 관장 본인 인물 ID 최초 1회 캡처
+    useEffect(() => {
+        if (!curatorPersonIdRef.current && treeData.mainId) {
+            curatorPersonIdRef.current = treeData.mainId;
+        }
+    }, [treeData.mainId]);
+
     // ── Modal state ──
     const [modal, setModal] = useState(null);
     const [newName, setNewName] = useState('');
@@ -352,6 +364,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     const [submitting, setSubmitting] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [pendingPhotoFile, setPendingPhotoFile] = useState(null); // 편집 모달에서 선택한 사진 파일
+    const [newPhotoFile, setNewPhotoFile] = useState(null);   // 추가 모달 사진 파일
+    const [newPhotoBlob, setNewPhotoBlob] = useState(null);   // 추가 모달 크롭된 blob
+    const [newBio1, setNewBio1] = useState('');               // 추가 모달 대표정보1
 
     // ── API helpers ──
     const apiCreatePerson = async (data) => {
@@ -410,6 +425,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         setNewDeathLunar(false);
         setNewGender('');
         setNewPrivacy('family');
+        setNewPhotoFile(null);
+        setNewPhotoBlob(null);
+        setNewBio1('');
     };
 
     const openAddFirst = (placeholderRole) => {
@@ -473,6 +491,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 gender: newGender || null,
                 privacy_level: newPrivacy,
                 generation: gen,
+                bio1: newBio1 || null,
             };
 
             if (modal.relation === 'child' && modal.parentId) {
@@ -480,6 +499,17 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             }
 
             const created = await apiCreatePerson(data);
+
+            // 사진이 선택된 경우 업로드
+            if (created && newPhotoBlob) {
+                try {
+                    const fd = new FormData();
+                    fd.append('photo', newPhotoBlob, 'photo.jpg');
+                    await axios.post(`/api/persons/${siteId}/${created.id}/photo`, fd);
+                } catch (photoErr) {
+                    console.error('Photo upload error:', photoErr);
+                }
+            }
 
             if (created && modal.relation === 'spouse' && modal.parentId) {
                 // 백엔드가 person_relations + 상대방 persons.spouse_id 동기화 처리
@@ -692,11 +722,38 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     function renderPersonFormModal(title, onSubmit) {
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm">
+                {/* 사진 크롭 에디터 */}
+                {newPhotoFile && (
+                    <PhotoEditor
+                        src={URL.createObjectURL(newPhotoFile)}
+                        initialPosition={{ x: 50, y: 50 }}
+                        onSave={(blob) => {
+                            setNewPhotoBlob(blob);
+                            setNewPhotoFile(null);
+                        }}
+                        onCancel={() => setNewPhotoFile(null)}
+                    />
+                )}
                 <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl">
                     <h3 className="text-xl font-bold mb-4 flex items-center gap-2 dark:text-white">
                         <UserPlus className="text-emerald-500" /> {title}
                     </h3>
                     <div className="space-y-3">
+                        {/* 사진 선택 */}
+                        <div className="flex items-center gap-3">
+                            <label className="cursor-pointer flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-gray-300 hover:border-emerald-400 transition-colors text-sm text-gray-500 hover:text-emerald-600">
+                                <Camera size={16} />
+                                {newPhotoBlob
+                                    ? (lang === 'ko' ? '사진 변경' : 'Change Photo')
+                                    : (lang === 'ko' ? '사진 선택' : 'Select Photo')}
+                                <input type="file" accept="image/*,.heic,.heif,.HEIC,.HEIF" className="hidden"
+                                    onChange={e => { const f = e.target.files?.[0]; if (f) setNewPhotoFile(f); }} />
+                            </label>
+                            {newPhotoBlob && (
+                                <img src={URL.createObjectURL(newPhotoBlob)} alt=""
+                                    className="w-10 h-10 rounded-full object-cover border-2 border-emerald-400" />
+                            )}
+                        </div>
                         <div>
                             <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.nameLabel} *</label>
                             <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
@@ -707,8 +764,12 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                             <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
                                 {lang === 'ko' ? '생년월일' : 'Birth Date'}
                             </label>
-                            <input type="date" value={newBirthDate} onChange={e => setNewBirthDate(e.target.value)}
-                                className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2.5 rounded-xl outline-none border focus:border-emerald-500 dark:text-white" />
+                            {lang === 'ko' ? (
+                                <DateInputKo value={newBirthDate} onChange={v => setNewBirthDate(v)} />
+                            ) : (
+                                <input type="date" value={newBirthDate} onChange={e => setNewBirthDate(e.target.value)}
+                                    className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2.5 rounded-xl outline-none border focus:border-emerald-500 dark:text-white" />
+                            )}
                             <label className="flex items-center gap-2 mt-1.5 cursor-pointer select-none">
                                 <input type="checkbox" checked={newBirthLunar} onChange={e => setNewBirthLunar(e.target.checked)}
                                     className="w-4 h-4 rounded border-gray-300 text-emerald-500 focus:ring-emerald-500" />
@@ -725,8 +786,12 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                             </label>
                             {newDeceased && (
                                 <div className="mt-2">
-                                    <input type="date" value={newDeathDate} onChange={e => setNewDeathDate(e.target.value)}
-                                        className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2.5 rounded-xl outline-none border focus:border-gray-400 dark:text-white" />
+                                    {lang === 'ko' ? (
+                                        <DateInputKo value={newDeathDate} onChange={v => setNewDeathDate(v)} />
+                                    ) : (
+                                        <input type="date" value={newDeathDate} onChange={e => setNewDeathDate(e.target.value)}
+                                            className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2.5 rounded-xl outline-none border focus:border-gray-400 dark:text-white" />
+                                    )}
                                     <label className="flex items-center gap-2 mt-1.5 cursor-pointer select-none">
                                         <input type="checkbox" checked={newDeathLunar} onChange={e => setNewDeathLunar(e.target.checked)}
                                             className="w-4 h-4 rounded border-gray-300 text-gray-500 focus:ring-gray-400" />
@@ -768,6 +833,14 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                     </button>
                                 ))}
                             </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
+                                {lang === 'ko' ? '대표정보' : 'Bio'}
+                            </label>
+                            <input type="text" value={newBio1} onChange={e => setNewBio1(e.target.value)}
+                                className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-xl outline-none border focus:border-emerald-500 dark:text-white text-sm"
+                                placeholder={lang === 'ko' ? '직업, 출신지, 특기 등' : 'Occupation, hometown, etc.'} />
                         </div>
                     </div>
                     <div className="flex gap-2 mt-5">
@@ -1233,8 +1306,12 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
                                         {lang === 'ko' ? '생년월일' : 'Birth Date'}
                                     </label>
-                                    <input type="date" value={editBirthDate} onChange={e => setEditBirthDate(e.target.value)}
-                                        className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2.5 rounded-xl outline-none border focus:border-amber-500 dark:text-white" />
+                                    {lang === 'ko' ? (
+                                        <DateInputKo value={editBirthDate} onChange={v => setEditBirthDate(v)} />
+                                    ) : (
+                                        <input type="date" value={editBirthDate} onChange={e => setEditBirthDate(e.target.value)}
+                                            className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2.5 rounded-xl outline-none border focus:border-amber-500 dark:text-white" />
+                                    )}
                                     <label className="flex items-center gap-2 mt-1.5 cursor-pointer select-none">
                                         <input type="checkbox" checked={editBirthLunar} onChange={e => setEditBirthLunar(e.target.checked)}
                                             className="w-4 h-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500" />
@@ -1251,8 +1328,12 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                     </label>
                                     {editDeceased && (
                                         <div className="mt-2">
-                                            <input type="date" value={editDeathDate} onChange={e => setEditDeathDate(e.target.value)}
-                                                className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2.5 rounded-xl outline-none border focus:border-gray-400 dark:text-white" />
+                                            {lang === 'ko' ? (
+                                                <DateInputKo value={editDeathDate} onChange={v => setEditDeathDate(v)} />
+                                            ) : (
+                                                <input type="date" value={editDeathDate} onChange={e => setEditDeathDate(e.target.value)}
+                                                    className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2.5 rounded-xl outline-none border focus:border-gray-400 dark:text-white" />
+                                            )}
                                             <label className="flex items-center gap-2 mt-1.5 cursor-pointer select-none">
                                                 <input type="checkbox" checked={editDeathLunar} onChange={e => setEditDeathLunar(e.target.checked)}
                                                     className="w-4 h-4 rounded border-gray-300 text-gray-500 focus:ring-gray-400" />
@@ -1296,19 +1377,15 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                     </div>
                                 </div>
 
-                                {/* 대표정보 1/2/3 */}
-                                {[
-                                    { label: lang === 'ko' ? '대표정보1' : 'Bio 1', val: editBio1, set: setEditBio1 },
-                                    { label: lang === 'ko' ? '대표정보2' : 'Bio 2', val: editBio2, set: setEditBio2 },
-                                    { label: lang === 'ko' ? '대표정보3' : 'Bio 3', val: editBio3, set: setEditBio3 },
-                                ].map(({ label, val, set }) => (
-                                    <div key={label}>
-                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{label}</label>
-                                        <input type="text" value={val} onChange={e => set(e.target.value)}
-                                            className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-xl outline-none border focus:border-amber-500 dark:text-white text-sm"
-                                            placeholder={lang === 'ko' ? '직업, 출신지, 특기 등' : 'Occupation, hometown, etc.'} />
-                                    </div>
-                                ))}
+                                {/* 대표정보 */}
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
+                                        {lang === 'ko' ? '대표정보' : 'Bio'}
+                                    </label>
+                                    <input type="text" value={editBio1} onChange={e => setEditBio1(e.target.value)}
+                                        className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-xl outline-none border focus:border-amber-500 dark:text-white text-sm"
+                                        placeholder={lang === 'ko' ? '직업, 출신지, 특기 등' : 'Occupation, hometown, etc.'} />
+                                </div>
                             </div>
 
                             {/* 하단 버튼: [취소] [제거] [수정] */}

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { X, ExternalLink, Shield, Link2, Users, Eye, ChevronRight, ArrowLeft } from 'lucide-react';
 import axios from 'axios';
 import useAuthStore from '../../store/authStore';
+import useUiStore from '../../store/uiStore';
+import { formatDateKo } from './DateInputKo';
 
 const RELATION_LABELS = {
     direct: { ko: '직계', en: 'Direct', icon: '👨‍👩‍👧‍👦' },
@@ -19,6 +21,7 @@ const SCOPE_LABELS = {
 
 export default function WormholePortal({ federation, onClose }) {
     const navigate = useNavigate();
+    const lang = useUiStore((s) => s.lang);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -296,7 +299,11 @@ function PersonCard({ person }) {
                 <div>
                     <div className="font-bold text-lg dark:text-white">{person.name}</div>
                     {person.birth_date && (
-                        <div className="text-sm text-gray-500">{person.birth_date}</div>
+                        <div className="text-sm text-gray-500">
+                            {lang === 'ko'
+                                ? formatDateKo(person.birth_date, person.birth_lunar)
+                                : person.birth_date}
+                        </div>
                     )}
                 </div>
             </div>
