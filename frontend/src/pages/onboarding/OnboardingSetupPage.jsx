@@ -1,55 +1,391 @@
+/**
+ * OnboardingSetupPage.jsx — 3단계 온보딩 흐름
+ *
+ * 1단계: 본인 확인 (성/이름/생년월일/본관/부모이름)
+ * 2단계: 검색 결과 처리 (후보 있음 → 추가확인 / 후보 없음 → 바로 생성)
+ * 3단계: 박물관 생성 확인 (subdomain 자동배정 결과 표시)
+ *
+ * §26-1-1, §26-3, §27
+ */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Building2, ChevronRight, Loader2 } from 'lucide-react';
+import { Building2, ChevronRight, Loader2, Search, User, CheckCircle } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 
-const SUBDOMAIN_REGEX = /^[a-z0-9]{2,30}$/;
+// ── 공통 스타일 ──
+const PAGE_BG   = '#FAFAF5';
+const CARD_BG   = '#FFFFFF';
+const BORDER    = '#E8E0D0';
+const TEXT_MAIN = '#3D2008';
+const TEXT_SUB  = '#8a7a60';
+const TEXT_MUTED= '#B0A090';
+const GOLD      = '#8B7355';
+const BTN_OK    = 'linear-gradient(135deg, #5A9460, #4A7F4A)';
+const BTN_DIS   = '#C8BCA8';
+const ERROR_BG  = '#FDF0EE';
+const ERROR_CLR = '#c0392b';
 
-export default function OnboardingSetupPage() {
-    const navigate = useNavigate();
-    const { isAuthenticated, isLoading } = useAuthStore();
+function Field({ label, required, children }) {
+    return (
+        <div>
+            <label className="block text-sm font-semibold mb-1.5" style={{ color: '#5a4a3a' }}>
+                {label} {required && <span style={{ color: ERROR_CLR }}>*</span>}
+            </label>
+            {children}
+        </div>
+    );
+}
 
-    const [subdomain, setSubdomain] = useState('');
-    const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState('');
-    const [subdomainStatus, setSubdomainStatus] = useState(null); // null | 'checking' | 'ok' | 'taken' | 'invalid'
-    const [koreanWarning, setKoreanWarning] = useState(false);
+function Input({ value, onChange, placeholder, maxLength, type = 'text', autoFocus }) {
+    return (
+        <input
+            type={type}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            maxLength={maxLength}
+            autoFocus={autoFocus}
+            className="w-full rounded-xl px-3 py-2.5 outline-none text-sm"
+            style={{ border: '1.5px solid #DDD5C8', background: '#FAFAF7', color: TEXT_MAIN }}
+        />
+    );
+}
 
-    useEffect(() => {
-        if (!isLoading && !isAuthenticated) {
-            navigate('/auth/login', { replace: true });
-        }
-    }, [isAuthenticated, isLoading, navigate]);
+// ── Step 1: 본인 확인 ────────────────────────────────────────────────────────
+function Step1({ onNext }) {
+    const [form, setForm] = useState({
+        surname_ko: '', given_name: '', birth_date: '',
+        bon_gwan_ko: '', parent_name1: '', parent_name2: '',
+    });
+    const [loading, setLoading] = useState(false);
+    const [error, setError]     = useState('');
 
-    // 서브도메인 중복 확인 (debounce)
-    useEffect(() => {
-        if (!subdomain) { setSubdomainStatus(null); return; }
-        if (!SUBDOMAIN_REGEX.test(subdomain)) { setSubdomainStatus('invalid'); return; }
-
-        setSubdomainStatus('checking');
-        const timer = setTimeout(async () => {
-            try {
-                const res = await axios.get(`/api/domain/check?subdomain=${subdomain}`);
-                setSubdomainStatus(res.data.available ? 'ok' : 'taken');
-            } catch {
-                setSubdomainStatus(null);
-            }
-        }, 500);
-        return () => clearTimeout(timer);
-    }, [subdomain]);
+    const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        if (!form.surname_ko.trim()) return setError('성(姓)을 입력해주세요.');
+        if (!form.given_name.trim()) return setError('이름을 입력해주세요.');
 
-        if (!subdomain) return setError('박물관 주소를 입력해주세요.');
-        if (subdomainStatus !== 'ok') return setError('박물관 주소를 확인해주세요.');
-
-        setSubmitting(true);
+        setLoading(true);
         try {
-            await axios.post('/api/sites', { subdomain });
-            navigate(`/${subdomain}/archive`, { replace: true });
+            const res = await axios.post('/api/persons/search', {
+                surname_ko:   form.surname_ko.trim(),
+                given_name:   form.given_name.trim(),
+                birth_date:   form.birth_date || null,
+                bon_gwan_ko:  form.bon_gwan_ko.trim() || null,
+                parent_names: [form.parent_name1, form.parent_name2].filter(Boolean),
+            });
+            onNext({ form, candidates: res.data.candidates || [] });
+        } catch (err) {
+            setError(err.response?.data?.message || '검색 중 오류가 발생했습니다.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4">
+            <p className="text-sm text-center mb-4" style={{ color: TEXT_SUB }}>
+                기존에 생성된 본인이나 가족의 박물관이 있는지 확인하겠습니다.
+            </p>
+
+            <div className="flex gap-3">
+                <div className="w-1/3">
+                    <Field label="성(姓)" required>
+                        <Input value={form.surname_ko} onChange={set('surname_ko')}
+                            placeholder="이" maxLength={10} autoFocus />
+                    </Field>
+                </div>
+                <div className="flex-1">
+                    <Field label="이름" required>
+                        <Input value={form.given_name} onChange={set('given_name')}
+                            placeholder="한봉" maxLength={20} />
+                    </Field>
+                </div>
+            </div>
+
+            <Field label="생년월일">
+                <Input type="date" value={form.birth_date} onChange={set('birth_date')} />
+            </Field>
+
+            <Field label="본관 (선택)">
+                <Input value={form.bon_gwan_ko} onChange={set('bon_gwan_ko')}
+                    placeholder="예: 전주, 경주, 김해…" maxLength={30} />
+                <p className="mt-1 text-xs" style={{ color: TEXT_MUTED }}>
+                    모르면 비워두세요 — 나중에 입력 가능
+                </p>
+            </Field>
+
+            <div className="flex gap-3">
+                <div className="flex-1">
+                    <Field label="부(父) 이름 (선택)">
+                        <Input value={form.parent_name1} onChange={set('parent_name1')}
+                            placeholder="아버지 성함" maxLength={30} />
+                    </Field>
+                </div>
+                <div className="flex-1">
+                    <Field label="모(母) 이름 (선택)">
+                        <Input value={form.parent_name2} onChange={set('parent_name2')}
+                            placeholder="어머니 성함" maxLength={30} />
+                    </Field>
+                </div>
+            </div>
+
+            {error && (
+                <div className="rounded-xl px-4 py-3 text-sm"
+                    style={{ background: ERROR_BG, color: ERROR_CLR, border: `1px solid #F5C6C0` }}>
+                    {error}
+                </div>
+            )}
+
+            <button type="submit" disabled={loading}
+                className="w-full py-3 rounded-xl font-bold text-white text-[15px] flex items-center justify-center gap-2 transition-all"
+                style={{ background: loading ? BTN_DIS : BTN_OK, cursor: loading ? 'not-allowed' : 'pointer' }}>
+                {loading
+                    ? <><Loader2 size={18} className="animate-spin" /> 확인 중...</>
+                    : <><Search size={18} /> 기존 박물관 확인하기 <ChevronRight size={16} /></>}
+            </button>
+        </form>
+    );
+}
+
+// ── Step 2: 검색 결과 처리 ───────────────────────────────────────────────────
+function Step2({ data, onSelectExisting, onCreateNew }) {
+    const { form, candidates } = data;
+    const [extra, setExtra]     = useState({ birth_place: '', spouse_name: '', children: '' });
+    const [selected, setSelected] = useState(null);
+    const setE = (k) => (e) => setExtra(f => ({ ...f, [k]: e.target.value }));
+
+    const hasStrongMatch = candidates.some(c => c.match_strength === 'strong');
+
+    return (
+        <div className="space-y-5">
+            {candidates.length > 0 ? (
+                <>
+                    <p className="text-sm font-semibold text-center" style={{ color: GOLD }}>
+                        {candidates.length}개의 일치 기록을 찾았습니다.
+                    </p>
+                    <p className="text-xs text-center" style={{ color: TEXT_SUB }}>
+                        아래 정보를 추가로 확인해주세요.
+                    </p>
+
+                    {/* 후보 목록 */}
+                    <div className="space-y-2">
+                        {candidates.map((c) => (
+                            <button key={c.person_id}
+                                onClick={() => setSelected(c)}
+                                className="w-full text-left rounded-xl px-4 py-3 transition-all"
+                                style={{
+                                    border: selected?.person_id === c.person_id
+                                        ? `2px solid ${GOLD}` : '1.5px solid #DDD5C8',
+                                    background: selected?.person_id === c.person_id ? '#FDF8F0' : '#FAFAF7',
+                                }}>
+                                <div className="flex items-center gap-2">
+                                    {selected?.person_id === c.person_id &&
+                                        <CheckCircle size={16} style={{ color: GOLD }} />}
+                                    <div>
+                                        <p className="font-semibold text-sm" style={{ color: TEXT_MAIN }}>
+                                            {c.name}
+                                        </p>
+                                        <p className="text-xs" style={{ color: TEXT_SUB }}>
+                                            {c.birth_date ? new Date(c.birth_date).getFullYear() + '년생' : '생년 미상'}
+                                            {' · '}
+                                            <span style={{ color: GOLD }}>orgcell.com/{c.subdomain}</span>
+                                            {' · '}
+                                            <span style={{ color: c.match_strength === 'strong' ? '#4a7a3a' : TEXT_MUTED }}>
+                                                {c.match_strength === 'strong' ? '이름+생년 일치' : '이름 유사'}
+                                            </span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* 추가 질문 */}
+                    {hasStrongMatch && (
+                        <div className="space-y-3 rounded-xl p-4" style={{ background: '#F9F7F2', border: '1px solid #E8E0D0' }}>
+                            <p className="text-xs font-semibold" style={{ color: GOLD }}>
+                                추가 확인 (선택)
+                            </p>
+                            <div className="flex gap-2">
+                                <div className="flex-1">
+                                    <Input value={extra.birth_place} onChange={setE('birth_place')}
+                                        placeholder="출생지" maxLength={50} />
+                                </div>
+                                <div className="flex-1">
+                                    <Input value={extra.spouse_name} onChange={setE('spouse_name')}
+                                        placeholder="배우자 이름" maxLength={30} />
+                                </div>
+                            </div>
+                            <Input value={extra.children} onChange={setE('children')}
+                                placeholder="자녀 이름 (쉼표로 구분)" maxLength={100} />
+                        </div>
+                    )}
+
+                    <button
+                        disabled={!selected}
+                        onClick={() => selected && onSelectExisting(selected)}
+                        className="w-full py-3 rounded-xl font-bold text-white text-[15px] flex items-center justify-center gap-2"
+                        style={{ background: selected ? BTN_OK : BTN_DIS, cursor: selected ? 'pointer' : 'not-allowed' }}>
+                        <CheckCircle size={18} /> 이 박물관이 맞습니다 <ChevronRight size={16} />
+                    </button>
+
+                    <button onClick={onCreateNew}
+                        className="w-full py-2 rounded-xl text-sm font-semibold"
+                        style={{ background: 'transparent', color: TEXT_SUB, border: '1.5px solid #DDD5C8' }}>
+                        아닙니다, 새로 만듭니다
+                    </button>
+                </>
+            ) : (
+                <>
+                    <div className="text-center py-4">
+                        <User size={40} className="mx-auto mb-3" style={{ color: '#DDD5C8' }} />
+                        <p className="font-semibold" style={{ color: TEXT_MAIN }}>
+                            일치하는 기록을 찾지 못했습니다.
+                        </p>
+                        <p className="text-sm mt-1" style={{ color: TEXT_SUB }}>
+                            새 박물관을 만들어 드리겠습니다.
+                        </p>
+                    </div>
+                    <button onClick={onCreateNew}
+                        className="w-full py-3 rounded-xl font-bold text-white text-[15px] flex items-center justify-center gap-2"
+                        style={{ background: BTN_OK, cursor: 'pointer' }}>
+                        <Building2 size={18} /> 새 박물관 만들기 <ChevronRight size={16} />
+                    </button>
+                </>
+            )}
+        </div>
+    );
+}
+
+// ── Step 3: 박물관 생성 확인 ─────────────────────────────────────────────────
+function Step3({ form, previewSubdomain, onConfirm, submitting, error }) {
+    return (
+        <div className="space-y-5">
+            <div className="text-center py-2">
+                <p className="text-sm" style={{ color: TEXT_SUB }}>
+                    회원님의 박물관 주소
+                </p>
+                <p className="text-2xl font-bold mt-2" style={{ color: TEXT_MAIN, fontFamily: 'Georgia, serif' }}>
+                    {previewSubdomain
+                        ? <span style={{ color: GOLD }}>{previewSubdomain}</span>
+                        : <Loader2 size={20} className="animate-spin inline" style={{ color: GOLD }} />}
+                </p>
+                <p className="text-xs mt-1" style={{ color: TEXT_MUTED }}>
+                    orgcell.com/<span style={{ color: GOLD }}>{previewSubdomain}</span>
+                </p>
+                {form.bon_gwan_ko && (
+                    <p className="text-xs mt-1" style={{ color: TEXT_MUTED }}>
+                        본관 미확정 시 주소 형식 변경 가능
+                    </p>
+                )}
+            </div>
+
+            <div className="rounded-xl px-4 py-3 space-y-1 text-sm"
+                style={{ background: '#F9F7F2', border: '1px solid #E8E0D0' }}>
+                <div className="flex justify-between">
+                    <span style={{ color: TEXT_SUB }}>이름</span>
+                    <span style={{ color: TEXT_MAIN, fontWeight: 600 }}>
+                        {form.surname_ko}{form.given_name}
+                    </span>
+                </div>
+                {form.birth_date && (
+                    <div className="flex justify-between">
+                        <span style={{ color: TEXT_SUB }}>생년월일</span>
+                        <span style={{ color: TEXT_MAIN }}>{form.birth_date}</span>
+                    </div>
+                )}
+                {form.bon_gwan_ko && (
+                    <div className="flex justify-between">
+                        <span style={{ color: TEXT_SUB }}>본관</span>
+                        <span style={{ color: TEXT_MAIN }}>{form.bon_gwan_ko}</span>
+                    </div>
+                )}
+            </div>
+
+            {error && (
+                <div className="rounded-xl px-4 py-3 text-sm"
+                    style={{ background: ERROR_BG, color: ERROR_CLR, border: '1px solid #F5C6C0' }}>
+                    {error}
+                </div>
+            )}
+
+            <button onClick={onConfirm} disabled={submitting || !previewSubdomain}
+                className="w-full py-3 rounded-xl font-bold text-white text-[15px] flex items-center justify-center gap-2 transition-all"
+                style={{
+                    background: submitting || !previewSubdomain ? BTN_DIS : BTN_OK,
+                    cursor: submitting || !previewSubdomain ? 'not-allowed' : 'pointer',
+                }}>
+                {submitting
+                    ? <><Loader2 size={18} className="animate-spin" /> 만드는 중...</>
+                    : <><Building2 size={18} /> 박물관 만들기 <ChevronRight size={16} /></>}
+            </button>
+        </div>
+    );
+}
+
+// ── 메인 컴포넌트 ────────────────────────────────────────────────────────────
+export default function OnboardingSetupPage() {
+    const navigate = useNavigate();
+    const { isAuthenticated, isLoading } = useAuthStore();
+
+    const [step, setStep]                     = useState(1); // 1 | 2 | 3
+    const [searchData, setSearchData]         = useState(null);  // { form, candidates }
+    const [previewSubdomain, setPreviewSubdomain] = useState('');
+    const [submitting, setSubmitting]         = useState(false);
+    const [error, setError]                   = useState('');
+
+    useEffect(() => {
+        if (!isLoading && !isAuthenticated) navigate('/auth/login', { replace: true });
+    }, [isAuthenticated, isLoading, navigate]);
+
+    // Step1 완료 → Step2
+    const handleSearchDone = (data) => {
+        setSearchData(data);
+        setStep(2);
+    };
+
+    // Step2: 기존 박물관 연결
+    const handleSelectExisting = (candidate) => {
+        navigate(`/${candidate.subdomain}/archive`, { replace: true });
+    };
+
+    // Step2: 새로 만들기 → subdomain 미리 배정 후 Step3
+    const handleCreateNew = async () => {
+        setError('');
+        const { form } = searchData;
+        try {
+            const res = await axios.post('/api/subdomain/assign', {
+                surnameKo:  form.surname_ko.trim(),
+                bonGwanKo:  form.bon_gwan_ko.trim() || null,
+                nationality: 'KR',
+            });
+            setPreviewSubdomain(res.data.subdomain);
+        } catch {
+            setPreviewSubdomain('lee-1'); // 폴백
+        }
+        setStep(3);
+    };
+
+    // Step3: 박물관 생성 확정
+    const handleConfirm = async () => {
+        setError('');
+        setSubmitting(true);
+        const { form } = searchData;
+        try {
+            await axios.post('/api/sites', {
+                subdomain:      previewSubdomain,
+                surname_ko:     form.surname_ko.trim(),
+                bon_gwan_ko:    form.bon_gwan_ko.trim() || null,
+                given_name:     form.given_name.trim(),
+                curator_gender: null,
+                birth_date:     form.birth_date || null,
+            });
+            navigate(`/${previewSubdomain}/archive`, { replace: true });
         } catch (err) {
             setError(err.response?.data?.message || '박물관 생성에 실패했습니다. 다시 시도해주세요.');
         } finally {
@@ -57,114 +393,86 @@ export default function OnboardingSetupPage() {
         }
     };
 
-    const hint = {
-        null:     null,
-        checking: { color: '#A09888', text: '확인 중...' },
-        ok:       { color: '#4a7a3a', text: '✓ 사용 가능한 주소입니다' },
-        taken:    { color: '#c0392b', text: '이미 사용 중인 주소입니다' },
-        invalid:  { color: '#c0392b', text: '영문 소문자와 숫자만, 2~30자' },
-    }[subdomainStatus];
-
     if (isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center" style={{ background: '#FAFAF5' }}>
-                <Loader2 size={32} className="animate-spin" style={{ color: '#8a7040' }} />
+            <div className="min-h-screen flex items-center justify-center" style={{ background: PAGE_BG }}>
+                <Loader2 size={32} className="animate-spin" style={{ color: GOLD }} />
             </div>
         );
     }
 
+    const STEP_LABELS = ['본인 확인', '기록 검색', '박물관 생성'];
+
     return (
         <div className="min-h-screen flex flex-col items-center justify-center py-12 px-4"
-            style={{ background: '#FAFAF5', fontFamily: 'system-ui, sans-serif' }}>
+            style={{ background: PAGE_BG, fontFamily: 'system-ui, sans-serif' }}>
 
-            <div className="text-center mb-8">
-                <div className="text-3xl mb-2" style={{ fontFamily: 'Georgia, serif', color: '#3D2008', fontWeight: 800 }}>
+            {/* 헤더 */}
+            <div className="text-center mb-6">
+                <div className="text-3xl mb-2" style={{ fontFamily: 'Georgia, serif', color: TEXT_MAIN, fontWeight: 800 }}>
                     Orgcell
                 </div>
-                <h1 className="text-2xl font-bold mb-2" style={{ color: '#3D2008' }}>
+                <h1 className="text-xl font-bold mb-1" style={{ color: TEXT_MAIN }}>
                     나의 박물관을 시작합니다
                 </h1>
-                <p style={{ color: '#8a7a60', fontSize: 15 }}>
-                    주소를 정하면 바로 자료실로 이동합니다
-                </p>
             </div>
 
+            {/* 스텝 인디케이터 */}
+            <div className="flex items-center gap-2 mb-6">
+                {STEP_LABELS.map((label, i) => {
+                    const n = i + 1;
+                    const active  = step === n;
+                    const done    = step > n;
+                    return (
+                        <React.Fragment key={n}>
+                            <div className="flex items-center gap-1">
+                                <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+                                    style={{
+                                        background: done ? GOLD : active ? GOLD : '#E8E0D0',
+                                        color: done || active ? '#fff' : TEXT_MUTED,
+                                    }}>
+                                    {done ? '✓' : n}
+                                </div>
+                                <span className="text-xs hidden sm:inline"
+                                    style={{ color: active ? GOLD : TEXT_MUTED, fontWeight: active ? 600 : 400 }}>
+                                    {label}
+                                </span>
+                            </div>
+                            {i < STEP_LABELS.length - 1 && (
+                                <div className="w-8 h-px" style={{ background: step > n ? GOLD : '#E8E0D0' }} />
+                            )}
+                        </React.Fragment>
+                    );
+                })}
+            </div>
+
+            {/* 카드 */}
             <div className="w-full max-w-sm rounded-2xl p-8 shadow-sm"
-                style={{ background: '#FFFFFF', border: '1px solid #E8E0D0' }}>
+                style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
 
-                <form onSubmit={handleSubmit} className="space-y-5">
-                    <div>
-                        <label className="block text-sm font-semibold mb-1.5" style={{ color: '#5a4a3a' }}>
-                            박물관 주소 <span style={{ color: '#c0392b' }}>*</span>
-                        </label>
-                        <div className="flex items-center rounded-xl overflow-hidden"
-                            style={{ border: '1.5px solid #DDD5C8', background: '#FAFAF7' }}>
-                            <span className="px-3 py-2.5 text-sm shrink-0"
-                                style={{ color: '#A09888', borderRight: '1px solid #DDD5C8', background: '#F0EBE0' }}>
-                                orgcell.com/
-                            </span>
-                            <input
-                                type="text"
-                                value={subdomain}
-                                onChange={e => {
-                                    const raw = e.target.value;
-                                    if (/[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(raw)) {
-                                        setKoreanWarning(true);
-                                        setTimeout(() => setKoreanWarning(false), 3000);
-                                    } else {
-                                        setKoreanWarning(false);
-                                    }
-                                    setSubdomain(raw.toLowerCase().replace(/[^a-z0-9]/g, ''));
-                                }}
-                                placeholder="lee, kim, park..."
-                                className="flex-1 px-3 py-2.5 outline-none text-sm bg-transparent"
-                                style={{ color: '#3D2008' }}
-                                maxLength={30}
-                                autoFocus
-                            />
-                        </div>
-                        {koreanWarning && (
-                            <p className="mt-1 text-xs" style={{ color: '#c0392b' }}>
-                                도메인은 영문 소문자와 숫자만 입력해주세요
-                            </p>
-                        )}
-                        {!koreanWarning && hint && (
-                            <p className="mt-1 text-xs" style={{ color: hint.color }}>{hint.text}</p>
-                        )}
-                        <p className="mt-1 text-xs" style={{ color: '#B0A090' }}>
-                            영문 소문자·숫자만 · 변경 불가
-                        </p>
-                    </div>
+                {step === 1 && <Step1 onNext={handleSearchDone} />}
 
-                    {error && (
-                        <div className="rounded-xl px-4 py-3 text-sm"
-                            style={{ background: '#FDF0EE', color: '#c0392b', border: '1px solid #F5C6C0' }}>
-                            {error}
-                        </div>
-                    )}
+                {step === 2 && searchData && (
+                    <Step2
+                        data={searchData}
+                        onSelectExisting={handleSelectExisting}
+                        onCreateNew={handleCreateNew}
+                    />
+                )}
 
-                    <button
-                        type="submit"
-                        disabled={submitting || subdomainStatus !== 'ok'}
-                        className="w-full py-3 rounded-xl font-bold text-white text-[15px] flex items-center justify-center gap-2 transition-all"
-                        style={{
-                            background: submitting || subdomainStatus !== 'ok'
-                                ? '#C8BCA8'
-                                : 'linear-gradient(135deg, #5A9460, #4A7F4A)',
-                            cursor: submitting || subdomainStatus !== 'ok' ? 'not-allowed' : 'pointer',
-                        }}
-                    >
-                        {submitting ? (
-                            <><Loader2 size={18} className="animate-spin" /> 만드는 중...</>
-                        ) : (
-                            <><Building2 size={18} /> 박물관 만들기 <ChevronRight size={16} /></>
-                        )}
-                    </button>
-                </form>
+                {step === 3 && searchData && (
+                    <Step3
+                        form={searchData.form}
+                        previewSubdomain={previewSubdomain}
+                        onConfirm={handleConfirm}
+                        submitting={submitting}
+                        error={error}
+                    />
+                )}
             </div>
 
-            <p className="mt-6 text-xs text-center" style={{ color: '#B0A090', maxWidth: 320 }}>
-                주소 생성 후 자료실에서 이름·생년월일·가족을 등록하세요
+            <p className="mt-6 text-xs text-center" style={{ color: TEXT_MUTED, maxWidth: 320 }}>
+                박물관 생성 후 자료실에서 이름·생년월일·가족을 등록하세요
             </p>
         </div>
     );

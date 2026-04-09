@@ -5,6 +5,9 @@ const uploadPerson = require('../middlewares/uploadPerson');
 const { convertHeicIfNeeded, autoRotateImage } = require('../middlewares/uploadPerson');
 const ctrl = require('../controllers/personController');
 
+// ── 온보딩 본인확인 검색 (§26-3) ── 인증 불필요 (가입 전 호출)
+router.post('/search', ctrl.searchPersons);
+
 // ── OPS 파이프라인 (§26): 인물 생성 + 관계 + path 배정 ──
 // POST /api/persons  (siteId 없음 — subdomain + anchor로 식별)
 router.post('/', protect, ctrl.createPersonOPS);

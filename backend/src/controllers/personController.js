@@ -683,3 +683,68 @@ exports.getPersonByPath = async (req, res) => {
     return res.status(500).json({ success: false, message: '조회 실패' });
   }
 };
+
+
+// ── §26-3 인물 검색 (온보딩 본인 확인용) ─────────────────────────────
+// POST /api/persons/search
+// 이름 + 생년월일 기준으로 전체 사이트에서 후보 조회
+// Ghost(외부 노출 금지) 제외, linked 인물만 반환
+exports.searchPersons = async (req, res) => {
+    try {
+        const { surname_ko, given_name, birth_date, bon_gwan_ko, parent_names } = req.body;
+
+        if (!surname_ko || typeof surname_ko !== 'string' || surname_ko.trim().length > 10) {
+            return res.status(400).json({ success: false, message: '성(surname_ko) 필수 (10자 이내)' });
+        }
+        if (!given_name || typeof given_name !== 'string' || given_name.trim().length > 20) {
+            return res.status(400).json({ success: false, message: '이름(given_name) 필수 (20자 이내)' });
+        }
+
+        const surnameKo  = surname_ko.trim();
+        const givenName  = given_name.trim();
+        const fullName   = `${surnameKo}${givenName}`;
+        const birthDate  = birth_date || null;
+
+        // §26-3 Level 3/4: 이름 + 생년월일 매칭 (linked 인물만)
+        const { rows } = await db.query(
+            `SELECT
+               p.id, p.name, p.birth_date, p.gender, p.oc_id, p.match_status,
+               fs.subdomain, fs.id AS site_id
+             FROM persons p
+             JOIN family_sites fs ON fs.id = p.site_id
+             WHERE p.match_status = 'linked'
+               AND (
+                 p.name ILIKE $1
+                 OR p.name ILIKE $2
+               )
+             ORDER BY
+               CASE WHEN p.birth_date = $3 THEN 0 ELSE 1 END,
+               p.created_at ASC
+             LIMIT 10`,
+            [`%${fullName}%`, `%${givenName}%`, birthDate]
+        );
+
+        // 매칭 강도 계산 (§26-3)
+        const candidates = rows.map(row => {
+            let strength = 'weak'; // 이름만 일치
+            if (row.birth_date && birthDate &&
+                new Date(row.birth_date).toISOString().slice(0,10) === birthDate) {
+                strength = 'strong'; // 이름 + 생년월일 = Level 3 (일반)
+            }
+            return {
+                person_id: row.oc_id,
+                name: row.name,
+                birth_date: row.birth_date,
+                gender: row.gender,
+                subdomain: row.subdomain,
+                site_id: row.site_id,
+                match_strength: strength,
+            };
+        });
+
+        return res.json({ success: true, candidates });
+    } catch (err) {
+        console.error('searchPersons error:', err);
+        return res.status(500).json({ success: false, message: '검색 실패' });
+    }
+};

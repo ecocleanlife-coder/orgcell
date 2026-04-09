@@ -1,29 +1,48 @@
 const db = require('../config/db');
 const { generateOcId, resolveCountryCode } = require('../utils/ocIdGenerator');
 const { assignCuratorPath } = require('../services/pathAssigner');
+const { assignSubdomain } = require('../services/subdomainAssigner');
 
 // @desc    Create family site + 관장 person 자동 생성 (OPS §26)
 // @route   POST /api/sites
+// body: { surname_ko, bon_gwan_ko?, given_name, nationality?, surname_en?,
+//         curator_gender?, birth_date?, bio1?, bio2?, bio3?,
+//         subdomain? (레거시 — 미전달 시 자동배정) }
 exports.createSite = async (req, res) => {
-    const { subdomain, theme = 'modern', curator_name, curator_gender,
-            birth_date, bio1, bio2, bio3 } = req.body;
+    const { surname_ko, bon_gwan_ko, given_name, nationality = 'KR', surname_en,
+            theme = 'modern', curator_gender, birth_date, bio1, bio2, bio3 } = req.body;
+    let { subdomain } = req.body;
     const userId = req.user.id;
 
-    if (!subdomain || subdomain.length < 2) {
-        return res.status(400).json({ success: false, message: 'Subdomain required (min 2 chars)' });
+    // 이름 기반 자동배정 (§26-1-1)
+    if (!subdomain) {
+        if (!surname_ko && !surname_en) {
+            return res.status(400).json({ success: false, message: 'surname_ko 또는 surname_en 필수' });
+        }
+        try {
+            subdomain = await assignSubdomain({ surnameKo: surname_ko, bonGwanKo: bon_gwan_ko || null, surnameEn: surname_en || null, nationality });
+        } catch (err) {
+            return res.status(500).json({ success: false, message: 'Subdomain 배정 실패: ' + err.message });
+        }
     }
 
-    // 서브도메인 형식 검증 (영문 소문자·숫자만, 2~30자)
-    const subdomainRegex = /^[a-z0-9]{2,30}$/;
-    if (!subdomainRegex.test(subdomain.toLowerCase())) {
-        return res.status(400).json({ success: false, message: 'Invalid subdomain format (lowercase letters and numbers only)' });
+    // 서브도메인 형식 검증 (자동배정 포함: LEE006-1 허용)
+    const subdomainRegex = /^[a-zA-Z0-9-]{2,40}$/;
+    if (!subdomainRegex.test(subdomain)) {
+        return res.status(400).json({ success: false, message: 'Invalid subdomain format' });
     }
+    subdomain = subdomain.toLowerCase();
 
     // 예약어 차단
     const reserved = ['admin', 'api', 'www', 'demo', 'test', 'orgcell', 'mail', 'ftp', 'smtp', 'pop', 'imap'];
-    if (reserved.includes(subdomain.toLowerCase())) {
+    if (reserved.includes(subdomain)) {
         return res.status(400).json({ success: false, message: 'This subdomain is reserved' });
     }
+
+    // 관장 이름 조합 (§27: 성/이름 분리 저장)
+    const curator_name = surname_ko && given_name
+        ? `${surname_ko}${given_name}`
+        : given_name || surname_ko || subdomain;
 
     const client = await db.pool.connect();
     try {
@@ -81,7 +100,7 @@ exports.createSite = async (req, res) => {
                     birth_date, bio1, bio2, bio3)
                  VALUES ($1, $2, $3, $4, $4, $5, 'linked', $6, $7, $8, $9, $10)
                  RETURNING id`,
-                [site.id, curator_name || subdomain, curator_gender || null,
+                [site.id, curator_name, curator_gender || null,
                  curatorPersonId, countryCode, userId,
                  birth_date || null, bio1 || null, bio2 || null, bio3 || null]
             );
