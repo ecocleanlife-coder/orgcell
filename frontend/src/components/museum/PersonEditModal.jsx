@@ -71,11 +71,30 @@ export default function PersonEditModal({ siteId, person, onSave, onClose, inlin
                 if (addRelationType === 'parent' || addRelationType === 'birth-parent') gen += 1;
                 if (addRelationType === 'child') gen -= 1;
                 
-                const res = await axios.post(`/api/persons/${siteId}`, {
+                // OPS 전용 — 레거시 엔드포인트 제거
+                const anchorVarId = person.person_id || (person.id ? String(person.id) : null);
+                if (!anchorVarId) {
+                    toast.error('관장 정보를 불러올 수 없습니다. 새로고침 해주세요.');
+                    setSubmittingRelation(false);
+                    return;
+                }
+                const relKeyMap = {
+                    'parent':       relationGender === 'female' ? 'mother' : 'father',
+                    'birth-parent': relationGender === 'female' ? 'mother' : 'father',
+                    'child':        relationGender === 'female' ? 'daughter' : 'son',
+                    'spouse':       relationGender === 'female' ? 'spouse_wife' : 'spouse_husband',
+                    'sibling':      relationGender === 'female' ? 'sister' : 'hyeong',
+                };
+                const relationKey = relKeyMap[addRelationType];
+                const subdomain = window.location.hostname.split('.')[0];
+                const res = await axios.post(`/api/persons`, {
                     name: relationName.trim(),
                     gender: relationGender,
                     generation: gen,
-                    privacy_level: 'family'
+                    privacy_level: 'family',
+                    site_subdomain: subdomain,
+                    anchor_person_id: anchorVarId,
+                    relation_key: relationKey,
                 });
                 targetId = res.data?.data?.id;
             }

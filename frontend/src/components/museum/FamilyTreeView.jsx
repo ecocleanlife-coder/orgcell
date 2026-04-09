@@ -378,16 +378,8 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     const [newBio1, setNewBio1] = useState('');               // 추가 모달 대표정보1
 
     // ── API helpers ──
-    const apiCreatePerson = async (data) => {
-        if (!siteId) return null;
-        try {
-            const res = await axios.post(`/api/persons/${siteId}`, data);
-            return res.data?.data || null;
-        } catch (err) {
-            console.error('createPerson error:', err);
-            return null;
-        }
-    };
+    // [레거시 제거] apiCreatePerson 삭제 — 모든 인물 생성은 OPS(POST /api/persons)로만 수행
+    // anchor_person_id 또는 relation_key 누락 시 에러를 표시하고 생성을 중단한다.
 
     const apiUpdatePerson = async (personId, data) => {
         if (!siteId) return null;
@@ -511,9 +503,17 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             if (modal.relation === 'child') gen = parentGen + 1;
             if (modal.relation === 'spouse' || modal.relation === 'sibling') gen = parentGen;
 
-            // OPS relation_key 결정
-            const anchorVarId = parentNodeRef?.person_id || parentNodeRef?.oc_id
+            // OPS relation_key 결정 — anchorVarId는 person_id(문자) 우선, 없으면 id(정수)
+            const anchorVarId = parentNodeRef?.person_id
                 || (parentNodeRef?.id ? String(parentNodeRef.id) : null);
+            if (!anchorVarId) {
+                toast(lang === 'ko'
+                    ? '관장 정보를 불러올 수 없습니다. 새로고침 해주세요.'
+                    : 'Curator info unavailable. Please refresh.',
+                    { icon: '❌' });
+                setSubmitting(false);
+                return;
+            }
             let relationKey = null;
             if (modal.relation === 'child') {
                 relationKey = newGender === 'female' ? 'daughter' : 'son';
@@ -539,39 +539,25 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                 relation_key: relationKey,
             };
 
+            if (!relationKey) {
+                toast(lang === 'ko' ? '관계를 확인할 수 없습니다.' : 'Invalid relation.', { icon: '❌' });
+                setSubmitting(false);
+                return;
+            }
+
+            // OPS 전용 — 레거시 폴백 제거
             let created = null;
-            if (anchorVarId && relationKey) {
-                try {
-                    const opsRes = await axios.post('/api/persons', opsData);
-                    created = opsRes.data?.data || null;
-                } catch (opsErr) {
-                    console.warn('OPS 생성 실패, 레거시 폴백:', opsErr.response?.data?.message);
-                    created = await apiCreatePerson({
-                        name: createdName,
-                        birth_date: newBirthDate || null,
-                        birth_lunar: newBirthLunar,
-                        is_deceased: newDeceased,
-                        death_date: newDeceased ? (newDeathDate || null) : null,
-                        death_lunar: newDeceased ? newDeathLunar : false,
-                        gender: newGender || null,
-                        privacy_level: newPrivacy,
-                        generation: gen,
-                        bio1: newBio1 || null,
-                    });
-                }
-            } else {
-                created = await apiCreatePerson({
-                    name: createdName,
-                    birth_date: newBirthDate || null,
-                    birth_lunar: newBirthLunar,
-                    is_deceased: newDeceased,
-                    death_date: newDeceased ? (newDeathDate || null) : null,
-                    death_lunar: newDeceased ? newDeathLunar : false,
-                    gender: newGender || null,
-                    privacy_level: newPrivacy,
-                    generation: gen,
-                    bio1: newBio1 || null,
-                });
+            try {
+                const opsRes = await axios.post('/api/persons', opsData);
+                created = opsRes.data?.data || null;
+            } catch (opsErr) {
+                console.error('OPS 생성 실패:', opsErr.response?.data?.message || opsErr.message);
+                toast(lang === 'ko'
+                    ? `인물 생성 실패: ${opsErr.response?.data?.message || '알 수 없는 오류'}`
+                    : `Failed to create person: ${opsErr.response?.data?.message || 'Unknown error'}`,
+                    { icon: '❌' });
+                setSubmitting(false);
+                return;
             }
             if (created) createdId = created.id;
 
@@ -599,31 +585,31 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                         parent2_id: parentNode.parent2_id || null,
                     });
                 } else {
-                    // 부모가 없으면 임시 부모 자동 생성 (OPS: anchor=형제, relation=father/mother)
+                    // 부모가 없으면 임시 부모 자동 생성 (OPS 전용: anchor=형제, relation=father/mother)
                     const tempParentGen = parentGen + 1;
                     const personName = parentNode?.name || '?';
-                    const anchorForParent = parentNodeRef?.person_id || parentNodeRef?.oc_id;
+                    const anchorForParent = parentNodeRef?.person_id
+                        || (parentNodeRef?.id ? String(parentNodeRef.id) : null);
                     let tempFather = null, tempMother = null;
-                    if (anchorForParent) {
-                        try {
-                            const fRes = await axios.post('/api/persons', {
-                                name: lang === 'ko' ? `${personName}의 아버지` : `${personName}'s Father`,
-                                gender: 'male', generation: tempParentGen, privacy_level: 'family',
-                                site_subdomain: subdomain, anchor_person_id: anchorForParent, relation_key: 'father',
-                            });
-                            tempFather = fRes.data?.data || null;
-                        } catch { tempFather = await apiCreatePerson({ name: lang === 'ko' ? `${personName}의 아버지` : `${personName}'s Father`, gender: 'male', generation: tempParentGen, privacy_level: 'family' }); }
-                        try {
-                            const mRes = await axios.post('/api/persons', {
-                                name: lang === 'ko' ? `${personName}의 어머니` : `${personName}'s Mother`,
-                                gender: 'female', generation: tempParentGen, privacy_level: 'family',
-                                site_subdomain: subdomain, anchor_person_id: anchorForParent, relation_key: 'mother',
-                            });
-                            tempMother = mRes.data?.data || null;
-                        } catch { tempMother = await apiCreatePerson({ name: lang === 'ko' ? `${personName}의 어머니` : `${personName}'s Mother`, gender: 'female', generation: tempParentGen, privacy_level: 'family' }); }
-                    } else {
-                        tempFather = await apiCreatePerson({ name: lang === 'ko' ? `${personName}의 아버지` : `${personName}'s Father`, gender: 'male', generation: tempParentGen, privacy_level: 'family' });
-                        tempMother = await apiCreatePerson({ name: lang === 'ko' ? `${personName}의 어머니` : `${personName}'s Mother`, gender: 'female', generation: tempParentGen, privacy_level: 'family' });
+                    try {
+                        const fRes = await axios.post('/api/persons', {
+                            name: lang === 'ko' ? `${personName}의 아버지` : `${personName}'s Father`,
+                            gender: 'male', generation: tempParentGen, privacy_level: 'family',
+                            site_subdomain: subdomain, anchor_person_id: anchorForParent, relation_key: 'father',
+                        });
+                        tempFather = fRes.data?.data || null;
+                    } catch (e) {
+                        console.error('임시 아버지 OPS 생성 실패:', e.response?.data?.message || e.message);
+                    }
+                    try {
+                        const mRes = await axios.post('/api/persons', {
+                            name: lang === 'ko' ? `${personName}의 어머니` : `${personName}'s Mother`,
+                            gender: 'female', generation: tempParentGen, privacy_level: 'family',
+                            site_subdomain: subdomain, anchor_person_id: anchorForParent, relation_key: 'mother',
+                        });
+                        tempMother = mRes.data?.data || null;
+                    } catch (e) {
+                        console.error('임시 어머니 OPS 생성 실패:', e.response?.data?.message || e.message);
                     }
                     if (tempFather && tempMother) {
                         await apiUpdatePerson(tempFather.id, { spouse_id: tempMother.id });
@@ -660,24 +646,12 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
     const handleAddFirstSubmit = async () => {
         if (!newName.trim()) return;
-        setSubmitting(true);
-
-        const genMap = { grandpa: 3, grandma: 3, father: 2, mother: 2, me: 1 };
-        const data = {
-            name: newName.trim(),
-            birth_date: newBirthDate || null,
-            birth_lunar: newBirthLunar,
-            is_deceased: newDeceased,
-            death_date: newDeceased ? (newDeathDate || null) : null,
-            death_lunar: newDeceased ? newDeathLunar : false,
-            gender: newGender || null,
-            privacy_level: newPrivacy,
-            generation: genMap[modal.placeholderRole] || 1,
-        };
-
-        await apiCreatePerson(data);
-        await fetchPersons();
-        setSubmitting(false);
+        // [레거시 제거] 관장은 사이트 가입 시 자동 생성된다.
+        // 이 경로에 진입한다는 것은 관장 데이터가 누락된 상태이므로 에러를 표시한다.
+        toast(lang === 'ko'
+            ? '관장 정보를 불러올 수 없습니다. 새로고침 해주세요.'
+            : 'Curator info unavailable. Please refresh.',
+            { icon: '❌' });
         setModal(null);
     };
 
@@ -747,22 +721,35 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
 
             // 부모는 자녀보다 한 세대 위 (숫자가 큰 쪽이 윗세대)
             const parentGen = (childNodeRef?.generation || 0) + 1;
-            const childVarId = childNodeRef?.person_id || childNodeRef?.oc_id
+            const childVarId = childNodeRef?.person_id
                 || (childNodeRef?.id ? String(childNodeRef.id) : null);
 
+            if (!childVarId) {
+                toast(lang === 'ko'
+                    ? '관장 정보를 불러올 수 없습니다. 새로고침 해주세요.'
+                    : 'Curator info unavailable. Please refresh.',
+                    { icon: '❌' });
+                setSubmitting(false);
+                setModal(null);
+                return;
+            }
+
+            // OPS 전용 — 레거시 폴백 제거
             const createParentOPS = async (name, gender, relationKey) => {
-                if (childVarId) {
-                    try {
-                        const res = await axios.post('/api/persons', {
-                            name, gender, generation: parentGen, privacy_level: 'family',
-                            site_subdomain: subdomain, anchor_person_id: childVarId, relation_key: relationKey,
-                        });
-                        return res.data?.data || null;
-                    } catch (e) {
-                        console.warn('OPS 부모 생성 실패, 폴백:', e.response?.data?.message);
-                    }
+                try {
+                    const res = await axios.post('/api/persons', {
+                        name, gender, generation: parentGen, privacy_level: 'family',
+                        site_subdomain: subdomain, anchor_person_id: childVarId, relation_key: relationKey,
+                    });
+                    return res.data?.data || null;
+                } catch (e) {
+                    console.error('OPS 부모 생성 실패:', e.response?.data?.message || e.message);
+                    toast(lang === 'ko'
+                        ? `부모 생성 실패: ${e.response?.data?.message || '알 수 없는 오류'}`
+                        : `Failed to create parent: ${e.response?.data?.message || 'Unknown error'}`,
+                        { icon: '❌' });
+                    return null;
                 }
-                return apiCreatePerson({ name, gender, generation: parentGen, privacy_level: 'family' });
             };
 
             const p1 = await createParentOPS(parent1Name.trim(), 'male', 'father');

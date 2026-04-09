@@ -2,6 +2,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 const db = require('../config/db');
 const fsService = require('../services/familySearchService');
+const { generateOcId: generateCanonicalOcId } = require('../utils/ocIdGenerator');
 
 const FS_APP_KEY = process.env.FS_APP_KEY || 'b00B25XDYH90S6W5RKFF';
 const FS_AUTH_BASE = process.env.FS_AUTH_BASE || 'https://identbeta.familysearch.org';
@@ -435,15 +436,17 @@ exports.addPersons = async (req, res) => {
                 const gender = p.gender || 'other';
                 const isDeceased = p.living === false || !!p.death_year;
 
+                // OPS 필수: person_id는 INSERT 시점에 반드시 설정
+                const newOcId = await generateCanonicalOcId(client, 'KR');
                 const { rows: newRows } = await client.query(
-                    `INSERT INTO persons (site_id, name, gender, birth_year, death_year, is_deceased, fs_person_id, fs_synced_at)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+                    `INSERT INTO persons (site_id, name, gender, birth_year, death_year, is_deceased, fs_person_id, fs_synced_at, oc_id, person_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $8)
                      RETURNING id`,
-                    [siteId, p.name, gender, p.birth_year || null, p.death_year || null, isDeceased, p.fs_id]
+                    [siteId, p.name, gender, p.birth_year || null, p.death_year || null, isDeceased, p.fs_id, newOcId]
                 );
 
                 const newPersonId = newRows[0].id;
-                const ocId = generateOcId();
+                const ocId = newOcId;
 
                 await client.query(
                     `INSERT INTO person_external_ids (person_id, oc_id, source, external_id, verified, confidence_level, added_by)

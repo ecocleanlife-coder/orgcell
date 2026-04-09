@@ -7,6 +7,7 @@
 
 const jwt = require('jsonwebtoken');
 const db = require('../config/db');
+const { generateOcId } = require('../utils/ocIdGenerator');
 
 const IS_DEV = process.env.NODE_ENV !== 'production' && process.env.DEV_AUTO_LOGIN === 'true';
 
@@ -65,10 +66,12 @@ async function seedDevEnvironment() {
             [siteId]
         );
         if (!existing.length) {
+            // OPS 필수: person_id는 INSERT 시점에 반드시 설정
+            const devOcId = await generateOcId(db.pool || db, 'KR');
             await db.query(`
-                INSERT INTO persons (site_id, name, match_status, user_id)
-                VALUES ($1, '개발자', 'linked', $2)
-            `, [siteId, user.id]);
+                INSERT INTO persons (site_id, name, match_status, user_id, oc_id, person_id)
+                VALUES ($1, '개발자', 'linked', $2, $3, $3)
+            `, [siteId, user.id, devOcId]);
         }
 
         // 4. 장기 JWT 생성
