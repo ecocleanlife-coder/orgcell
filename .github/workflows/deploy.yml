@@ -605,6 +605,39 @@ jobs:
               -c "CREATE INDEX IF NOT EXISTS idx_person_external_ids_source ON person_external_ids(source, external_id);" \
               -c "CREATE INDEX IF NOT EXISTS idx_person_external_ids_oc_id ON person_external_ids(oc_id);" \
               -c "INSERT INTO person_external_ids (person_id, source, external_id, verified, confidence_level, added_by) SELECT id, 'familysearch', fs_person_id, true, 2, 'migration' FROM persons WHERE fs_person_id IS NOT NULL ON CONFLICT (source, external_id) DO NOTHING;"
+            # ── 039: korean_surnames (Subdomain 자동배정) ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "CREATE TABLE IF NOT EXISTS korean_surnames (id SERIAL PRIMARY KEY, surname_ko VARCHAR(10) NOT NULL, surname_en VARCHAR(20) NOT NULL, bon_gwan_ko VARCHAR(30), bon_gwan_en VARCHAR(50), population_rank INTEGER, code VARCHAR(3), seq_counter INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());" \
+              -c "CREATE UNIQUE INDEX IF NOT EXISTS idx_ks_code ON korean_surnames(surname_en, code) WHERE code IS NOT NULL;" \
+              -c "CREATE UNIQUE INDEX IF NOT EXISTS idx_ks_no_bon_gwan ON korean_surnames(surname_en) WHERE code IS NULL;" \
+              -c "CREATE INDEX IF NOT EXISTS idx_ks_lookup ON korean_surnames(surname_ko, bon_gwan_ko);" \
+              -c "INSERT INTO korean_surnames (surname_ko,surname_en,bon_gwan_ko,bon_gwan_en,population_rank,code) VALUES ('김','KIM',NULL,NULL,1,NULL),('이','LEE',NULL,NULL,2,NULL),('박','PARK',NULL,NULL,3,NULL),('최','CHOI',NULL,NULL,4,NULL),('정','JUNG',NULL,NULL,5,NULL),('강','KANG',NULL,NULL,6,NULL),('조','CHO',NULL,NULL,7,NULL),('윤','YOON',NULL,NULL,8,NULL),('장','JANG',NULL,NULL,9,NULL),('임','LIM',NULL,NULL,10,NULL),('한','HAN',NULL,NULL,11,NULL),('오','OH',NULL,NULL,12,NULL),('서','SEO',NULL,NULL,13,NULL),('신','SHIN',NULL,NULL,14,NULL),('권','KWON',NULL,NULL,15,NULL),('황','HWANG',NULL,NULL,16,NULL),('안','AHN',NULL,NULL,17,NULL),('송','SONG',NULL,NULL,18,NULL),('류','RYU',NULL,NULL,19,NULL),('홍','HONG',NULL,NULL,20,NULL) ON CONFLICT DO NOTHING;" \
+              -c "INSERT INTO korean_surnames (surname_ko,surname_en,bon_gwan_ko,bon_gwan_en,population_rank,code) VALUES ('김','KIM','김해','Gimhae',1,'001'),('김','KIM','경주','Gyeongju',2,'002'),('김','KIM','광산','Gwangsan',3,'003'),('김','KIM','안동','Andong',4,'004'),('김','KIM','전주','Jeonju',5,'005'),('김','KIM','밀양','Miryang',6,'006') ON CONFLICT DO NOTHING;" \
+              -c "INSERT INTO korean_surnames (surname_ko,surname_en,bon_gwan_ko,bon_gwan_en,population_rank,code) VALUES ('이','LEE','전주','Jeonju',1,'001'),('이','LEE','경주','Gyeongju',2,'002'),('이','LEE','광주','Gwangju',3,'003'),('이','LEE','한산','Hansan',4,'004'),('이','LEE','연안','Yeonan',5,'005'),('이','LEE','덕수','Deoksu',6,'006'),('이','LEE','성주','Seongju',7,'007'),('이','LEE','여주','Yeoju',8,'008'),('이','LEE','공주','Gongju',9,'009'),('이','LEE','우봉','Ubong',10,'010') ON CONFLICT DO NOTHING;" \
+              -c "INSERT INTO korean_surnames (surname_ko,surname_en,bon_gwan_ko,bon_gwan_en,population_rank,code) VALUES ('박','PARK','밀양','Miryang',1,'001'),('박','PARK','반남','Bannam',2,'002'),('박','PARK','함양','Hamyang',3,'003'),('박','PARK','고령','Goryeong',4,'004'),('박','PARK','죽산','Juksan',5,'005') ON CONFLICT DO NOTHING;" \
+              -c "INSERT INTO korean_surnames (surname_ko,surname_en,bon_gwan_ko,bon_gwan_en,population_rank,code) VALUES ('최','CHOI','전주','Jeonju',1,'001'),('최','CHOI','경주','Gyeongju',2,'002'),('최','CHOI','해주','Haeju',3,'003'),('최','CHOI','강릉','Gangneung',4,'004') ON CONFLICT DO NOTHING;" \
+              -c "INSERT INTO korean_surnames (surname_ko,surname_en,bon_gwan_ko,bon_gwan_en,population_rank,code) VALUES ('정','JUNG','동래','Dongnae',1,'001'),('정','JUNG','경주','Gyeongju',2,'002'),('정','JUNG','진양','Jinyang',3,'003'),('정','JUNG','하동','Hadong',4,'004') ON CONFLICT DO NOTHING;" \
+              -c "INSERT INTO korean_surnames (surname_ko,surname_en,bon_gwan_ko,bon_gwan_en,population_rank,code) VALUES ('강','KANG','진주','Jinju',1,'001'),('강','KANG','수원','Suwon',2,'002'),('강','KANG','신천','Sincheon',3,'003') ON CONFLICT DO NOTHING;" \
+              -c "INSERT INTO korean_surnames (surname_ko,surname_en,bon_gwan_ko,bon_gwan_en,population_rank,code) VALUES ('조','CHO','한양','Hanyang',1,'001'),('조','CHO','풍양','Pungyang',2,'002'),('조','CHO','창녕','Changnyeong',3,'003') ON CONFLICT DO NOTHING;" \
+              -c "INSERT INTO korean_surnames (surname_ko,surname_en,bon_gwan_ko,bon_gwan_en,population_rank,code) VALUES ('윤','YOON','파평','Papyeong',1,'001'),('윤','YOON','해평','Haepyeong',2,'002'),('윤','YOON','칠원','Chirwon',3,'003') ON CONFLICT DO NOTHING;" \
+              -c "INSERT INTO korean_surnames (surname_ko,surname_en,bon_gwan_ko,bon_gwan_en,population_rank,code) VALUES ('장','JANG','인동','Indong',1,'001'),('장','JANG','덕수','Deoksu',2,'002'),('장','JANG','안동','Andong',3,'003') ON CONFLICT DO NOTHING;" \
+              -c "INSERT INTO korean_surnames (surname_ko,surname_en,bon_gwan_ko,bon_gwan_en,population_rank,code) VALUES ('임','LIM','평택','Pyeongtaek',1,'001'),('임','LIM','나주','Naju',2,'002'),('임','LIM','풍천','Pungcheon',3,'003') ON CONFLICT DO NOTHING;" \
+              -c "INSERT INTO korean_surnames (surname_ko,surname_en,bon_gwan_ko,bon_gwan_en,population_rank,code) VALUES ('신','SHIN','평산','Pyeongsan',1,'001'),('신','SHIN','고령','Goryeong',2,'002'),('신','SHIN','아주','Aju',3,'003') ON CONFLICT DO NOTHING;" \
+              -c "INSERT INTO korean_surnames (surname_ko,surname_en,bon_gwan_ko,bon_gwan_en,population_rank,code) VALUES ('황','HWANG','장수','Jangsu',1,'001'),('황','HWANG','평해','Pyeonghae',2,'002'),('황','HWANG','창원','Changwon',3,'003') ON CONFLICT DO NOTHING;" \
+              -c "INSERT INTO korean_surnames (surname_ko,surname_en,bon_gwan_ko,bon_gwan_en,population_rank,code) VALUES ('안','AHN','순흥','Sunheung',1,'001'),('안','AHN','광주','Gwangju',2,'002'),('안','AHN','죽산','Juksan',3,'003') ON CONFLICT DO NOTHING;" \
+              -c "INSERT INTO korean_surnames (surname_ko,surname_en,bon_gwan_ko,bon_gwan_en,population_rank,code) VALUES ('송','SONG','여산','Yeosan',1,'001'),('송','SONG','은진','Eunjin',2,'002') ON CONFLICT DO NOTHING;" \
+              -c "INSERT INTO korean_surnames (surname_ko,surname_en,bon_gwan_ko,bon_gwan_en,population_rank,code) VALUES ('류','RYU','문화','Munhwa',1,'001'),('류','RYU','풍산','Pungsan',2,'002'),('류','RYU','진주','Jinju',3,'003') ON CONFLICT DO NOTHING;" \
+              -c "INSERT INTO korean_surnames (surname_ko,surname_en,bon_gwan_ko,bon_gwan_en,population_rank,code) VALUES ('홍','HONG','남양','Namyang',1,'001'),('홍','HONG','풍산','Pungsan',2,'002') ON CONFLICT DO NOTHING;"
+            # ── 040: foreign_surnames ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "CREATE TABLE IF NOT EXISTS foreign_surnames (id SERIAL PRIMARY KEY, surname_en VARCHAR(30) NOT NULL, seq_counter INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());" \
+              -c "CREATE UNIQUE INDEX IF NOT EXISTS idx_foreign_surnames_en ON foreign_surnames(surname_en);"
+            # ── 041: family_sites bon_gwan_confirmed, subdomain_prefix ──
+            docker exec orgcell-db psql -U orgcell_user -d orgcell \
+              -c "ALTER TABLE family_sites ADD COLUMN IF NOT EXISTS bon_gwan_confirmed BOOLEAN NOT NULL DEFAULT FALSE;" \
+              -c "ALTER TABLE family_sites ADD COLUMN IF NOT EXISTS subdomain_prefix VARCHAR(20);" \
+              -c "UPDATE family_sites SET subdomain_prefix = regexp_replace(subdomain, '-[0-9]+\$', '') WHERE subdomain IS NOT NULL AND subdomain_prefix IS NULL;" \
+              -c "CREATE INDEX IF NOT EXISTS idx_family_sites_subdomain_prefix ON family_sites(subdomain_prefix);"
             echo "Migrations done"
             # ─────────────────────────────────────────────────────────────
 
