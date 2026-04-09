@@ -9,6 +9,9 @@ const ctrl = require('../controllers/personController');
 // POST /api/persons  (siteId 없음 — subdomain + anchor로 식별)
 router.post('/', protect, ctrl.createPersonOPS);
 
+// OPS path 조회 — /:siteId 보다 먼저 등록 (라우팅 충돌 방지)
+router.get('/path/*', optionalAuth, ctrl.getPersonByPath);
+
 // 조회는 optionalAuth (비로그인도 public 데이터 볼 수 있음)
 router.get('/:siteId', optionalAuth, ctrl.listPersons);
 

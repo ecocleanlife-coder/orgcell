@@ -2,7 +2,7 @@ const db = require('../config/db');
 const fs = require('fs');
 const path = require('path');
 const { generateOcId, resolveCountryCode } = require('../utils/ocIdGenerator');
-const { assignPath } = require('../services/pathAssigner');
+const { assignPath, assignCuratorPath, getAnchorPath } = require('../services/pathAssigner');
 const { matchAndMerge } = require('../services/personMatcher');
 
 const PERSON_UPLOADS_DIR = path.join(__dirname, '../../uploads/persons');
@@ -521,6 +521,7 @@ const RELATION_RULES = {
 
 exports.createPersonOPS = async (req, res) => {
   const { name, gender, birth_date, death_date, bio1, bio2, bio3,
+          birth_lunar, is_deceased, death_lunar, privacy_level, generation,
           site_subdomain, anchor_person_id, relation_key } = req.body;
 
   // ── 입력 검증 ──
@@ -573,13 +574,16 @@ exports.createPersonOPS = async (req, res) => {
     const { rows: personRows } = await client.query(
       `INSERT INTO persons
          (site_id, name, gender, birth_date, death_date,
-          bio1, bio2, bio3, nationality, oc_id, person_id, match_status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10, 'ghost')
+          bio1, bio2, bio3, nationality, oc_id, person_id, match_status,
+          birth_lunar, is_deceased, death_lunar, privacy_level, generation)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10, 'ghost', $11, $12, $13, $14, $15)
        RETURNING *`,
       [anchor.site_id, name.trim(), gender || null,
        birth_date || null, death_date || null,
        bio1 || null, bio2 || null, bio3 || null,
-       cc, newPersonId]
+       cc, newPersonId,
+       birth_lunar ?? false, is_deceased ?? false, death_lunar ?? false,
+       privacy_level || 'family', generation || null]
     );
     const newPerson = personRows[0];
 
@@ -604,8 +608,13 @@ exports.createPersonOPS = async (req, res) => {
       [anchor.site_id, intId1, intId2, rule.type]
     );
 
-    // 5. OPS path 배정 (VARCHAR person_id 기반)
-    const anchorVarId = anchor.person_id || anchor.oc_id;
+    // 5. OPS path 배정 (VARCHAR person_id 기반, 없으면 정수 id 문자열로 폴백)
+    const anchorVarId = anchor.person_id || anchor.oc_id || String(anchor.id);
+    // anchor path 없으면 subdomain으로 자동 배정 (기존 인물 대응)
+    const existingAnchorPath = await getAnchorPath(client, anchorVarId);
+    if (!existingAnchorPath) {
+      await assignCuratorPath(client, anchorVarId, site_subdomain);
+    }
     const assignedPath = await assignPath(client, newPersonId, anchorVarId, relation_key, anchorVarId);
 
     await client.query('COMMIT');
@@ -639,5 +648,37 @@ exports.createPersonOPS = async (req, res) => {
     return res.status(500).json({ success: false, message: '인물 생성에 실패했습니다' });
   } finally {
     client.release();
+  }
+};
+
+// GET /api/persons/path/*
+exports.getPersonByPath = async (req, res) => {
+  try {
+    const opsPath = req.params[0];
+    if (!opsPath) return res.status(400).json({ success: false, message: 'path 필수' });
+
+    const { rows: pathRows } = await db.query(
+      `SELECT person_id FROM person_paths WHERE path = $1 AND is_canonical = TRUE LIMIT 1`,
+      [opsPath]
+    );
+    if (!pathRows[0]) {
+      return res.status(404).json({ success: false, message: '경로를 찾을 수 없습니다' });
+    }
+    const varId = pathRows[0].person_id;
+
+    const { rows } = await db.query(
+      `SELECT p.*, pp.path AS ops_path
+       FROM persons p
+       LEFT JOIN person_paths pp ON (p.person_id = pp.person_id OR p.oc_id = pp.person_id)
+         AND pp.is_canonical = TRUE
+       WHERE p.person_id = $1 OR p.oc_id = $1
+       LIMIT 1`,
+      [varId]
+    );
+    if (!rows[0]) return res.status(404).json({ success: false, message: '인물을 찾을 수 없습니다' });
+    return res.json({ success: true, data: rows[0] });
+  } catch (err) {
+    console.error('getPersonByPath error:', err);
+    return res.status(500).json({ success: false, message: '조회 실패' });
   }
 };
