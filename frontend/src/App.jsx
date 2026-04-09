@@ -66,7 +66,7 @@ function AuthHome() {
         if (cancelled) return;
         const data = await res.json();
         if (data.data?.subdomain) {
-          navigate(`/${data.data.subdomain}/archive`, { replace: true });
+          navigate(`/${data.data.subdomain}`, { replace: true });
         } else {
           navigate('/onboarding/setup', { replace: true });
         }

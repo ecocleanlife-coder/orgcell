@@ -45,7 +45,7 @@ const PARENT_TYPE_KEYS = [
 // ════════════════════════════════════════
 // MAIN COMPONENT
 // ════════════════════════════════════════
-export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewer', exhibitions = [], initialPersonId = null, subdomain: subdomainProp, onMainPersonChange }) {
+export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewer', exhibitions = [], initialPersonId = null, subdomain: subdomainProp, onMainPersonChange, onShowGuide }) {
     const navigate = useNavigate();
     const { subdomain } = useParams();
     const lang = useUiStore((s) => s.lang);
@@ -174,32 +174,47 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     const [bioText, setBioText] = useState('');
     const [bioSaving, setBioSaving] = useState(false);
 
+    // ── Arrow click handler (카드 화살표 → 부모/자녀/배우자 추가 모달) ──
+    const handleArrowClick = useCallback((personId, direction) => {
+        if (!canEdit) return;
+        if (direction === 'up') {
+            openParentsModal(personId);
+        } else if (direction === 'down') {
+            openMemberModal(personId, 'child');
+        } else if (direction === 'left' || direction === 'right') {
+            openMemberModal(personId, 'spouse');
+        }
+    }, [canEdit]);
+
     // ── Click Action Handlers ──
     const clickTimeoutRef = useRef(null);
 
     const handleCardSingleClick = useCallback((personId) => {
         if (clickTimeoutRef.current) return;
+        // §6: 본인(관장) 카드 싱글클릭 → 무반응
+        if (String(personId) === String(mainIdRef.current)) return;
         clickTimeoutRef.current = setTimeout(() => {
             clickTimeoutRef.current = null;
             const raw = persons.find(p => String(p.id) === String(personId));
             if (!raw) return;
-            const exh = exhibitions.find(e => String(e.person_id) === String(raw.id));
             // 확인 모달 표시
             setConfirmTarget({ person: raw });
         }, 300);
-    }, [persons, exhibitions]);
+    }, [persons]);
 
+    // treeData.mainId는 컴포넌트 하단에서 선언되므로 ref로 우회
+    const mainIdRef = useRef(null);
     const handleCardDoubleClick = useCallback((personId) => {
-        if (role === 'owner') {
-            if (clickTimeoutRef.current) {
-                clearTimeout(clickTimeoutRef.current);
-                clickTimeoutRef.current = null;
-            }
-            const raw = persons.find(p => String(p.id) === String(personId));
-            if (!raw) return;
-            navigate(`/${subdomain}/archive`);
+        // §6: 더블클릭 → 인물 정보 모달 오픈 (본인/타인 모두)
+        if (role !== 'owner') return;
+        if (clickTimeoutRef.current) {
+            clearTimeout(clickTimeoutRef.current);
+            clickTimeoutRef.current = null;
         }
-    }, [role, persons, navigate, subdomain]);
+        const raw = persons.find(p => String(p.id) === String(personId));
+        if (!raw) return;
+        openEditModal(raw);
+    }, [role, persons]);
 
     const handleCardAction = useCallback(async (personId, action) => {
         const raw = persons.find(p => String(p.id) === String(personId));
@@ -300,6 +315,11 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         return result;
     }, [persons, relations, mainPersonId]);
 
+    // handleCardDoubleClick에서 참조하는 mainId ref 동기화
+    useEffect(() => {
+        mainIdRef.current = treeData.mainId;
+    }, [treeData.mainId]);
+
     // ── Modal state ──
     const [modal, setModal] = useState(null);
     const [newName, setNewName] = useState('');
@@ -326,6 +346,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     const [editDeathLunar, setEditDeathLunar] = useState(false);
     const [editGender, setEditGender] = useState('');
     const [editPrivacy, setEditPrivacy] = useState('family');
+    const [editBio1, setEditBio1] = useState('');
+    const [editBio2, setEditBio2] = useState('');
+    const [editBio3, setEditBio3] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [pendingPhotoFile, setPendingPhotoFile] = useState(null); // 편집 모달에서 선택한 사진 파일
@@ -412,6 +435,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
         setEditDeathLunar(raw.death_lunar || false);
         setEditGender(raw.gender || '');
         setEditPrivacy(raw.privacy_level || 'family');
+        setEditBio1(raw.bio1 || '');
+        setEditBio2(raw.bio2 || '');
+        setEditBio3(raw.bio3 || '');
         setConfirmDelete(false);
         setPendingPhotoFile(null);
         setModal({ mode: 'edit' });
@@ -554,6 +580,9 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
             death_lunar: editDeceased ? editDeathLunar : false,
             gender: editGender || null,
             privacy_level: editPrivacy,
+            bio1: editBio1 || null,
+            bio2: editBio2 || null,
+            bio3: editBio3 || null,
             photo_position: editPerson.photo_position || { x: 50, y: 50 },
         });
         // 편집 모달에서 선택한 사진 파일이 있으면 업로드
@@ -629,6 +658,25 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                     parent1_id: p1.id,
                     parent2_id: p2?.id || null,
                 });
+            }
+
+            // §22: 조부모(generation>=3) 이상은 z=1 수장고 보관 → 안내 표시
+            const newParentGen = (childNode?.generation || 0) + 1;
+            if (newParentGen >= 3 && onShowGuide) {
+                toast(
+                    (t2) => (
+                        <span style={{ fontSize: 13 }}>
+                            📦 수장고에 보관되었습니다.{' '}
+                            <button
+                                onClick={() => { toast.dismiss(t2.id); onShowGuide(); }}
+                                style={{ color: '#C4A882', fontWeight: 'bold', textDecoration: 'underline', cursor: 'pointer', border: 'none', background: 'none', padding: 0, fontSize: 13 }}
+                            >
+                                전시 기준 보기 [?]
+                            </button>
+                        </span>
+                    ),
+                    { icon: null, duration: 6000 }
+                );
             }
         } catch (err) {
             console.error('handleParentsSubmit error:', err);
@@ -745,62 +793,99 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
     }
 
     // ════════════════════════════════════════
-    // Phase 1: Empty tree — placeholder
+    // Phase 1: Empty tree — 관장 빈 카드 중앙 표시 (§23)
     // ════════════════════════════════════════
     if (persons.length === 0 && siteId) {
-        const PlaceholderNode = ({ label, onClick }) => (
-            <button onClick={onClick}
-                className="w-32 h-36 flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all cursor-pointer group">
-                <div className="w-12 h-12 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 group-hover:border-amber-400 flex items-center justify-center mb-1">
-                    <Plus size={20} className="text-gray-300 dark:text-gray-600 group-hover:text-amber-500" />
-                </div>
-                <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500 group-hover:text-amber-600">{label}</span>
-            </button>
-        );
+        const openCurator = canEdit ? () => openAddFirst('me') : undefined;
 
-        const PlusConn = () => (
-            <div className="flex items-center justify-center w-7 h-7 rounded-full bg-rose-100 dark:bg-rose-900/40 border-2 border-rose-300 dark:border-rose-700 self-center mx-0.5">
-                <span className="text-rose-500 font-black text-sm leading-none select-none">+</span>
-            </div>
-        );
+        // 사방 화살표 버튼
+        const ArrowHint = ({ dir, style }) => {
+            const Icon = dir === 'up' ? ChevronUp
+                       : dir === 'down' ? ChevronDown
+                       : dir === 'left' ? ChevronLeft
+                       : ChevronRight;
+            return (
+                <button
+                    onClick={openCurator}
+                    disabled={!canEdit}
+                    title={canEdit ? '본인 정보를 먼저 입력해주세요' : ''}
+                    style={{
+                        position: 'absolute',
+                        width: 32, height: 32,
+                        borderRadius: '50%',
+                        border: '1px solid #C4A882',
+                        background: 'rgba(196,168,130,0.15)',
+                        cursor: canEdit ? 'pointer' : 'default',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        zIndex: 10, padding: 0,
+                        ...style,
+                    }}
+                >
+                    <Icon size={18} strokeWidth={2.5} color="#8B6914" />
+                </button>
+            );
+        };
 
-        const VLine = () => <div className="w-0.5 h-6 bg-gray-300 mx-auto" style={{ borderLeft: '2px dashed #9ca3af' }} />;
+        // 관장 부부 박스 (440×260). 여기서는 카드만 표시 (220×260).
+        const CARD_W = 220, CARD_H = 260, GAP = 12;
 
         return (
-            <div className="w-full min-h-[70vh]">
-                {/* FamilyBanner 제거됨 */}
-                <div className="p-4">
-                    <div className="mb-6 text-center">
-                        <h2 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 flex items-center justify-center gap-3">
-                            <Network className="text-emerald-500" size={28} />
-                            {t.museumTitle}
-                        </h2>
-                        <p className="text-slate-500 text-sm mt-2">
-                            {lang === 'ko' ? '가족을 추가해서 나만의 패밀리트리를 만들어보세요!' : 'Add your family members to build your family tree!'}
-                        </p>
+            <div className="w-full" style={{ height: 'calc(100vh - 130px)', minHeight: 500, position: 'relative', background: '#1E1A14', borderRadius: 8 }}>
+                <div style={{
+                    position: 'absolute',
+                    left: '50%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center',
+                }}>
+                    <div style={{ position: 'relative', width: CARD_W, height: CARD_H }}>
+                        {/* 관장 빈 카드 */}
+                        <div
+                            onDoubleClick={openCurator}
+                            style={{
+                                width: CARD_W, height: CARD_H,
+                                border: '2px solid #8B7355',
+                                background: '#FDF8F0',
+                                borderRight: '4px solid #9a7a50',
+                                borderBottom: '4px solid #7a6040',
+                                boxShadow: '3px 3px 0 #c4a87a, 6px 6px 0 #b09060',
+                                borderRadius: 10,
+                                display: 'flex', flexDirection: 'column',
+                                alignItems: 'center', justifyContent: 'center',
+                                cursor: canEdit ? 'pointer' : 'default',
+                            }}
+                        >
+                            <div style={{
+                                width: 180, height: 180, borderRadius: 8,
+                                background: '#DDD0BA',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: 52,
+                            }}>👤</div>
+                        </div>
+
+                        {/* 사방 화살표 */}
+                        <ArrowHint dir="up"    style={{ top: -32 - GAP, left: CARD_W / 2 - 16 }} />
+                        <ArrowHint dir="down"  style={{ top: CARD_H + GAP, left: CARD_W / 2 - 16 }} />
+                        <ArrowHint dir="left"  style={{ top: CARD_H / 2 - 16, left: -32 - GAP }} />
+                        <ArrowHint dir="right" style={{ top: CARD_H / 2 - 16, left: CARD_W + GAP }} />
                     </div>
 
-                    <div className="flex flex-col items-center min-w-max px-4 pb-8">
-                        <div className="flex items-end justify-center gap-10">
-                            <div className="flex items-center gap-1">
-                                <PlaceholderNode label={lang === 'ko' ? '할아버지' : 'Grandfather'} onClick={canEdit ? () => openAddFirst('grandpa') : undefined} />
-                                <PlusConn />
-                                <PlaceholderNode label={lang === 'ko' ? '할머니' : 'Grandmother'} onClick={canEdit ? () => openAddFirst('grandma') : undefined} />
-                            </div>
-                        </div>
-                        <VLine />
-                        <div className="flex items-center gap-1">
-                            <PlaceholderNode label={lang === 'ko' ? '아버지' : 'Father'} onClick={canEdit ? () => openAddFirst('father') : undefined} />
-                            <PlusConn />
-                            <PlaceholderNode label={lang === 'ko' ? '어머니' : 'Mother'} onClick={canEdit ? () => openAddFirst('mother') : undefined} />
-                        </div>
-                        <VLine />
-                        <PlaceholderNode label={lang === 'ko' ? '나' : 'Me'} onClick={canEdit ? () => openAddFirst('me') : undefined} />
+                    {/* 안내문 */}
+                    <div style={{
+                        marginTop: 24,
+                        fontSize: 14,
+                        color: '#C4A84F',
+                        textAlign: 'center',
+                        lineHeight: 1.7,
+                        fontFamily: 'Georgia, "Noto Serif KR", serif',
+                    }}>
+                        이미지카드를 더블클릭하시면<br />
+                        본인정보를 입력하실수 있습니다.
                     </div>
                 </div>
 
                 {modal?.mode === 'addFirst' && renderPersonFormModal(
-                    lang === 'ko' ? '가족 추가' : 'Add Family Member',
+                    lang === 'ko' ? '본인 정보 입력' : 'Enter Your Info',
                     handleAddFirstSubmit,
                 )}
             </div>
@@ -823,6 +908,7 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                     mainId={treeData.mainId}
                     onCardClick={handleCardSingleClick}
                     onCardDoubleClick={handleCardDoubleClick}
+                    onArrowClick={canEdit ? handleArrowClick : undefined}
                     onWormhole={(personId) => {
                         console.log('[FamilyTreeView] onWormhole 콜백:', mainPersonId, '→', String(personId));
                         sessionStorage.removeItem('orgcell_tree_viewport');
@@ -1209,34 +1295,45 @@ export default function FamilyTreeView({ siteId, readOnly = false, role = 'viewe
                                         ))}
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                                {!confirmDelete ? (
-                                    <button onClick={() => setConfirmDelete(true)}
-                                        className="w-full flex items-center justify-center gap-1 py-2 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors">
-                                        <Trash2 size={14} /> {lang === 'ko' ? '이 인물 삭제' : 'Delete this person'}
-                                    </button>
-                                ) : (
-                                    <div className="flex gap-2">
-                                        <button onClick={() => setConfirmDelete(false)}
-                                            className="flex-1 py-2 text-sm font-bold text-gray-500 bg-gray-100 rounded-xl">
-                                            {t.cancel}
-                                        </button>
-                                        <button onClick={handleDelete} disabled={submitting}
-                                            className="flex-1 py-2 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl disabled:opacity-50">
-                                            {lang === 'ko' ? '정말 삭제' : 'Confirm Delete'}
-                                        </button>
+                                {/* 대표정보 1/2/3 */}
+                                {[
+                                    { label: lang === 'ko' ? '대표정보1' : 'Bio 1', val: editBio1, set: setEditBio1 },
+                                    { label: lang === 'ko' ? '대표정보2' : 'Bio 2', val: editBio2, set: setEditBio2 },
+                                    { label: lang === 'ko' ? '대표정보3' : 'Bio 3', val: editBio3, set: setEditBio3 },
+                                ].map(({ label, val, set }) => (
+                                    <div key={label}>
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{label}</label>
+                                        <input type="text" value={val} onChange={e => set(e.target.value)}
+                                            className="w-full bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-xl outline-none border focus:border-amber-500 dark:text-white text-sm"
+                                            placeholder={lang === 'ko' ? '직업, 출신지, 특기 등' : 'Occupation, hometown, etc.'} />
                                     </div>
-                                )}
+                                ))}
                             </div>
 
-                            <div className="flex gap-2 mt-4">
-                                <button onClick={() => { setModal(null); setEditPerson(null); }} disabled={submitting}
-                                    className="flex-1 py-3 text-gray-500 font-bold bg-gray-100 dark:bg-gray-700 rounded-xl">{t.cancel}</button>
-                                <button onClick={handleEditSubmit} disabled={submitting || !editName.trim()}
-                                    className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl shadow-lg transition-colors disabled:opacity-50">
-                                    {submitting ? '...' : (lang === 'ko' ? '저장' : 'Save')}
+                            {/* 하단 버튼: [취소] [제거] [수정] */}
+                            <div className="flex gap-2 mt-5">
+                                <button
+                                    onClick={() => { setModal(null); setEditPerson(null); setConfirmDelete(false); }}
+                                    disabled={submitting}
+                                    className="flex-1 py-2.5 text-gray-500 font-bold bg-gray-100 dark:bg-gray-700 rounded-xl text-sm">
+                                    {t.cancel}
+                                </button>
+                                <button
+                                    onClick={() => confirmDelete ? handleDelete() : setConfirmDelete(true)}
+                                    disabled={submitting}
+                                    className="flex-1 py-2.5 font-bold rounded-xl text-sm transition-colors"
+                                    style={{
+                                        background: confirmDelete ? '#ef4444' : '#fee2e2',
+                                        color: confirmDelete ? '#fff' : '#dc2626',
+                                    }}>
+                                    {submitting && confirmDelete ? '...' : confirmDelete ? (lang === 'ko' ? '정말 제거' : 'Confirm') : (lang === 'ko' ? '제거' : 'Remove')}
+                                </button>
+                                <button
+                                    onClick={handleEditSubmit}
+                                    disabled={submitting || !editName.trim()}
+                                    className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl shadow-lg transition-colors disabled:opacity-50 text-sm">
+                                    {submitting && !confirmDelete ? '...' : (lang === 'ko' ? '수정' : 'Update')}
                                 </button>
                             </div>
                         </div>

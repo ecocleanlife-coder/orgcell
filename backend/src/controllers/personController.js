@@ -583,6 +583,14 @@ exports.createPersonOPS = async (req, res) => {
     );
     const newPerson = personRows[0];
 
+    // 개인 폴더 자동 생성 (§19) — 정수 id 기준
+    try {
+      const personDir = path.join(PERSON_UPLOADS_DIR, String(newPerson.id));
+      fs.mkdirSync(personDir, { recursive: true });
+    } catch (e) {
+      console.error('OPS person folder creation failed:', e.message);
+    }
+
     // 4. person_relations에 관계 저장 (INTEGER ids + site_id)
     const rule = RELATION_RULES[relation_key];
     const [intId1, intId2] = rule.id1 === 'new'

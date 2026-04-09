@@ -107,6 +107,7 @@ export default function FamilyTreeCanvas({
     onWormhole,
     onHome,
     onContextMenu,
+    onArrowClick,
     style,
 }) {
     const [internalSelectedId, setInternalSelectedId] = useState(null);
@@ -237,11 +238,15 @@ export default function FamilyTreeCanvas({
     const mainScreenY = useMemo(() => toScreenY(0), [screenBounds]);
 
     // 관장 중앙 배치 함수 (🏠 버튼 + wormhole 복귀 시 사용)
+    // §23: 관장 부부 박스 중심 = 캔버스 컨테이너 가로 정중앙
+    const containerRef = useRef(null);
     const centerOnMain = useCallback(() => {
         if (!transformRef.current) return;
         const scale = 0.55;
-        const vw = window.innerWidth;
-        const vh = window.innerHeight - 130;
+        // 실제 캔버스 래퍼 너비 사용 (max-w-5xl 등 제한 컨테이너 대응)
+        const wrapperEl = containerRef.current;
+        const vw = wrapperEl ? wrapperEl.clientWidth : window.innerWidth;
+        const vh = wrapperEl ? wrapperEl.clientHeight : (window.innerHeight - 130);
         const tx = vw / 2 - mainCoupleScreenX * scale;
         const ty = vh / 2 - mainScreenY * scale;
         transformRef.current.setTransform(tx, ty, scale);
@@ -251,8 +256,9 @@ export default function FamilyTreeCanvas({
     const autoFit = useCallback(() => {
         if (!transformRef.current || visibleNodes.length === 0) return;
         const PADDING = 80; // px (상하좌우 여백)
-        const vw = window.innerWidth;
-        const vh = window.innerHeight - 130;
+        const wrapperEl = containerRef.current;
+        const vw = wrapperEl ? wrapperEl.clientWidth : window.innerWidth;
+        const vh = wrapperEl ? wrapperEl.clientHeight : (window.innerHeight - 130);
 
         // 각 노드의 스크린 좌표 (toScreenX/Y 인라인 계산)
         const screenXs = visibleNodes.map(n => n.x - bounds.minX);
@@ -448,6 +454,7 @@ export default function FamilyTreeCanvas({
 
     return (
         <div
+            ref={containerRef}
             style={{
                 position: 'relative',
                 width: '100%',
@@ -605,6 +612,7 @@ export default function FamilyTreeCanvas({
                                                     onCardClick={handleCardClick}
                                                     onCardDoubleClick={handleCardDoubleClick}
                                                     onContextMenu={onContextMenu}
+                                                    onArrowClick={onArrowClick}
                                                 />
                                             </motion.div>
                                         );
@@ -637,6 +645,7 @@ export default function FamilyTreeCanvas({
                                                 onCardClick={handleCardClick}
                                                 onCardDoubleClick={handleCardDoubleClick}
                                                 onContextMenu={onContextMenu}
+                                                onArrowClick={onArrowClick}
                                             />
                                         </motion.div>
                                     );

@@ -709,25 +709,24 @@ function layoutCoupleBlock(mainId, maps, byId, depthMap, connectedIds) {
     const wifeId = byId[mainId]?.gender === 'M' ? getSpouse(mainId) : mainId;
 
     function placeSiblingsOf(personId, direction) {
+        // direction: -1 = 왼쪽 (남편 형제), +1 = 오른쪽 (아내 형제)
         if (!personId) return;
         const sibs = getSiblings(personId, maps, byId).filter(s => connSet.has(s) && !positions[s]);
         if (sibs.length === 0) return;
-
-        // §3.4 Zone-based: 자손 구역(min/max X) 경계에 밀착 배치 (extra 오프셋 없음)
-        const zone = computeDescZone(mainId);
 
         for (const sibId of sibs) {
             if (positions[sibId]) continue;
             const width = subtreeSlots(sibId);
 
-            // 같은 Y행 노드 + 자손 구역 경계 중 더 바깥쪽 edge 사용
-            const sameYXs = Object.entries(positions)
-                .filter(([, pos]) => pos.y === 0)
-                .map(([, pos]) => pos.x);
+            // y=0 행에 배치된 노드들의 현재 최외곽 x 좌표 기준으로 밀착 배치
+            // (computeDescZone 제거: 자녀 x좌표가 zone에 포함되어 방향이 틀어지는 버그 방지)
+            const sameYXs = Object.values(positions)
+                .filter(pos => pos.y === 0)
+                .map(pos => pos.x);
 
             const edge = direction === -1
-                ? Math.min(zone.min, ...sameYXs) - SLOT_W
-                : Math.max(zone.max, ...sameYXs) + SLOT_W;
+                ? Math.min(...sameYXs) - SLOT_W   // 왼쪽 끝에서 더 왼쪽
+                : Math.max(...sameYXs) + SLOT_W;  // 오른쪽 끝에서 더 오른쪽
 
             const sibCenter = direction === -1
                 ? edge - ((width - 1) * SLOT_W) / 2

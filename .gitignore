@@ -1,6 +1,10 @@
 node_modules/
 .env
+.env.local
 .tg-env
+db_backup/
+uploads_local/
+start_local.bat
 *.pem
 dist/
 gcp_token.json

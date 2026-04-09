@@ -9,6 +9,7 @@
  * - 20px 시각적 3D 두께 (box-shadow 블록)
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { maskName, maskInitials } from '../../utils/privacyMask';
 import RefusedPersonBox from './RefusedPersonBox';
 import useMediaQuery from '../../hooks/useMediaQuery';
@@ -364,6 +365,18 @@ function InsetFrame() {
     );
 }
 
+// ── 사방 화살표 버튼 (부모/자녀/배우자 추가) ──
+const ARROW_BTN = {
+    position: 'absolute',
+    width: 28, height: 28,
+    borderRadius: '50%',
+    border: '1px solid #C4A882',
+    background: 'rgba(196,168,130,0.15)',
+    cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    zIndex: 10, padding: 0,
+};
+
 // ── 메인 컴포넌트 ──
 function FolderCard({
     node,
@@ -372,6 +385,7 @@ function FolderCard({
     onClick,
     onDoubleClick,
     onContextMenu,
+    onArrowClick,
     style: externalStyle,
 }) {
     const { data, rels } = node;
@@ -462,6 +476,11 @@ function FolderCard({
     if (isSelected && !isMainPerson) {
         stateOverride.border = `2px solid ${FRAME_COLOR}`;
     }
+
+    // 화살표 표시 조건 (onArrowClick 있을 때만 = canEdit)
+    const hasParents = (node.rels?.parents?.length ?? 0) > 0;
+    const hasSpouse  = (node.rels?.spouses?.length ?? 0) > 0;
+    const gender     = maskedData.gender; // 'M' | 'F'
 
     return (
         <div
@@ -568,6 +587,50 @@ function FolderCard({
                 )}
 
             </div>
+
+            {/* 사방 화살표: canEdit 시에만 (onArrowClick prop 존재 여부로 판단) */}
+            {onArrowClick && (
+                <>
+                    {/* ↑ 부모 없으면 표시 */}
+                    {!hasParents && (
+                        <button
+                            title="부모 추가"
+                            onClick={(e) => { e.stopPropagation(); onArrowClick(node.id, 'up'); }}
+                            style={{ ...ARROW_BTN, top: -38, left: (CARD_SIZE - 28) / 2 }}
+                        >
+                            <ChevronUp size={16} strokeWidth={2.5} color="#8B6914" />
+                        </button>
+                    )}
+                    {/* ↓ 항상 표시 */}
+                    <button
+                        title="자녀 추가"
+                        onClick={(e) => { e.stopPropagation(); onArrowClick(node.id, 'down'); }}
+                        style={{ ...ARROW_BTN, top: CARD_SIZE + TAB_H + 8, left: (CARD_SIZE - 28) / 2 }}
+                    >
+                        <ChevronDown size={16} strokeWidth={2.5} color="#8B6914" />
+                    </button>
+                    {/* ← 여성 카드, 배우자 없으면 표시 */}
+                    {gender === 'F' && !hasSpouse && (
+                        <button
+                            title="배우자 추가"
+                            onClick={(e) => { e.stopPropagation(); onArrowClick(node.id, 'left'); }}
+                            style={{ ...ARROW_BTN, top: TAB_H + (CARD_SIZE - 28) / 2, left: -36 }}
+                        >
+                            <ChevronLeft size={16} strokeWidth={2.5} color="#8B6914" />
+                        </button>
+                    )}
+                    {/* → 남성 카드, 배우자 없으면 표시 */}
+                    {gender === 'M' && !hasSpouse && (
+                        <button
+                            title="배우자 추가"
+                            onClick={(e) => { e.stopPropagation(); onArrowClick(node.id, 'right'); }}
+                            style={{ ...ARROW_BTN, top: TAB_H + (CARD_SIZE - 28) / 2, left: CARD_SIZE + 8 }}
+                        >
+                            <ChevronRight size={16} strokeWidth={2.5} color="#8B6914" />
+                        </button>
+                    )}
+                </>
+            )}
         </div>
     );
 }

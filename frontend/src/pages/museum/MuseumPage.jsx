@@ -152,6 +152,9 @@ export default function MuseumPage({ initialTab }) {
     // 온보딩
     const [showOnboarding, setShowOnboarding] = useState(false);
 
+    // §22 전시 기준 안내 모달
+    const [showGuide, setShowGuide] = useState(false);
+
     // 업로드 모달
     const [showUploadModal, setShowUploadModal] = useState(false);
     const [uploadInitialDest, setUploadInitialDest] = useState(null);
@@ -221,6 +224,15 @@ export default function MuseumPage({ initialTab }) {
             }
         }
     }, [role, site]);
+
+    // ── §22 전시 기준 안내 1회 표시 ──
+    useEffect(() => {
+        if (!subdomain) return;
+        const key = `orgcell_guide_shown_${subdomain}`;
+        if (!localStorage.getItem(key)) {
+            setShowGuide(true);
+        }
+    }, [subdomain]);
 
     // ── 방문 기록 ──
     useEffect(() => {
@@ -400,6 +412,18 @@ export default function MuseumPage({ initialTab }) {
                         </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
+                        {/* §6: 자료실 버튼 — owner만 표시 */}
+                        {role === 'owner' && (
+                            <button
+                                onClick={() => navigate(`/${subdomain}/archive`)}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:brightness-95"
+                                style={{ background: '#FDF8F0', color: '#8B7355', border: '1px solid #C4A882' }}
+                                title="자료실"
+                            >
+                                <GalleryThumbnails size={13} />
+                                자료실
+                            </button>
+                        )}
                         {role === 'owner' && installPrompt && !isInstalled && (
                             <button
                                 onClick={handleInstall}
@@ -428,6 +452,23 @@ export default function MuseumPage({ initialTab }) {
                                 <Settings size={16} />
                             </button>
                         )}
+                        {/* §22 전시 기준 안내 [?] 버튼 */}
+                        <button
+                            onClick={() => setShowGuide(true)}
+                            title={lang === 'en' ? 'Exhibition guide' : '전시 기준 안내'}
+                            style={{
+                                width: 28, height: 28,
+                                borderRadius: '50%',
+                                border: '1px solid #C4A882',
+                                background: '#FDF8F0',
+                                color: '#8B7355',
+                                fontSize: 13,
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                flexShrink: 0,
+                            }}
+                        >?</button>
                         <button
                             onClick={() => navigate('/help')}
                             className="w-8 h-8 rounded-full flex items-center justify-center"
@@ -489,6 +530,7 @@ export default function MuseumPage({ initialTab }) {
                                 initialPersonId={visitPersonId}
                                 subdomain={subdomain}
                                 onMainPersonChange={setActivePersonName}
+                                onShowGuide={() => setShowGuide(true)}
                             />
                         </div>
                     </Section>
@@ -741,6 +783,84 @@ export default function MuseumPage({ initialTab }) {
                     siteId={site?.id}
                     onClose={() => setShowAccessRequests(false)}
                 />
+            )}
+
+            {/* ════ §22 전시 기준 안내 모달 ════ */}
+            {showGuide && (
+                <div
+                    onClick={() => setShowGuide(false)}
+                    style={{
+                        position: 'fixed', inset: 0, zIndex: 2000,
+                        background: 'rgba(0,0,0,0.6)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '16px',
+                    }}
+                >
+                    <div
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                            background: '#FDF8F0',
+                            border: '2px solid #C4A882',
+                            borderRight: '3px solid #8B7355',
+                            borderBottom: '3px solid #8B7355',
+                            borderRadius: '12px',
+                            padding: '28px 24px 24px',
+                            maxWidth: '380px',
+                            width: '100%',
+                            boxShadow: '4px 4px 0 #c4a87a, 8px 8px 20px rgba(0,0,0,0.25)',
+                            fontFamily: 'Georgia, "Noto Serif KR", serif',
+                        }}
+                    >
+                        <h2 style={{ fontSize: 16, fontWeight: 'bold', color: '#3a3020', marginBottom: 16 }}>
+                            🏛 이 박물관의 전시 기준
+                        </h2>
+                        <div style={{ fontSize: 13, color: '#5a4a30', lineHeight: 1.9 }}>
+                            <p style={{ fontWeight: 'bold', color: '#3a6a30', marginBottom: 4 }}>✅ 전시되는 분들</p>
+                            <ul style={{ paddingLeft: 16, marginBottom: 14, listStyle: 'disc' }}>
+                                <li>관장 본인과 배우자</li>
+                                <li>자녀와 그 배우자, 손주까지</li>
+                                <li>형제자매와 그 배우자</li>
+                                <li>배우자의 형제자매와 그 배우자</li>
+                                <li>부모님 (양가)</li>
+                            </ul>
+                            <p style={{ fontWeight: 'bold', color: '#7a5a30', marginBottom: 4 }}>📦 수장고 보관 (전시 제외)</p>
+                            <ul style={{ paddingLeft: 16, marginBottom: 14, listStyle: 'disc' }}>
+                                <li>조부모 이상 윗세대</li>
+                                <li>삼촌·고모·이모·외삼촌 등</li>
+                            </ul>
+                            <p style={{ color: '#6a5a40', fontSize: 12, borderTop: '1px solid #e8d8c0', paddingTop: 10 }}>
+                                💾 수장고 보관 분들의 기록은 저장되며,<br />
+                                해당 분들의 박물관에서 전시됩니다.
+                            </p>
+                        </div>
+                        <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
+                            <button
+                                onClick={() => {
+                                    localStorage.setItem(`orgcell_guide_shown_${subdomain}`, '1');
+                                    setShowGuide(false);
+                                }}
+                                style={{
+                                    padding: '8px 16px', fontSize: 12, fontWeight: 'bold',
+                                    background: '#e8e0d0', border: 'none', borderRadius: 6,
+                                    color: '#5a5040', cursor: 'pointer',
+                                }}
+                            >
+                                다시 보지 않기
+                            </button>
+                            <button
+                                onClick={() => setShowGuide(false)}
+                                style={{
+                                    padding: '8px 24px', fontSize: 13, fontWeight: 'bold',
+                                    background: '#C4A882', border: 'none',
+                                    borderRight: '2px solid #8B7355', borderBottom: '2px solid #8B7355',
+                                    borderRadius: 6, color: '#fff', cursor: 'pointer',
+                                }}
+                            >
+                                확인
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* ════ 바이럴 배너 (방문자용) ════ */}

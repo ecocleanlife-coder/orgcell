@@ -23,6 +23,7 @@ function CoupleBlock({
     onCardClick,
     onCardDoubleClick,
     onContextMenu,
+    onArrowClick,
     style: externalStyle,
 }) {
     const isCouple = !!(husbandNode && wifeNode);
@@ -76,6 +77,7 @@ function CoupleBlock({
                             onClick={onCardClick}
                             onDoubleClick={onCardDoubleClick}
                             onContextMenu={onContextMenu}
+                            onArrowClick={onArrowClick}
                         />
                     </div>
 
@@ -88,6 +90,7 @@ function CoupleBlock({
                             onClick={onCardClick}
                             onDoubleClick={onCardDoubleClick}
                             onContextMenu={onContextMenu}
+                            onArrowClick={onArrowClick}
                         />
                     </div>
                 </>
@@ -101,6 +104,7 @@ function CoupleBlock({
                         onClick={onCardClick}
                         onDoubleClick={onCardDoubleClick}
                         onContextMenu={onContextMenu}
+                        onArrowClick={onArrowClick}
                     />
                 </div>
             )}
@@ -114,6 +118,7 @@ export default React.memo(CoupleBlock, (prev, next) => {
         prev.wifeNode?.id === next.wifeNode?.id &&
         prev.isMainCouple === next.isMainCouple &&
         prev.selectedId === next.selectedId &&
-        prev.childrenIds?.length === next.childrenIds?.length
+        prev.childrenIds?.length === next.childrenIds?.length &&
+        prev.onArrowClick === next.onArrowClick
     );
 });
