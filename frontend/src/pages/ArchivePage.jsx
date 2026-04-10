@@ -96,6 +96,8 @@ export default function ArchivePage() {
 
   const museumName  = museum?.museum_name ?? museum?.name ?? `${subdomain} 가족유산박물관`;
   const curatorNode = nodes.find(n => n.personId === curatorId) ?? null;
+  // museum(siteId) + fetchTree(curatorId) 모두 로드된 후에만 CRUD 활성
+  const dataReady   = !!siteId && !!curatorId;
 
   async function handleLogout() {
     await logout();
@@ -140,6 +142,7 @@ export default function ArchivePage() {
             subdomain={subdomain}
             siteId={siteId}
             curatorNode={curatorNode}
+            ready={dataReady}
           />
         </main>
 
@@ -262,9 +265,9 @@ function MergeReportModal({ alerts, siteId, onClose, onReported }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // 활성 섹션 라우터
 // ══════════════════════════════════════════════════════════════════════════════
-function ActiveSection({ sectionKey, subdomain, siteId, curatorNode }) {
+function ActiveSection({ sectionKey, subdomain, siteId, curatorNode, ready }) {
   switch (sectionKey) {
-    case 'photo':         return <PhotoSection        siteId={siteId} curatorNode={curatorNode} />;
+    case 'photo':         return <PhotoSection        siteId={siteId} curatorNode={curatorNode} ready={ready} />;
     case 'document':      return <TextUploadSection   label="주요자료" type="document"      siteId={siteId} />;
     case 'biography':     return <TextUploadSection   label="주요약력" type="biography"     siteId={siteId} />;
     case 'autobiography': return <TextUploadSection   label="자서전"   type="autobiography" siteId={siteId} />;
@@ -279,7 +282,7 @@ function ActiveSection({ sectionKey, subdomain, siteId, curatorNode }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // 사진자료실 (§8: 사진 업로드 + 인물 정보 입력)
 // ══════════════════════════════════════════════════════════════════════════════
-function PhotoSection({ siteId, curatorNode }) {
+function PhotoSection({ siteId, curatorNode, ready }) {
   const { invalidate } = useTreeStore();
   const fileRef   = useRef(null);
   const dragRef   = useRef(null);   // { startX, startY, startOX, startOY }
@@ -305,12 +308,24 @@ function PhotoSection({ siteId, curatorNode }) {
     return `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   }
 
+  // 이름(한글) → 성(1자) / 이름(나머지) 분리
+  function splitName(n) {
+    if (!n) return { last: '', first: '' };
+    return { last: n[0] ?? '', first: n.slice(1) };
+  }
+
   const initBirth = splitDate(curatorNode?.birthDate);
   const initDeath = splitDate(curatorNode?.deathDate);
+  const initName  = splitName(curatorNode?.name);
 
   // 인물 정보 폼 상태 (curatorNode 값으로 초기화)
   const [form, setForm] = useState({
-    name:        curatorNode?.name        ?? '',
+    name_last:        initName.last,
+    name_first:       initName.first,
+    name_en:          curatorNode?.nameEn          ?? '',
+    name_legal_last:  curatorNode?.nameLegalLast   ?? '',
+    name_legal_first: curatorNode?.nameLegalFirst  ?? '',
+    name_other:       curatorNode?.nameOther       ?? '',
     birth_year:  initBirth.year,
     birth_month: initBirth.month,
     birth_day:   initBirth.day,
@@ -330,8 +345,14 @@ function PhotoSection({ siteId, curatorNode }) {
   useEffect(() => {
     const b = splitDate(curatorNode?.birthDate);
     const d = splitDate(curatorNode?.deathDate);
+    const n = splitName(curatorNode?.name);
     setForm({
-      name:        curatorNode?.name        ?? '',
+      name_last:        n.last,
+      name_first:       n.first,
+      name_en:          curatorNode?.nameEn          ?? '',
+      name_legal_last:  curatorNode?.nameLegalLast   ?? '',
+      name_legal_first: curatorNode?.nameLegalFirst  ?? '',
+      name_other:       curatorNode?.nameOther       ?? '',
       birth_year:  b.year,
       birth_month: b.month,
       birth_day:   b.day,
@@ -403,14 +424,19 @@ function PhotoSection({ siteId, curatorNode }) {
 
   // §9: [생성] — curatorNode 없을 때 활성
   async function handleCreate() {
-    if (!form.name.trim()) { toast.error('이름을 입력하세요.'); return; }
+    const fullName = (form.name_last + form.name_first).trim();
+    if (!fullName) { toast.error('이름을 입력하세요.'); return; }
     setSaving(true);
     try {
       await api(`/api/persons/${siteId}`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name:        form.name.trim(),
+          name:             fullName,
+          name_en:          form.name_en          || undefined,
+          name_legal_last:  form.name_legal_last  || undefined,
+          name_legal_first: form.name_legal_first || undefined,
+          name_other:       form.name_other       || undefined,
           birth_date:  joinDate(form.birth_year, form.birth_month, form.birth_day),
           birth_lunar: form.birth_lunar || undefined,
           gender:      form.gender      || undefined,
@@ -430,14 +456,19 @@ function PhotoSection({ siteId, curatorNode }) {
 
   // §9: [수정] — curatorNode 있을 때 활성
   async function handleUpdate() {
-    if (!form.name.trim()) { toast.error('이름을 입력하세요.'); return; }
+    const fullName = (form.name_last + form.name_first).trim();
+    if (!fullName) { toast.error('이름을 입력하세요.'); return; }
     setSaving(true);
     try {
       await api(`/api/persons/${siteId}/${curatorNode.id}`, {
         method:  'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name:        form.name.trim(),
+          name:             fullName,
+          name_en:          form.name_en          || null,
+          name_legal_last:  form.name_legal_last  || null,
+          name_legal_first: form.name_legal_first || null,
+          name_other:       form.name_other       || null,
           birth_date:  joinDate(form.birth_year, form.birth_month, form.birth_day) ?? null,
           birth_lunar: form.birth_lunar || null,
           gender:      form.gender      || null,
@@ -500,6 +531,7 @@ function PhotoSection({ siteId, curatorNode }) {
               alt="미리보기"
               style={{ ...s.editorImg, transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }}
               draggable={false}
+              onError={e => { e.currentTarget.style.opacity = '0.3'; }}
             />
             <div
               data-testid="photo-resize-handle"
@@ -527,11 +559,51 @@ function PhotoSection({ siteId, curatorNode }) {
       <div style={s.formDivider} />
 
       <label style={s.fieldLabel}>이름 <span style={s.required}>*</span></label>
+      <div style={s.nameRow}>
+        <input
+          style={{ ...s.textInput, ...s.nameLastInput }}
+          value={form.name_last}
+          onChange={e => setField('name_last', e.target.value)}
+          placeholder="성(姓)"
+          maxLength={5}
+        />
+        <input
+          style={{ ...s.textInput, flex: 1, marginBottom: 0 }}
+          value={form.name_first}
+          onChange={e => setField('name_first', e.target.value)}
+          placeholder="성함을 입력하세요"
+        />
+      </div>
+      <input
+        style={{ ...s.textInput, marginTop: 4 }}
+        value={form.name_en}
+        onChange={e => setField('name_en', e.target.value)}
+        placeholder="영문 이름 (예: Kim Gildong)"
+      />
+
+      <label style={{ ...s.fieldLabel, marginTop: 6 }}>법적 이름</label>
+      <div style={s.nameRow}>
+        <input
+          style={{ ...s.textInput, ...s.nameLastInput }}
+          value={form.name_legal_last}
+          onChange={e => setField('name_legal_last', e.target.value)}
+          placeholder="성"
+          maxLength={20}
+        />
+        <input
+          style={{ ...s.textInput, flex: 1, marginBottom: 0 }}
+          value={form.name_legal_first}
+          onChange={e => setField('name_legal_first', e.target.value)}
+          placeholder="이름 (법적 등록명)"
+        />
+      </div>
+
+      <label style={{ ...s.fieldLabel, marginTop: 6 }}>기타 이름 / 호 / 아명</label>
       <input
         style={s.textInput}
-        value={form.name}
-        onChange={e => setField('name', e.target.value)}
-        placeholder="성함을 입력하세요"
+        value={form.name_other}
+        onChange={e => setField('name_other', e.target.value)}
+        placeholder="예: 호, 아명, 영문 별명"
       />
 
       <label style={s.fieldLabel}>생년월일</label>
@@ -616,24 +688,25 @@ function PhotoSection({ siteId, curatorNode }) {
       />
 
       {/* §9 버튼: 미등록 → [생성] 활성 / 등록됨 → [수정][제거] 활성 */}
+      {!ready && <p style={s.hint}>데이터 로드 중…</p>}
       <div style={{ ...s.rowBetween, marginTop: 16 }}>
         <button
-          style={{ ...s.crudBtn, ...s.createBtn, ...(!hasPerson ? {} : s.btnDisabled) }}
-          disabled={hasPerson || saving}
+          style={{ ...s.crudBtn, ...s.createBtn, ...(!ready || !hasPerson ? {} : s.btnDisabled) }}
+          disabled={!ready || hasPerson || saving}
           onClick={handleCreate}
         >
           {saving && !hasPerson ? '생성 중…' : '생성'}
         </button>
         <button
-          style={{ ...s.crudBtn, ...s.updateBtn, ...(hasPerson ? {} : s.btnDisabled) }}
-          disabled={!hasPerson || saving}
+          style={{ ...s.crudBtn, ...s.updateBtn, ...(!ready || hasPerson ? {} : s.btnDisabled) }}
+          disabled={!ready || !hasPerson || saving}
           onClick={handleUpdate}
         >
           {saving && hasPerson ? '수정 중…' : '수정'}
         </button>
         <button
-          style={{ ...s.crudBtn, ...s.deleteBtn, ...(hasPerson ? {} : s.btnDisabled) }}
-          disabled={!hasPerson || deleting}
+          style={{ ...s.crudBtn, ...s.deleteBtn, ...(!ready || hasPerson ? {} : s.btnDisabled) }}
+          disabled={!ready || !hasPerson || deleting}
           onClick={handleDelete}
         >
           {deleting ? '삭제 중…' : '제거'}
@@ -968,6 +1041,8 @@ const s = {
   anchor:    { color: '#8B7355', textDecoration: 'underline' },
 
   textInput:   { width: '100%', padding: '7px 10px', border: '1px solid #C4A882', borderRadius: 4, fontSize: 13, color: '#333', background: '#FAFAF5', boxSizing: 'border-box', marginBottom: 8 },
+  nameRow:      { display: 'flex', gap: 6, marginBottom: 4 },
+  nameLastInput: { width: 72, flexShrink: 0, marginBottom: 0 },
   radioRow:    { display: 'flex', gap: 16, marginBottom: 8 },
   dateRow:     { display: 'flex', gap: 6, marginBottom: 6 },
   dateInput:   { flex: 1, padding: '7px 6px', border: '1px solid #C4A882', borderRadius: 4, fontSize: 13, color: '#333', background: '#FAFAF5', boxSizing: 'border-box', textAlign: 'center' },

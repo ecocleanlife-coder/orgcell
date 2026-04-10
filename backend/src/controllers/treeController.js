@@ -27,7 +27,9 @@ async function getCurator(siteId, userId) {
   const { rows } = await db.query(
     `SELECT id, person_id, oc_id, name, name_en, name_suffix, gender,
             birth_date, birth_year, death_date, death_year,
-            is_deceased, photo_url, bio1, bio2, bio3,
+            is_deceased, birth_lunar, death_lunar,
+            photo_url, bio1, bio2, bio3,
+            name_legal_last, name_legal_first, name_other,
             match_status
      FROM persons
      WHERE site_id = $1
@@ -46,6 +48,7 @@ async function getAllPersons(siteId) {
             p.gender, p.birth_date, p.birth_year, p.death_date, p.death_year,
             p.is_deceased, p.birth_lunar, p.death_lunar,
             p.photo_url, p.bio1, p.bio2, p.bio3,
+            p.name_legal_last, p.name_legal_first, p.name_other,
             p.parent1_id, p.parent2_id, p.spouse_id,
             p.match_status, p.privacy_level
      FROM persons p
