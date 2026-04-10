@@ -206,8 +206,9 @@ function testAuthMe() {
   section('5. 인증된 GET /api/auth/me (EC2 내부)');
   const data = ec2Curl('GET', '/api/auth/me');
   if (data.__error) { fail('GET /api/auth/me (JWT)', data.__error); return; }
-  if (data.user?.id === TEST_USER || data.id === TEST_USER) {
-    ok(`GET /api/auth/me → user.id=${data.user?.id ?? data.id}`);
+  const uid = data.data?.id ?? data.user?.id ?? data.id;
+  if (uid === TEST_USER) {
+    ok(`GET /api/auth/me → user.id=${uid}`);
   } else {
     fail('GET /api/auth/me (JWT)', JSON.stringify(data)?.slice(0, 100));
   }
