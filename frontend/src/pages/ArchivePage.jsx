@@ -96,8 +96,8 @@ export default function ArchivePage() {
 
   const museumName  = museum?.museum_name ?? museum?.name ?? `${subdomain} 가족유산박물관`;
   const curatorNode = nodes.find(n => n.personId === curatorId) ?? null;
-  // museum(siteId) + fetchTree(curatorId) 모두 로드된 후에만 CRUD 활성
-  const dataReady   = !!siteId && !!curatorId;
+  // siteId 로드 후 CRUD 활성 — 신규 박물관(curatorId=null)도 [생성] 가능
+  const dataReady   = !!siteId;
 
   async function handleLogout() {
     await logout();
@@ -313,16 +313,24 @@ function PhotoSection({ siteId, curatorNode, ready }) {
     if (!n) return { last: '', first: '' };
     return { last: n[0] ?? '', first: n.slice(1) };
   }
+  // 영문이름 → LastName / FirstName 분리 (첫 단어=성)
+  function splitNameEn(n) {
+    if (!n) return { last: '', first: '' };
+    const parts = n.trim().split(/\s+/);
+    return { last: parts[0] ?? '', first: parts.slice(1).join(' ') };
+  }
 
-  const initBirth = splitDate(curatorNode?.birthDate);
-  const initDeath = splitDate(curatorNode?.deathDate);
-  const initName  = splitName(curatorNode?.name);
+  const initBirth  = splitDate(curatorNode?.birthDate);
+  const initDeath  = splitDate(curatorNode?.deathDate);
+  const initName   = splitName(curatorNode?.name);
+  const initNameEn = splitNameEn(curatorNode?.nameEn ?? '');
 
   // 인물 정보 폼 상태 (curatorNode 값으로 초기화)
   const [form, setForm] = useState({
     name_last:        initName.last,
     name_first:       initName.first,
-    name_en:          curatorNode?.nameEn          ?? '',
+    name_en_last:     initNameEn.last,
+    name_en_first:    initNameEn.first,
     name_legal_last:  curatorNode?.nameLegalLast   ?? '',
     name_legal_first: curatorNode?.nameLegalFirst  ?? '',
     name_other:       curatorNode?.nameOther       ?? '',
@@ -343,13 +351,15 @@ function PhotoSection({ siteId, curatorNode, ready }) {
 
   // curatorNode 변경 시 폼 동기화
   useEffect(() => {
-    const b = splitDate(curatorNode?.birthDate);
-    const d = splitDate(curatorNode?.deathDate);
-    const n = splitName(curatorNode?.name);
+    const b  = splitDate(curatorNode?.birthDate);
+    const d  = splitDate(curatorNode?.deathDate);
+    const n  = splitName(curatorNode?.name);
+    const ne = splitNameEn(curatorNode?.nameEn ?? '');
     setForm({
       name_last:        n.last,
       name_first:       n.first,
-      name_en:          curatorNode?.nameEn          ?? '',
+      name_en_last:     ne.last,
+      name_en_first:    ne.first,
       name_legal_last:  curatorNode?.nameLegalLast   ?? '',
       name_legal_first: curatorNode?.nameLegalFirst  ?? '',
       name_other:       curatorNode?.nameOther       ?? '',
@@ -367,7 +377,8 @@ function PhotoSection({ siteId, curatorNode, ready }) {
       bio2:        curatorNode?.bio2        ?? '',
       bio3:        curatorNode?.bio3        ?? '',
     });
-    setPreview(curatorNode?.photoUrl ?? null);
+    const ph = curatorNode?.photoUrl ?? null;
+    setPreview(ph && !ph.startsWith('blob:') ? `${ph}?v=${Date.now()}` : ph);
     setOffset({ x: 0, y: 0 });
     setScale(1.0);
   }, [curatorNode?.personId]);
@@ -415,7 +426,8 @@ function PhotoSection({ siteId, curatorNode, ready }) {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.message || '업로드 실패');
-      setPreview(json.data?.photo_url ?? URL.createObjectURL(file));
+      const rawUrl = json.data?.photo_url ?? URL.createObjectURL(file);
+      setPreview(rawUrl.startsWith('blob:') ? rawUrl : `${rawUrl}?v=${Date.now()}`);
       toast.success('사진이 업로드되었습니다.');
       await invalidate();
     } catch (e) { toast.error(e.message); }
@@ -433,7 +445,7 @@ function PhotoSection({ siteId, curatorNode, ready }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name:             fullName,
-          name_en:          form.name_en          || undefined,
+          name_en:          [form.name_en_last, form.name_en_first].filter(Boolean).join(' ') || undefined,
           name_legal_last:  form.name_legal_last  || undefined,
           name_legal_first: form.name_legal_first || undefined,
           name_other:       form.name_other       || undefined,
@@ -465,7 +477,7 @@ function PhotoSection({ siteId, curatorNode, ready }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name:             fullName,
-          name_en:          form.name_en          || null,
+          name_en:          [form.name_en_last, form.name_en_first].filter(Boolean).join(' ') || null,
           name_legal_last:  form.name_legal_last  || null,
           name_legal_first: form.name_legal_first || null,
           name_other:       form.name_other       || null,
@@ -574,12 +586,21 @@ function PhotoSection({ siteId, curatorNode, ready }) {
           placeholder="성함을 입력하세요"
         />
       </div>
-      <input
-        style={{ ...s.textInput, marginTop: 4 }}
-        value={form.name_en}
-        onChange={e => setField('name_en', e.target.value)}
-        placeholder="영문 이름 (예: Kim Gildong)"
-      />
+      <div style={{ ...s.nameRow, marginTop: 4 }}>
+        <input
+          style={{ ...s.textInput, ...s.nameLastInput, marginBottom: 0 }}
+          value={form.name_en_last}
+          onChange={e => setField('name_en_last', e.target.value)}
+          placeholder="Last"
+          maxLength={40}
+        />
+        <input
+          style={{ ...s.textInput, flex: 1, marginBottom: 0 }}
+          value={form.name_en_first}
+          onChange={e => setField('name_en_first', e.target.value)}
+          placeholder="First (영문 이름)"
+        />
+      </div>
 
       <label style={{ ...s.fieldLabel, marginTop: 6 }}>법적 이름</label>
       <div style={s.nameRow}>
