@@ -109,7 +109,7 @@ export default function OnboardingPage() {
       const subdomain = sdRes.subdomain;
 
       // 2. 박물관(site) 생성
-      const siteRes = await apiFetch('/api/site', {
+      const siteRes = await apiFetch('/api/sites', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subdomain }),
