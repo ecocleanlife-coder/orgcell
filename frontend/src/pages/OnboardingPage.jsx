@@ -64,8 +64,8 @@ export default function OnboardingPage() {
     if (!val.trim()) { setBonGwanList([]); return; }
     debounceRef.current = setTimeout(async () => {
       try {
-        const data = await apiFetch(`/api/subdomain/bon-gwan?q=${encodeURIComponent(val)}`);
-        setBonGwanList(Array.isArray(data) ? data : (data.list ?? []));
+        const data = await apiFetch(`/api/subdomain/bon-gwan?surnameKo=${encodeURIComponent(val)}`);
+        setBonGwanList(Array.isArray(data) ? data : (data.bonGwanList ?? []));
       } catch (_) { setBonGwanList([]); }
     }, 300);
   }, []);
@@ -102,10 +102,8 @@ export default function OnboardingPage() {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          lastName:    lastName.trim(),
-          firstName:   firstName.trim(),
-          bonGwanId:   bonGwanSelected?.id ?? null,
-          bonGwanText: bonGwanSelected ? null : (bonGwanQuery.trim() || null),
+          surnameKo:  lastName.trim(),
+          bonGwanKo:  bonGwanSelected?.name ?? (bonGwanQuery.trim() || null),
         }),
       });
       const subdomain = sdRes.subdomain;
@@ -135,8 +133,7 @@ export default function OnboardingPage() {
           birth_lunar: lunarBirth,
           eng_last:    engLast.trim()  || null,
           eng_first:   engFirst.trim() || null,
-          bonGwanId:   bonGwanSelected?.id ?? null,
-          bonGwanText: bonGwanSelected ? null : (bonGwanQuery.trim() || null),
+          bonGwanKo:   bonGwanSelected?.name ?? (bonGwanQuery.trim() || null),
           isCurator:   true,
         }),
       });
@@ -187,7 +184,7 @@ export default function OnboardingPage() {
             lastName={lastName} firstName={firstName} gender={gender}
             birthYear={birthYear} birthMonth={birthMonth} birthDay={birthDay}
             lunarBirth={lunarBirth} engLast={engLast} engFirst={engFirst}
-            bonGwan={bonGwanSelected?.name ?? (skipBonGwan ? '나중에 입력' : '—')}
+            bonGwan={bonGwanSelected?.name ?? (skipBonGwan ? '나중에 입력' : (bonGwanQuery.trim() || '—'))}
           />
         )}
 
