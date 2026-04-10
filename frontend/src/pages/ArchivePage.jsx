@@ -415,6 +415,9 @@ function PhotoSection({ siteId, curatorNode, ready }) {
   function handleResizeEnd() { resizeRef.current = null; }
 
   async function handleFile(file) {
+    console.log('[handleFile] called', file);
+    console.log('[handleFile] curatorNode', curatorNode);
+    console.log('[handleFile] siteId', siteId);
     if (!file || !siteId || !curatorNode) return;
     setUploading(true);
     try {
