@@ -35,6 +35,7 @@ async function api(path, opts = {}) {
 
 // ─── 우측 메뉴 정의 (§8) ─────────────────────────────────────────────────────
 const CONTENT_BTNS = [
+  { key: 'info',          label: '인물정보'   },
   { key: 'photo',         label: '사진자료실' },
   { key: 'document',      label: '주요자료실' },
   { key: 'biography',     label: '주요약력'   },
@@ -52,7 +53,7 @@ export default function ArchivePage() {
   const { isAuthenticated, isCuratorOf, lang, setLang, logout, fetchMe } = useAuthStore();
   const { nodes, siteId, curatorId, fetchTree, setSiteId } = useTreeStore();
 
-  const [active,         setActive]         = useState('photo');
+  const [active,         setActive]         = useState('info');
   const [museum,         setMuseum]         = useState(null);
   const [inviteOpen,     setInviteOpen]     = useState(false);
   const [passOpen,       setPassOpen]       = useState(false);
@@ -267,6 +268,7 @@ function MergeReportModal({ alerts, siteId, onClose, onReported }) {
 // ══════════════════════════════════════════════════════════════════════════════
 function ActiveSection({ sectionKey, subdomain, siteId, curatorNode, ready }) {
   switch (sectionKey) {
+    case 'info':          return <PhotoSection        siteId={siteId} curatorNode={curatorNode} ready={ready} hidePhoto />;
     case 'photo':         return <PhotoSection        siteId={siteId} curatorNode={curatorNode} ready={ready} />;
     case 'document':      return <TextUploadSection   label="주요자료" type="document"      siteId={siteId} />;
     case 'biography':     return <TextUploadSection   label="주요약력" type="biography"     siteId={siteId} />;
@@ -282,7 +284,7 @@ function ActiveSection({ sectionKey, subdomain, siteId, curatorNode, ready }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // 사진자료실 (§8: 사진 업로드 + 인물 정보 입력)
 // ══════════════════════════════════════════════════════════════════════════════
-function PhotoSection({ siteId, curatorNode, ready }) {
+function PhotoSection({ siteId, curatorNode, ready, hidePhoto = false }) {
   const { invalidate } = useTreeStore();
   const fileRef   = useRef(null);
   const dragRef   = useRef(null);   // { startX, startY, startOX, startOY }
@@ -521,54 +523,64 @@ function PhotoSection({ siteId, curatorNode, ready }) {
       <p style={s.hint}>프로필 사진 및 인물 정보를 관리하세요.</p>
 
       {/* 프로필 사진 업로드 / 위치·크기 에디터 */}
-      <label style={s.fieldLabel}>프로필 사진</label>
-      {!preview ? (
-        <div
-          style={s.dropzone}
-          onClick={() => fileRef.current?.click()}
-          onDragOver={e => e.preventDefault()}
-          onDrop={e => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}
-        >
-          <span style={s.dropzoneText}>{uploading ? '업로드 중…' : '클릭 또는 사진을 여기에 끌어다 놓으세요'}</span>
-        </div>
-      ) : (
-        <div style={s.photoEditorWrap}>
+      {!hidePhoto && (<>
+        <label style={s.fieldLabel}>프로필 사진</label>
+        {!preview ? (
           <div
-            data-testid="photo-drag-area"
-            style={{ ...s.photoFrame, cursor: dragRef.current ? 'grabbing' : 'grab' }}
-            onPointerDown={handleDragStart}
-            onPointerMove={handleDragMove}
-            onPointerUp={handleDragEnd}
-            onPointerCancel={handleDragEnd}
+            style={s.dropzone}
+            onClick={() => fileRef.current?.click()}
+            onDragOver={e => e.preventDefault()}
+            onDrop={e => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}
           >
-            <img
-              src={preview}
-              alt="미리보기"
-              style={{ ...s.editorImg, transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }}
-              draggable={false}
-              onError={e => { e.currentTarget.style.opacity = '0.3'; }}
-            />
+            <span style={s.dropzoneText}>{uploading ? '업로드 중…' : '클릭 또는 사진을 여기에 끌어다 놓으세요'}</span>
+          </div>
+        ) : (
+          <div style={s.photoEditorWrap}>
             <div
-              data-testid="photo-resize-handle"
-              style={s.resizeHandle}
-              onPointerDown={handleResizeStart}
-              onPointerMove={handleResizeMove}
-              onPointerUp={handleResizeEnd}
-              onPointerCancel={handleResizeEnd}
-            />
+              data-testid="photo-drag-area"
+              style={{ ...s.photoFrame, cursor: dragRef.current ? 'grabbing' : 'grab' }}
+              onPointerDown={handleDragStart}
+              onPointerMove={handleDragMove}
+              onPointerUp={handleDragEnd}
+              onPointerCancel={handleDragEnd}
+            >
+              <img
+                src={preview}
+                alt="미리보기"
+                style={{ ...s.editorImg, transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }}
+                draggable={false}
+                onError={e => { e.currentTarget.style.opacity = '0.3'; }}
+              />
+              <div
+                data-testid="photo-resize-handle"
+                style={s.resizeHandle}
+                onPointerDown={handleResizeStart}
+                onPointerMove={handleResizeMove}
+                onPointerUp={handleResizeEnd}
+                onPointerCancel={handleResizeEnd}
+              />
+            </div>
+            <div style={s.editorFooter}>
+              <span style={s.editorHint}>드래그로 위치 · 핸들(↘)로 크기 조정</span>
+              <button style={s.changePhotoBtn} onClick={() => fileRef.current?.click()}>사진 변경</button>
+            </div>
           </div>
-          <div style={s.editorFooter}>
-            <span style={s.editorHint}>드래그로 위치 · 핸들(↘)로 크기 조정</span>
-            <button style={s.changePhotoBtn} onClick={() => fileRef.current?.click()}>사진 변경</button>
-          </div>
-        </div>
-      )}
-      <input ref={fileRef} type="file" accept="image/*" hidden onInput={e => handleFile(e.target.files[0])} />
-
-      <label style={s.publicLabel}>
-        <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} />
-        &nbsp;박물관 상단 메뉴에 "사진전시관"으로 공개 (§10)
-      </label>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={e => {
+            handleFile(e.target.files[0]);
+            e.target.value = null;
+          }}
+        />
+        <label style={s.publicLabel}>
+          <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} />
+          &nbsp;박물관 상단 메뉴에 "사진전시관"으로 공개 (§10)
+        </label>
+      </>)}
 
       {/* 인물 정보 입력 폼 */}
       <div style={s.formDivider} />
