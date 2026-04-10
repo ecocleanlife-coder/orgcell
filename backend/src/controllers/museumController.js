@@ -72,7 +72,7 @@ exports.getMuseumBySubdomain = async (req, res) => {
     try {
         const subdomain = req.params.subdomain.toLowerCase();
         const { rows } = await db.query(
-            'SELECT id, user_id, subdomain, theme, status, created_at FROM family_sites WHERE subdomain = $1',
+            'SELECT id, user_id, subdomain, theme, status, created_at FROM family_sites WHERE LOWER(subdomain) = $1',
             [subdomain]
         );
         if (!rows.length) return res.status(404).json({ success: false, message: 'Museum not found' });

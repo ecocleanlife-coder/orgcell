@@ -51,7 +51,7 @@ exports.createSite = async (req, res) => {
 
         // 중복 체크: 다른 유저 사이트 → 409, 같은 유저 사이트 → upsert
         const dup = await client.query(
-            `SELECT id, user_id FROM family_sites WHERE subdomain = $1`,
+            `SELECT id, user_id FROM family_sites WHERE LOWER(subdomain) = $1`,
             [subdomain.toLowerCase()]
         );
         if (dup.rows.length > 0 && dup.rows[0].user_id !== userId) {
@@ -514,7 +514,7 @@ exports.getPublicSite = async (req, res) => {
 
         const site = await db.query(
             `SELECT id, subdomain, theme, created_at FROM family_sites
-             WHERE subdomain = $1 AND status = 'active'`,
+             WHERE LOWER(subdomain) = $1 AND status = 'active'`,
             [subdomain.toLowerCase()]
         );
 
