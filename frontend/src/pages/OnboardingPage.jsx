@@ -101,26 +101,38 @@ export default function OnboardingPage() {
       const birthDate = [birthYear, birthMonth.padStart(2,'0'), birthDay.padStart(2,'0')]
         .filter(Boolean).join('-') || null;
 
-      const siteRes = await apiFetch('/api/sites', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          surname_ko:     lastName.trim(),
-          given_name:     firstName.trim(),
-          bon_gwan_ko:    bonGwanSelected?.name ?? (bonGwanQuery.trim() || null),
-          curator_gender: gender,
-          birth_date:     birthDate,
-          birth_lunar:    lunarBirth,
-          surname_en:     engLast.trim()  || null,
-          name_en:        [engLast.trim(), engFirst.trim()].filter(Boolean).join(' ') || null,
-        }),
-      });
+      let siteRes;
+      try {
+        siteRes = await apiFetch('/api/sites', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            surname_ko:     lastName.trim(),
+            given_name:     firstName.trim(),
+            bon_gwan_ko:    bonGwanSelected?.name ?? (bonGwanQuery.trim() || null),
+            curator_gender: gender,
+            birth_date:     birthDate,
+            birth_lunar:    lunarBirth,
+            surname_en:     engLast.trim()  || null,
+            name_en:        [engLast.trim(), engFirst.trim()].filter(Boolean).join(' ') || null,
+          }),
+        });
+      } catch (err) {
+        toast.error(`박물관 개설 실패: ${err.message}`);
+        setSubmitting(false);
+        return;
+      }
 
       const subdomain = siteRes.data?.subdomain ?? siteRes.subdomain;
+      if (!subdomain) {
+        toast.error('박물관 주소(subdomain)를 받지 못했습니다. 다시 시도해 주세요.');
+        setSubmitting(false);
+        return;
+      }
       toast.success('박물관이 개설되었습니다!');
       navigate(`/${subdomain}`);
     } catch (err) {
-      toast.error(err.message);
+      toast.error(`예상치 못한 오류: ${err.message}`);
     } finally {
       setSubmitting(false);
     }

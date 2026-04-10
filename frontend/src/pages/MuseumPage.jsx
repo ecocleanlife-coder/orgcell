@@ -68,6 +68,8 @@ export default function MuseumPage() {
 
   async function loadMuseum() {
     try {
+      // fetchMe 완료 후 curatorSites 확정 (레이스 컨디션 방지)
+      await fetchMe();
       const data = await apiFetch(`/api/museum/${subdomain}`);
       const m = data.museum ?? data;
       setMuseum(m);
@@ -89,8 +91,8 @@ export default function MuseumPage() {
         }
       }
 
-      // 접근 권한 결정
-      if (isCurator) { setAccess(true); return; }
+      // 접근 권한 결정 — fetchMe 완료 후 fresh하게 체크
+      if (isCuratorOf(subdomain)) { setAccess(true); return; }
       // 관장이 아닌 경우: 비로그인이면 false, 로그인이면 입장권 체크
       if (!isAuthenticated) { setAccess(false); return; }
       // 입장권 체크 (§16)

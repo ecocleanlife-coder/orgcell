@@ -269,4 +269,46 @@ async function getBonGwanList(surnameKo) {
     return res.rows;
 }
 
-module.exports = { assignSubdomain, confirmBonGwan, getBonGwanList };
+/**
+ * seq_counter 1 감소 (박물관 생성 실패 시 롤백용)
+ * @param {string} subdomain - 반환된 subdomain (예: 'LEE011-5')
+ */
+async function rollbackSeqCounter(subdomain) {
+    if (!subdomain) return;
+    // LEE011-5 → surnameEn='LEE011', seq=5  /  LEE-3 → surnameEn='LEE', seq=3
+    const match = subdomain.toUpperCase().match(/^([A-Z0-9]+)-(\d+)$/);
+    if (!match) return;
+    const [, prefix, seqStr] = match;
+    const seq = parseInt(seqStr, 10);
+    if (seq <= 0) return;
+
+    try {
+        // korean_surnames (code 포함 형식: LEE011)  또는 code IS NULL 형식: LEE
+        const codeMatch = prefix.match(/^([A-Z]+)(\d{3})$/);
+        if (codeMatch) {
+            const [, surnameEn, code] = codeMatch;
+            await db.query(
+                `UPDATE korean_surnames SET seq_counter = GREATEST(seq_counter - 1, 0)
+                 WHERE surname_en = $1 AND code = $2 AND seq_counter = $3`,
+                [surnameEn, code, seq]
+            );
+        } else {
+            // 본관 미확정 (code IS NULL) or 외국인
+            await db.query(
+                `UPDATE korean_surnames SET seq_counter = GREATEST(seq_counter - 1, 0)
+                 WHERE surname_en = $1 AND code IS NULL AND seq_counter = $2`,
+                [prefix, seq]
+            );
+            // 외국인 테이블 시도
+            await db.query(
+                `UPDATE foreign_surnames SET seq_counter = GREATEST(seq_counter - 1, 0)
+                 WHERE surname_en = $1 AND seq_counter = $2`,
+                [prefix, seq]
+            );
+        }
+    } catch (err) {
+        console.error('[subdomainAssigner] rollbackSeqCounter failed:', err.message);
+    }
+}
+
+module.exports = { assignSubdomain, confirmBonGwan, getBonGwanList, rollbackSeqCounter };

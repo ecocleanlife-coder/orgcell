@@ -104,7 +104,8 @@ export const useAuthStore = create((set, get) => ({
   async fetchMyCuration() {
     try {
       const data = await apiFetch('/api/museum/mine');
-      const sites = Array.isArray(data) ? data : (data.museums ?? []);
+      // 응답 shape: { success, data: rows } 또는 배열
+      const sites = Array.isArray(data) ? data : (data.data ?? data.museums ?? []);
       set({ curatorSites: new Set(sites.map((m) => m.subdomain)) });
     } catch (_) {
       // 비관장 유저는 403/404 → 무시

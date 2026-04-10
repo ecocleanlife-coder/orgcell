@@ -1,7 +1,7 @@
 const db = require('../config/db');
 const { generateOcId, resolveCountryCode } = require('../utils/ocIdGenerator');
 const { assignCuratorPath } = require('../services/pathAssigner');
-const { assignSubdomain } = require('../services/subdomainAssigner');
+const { assignSubdomain, rollbackSeqCounter } = require('../services/subdomainAssigner');
 
 // @desc    Create family site + 관장 person 자동 생성 (OPS §26)
 // @route   POST /api/sites
@@ -128,8 +128,10 @@ exports.createSite = async (req, res) => {
         });
     } catch (error) {
         await client.query('ROLLBACK');
+        // seq_counter 원복 — assignSubdomain은 별도 트랜잭션이므로 수동 롤백
+        if (subdomain) await rollbackSeqCounter(subdomain);
         console.error('createSite Error:', error.message);
-        return res.status(500).json({ success: false, message: 'Failed to create site' });
+        return res.status(500).json({ success: false, message: 'Failed to create site: ' + error.message });
     } finally {
         client.release();
     }
