@@ -79,8 +79,8 @@ export default function OnboardingPage() {
   }
 
   function validateStep2() {
-    if (!skipBonGwan && !bonGwanSelected) {
-      toast.error('본관을 선택하거나 "나중에 입력"을 체크하세요.');
+    if (!skipBonGwan && !bonGwanSelected && !bonGwanQuery.trim()) {
+      toast.error('본관을 입력하거나 "나중에 입력"을 체크하세요.');
       return false;
     }
     return true;
@@ -102,9 +102,10 @@ export default function OnboardingPage() {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          lastName:  lastName.trim(),
-          firstName: firstName.trim(),
-          bonGwanId: bonGwanSelected?.id ?? null,
+          lastName:    lastName.trim(),
+          firstName:   firstName.trim(),
+          bonGwanId:   bonGwanSelected?.id ?? null,
+          bonGwanText: bonGwanSelected ? null : (bonGwanQuery.trim() || null),
         }),
       });
       const subdomain = sdRes.subdomain;
@@ -135,6 +136,7 @@ export default function OnboardingPage() {
           eng_last:    engLast.trim()  || null,
           eng_first:   engFirst.trim() || null,
           bonGwanId:   bonGwanSelected?.id ?? null,
+          bonGwanText: bonGwanSelected ? null : (bonGwanQuery.trim() || null),
           isCurator:   true,
         }),
       });
