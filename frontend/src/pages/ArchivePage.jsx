@@ -563,7 +563,7 @@ function PhotoSection({ siteId, curatorNode, ready }) {
           </div>
         </div>
       )}
-      <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => handleFile(e.target.files[0])} />
+      <input ref={fileRef} type="file" accept="image/*" hidden onInput={e => handleFile(e.target.files[0])} />
 
       <label style={s.publicLabel}>
         <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} />
