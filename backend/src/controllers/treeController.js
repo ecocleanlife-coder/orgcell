@@ -16,8 +16,8 @@ const { buildTreeLayout } = require('../services/treeLayoutEngine');
 // subdomain → {siteId, userId} 조회
 async function getSiteBySubdomain(subdomain) {
   const { rows } = await db.query(
-    `SELECT id, user_id FROM family_sites WHERE subdomain = $1 AND status = 'active'`,
-    [subdomain]
+    `SELECT id, user_id FROM family_sites WHERE LOWER(subdomain) = $1 AND status = 'active'`,
+    [subdomain.toLowerCase()]
   );
   return rows[0] || null;
 }

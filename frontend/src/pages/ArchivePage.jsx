@@ -49,13 +49,21 @@ export default function ArchivePage() {
   const { subdomain } = useParams();
   const navigate      = useNavigate();
 
-  const { isAuthenticated, isCuratorOf, lang, setLang, logout } = useAuthStore();
-  const { nodes, siteId, curatorId } = useTreeStore();
+  const { isAuthenticated, isCuratorOf, lang, setLang, logout, fetchMe } = useAuthStore();
+  const { nodes, siteId, curatorId, fetchTree } = useTreeStore();
 
-  const [active,      setActive]      = useState('photo');
-  const [museum,      setMuseum]      = useState(null);
-  const [inviteOpen,  setInviteOpen]  = useState(false);
-  const [passOpen,    setPassOpen]    = useState(false);
+  const [active,         setActive]         = useState('photo');
+  const [museum,         setMuseum]         = useState(null);
+  const [inviteOpen,     setInviteOpen]     = useState(false);
+  const [passOpen,       setPassOpen]       = useState(false);
+  const [authReady,      setAuthReady]      = useState(false); // fetchMe 완료 전 redirect 금지
+  const [mergeAlerts,    setMergeAlerts]    = useState([]);    // §26-3 통합 알림
+  const [mergeModalOpen, setMergeModalOpen] = useState(false);
+
+  // 마운트 시 fetchMe → 완료 후 authReady=true + fetchTree
+  useEffect(() => {
+    fetchMe().finally(() => setAuthReady(true));
+  }, []);
 
   const isCurator = isCuratorOf(subdomain);
 
@@ -66,13 +74,20 @@ export default function ArchivePage() {
       .catch(() => {});
   }, [subdomain]);
 
-  // §14: 비관장 접근 차단
+  // §14: 비관장 접근 차단 — authReady 이후에만 판단
   useEffect(() => {
+    if (!authReady) return;
     if (isAuthenticated === false || (isAuthenticated && !isCurator)) {
       toast.error('관장만 자료실에 접근할 수 있습니다.');
       navigate(`/${subdomain}`, { replace: true });
+      return;
     }
-  }, [isCurator, isAuthenticated]);
+    // 관장 확인 후 트리 로드 + 통합 알림 조회
+    fetchTree(subdomain);
+    api(`/api/notifications?type=merge`)
+      .then(d => setMergeAlerts(Array.isArray(d) ? d : (d.data ?? [])))
+      .catch(() => {});
+  }, [authReady, isCurator, isAuthenticated]);
 
   const museumName  = museum?.museum_name ?? museum?.name ?? `${subdomain} 가족유산박물관`;
   const curatorNode = nodes.find(n => n.personId === curatorId) ?? null;
@@ -87,6 +102,11 @@ export default function ArchivePage() {
     if (key === 'invite')      { setInviteOpen(true);  return; }
     if (key === 'access-pass') { setPassOpen(true);    return; }
     setActive(key);
+  }
+
+  // authReady 전 — 빈 화면(redirect 방지)
+  if (!authReady) {
+    return <div style={s.page} />;
   }
 
   return (
@@ -140,6 +160,13 @@ export default function ArchivePage() {
           >
             접근요청관리
           </button>
+
+          {/* §26-3 잘못된 통합 신고 */}
+          {mergeAlerts.length > 0 && (
+            <button style={{ ...s.menuBtn, ...s.mergeAlertBtn }} onClick={() => setMergeModalOpen(true)}>
+              잘못된 통합 신고
+            </button>
+          )}
         </aside>
       </div>
 
@@ -160,9 +187,70 @@ export default function ArchivePage() {
         museumName={museumName}
       />
 
+      {/* §26-3 잘못된 통합 신고 모달 */}
+      {mergeModalOpen && (
+        <MergeReportModal
+          alerts={mergeAlerts}
+          siteId={siteId}
+          onClose={() => setMergeModalOpen(false)}
+          onReported={() => { setMergeAlerts([]); setMergeModalOpen(false); }}
+        />
+      )}
+
       {/* §20 Footer */}
       <Footer variant="minimal" />
     </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// §26-3 잘못된 통합 신고 모달
+// ══════════════════════════════════════════════════════════════════════════════
+function MergeReportModal({ alerts, siteId, onClose, onReported }) {
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleReport(alertId) {
+    setSubmitting(true);
+    try {
+      await api(`/api/notifications/${alertId}/report-wrong-merge`, { method: 'POST' });
+      toast.success('신고가 접수되었습니다. 관리자 검토 후 처리됩니다.');
+      onReported();
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <>
+      <div style={s.overlay} onClick={onClose} />
+      <div style={s.mergeModal} role="dialog" aria-modal="true" aria-label="잘못된 통합 신고">
+        <div style={s.mergeModalHeader}>
+          <span style={s.mergeModalTitle}>잘못된 통합 신고 (§26-3)</span>
+          <button style={s.mergeModalClose} onClick={onClose}>✕</button>
+        </div>
+        <p style={s.mergeModalDesc}>
+          시스템이 자동으로 연결한 인물이 실제와 다른 경우 신고해 주세요.
+          관리자 검토 후 분리 처리됩니다.
+        </p>
+        <ul style={s.mergeList}>
+          {alerts.map(a => (
+            <li key={a.id} style={s.mergeItem}>
+              <span style={s.mergePersonId}>{a.mergedPersonId ?? a.person_id ?? '알 수 없음'}</span>
+              <span style={s.mergeDate}>{a.mergedAt ? new Date(a.mergedAt).toLocaleDateString('ko-KR') : ''}</span>
+              <button
+                style={s.mergeReportBtn}
+                disabled={submitting}
+                onClick={() => handleReport(a.id)}
+              >
+                {submitting ? '신고 중…' : '신고'}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </>
   );
 }
 
@@ -757,6 +845,19 @@ const s = {
   updateBtn:   { background: '#8B7355', color: '#fff' },
   deleteBtn:   { background: '#c0392b', color: '#fff' },
   btnDisabled: { background: '#ccc', color: '#888', cursor: 'not-allowed' },
+
+  mergeAlertBtn:    { background: '#c05050', color: '#fff', borderColor: '#a03030', marginTop: 4 },
+  overlay:          { position: 'fixed', inset: 0, background: 'rgba(40,30,20,0.55)', zIndex: 900 },
+  mergeModal:       { position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 901, background: '#FDFBF7', border: '1px solid #C4A882', borderRadius: 8, width: 440, maxWidth: 'calc(100vw - 32px)', maxHeight: '80vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+  mergeModalHeader: { display: 'flex', alignItems: 'center', padding: '14px 20px 10px', borderBottom: '1px solid #E8DFD0' },
+  mergeModalTitle:  { flex: 1, fontSize: 15, fontWeight: 700, color: '#3a2a1a' },
+  mergeModalClose:  { background: 'none', border: 'none', fontSize: 16, color: '#9a8a75', cursor: 'pointer' },
+  mergeModalDesc:   { fontSize: 12, color: '#7a6a55', padding: '10px 20px 0', margin: 0, lineHeight: 1.6 },
+  mergeList:        { listStyle: 'none', margin: '10px 0 0', padding: '0 20px 16px', display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto' },
+  mergeItem:        { display: 'flex', alignItems: 'center', gap: 10, background: '#FFF8F0', border: '1px solid #E0D5C5', borderRadius: 4, padding: '8px 12px' },
+  mergePersonId:    { flex: 1, fontSize: 13, fontWeight: 600, color: '#3a2a1a' },
+  mergeDate:        { fontSize: 11, color: '#9a8a75' },
+  mergeReportBtn:   { padding: '5px 12px', background: '#c05050', color: '#fff', border: 'none', borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: 'pointer' },
 
   reqList:    { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 10 },
   reqItem:    { background: '#FAFAF5', border: '1px solid #C4A882', borderRadius: 4, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 4 },

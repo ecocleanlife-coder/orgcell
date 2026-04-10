@@ -1,0 +1,54 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5] [cursor=pointer]: Orgcell
+    - generic [ref=e6]: ui-museum-test 가족유산박물관
+    - generic [ref=e7]:
+      - combobox "언어 선택" [ref=e8] [cursor=pointer]:
+        - option "한국어" [selected]
+        - option "English"
+      - button "로그아웃" [ref=e9] [cursor=pointer]
+  - navigation [ref=e10]:
+    - button "📷공유앨범" [ref=e11] [cursor=pointer]
+  - generic [ref=e12]:
+    - generic [ref=e15]: ui-museum-test 가족유산박물관
+    - button "⚙️ Setting" [ref=e18] [cursor=pointer]
+  - generic [ref=e20]:
+    - img
+    - generic [ref=e22] [cursor=pointer]:
+      - generic [ref=e24]: ♂
+      - generic [ref=e25]: 이관장
+      - generic [ref=e26]: KR-CURATOR
+    - generic [ref=e29] [cursor=pointer]:
+      - generic [ref=e31]: ♂
+      - generic [ref=e32]: 김타인
+      - generic [ref=e33]: KR-OTHER
+  - dialog [ref=e36]:
+    - generic [ref=e37]: 🌀
+    - paragraph [ref=e38]: 박물관 이동
+    - paragraph [ref=e39]:
+      - strong [ref=e40]: 김타인
+      - text: 님의 박물관으로
+      - text: 이동하시겠습니까?
+    - paragraph [ref=e41]: KR-OTHER 가족유산박물관
+    - generic [ref=e42]:
+      - button "취소" [ref=e43] [cursor=pointer]
+      - button "이동하기 →" [ref=e44] [cursor=pointer]
+  - contentinfo [ref=e45]:
+    - generic [ref=e46]:
+      - generic [ref=e47]: ⚠️
+      - generic [ref=e48]: 이 박물관의 모든 콘텐츠(사진, 문서, 음성, 영상 등)는 저작권법의 보호를 받습니다. 무단 복제·배포·전송을 금지합니다.
+    - generic [ref=e49]:
+      - generic [ref=e50]:
+        - generic [ref=e51]: 🏛️ 가족유산박물관
+        - generic [ref=e52]: © 2026 Orgcell. All rights reserved.
+      - generic [ref=e53]:
+        - button "이용약관" [ref=e54] [cursor=pointer]
+        - generic [ref=e55]: ·
+        - button "개인정보처리방침" [ref=e56] [cursor=pointer]
+        - generic [ref=e57]: ·
+        - link "문의하기" [ref=e58] [cursor=pointer]:
+          - /url: mailto:support@orgcell.com
+```

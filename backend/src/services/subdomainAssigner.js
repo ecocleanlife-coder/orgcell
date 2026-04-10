@@ -198,8 +198,9 @@ async function confirmBonGwan(siteId, surnameKo, bonGwanKo) {
             throw new Error('본관이 이미 확정되어 있습니다.');
         }
 
-        // 새 subdomain 채번
-        const newSubdomain = await _assignKorean(surnameKo, bonGwanKo);
+        // 새 subdomain 채번 및 소문자화
+        const newSubdomainRaw = await _assignKorean(surnameKo, bonGwanKo);
+        const newSubdomain = newSubdomainRaw.toLowerCase();
         const newPrefix = newSubdomain.replace(/-\d+$/, '');
         const oldSubdomain = site.subdomain;
 
