@@ -184,13 +184,47 @@ function ActiveSection({ sectionKey, subdomain, siteId, curatorNode }) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 사진자료실
+// 사진자료실 (§8: 사진 업로드 + 인물 정보 입력)
 // ══════════════════════════════════════════════════════════════════════════════
 function PhotoSection({ siteId, curatorNode }) {
+  const { invalidate } = useTreeStore();
   const fileRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [preview,   setPreview]   = useState(curatorNode?.photoUrl ?? null);
   const [isPublic,  setIsPublic]  = useState(false);
+  const [saving,    setSaving]    = useState(false);
+  const [deleting,  setDeleting]  = useState(false);
+
+  // 인물 정보 폼 상태 (curatorNode 값으로 초기화)
+  const [form, setForm] = useState({
+    name:       curatorNode?.name       ?? '',
+    birth_date: curatorNode?.birthDate  ?? '',
+    gender:     curatorNode?.gender     ?? '',
+    is_deceased: curatorNode?.isDeceased ?? false,
+    death_date: curatorNode?.deathDate  ?? '',
+    bio1:       curatorNode?.bio1       ?? '',
+    bio2:       curatorNode?.bio2       ?? '',
+    bio3:       curatorNode?.bio3       ?? '',
+  });
+
+  // curatorNode 변경 시 폼 동기화
+  useEffect(() => {
+    setForm({
+      name:       curatorNode?.name       ?? '',
+      birth_date: curatorNode?.birthDate  ?? '',
+      gender:     curatorNode?.gender     ?? '',
+      is_deceased: curatorNode?.isDeceased ?? false,
+      death_date: curatorNode?.deathDate  ?? '',
+      bio1:       curatorNode?.bio1       ?? '',
+      bio2:       curatorNode?.bio2       ?? '',
+      bio3:       curatorNode?.bio3       ?? '',
+    });
+    setPreview(curatorNode?.photoUrl ?? null);
+  }, [curatorNode?.id]);
+
+  function setField(key, val) {
+    setForm(prev => ({ ...prev, [key]: val }));
+  }
 
   async function handleFile(file) {
     if (!file || !siteId || !curatorNode) return;
@@ -198,7 +232,7 @@ function PhotoSection({ siteId, curatorNode }) {
     try {
       const fd = new FormData();
       fd.append('photo', file);
-      fd.append('is_public', isPublic ? '1' : '0'); // §10 공개 플래그
+      fd.append('is_public', isPublic ? '1' : '0');
       const res  = await fetch(`/api/persons/${siteId}/${curatorNode.id}/photo`, {
         method: 'POST', credentials: 'include', body: fd,
       });
@@ -210,11 +244,77 @@ function PhotoSection({ siteId, curatorNode }) {
     finally     { setUploading(false); }
   }
 
+  // §9: [생성] — curatorNode 없을 때 활성
+  async function handleCreate() {
+    if (!form.name.trim()) { toast.error('이름을 입력하세요.'); return; }
+    setSaving(true);
+    try {
+      await api(`/api/persons/${siteId}`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name:       form.name.trim(),
+          birth_date: form.birth_date  || undefined,
+          gender:     form.gender      || undefined,
+          is_deceased: form.is_deceased,
+          death_date: form.is_deceased ? (form.death_date || undefined) : undefined,
+          bio1:       form.bio1        || undefined,
+          bio2:       form.bio2        || undefined,
+          bio3:       form.bio3        || undefined,
+        }),
+      });
+      toast.success('인물이 생성되었습니다.');
+      await invalidate();
+    } catch (e) { toast.error(e.message); }
+    finally     { setSaving(false); }
+  }
+
+  // §9: [수정] — curatorNode 있을 때 활성
+  async function handleUpdate() {
+    if (!form.name.trim()) { toast.error('이름을 입력하세요.'); return; }
+    setSaving(true);
+    try {
+      await api(`/api/persons/${siteId}/${curatorNode.id}`, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name:       form.name.trim(),
+          birth_date: form.birth_date  || null,
+          gender:     form.gender      || null,
+          is_deceased: form.is_deceased,
+          death_date: form.is_deceased ? (form.death_date || null) : null,
+          bio1:       form.bio1        || null,
+          bio2:       form.bio2        || null,
+          bio3:       form.bio3        || null,
+        }),
+      });
+      toast.success('인물 정보가 수정되었습니다.');
+      await invalidate();
+    } catch (e) { toast.error(e.message); }
+    finally     { setSaving(false); }
+  }
+
+  // §9: [제거] — curatorNode 있을 때 활성
+  async function handleDelete() {
+    if (!window.confirm('인물을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
+    setDeleting(true);
+    try {
+      await api(`/api/persons/${siteId}/${curatorNode.id}`, { method: 'DELETE' });
+      toast.success('인물이 삭제되었습니다.');
+      await invalidate();
+    } catch (e) { toast.error(e.message); }
+    finally     { setDeleting(false); }
+  }
+
+  const hasPerson = !!curatorNode;
+
   return (
     <section style={s.section}>
-      <h2 style={s.sectionTitle}>사진자료실</h2>
-      <p style={s.hint}>프로필 사진 및 자료 사진을 업로드하세요. (§10 공개 시 "사진전시관" 자동 생성)</p>
+      <h2 style={s.sectionTitle}>사진자료실 · 인물 정보</h2>
+      <p style={s.hint}>프로필 사진 및 인물 정보를 관리하세요.</p>
 
+      {/* 프로필 사진 업로드 */}
+      <label style={s.fieldLabel}>프로필 사진</label>
       <div
         style={s.dropzone}
         onClick={() => fileRef.current?.click()}
@@ -228,11 +328,121 @@ function PhotoSection({ siteId, curatorNode }) {
       </div>
       <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => handleFile(e.target.files[0])} />
 
-      {/* §10 공개 전환 */}
       <label style={s.publicLabel}>
         <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} />
         &nbsp;박물관 상단 메뉴에 "사진전시관"으로 공개 (§10)
       </label>
+
+      {/* 인물 정보 입력 폼 */}
+      <div style={s.formDivider} />
+
+      <label style={s.fieldLabel}>이름 <span style={s.required}>*</span></label>
+      <input
+        style={s.textInput}
+        value={form.name}
+        onChange={e => setField('name', e.target.value)}
+        placeholder="성함을 입력하세요"
+      />
+
+      <label style={s.fieldLabel}>생년월일</label>
+      <input
+        style={s.textInput}
+        type="date"
+        value={form.birth_date}
+        onChange={e => setField('birth_date', e.target.value)}
+      />
+
+      <label style={s.fieldLabel}>성별</label>
+      <div style={s.radioRow}>
+        {[['M','남'], ['F','여']].map(([v, l]) => (
+          <label key={v} style={s.radioLabel}>
+            <input
+              type="radio" name="gender" value={v}
+              checked={form.gender === v}
+              onChange={() => setField('gender', v)}
+            />
+            &nbsp;{l}
+          </label>
+        ))}
+        <label style={s.radioLabel}>
+          <input
+            type="radio" name="gender" value=""
+            checked={form.gender === ''}
+            onChange={() => setField('gender', '')}
+          />
+          &nbsp;미지정
+        </label>
+      </div>
+
+      <label style={s.publicLabel}>
+        <input
+          type="checkbox"
+          checked={form.is_deceased}
+          onChange={e => setField('is_deceased', e.target.checked)}
+        />
+        &nbsp;사망
+      </label>
+
+      {form.is_deceased && (
+        <>
+          <label style={{ ...s.fieldLabel, marginTop: 8 }}>사망일</label>
+          <input
+            style={s.textInput}
+            type="date"
+            value={form.death_date}
+            onChange={e => setField('death_date', e.target.value)}
+          />
+        </>
+      )}
+
+      <label style={{ ...s.fieldLabel, marginTop: 8 }}>대표정보 1</label>
+      <input
+        style={s.textInput}
+        value={form.bio1}
+        onChange={e => setField('bio1', e.target.value)}
+        placeholder="예: 前 OO대학교 교수"
+      />
+
+      <label style={s.fieldLabel}>대표정보 2</label>
+      <input
+        style={s.textInput}
+        value={form.bio2}
+        onChange={e => setField('bio2', e.target.value)}
+        placeholder="예: OO회사 창업자"
+      />
+
+      <label style={s.fieldLabel}>대표정보 3</label>
+      <input
+        style={s.textInput}
+        value={form.bio3}
+        onChange={e => setField('bio3', e.target.value)}
+        placeholder="예: 국가유공자"
+      />
+
+      {/* §9 버튼: 미등록 → [생성] 활성 / 등록됨 → [수정][제거] 활성 */}
+      <div style={{ ...s.rowBetween, marginTop: 16 }}>
+        <button
+          style={{ ...s.crudBtn, ...s.createBtn, ...(!hasPerson ? {} : s.btnDisabled) }}
+          disabled={hasPerson || saving}
+          onClick={handleCreate}
+        >
+          {saving && !hasPerson ? '생성 중…' : '생성'}
+        </button>
+        <button
+          style={{ ...s.crudBtn, ...s.updateBtn, ...(hasPerson ? {} : s.btnDisabled) }}
+          disabled={!hasPerson || saving}
+          onClick={handleUpdate}
+        >
+          {saving && hasPerson ? '수정 중…' : '수정'}
+        </button>
+        <button
+          style={{ ...s.crudBtn, ...s.deleteBtn, ...(hasPerson ? {} : s.btnDisabled) }}
+          disabled={!hasPerson || deleting}
+          onClick={handleDelete}
+        >
+          {deleting ? '삭제 중…' : '제거'}
+        </button>
+      </div>
     </section>
   );
 }
@@ -537,6 +747,16 @@ const s = {
   albumBadge:{ fontSize: 11, fontWeight: 700, color: '#2d6b2d' },
   albumLink: { fontSize: 12, color: '#5a4a35' },
   anchor:    { color: '#8B7355', textDecoration: 'underline' },
+
+  textInput:   { width: '100%', padding: '7px 10px', border: '1px solid #C4A882', borderRadius: 4, fontSize: 13, color: '#333', background: '#FAFAF5', boxSizing: 'border-box', marginBottom: 8 },
+  radioRow:    { display: 'flex', gap: 16, marginBottom: 8 },
+  formDivider: { height: 1, background: '#E0D5C5', margin: '14px 0' },
+  required:    { color: '#c0392b' },
+  crudBtn:     { flex: 1, padding: '9px 0', fontSize: 13, fontWeight: 700, borderRadius: 4, cursor: 'pointer', border: 'none' },
+  createBtn:   { background: '#5a8a5a', color: '#fff' },
+  updateBtn:   { background: '#8B7355', color: '#fff' },
+  deleteBtn:   { background: '#c0392b', color: '#fff' },
+  btnDisabled: { background: '#ccc', color: '#888', cursor: 'not-allowed' },
 
   reqList:    { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 10 },
   reqItem:    { background: '#FAFAF5', border: '1px solid #C4A882', borderRadius: 4, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 4 },
