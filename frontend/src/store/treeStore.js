@@ -92,7 +92,7 @@ export const useTreeStore = create((set, get) => ({
         },
       }));
     } catch (err) {
-      set({ isLoading: false, error: err.message });
+      set({ isLoading: false, error: err.message, nodes: [], connectors: [] });
     }
   },
 

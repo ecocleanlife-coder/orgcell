@@ -68,7 +68,8 @@ test.describe('§8 자료실 좌측 영역', () => {
     await setupArchiveMocks(page);
     await page.goto(`/${SUBDOMAIN}/archive`);
     await page.waitForLoadState('networkidle', { timeout: 10000 });
-    await expect(page.locator('input[type="date"]').first()).toBeVisible({ timeout: 8000 });
+    // 년/월/일 분리 입력 방식 (OnboardingPage 방식)
+    await expect(page.locator('input[placeholder*="년"]').first()).toBeVisible({ timeout: 8000 });
   });
 
   test('2-1-4 성별 라디오 버튼 렌더링', async ({ page }) => {
@@ -207,6 +208,29 @@ test.describe('§9 관계 탭 — [생성][수정][제거] 버튼 상태', () =>
     await expect(createBtn).toBeDisabled({ timeout: 5000 });
     await expect(updateBtn).not.toBeDisabled({ timeout: 5000 });
     await expect(deleteBtn).not.toBeDisabled({ timeout: 5000 });
+  });
+
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+test.describe('§8 사진 위치/크기 조정 에디터', () => {
+
+  test('2-6-1 사진 업로드 후 드래그 위치 조정 UI 렌더링', async ({ page }) => {
+    const node = makeSingleNode(CURATOR_ID, '이관장', { photoUrl: 'https://placehold.co/200x200' });
+    await mockAuthAsCurator(page, SUBDOMAIN, CURATOR_ID);
+    await setupArchiveMocks(page, node);
+    await page.goto(`/${SUBDOMAIN}/archive`);
+    await page.waitForLoadState('networkidle', { timeout: 10000 });
+    await expect(page.locator('[data-testid="photo-drag-area"]').first()).toBeVisible({ timeout: 8000 });
+  });
+
+  test('2-6-2 크기 조절 핸들 렌더링', async ({ page }) => {
+    const node = makeSingleNode(CURATOR_ID, '이관장', { photoUrl: 'https://placehold.co/200x200' });
+    await mockAuthAsCurator(page, SUBDOMAIN, CURATOR_ID);
+    await setupArchiveMocks(page, node);
+    await page.goto(`/${SUBDOMAIN}/archive`);
+    await page.waitForLoadState('networkidle', { timeout: 10000 });
+    await expect(page.locator('[data-testid="photo-resize-handle"]').first()).toBeVisible({ timeout: 8000 });
   });
 
 });

@@ -50,7 +50,7 @@ export default function ArchivePage() {
   const navigate      = useNavigate();
 
   const { isAuthenticated, isCuratorOf, lang, setLang, logout, fetchMe } = useAuthStore();
-  const { nodes, siteId, curatorId, fetchTree } = useTreeStore();
+  const { nodes, siteId, curatorId, fetchTree, setSiteId } = useTreeStore();
 
   const [active,         setActive]         = useState('photo');
   const [museum,         setMuseum]         = useState(null);
@@ -67,10 +67,15 @@ export default function ArchivePage() {
 
   const isCurator = isCuratorOf(subdomain);
 
-  // 박물관 정보 로드
+  // 박물관 정보 로드 + siteId 설정
   useEffect(() => {
     api(`/api/museum/${subdomain}`)
-      .then(d => setMuseum(d.museum ?? d))
+      .then(d => {
+        const m = d.museum ?? d;
+        setMuseum(m);
+        const id = m.id ?? m.site_id;
+        if (id) setSiteId(id);
+      })
       .catch(() => {});
   }, [subdomain]);
 
@@ -276,43 +281,106 @@ function ActiveSection({ sectionKey, subdomain, siteId, curatorNode }) {
 // ══════════════════════════════════════════════════════════════════════════════
 function PhotoSection({ siteId, curatorNode }) {
   const { invalidate } = useTreeStore();
-  const fileRef = useRef(null);
+  const fileRef   = useRef(null);
+  const dragRef   = useRef(null);   // { startX, startY, startOX, startOY }
+  const resizeRef = useRef(null);   // { startY, startScale }
+
   const [uploading, setUploading] = useState(false);
   const [preview,   setPreview]   = useState(curatorNode?.photoUrl ?? null);
   const [isPublic,  setIsPublic]  = useState(false);
   const [saving,    setSaving]    = useState(false);
   const [deleting,  setDeleting]  = useState(false);
+  const [offset,    setOffset]    = useState({ x: 0, y: 0 });
+  const [scale,     setScale]     = useState(1.0);
+
+  // 날짜 문자열(YYYY-MM-DD)을 { year, month, day }로 분해
+  function splitDate(d) {
+    if (!d) return { year: '', month: '', day: '' };
+    const [y = '', m = '', dd = ''] = d.split('-');
+    return { year: y, month: String(parseInt(m) || ''), day: String(parseInt(dd) || '') };
+  }
+  // { year, month, day } → YYYY-MM-DD (불완전 시 undefined)
+  function joinDate(y, m, day) {
+    if (!y || !m || !day) return undefined;
+    return `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+
+  const initBirth = splitDate(curatorNode?.birthDate);
+  const initDeath = splitDate(curatorNode?.deathDate);
 
   // 인물 정보 폼 상태 (curatorNode 값으로 초기화)
   const [form, setForm] = useState({
-    name:       curatorNode?.name       ?? '',
-    birth_date: curatorNode?.birthDate  ?? '',
-    gender:     curatorNode?.gender     ?? '',
-    is_deceased: curatorNode?.isDeceased ?? false,
-    death_date: curatorNode?.deathDate  ?? '',
-    bio1:       curatorNode?.bio1       ?? '',
-    bio2:       curatorNode?.bio2       ?? '',
-    bio3:       curatorNode?.bio3       ?? '',
+    name:        curatorNode?.name        ?? '',
+    birth_year:  initBirth.year,
+    birth_month: initBirth.month,
+    birth_day:   initBirth.day,
+    birth_lunar: curatorNode?.birthLunar  ?? false,
+    gender:      curatorNode?.gender      ?? '',
+    is_deceased: curatorNode?.isDeceased  ?? false,
+    death_year:  initDeath.year,
+    death_month: initDeath.month,
+    death_day:   initDeath.day,
+    death_lunar: curatorNode?.deathLunar  ?? false,
+    bio1:        curatorNode?.bio1        ?? '',
+    bio2:        curatorNode?.bio2        ?? '',
+    bio3:        curatorNode?.bio3        ?? '',
   });
 
   // curatorNode 변경 시 폼 동기화
   useEffect(() => {
+    const b = splitDate(curatorNode?.birthDate);
+    const d = splitDate(curatorNode?.deathDate);
     setForm({
-      name:       curatorNode?.name       ?? '',
-      birth_date: curatorNode?.birthDate  ?? '',
-      gender:     curatorNode?.gender     ?? '',
-      is_deceased: curatorNode?.isDeceased ?? false,
-      death_date: curatorNode?.deathDate  ?? '',
-      bio1:       curatorNode?.bio1       ?? '',
-      bio2:       curatorNode?.bio2       ?? '',
-      bio3:       curatorNode?.bio3       ?? '',
+      name:        curatorNode?.name        ?? '',
+      birth_year:  b.year,
+      birth_month: b.month,
+      birth_day:   b.day,
+      birth_lunar: curatorNode?.birthLunar  ?? false,
+      gender:      curatorNode?.gender      ?? '',
+      is_deceased: curatorNode?.isDeceased  ?? false,
+      death_year:  d.year,
+      death_month: d.month,
+      death_day:   d.day,
+      death_lunar: curatorNode?.deathLunar  ?? false,
+      bio1:        curatorNode?.bio1        ?? '',
+      bio2:        curatorNode?.bio2        ?? '',
+      bio3:        curatorNode?.bio3        ?? '',
     });
     setPreview(curatorNode?.photoUrl ?? null);
-  }, [curatorNode?.id]);
+    setOffset({ x: 0, y: 0 });
+    setScale(1.0);
+  }, [curatorNode?.personId]);
 
   function setField(key, val) {
     setForm(prev => ({ ...prev, [key]: val }));
   }
+
+  // §8 사진 위치 드래그
+  function handleDragStart(e) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = { startX: e.clientX, startY: e.clientY, startOX: offset.x, startOY: offset.y };
+  }
+  function handleDragMove(e) {
+    if (!dragRef.current) return;
+    setOffset({
+      x: dragRef.current.startOX + (e.clientX - dragRef.current.startX),
+      y: dragRef.current.startOY + (e.clientY - dragRef.current.startY),
+    });
+  }
+  function handleDragEnd() { dragRef.current = null; }
+
+  // §8 사진 크기 핸들 (위로 드래그 → 확대)
+  function handleResizeStart(e) {
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    resizeRef.current = { startY: e.clientY, startScale: scale };
+  }
+  function handleResizeMove(e) {
+    if (!resizeRef.current) return;
+    const dy = resizeRef.current.startY - e.clientY;
+    setScale(Math.max(0.5, Math.min(3.0, resizeRef.current.startScale + dy * 0.01)));
+  }
+  function handleResizeEnd() { resizeRef.current = null; }
 
   async function handleFile(file) {
     if (!file || !siteId || !curatorNode) return;
@@ -328,6 +396,7 @@ function PhotoSection({ siteId, curatorNode }) {
       if (!res.ok) throw new Error(json.message || '업로드 실패');
       setPreview(json.data?.photo_url ?? URL.createObjectURL(file));
       toast.success('사진이 업로드되었습니다.');
+      await invalidate();
     } catch (e) { toast.error(e.message); }
     finally     { setUploading(false); }
   }
@@ -341,14 +410,16 @@ function PhotoSection({ siteId, curatorNode }) {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name:       form.name.trim(),
-          birth_date: form.birth_date  || undefined,
-          gender:     form.gender      || undefined,
+          name:        form.name.trim(),
+          birth_date:  joinDate(form.birth_year, form.birth_month, form.birth_day),
+          birth_lunar: form.birth_lunar || undefined,
+          gender:      form.gender      || undefined,
           is_deceased: form.is_deceased,
-          death_date: form.is_deceased ? (form.death_date || undefined) : undefined,
-          bio1:       form.bio1        || undefined,
-          bio2:       form.bio2        || undefined,
-          bio3:       form.bio3        || undefined,
+          death_date:  form.is_deceased ? joinDate(form.death_year, form.death_month, form.death_day) : undefined,
+          death_lunar: form.is_deceased ? (form.death_lunar || undefined) : undefined,
+          bio1:        form.bio1        || undefined,
+          bio2:        form.bio2        || undefined,
+          bio3:        form.bio3        || undefined,
         }),
       });
       toast.success('인물이 생성되었습니다.');
@@ -366,14 +437,16 @@ function PhotoSection({ siteId, curatorNode }) {
         method:  'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name:       form.name.trim(),
-          birth_date: form.birth_date  || null,
-          gender:     form.gender      || null,
+          name:        form.name.trim(),
+          birth_date:  joinDate(form.birth_year, form.birth_month, form.birth_day) ?? null,
+          birth_lunar: form.birth_lunar || null,
+          gender:      form.gender      || null,
           is_deceased: form.is_deceased,
-          death_date: form.is_deceased ? (form.death_date || null) : null,
-          bio1:       form.bio1        || null,
-          bio2:       form.bio2        || null,
-          bio3:       form.bio3        || null,
+          death_date:  form.is_deceased ? (joinDate(form.death_year, form.death_month, form.death_day) ?? null) : null,
+          death_lunar: form.is_deceased ? (form.death_lunar || null) : null,
+          bio1:        form.bio1        || null,
+          bio2:        form.bio2        || null,
+          bio3:        form.bio3        || null,
         }),
       });
       toast.success('인물 정보가 수정되었습니다.');
@@ -401,19 +474,48 @@ function PhotoSection({ siteId, curatorNode }) {
       <h2 style={s.sectionTitle}>사진자료실 · 인물 정보</h2>
       <p style={s.hint}>프로필 사진 및 인물 정보를 관리하세요.</p>
 
-      {/* 프로필 사진 업로드 */}
+      {/* 프로필 사진 업로드 / 위치·크기 에디터 */}
       <label style={s.fieldLabel}>프로필 사진</label>
-      <div
-        style={s.dropzone}
-        onClick={() => fileRef.current?.click()}
-        onDragOver={e => e.preventDefault()}
-        onDrop={e => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}
-      >
-        {preview
-          ? <img src={preview} alt="미리보기" style={s.previewImg} />
-          : <span style={s.dropzoneText}>{uploading ? '업로드 중…' : '클릭 또는 사진을 여기에 끌어다 놓으세요'}</span>
-        }
-      </div>
+      {!preview ? (
+        <div
+          style={s.dropzone}
+          onClick={() => fileRef.current?.click()}
+          onDragOver={e => e.preventDefault()}
+          onDrop={e => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}
+        >
+          <span style={s.dropzoneText}>{uploading ? '업로드 중…' : '클릭 또는 사진을 여기에 끌어다 놓으세요'}</span>
+        </div>
+      ) : (
+        <div style={s.photoEditorWrap}>
+          <div
+            data-testid="photo-drag-area"
+            style={{ ...s.photoFrame, cursor: dragRef.current ? 'grabbing' : 'grab' }}
+            onPointerDown={handleDragStart}
+            onPointerMove={handleDragMove}
+            onPointerUp={handleDragEnd}
+            onPointerCancel={handleDragEnd}
+          >
+            <img
+              src={preview}
+              alt="미리보기"
+              style={{ ...s.editorImg, transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }}
+              draggable={false}
+            />
+            <div
+              data-testid="photo-resize-handle"
+              style={s.resizeHandle}
+              onPointerDown={handleResizeStart}
+              onPointerMove={handleResizeMove}
+              onPointerUp={handleResizeEnd}
+              onPointerCancel={handleResizeEnd}
+            />
+          </div>
+          <div style={s.editorFooter}>
+            <span style={s.editorHint}>드래그로 위치 · 핸들(↘)로 크기 조정</span>
+            <button style={s.changePhotoBtn} onClick={() => fileRef.current?.click()}>사진 변경</button>
+          </div>
+        </div>
+      )}
       <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => handleFile(e.target.files[0])} />
 
       <label style={s.publicLabel}>
@@ -433,12 +535,15 @@ function PhotoSection({ siteId, curatorNode }) {
       />
 
       <label style={s.fieldLabel}>생년월일</label>
-      <input
-        style={s.textInput}
-        type="date"
-        value={form.birth_date}
-        onChange={e => setField('birth_date', e.target.value)}
-      />
+      <div style={s.dateRow}>
+        <input style={s.dateInput} value={form.birth_year}  onChange={e => setField('birth_year',  e.target.value)} placeholder="년(4자리)" maxLength={4} />
+        <input style={s.dateInput} value={form.birth_month} onChange={e => setField('birth_month', e.target.value)} placeholder="월" maxLength={2} />
+        <input style={s.dateInput} value={form.birth_day}   onChange={e => setField('birth_day',   e.target.value)} placeholder="일" maxLength={2} />
+      </div>
+      <label style={s.publicLabel}>
+        <input type="checkbox" checked={form.birth_lunar} onChange={e => setField('birth_lunar', e.target.checked)} />
+        &nbsp;음력
+      </label>
 
       <label style={s.fieldLabel}>성별</label>
       <div style={s.radioRow}>
@@ -474,12 +579,15 @@ function PhotoSection({ siteId, curatorNode }) {
       {form.is_deceased && (
         <>
           <label style={{ ...s.fieldLabel, marginTop: 8 }}>사망일</label>
-          <input
-            style={s.textInput}
-            type="date"
-            value={form.death_date}
-            onChange={e => setField('death_date', e.target.value)}
-          />
+          <div style={s.dateRow}>
+            <input style={s.dateInput} value={form.death_year}  onChange={e => setField('death_year',  e.target.value)} placeholder="년(4자리)" maxLength={4} />
+            <input style={s.dateInput} value={form.death_month} onChange={e => setField('death_month', e.target.value)} placeholder="월" maxLength={2} />
+            <input style={s.dateInput} value={form.death_day}   onChange={e => setField('death_day',   e.target.value)} placeholder="일" maxLength={2} />
+          </div>
+          <label style={s.publicLabel}>
+            <input type="checkbox" checked={form.death_lunar} onChange={e => setField('death_lunar', e.target.checked)} />
+            &nbsp;음력
+          </label>
         </>
       )}
 
@@ -822,6 +930,29 @@ const s = {
   },
   dropzoneText: { fontSize: 13, color: '#B09060', textAlign: 'center', padding: 16 },
   previewImg:   { width: '100%', height: '100%', objectFit: 'cover' },
+
+  photoEditorWrap: { marginBottom: 12 },
+  photoFrame: {
+    position: 'relative', overflow: 'hidden',
+    width: '100%', height: 200, borderRadius: 8, background: '#1a1a1a',
+    userSelect: 'none', touchAction: 'none',
+  },
+  editorImg: {
+    position: 'absolute', top: 0, left: 0,
+    width: '100%', height: '100%', objectFit: 'cover',
+    pointerEvents: 'none', transformOrigin: 'center center',
+  },
+  resizeHandle: {
+    position: 'absolute', bottom: 8, right: 8,
+    width: 18, height: 18,
+    background: 'rgba(255,255,255,0.85)',
+    border: '2px solid rgba(0,0,0,0.35)',
+    borderRadius: 3, cursor: 'nwse-resize',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+  },
+  editorFooter:   { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 5 },
+  editorHint:     { fontSize: 11, color: '#8B7355' },
+  changePhotoBtn: { padding: '4px 10px', background: 'none', border: '1px solid #C4A882', borderRadius: 4, fontSize: 11, color: '#8B7355', cursor: 'pointer' },
   publicLabel:  { display: 'flex', alignItems: 'center', fontSize: 13, color: '#5a4a35', cursor: 'pointer', gap: 4 },
   textarea:     { width: '100%', padding: '10px 12px', border: '1px solid #C4A882', borderRadius: 4, fontSize: 13, color: '#333', background: '#FAFAF5', resize: 'vertical', boxSizing: 'border-box', marginBottom: 10 },
   uploadBtn:    { padding: '8px 16px', background: 'none', border: '1px solid #C4A882', borderRadius: 4, fontSize: 13, color: '#8B7355', cursor: 'pointer', marginBottom: 8 },
@@ -838,6 +969,8 @@ const s = {
 
   textInput:   { width: '100%', padding: '7px 10px', border: '1px solid #C4A882', borderRadius: 4, fontSize: 13, color: '#333', background: '#FAFAF5', boxSizing: 'border-box', marginBottom: 8 },
   radioRow:    { display: 'flex', gap: 16, marginBottom: 8 },
+  dateRow:     { display: 'flex', gap: 6, marginBottom: 6 },
+  dateInput:   { flex: 1, padding: '7px 6px', border: '1px solid #C4A882', borderRadius: 4, fontSize: 13, color: '#333', background: '#FAFAF5', boxSizing: 'border-box', textAlign: 'center' },
   formDivider: { height: 1, background: '#E0D5C5', margin: '14px 0' },
   required:    { color: '#c0392b' },
   crudBtn:     { flex: 1, padding: '9px 0', fontSize: 13, fontWeight: 700, borderRadius: 4, cursor: 'pointer', border: 'none' },
