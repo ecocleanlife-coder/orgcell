@@ -62,7 +62,7 @@ export const useAuthStore = create((set, get) => ({
     _meFetchPromise = apiFetch('/api/auth/me')
       .then(async (data) => {
         _meLastFetched = Date.now();
-        set({ user: data.user, isAuthenticated: true, isLoading: false });
+        set({ user: data.data, isAuthenticated: true, isLoading: false });
         // 로그인 상태면 관장 목록도 로드
         await get().fetchMyCuration();
       })

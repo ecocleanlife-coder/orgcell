@@ -23,9 +23,10 @@ export default function LandingPage() {
   // 이미 로그인된 경우 → 내 박물관으로 이동
   useEffect(() => {
     fetchMe().then(() => {
-      const { isAuthenticated: authed, user: me } = useAuthStore.getState();
-      if (authed && me?.subdomain) {
-        navigate(`/${me.subdomain}`, { replace: true });
+      const { isAuthenticated: authed, curatorSites } = useAuthStore.getState();
+      if (authed && curatorSites.size > 0) {
+        const subdomain = [...curatorSites][0];
+        navigate(`/${subdomain}`, { replace: true });
       } else if (authed) {
         navigate('/onboarding', { replace: true });
       }

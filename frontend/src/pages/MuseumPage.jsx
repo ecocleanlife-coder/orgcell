@@ -91,13 +91,14 @@ export default function MuseumPage() {
         }
       }
 
-      // 접근 권한 결정 — fetchMe 완료 후 fresh하게 체크
-      if (isCuratorOf(subdomain)) { setAccess(true); return; }
+      // 접근 권한 결정 — fetchMe 완료 후 fresh하게 체크 (stale closure 방지: getState())
+      const { isAuthenticated: authed, user: freshUser, isCuratorOf: isCur } = useAuthStore.getState();
+      if (isCur(subdomain)) { setAccess(true); return; }
       // 관장이 아닌 경우: 비로그인이면 false, 로그인이면 입장권 체크
-      if (!isAuthenticated) { setAccess(false); return; }
+      if (!authed) { setAccess(false); return; }
       // 입장권 체크 (§16)
       const siteId   = m?.siteId ?? m?.site_id;
-      const personId = user?.personId ?? user?.person_id;
+      const personId = freshUser?.personId ?? freshUser?.person_id;
       if (siteId && personId) {
         const { allowed } = await apiFetch(`/api/access/${siteId}/${personId}/check`).catch(() => ({ allowed: false }));
         setAccess(!!allowed);
