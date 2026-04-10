@@ -62,7 +62,7 @@ export default function ExhibitionPage() {
   useEffect(() => {
     if (type === 'calendar' || type === 'shared-album') { setLoading(false); return; }
     setLoading(true); setError('');
-    fetch(`/api/exhibition/${subdomain}?type=${type}`, { credentials: 'include' })
+    fetch(`/api/exhibitions/${subdomain}?type=${type}`, { credentials: 'include' })
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(d => {
         setItems(Array.isArray(d) ? d : (d.items ?? []));

@@ -40,7 +40,7 @@ export default function SharedAlbum({ subdomain, readOnly = false }) {
 
   // ── 기존 사진 로드 ──────────────────────────────────────────────────────────
   useEffect(() => {
-    fetch(`/api/album/shared/${subdomain}/photos`)
+    fetch(`/api/sharing/${subdomain}/photos`)
       .then(r => { if (!r.ok) throw new Error(); return r.json(); })
       .then(d => setPhotos(Array.isArray(d) ? d : (d.photos ?? [])))
       .catch(() => {})
@@ -76,8 +76,9 @@ export default function SharedAlbum({ subdomain, readOnly = false }) {
       try {
         const fd = new FormData();
         fd.append('photo', file);
-        // §11: 로그인 없이 업로드 가능 — credentials omit 방식이지만 있어도 무방
-        const res = await fetch(`/api/album/shared/${subdomain}/upload`, {
+        fd.append('room_code', subdomain);
+        // §11: 로그인 없이 업로드 가능
+        const res = await fetch(`/api/sharing/upload`, {
           method: 'POST',
           body:   fd,
         });
@@ -122,7 +123,7 @@ export default function SharedAlbum({ subdomain, readOnly = false }) {
     const ids = [...selected].join(',');
     // 백엔드가 zip 반환: GET /api/album/shared/:subdomain/download?ids=...
     const a   = document.createElement('a');
-    a.href    = `/api/album/shared/${subdomain}/download?ids=${ids}`;
+    a.href    = `/api/sharing/${subdomain}/download?ids=${ids}`;
     a.download= `shared_album_${subdomain}.zip`;
     document.body.appendChild(a);
     a.click();

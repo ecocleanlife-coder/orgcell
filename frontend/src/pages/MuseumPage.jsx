@@ -80,7 +80,7 @@ export default function MuseumPage() {
       if (m?.siteId || m?.site_id) {
         const sid = m.siteId ?? m.site_id;
         try {
-          const exData = await apiFetch(`/api/exhibition?siteId=${sid}`);
+          const exData = await apiFetch(`/api/exhibitions?siteId=${sid}`);
           const list = Array.isArray(exData) ? exData : (exData.exhibitions ?? []);
           const publicTypes = list.filter(e => e.is_public).map(e => e.type);
           setExhibitions(EXHIBITION_TYPES.filter(t => publicTypes.includes(t.type) || t.type === 'shared-album'));
