@@ -1024,6 +1024,7 @@ const s = {
     border: '2px dashed #C4A882', borderRadius: 8, background: '#FAFAF5',
     width: '100%', height: 200, display: 'flex', alignItems: 'center',
     justifyContent: 'center', cursor: 'pointer', marginBottom: 12, overflow: 'hidden',
+    position: 'relative', zIndex: 9999, pointerEvents: 'auto',
   },
   dropzoneText: { fontSize: 13, color: '#B09060', textAlign: 'center', padding: 16 },
   previewImg:   { width: '100%', height: '100%', objectFit: 'cover' },
