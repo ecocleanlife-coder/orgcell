@@ -7,10 +7,11 @@
 
 const express = require('express');
 const router  = express.Router();
-const { optionalAuth } = require('../middlewares/authMiddleware');
+const { protect } = require('../middlewares/authMiddleware');
+const checkAccess = require('../middlewares/accessCheckMiddleware');
 const ctrl = require('../controllers/treeController');
 
-// optionalAuth: 비로그인도 호출 가능 (접근권한 체크는 Phase 5에서 추가)
-router.get('/:subdomain', optionalAuth, ctrl.getTreeLayout);
+// §16: protect(로그인 필수) → checkAccess(입장권 검증) → 트리 레이아웃 반환
+router.get('/:subdomain', protect, checkAccess, ctrl.getTreeLayout);
 
 module.exports = router;

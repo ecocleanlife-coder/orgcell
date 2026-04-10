@@ -52,7 +52,7 @@ test.describe('§8 자료실 좌측 영역', () => {
     await page.goto(`/${SUBDOMAIN}/archive`);
     await page.waitForLoadState('networkidle', { timeout: 10000 });
     // 드롭존: 클릭/끌어서 놓기 영역
-    await expect(page.locator('text=클릭 또는 사진을 여기에 끌어다 놓으세요').first()).toBeVisible({ timeout: 8000 });
+    await expect(page.locator('text=클릭 또는 사진을 끌어다 놓으세요').first()).toBeVisible({ timeout: 8000 });
   });
 
   test('2-1-2 이름 입력 필드 렌더링', async ({ page }) => {

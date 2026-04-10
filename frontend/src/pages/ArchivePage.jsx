@@ -520,49 +520,59 @@ function PhotoSection({ siteId, curatorNode, ready }) {
       <h2 style={s.sectionTitle}>사진자료실 · 인물 정보</h2>
       <p style={s.hint}>프로필 사진 및 인물 정보를 관리하세요.</p>
 
-      {/* 프로필 사진 업로드 / 위치·크기 에디터 */}
-      <label style={s.fieldLabel}>프로필 사진</label>
-      {!preview ? (
+      {/* §8: 가족트리 카드에 보여질 180×180 사진창 + 업로드 + 에디터 */}
+      <label style={s.fieldLabel}>프로필 사진 <span style={s.hint180}>가족트리 카드 180×180</span></label>
+      <div style={s.photoEditorWrap}>
+        {/* 180×180 카드 프리뷰 — 항상 표시 */}
         <div
-          style={s.dropzone}
-          onClick={() => fileRef.current?.click()}
+          data-testid="photo-drag-area"
+          style={{ ...s.cardFrame, cursor: preview ? (dragRef.current ? 'grabbing' : 'grab') : 'pointer' }}
+          onPointerDown={preview ? handleDragStart : undefined}
+          onPointerMove={preview ? handleDragMove : undefined}
+          onPointerUp={preview ? handleDragEnd : undefined}
+          onPointerCancel={preview ? handleDragEnd : undefined}
           onDragOver={e => e.preventDefault()}
           onDrop={e => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}
+          onClick={!preview ? () => fileRef.current?.click() : undefined}
         >
-          <span style={s.dropzoneText}>{uploading ? '업로드 중…' : '클릭 또는 사진을 여기에 끌어다 놓으세요'}</span>
+          {preview ? (
+            <>
+              <img
+                src={preview}
+                alt="미리보기"
+                style={{ ...s.editorImg, transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }}
+                draggable={false}
+                onError={e => { e.currentTarget.style.opacity = '0.3'; }}
+              />
+              <div
+                data-testid="photo-resize-handle"
+                style={s.resizeHandle}
+                onPointerDown={handleResizeStart}
+                onPointerMove={handleResizeMove}
+                onPointerUp={handleResizeEnd}
+                onPointerCancel={handleResizeEnd}
+              />
+            </>
+          ) : (
+            <div style={s.cardEmpty}>
+              <span style={s.cardEmptyIcon}>📷</span>
+              <span style={s.cardEmptyText}>{uploading ? '업로드 중…' : '클릭 또는 사진을 끌어다 놓으세요'}</span>
+            </div>
+          )}
         </div>
-      ) : (
-        <div style={s.photoEditorWrap}>
-          <div
-            data-testid="photo-drag-area"
-            style={{ ...s.photoFrame, cursor: dragRef.current ? 'grabbing' : 'grab' }}
-            onPointerDown={handleDragStart}
-            onPointerMove={handleDragMove}
-            onPointerUp={handleDragEnd}
-            onPointerCancel={handleDragEnd}
-          >
-            <img
-              src={preview}
-              alt="미리보기"
-              style={{ ...s.editorImg, transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }}
-              draggable={false}
-              onError={e => { e.currentTarget.style.opacity = '0.3'; }}
-            />
-            <div
-              data-testid="photo-resize-handle"
-              style={s.resizeHandle}
-              onPointerDown={handleResizeStart}
-              onPointerMove={handleResizeMove}
-              onPointerUp={handleResizeEnd}
-              onPointerCancel={handleResizeEnd}
-            />
-          </div>
-          <div style={s.editorFooter}>
-            <span style={s.editorHint}>드래그로 위치 · 핸들(↘)로 크기 조정</span>
-            <button style={s.changePhotoBtn} onClick={() => fileRef.current?.click()}>사진 변경</button>
-          </div>
+
+        {/* 업로드 / 변경 버튼 + 힌트 */}
+        <div style={s.editorFooter}>
+          {preview
+            ? <span style={s.editorHint}>드래그로 위치 · 핸들(↘)로 크기 조정</span>
+            : <span style={s.editorHint}>180×180 카드에 맞게 사진을 올려주세요</span>
+          }
+          <button style={s.changePhotoBtn} onClick={() => fileRef.current?.click()}>
+            {preview ? '사진 변경' : '사진 업로드'}
+          </button>
         </div>
-      )}
+      </div>
+
       <input
         ref={fileRef}
         type="file"
@@ -1028,21 +1038,22 @@ const s = {
   hint:         { fontSize: 13, color: '#8B7355', lineHeight: 1.6, margin: '0 0 12px' },
   fieldLabel:   { fontSize: 12, fontWeight: 600, color: '#5a4a35', marginBottom: 6, display: 'block' },
 
-  dropzone: {
-    border: '2px dashed #C4A882', borderRadius: 8, background: '#FAFAF5',
-    width: '100%', height: 200, display: 'flex', alignItems: 'center',
-    justifyContent: 'center', cursor: 'pointer', marginBottom: 12, overflow: 'hidden',
-    position: 'relative', zIndex: 9999, pointerEvents: 'auto',
-  },
-  dropzoneText: { fontSize: 13, color: '#B09060', textAlign: 'center', padding: 16 },
-  previewImg:   { width: '100%', height: '100%', objectFit: 'cover' },
-
   photoEditorWrap: { marginBottom: 12 },
-  photoFrame: {
+  // §8: 가족트리 카드에 표시될 180×180 프리뷰 창
+  cardFrame: {
     position: 'relative', overflow: 'hidden',
-    width: '100%', height: 200, borderRadius: 8, background: '#1a1a1a',
+    width: 180, height: 180, borderRadius: 8,
+    background: '#2a2a2a', border: '2px solid #C4A882',
     userSelect: 'none', touchAction: 'none',
   },
+  cardEmpty: {
+    width: '100%', height: '100%',
+    display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  cardEmptyIcon: { fontSize: 32, opacity: 0.5 },
+  cardEmptyText: { fontSize: 11, color: '#B09060', textAlign: 'center', padding: '0 8px' },
+  hint180: { fontSize: 11, color: '#B09060', fontWeight: 400, marginLeft: 6 },
   editorImg: {
     position: 'absolute', top: 0, left: 0,
     width: '100%', height: '100%', objectFit: 'cover',
