@@ -28,7 +28,7 @@ async function getCurator(siteId, userId) {
     `SELECT id, person_id, oc_id, name, name_en, name_suffix, gender,
             birth_date, birth_year, death_date, death_year,
             is_deceased, photo_url, bio1, bio2, bio3,
-            match_status, ops_path
+            match_status
      FROM persons
      WHERE site_id = $1
        AND user_id = $2
