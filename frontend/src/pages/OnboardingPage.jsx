@@ -94,50 +94,29 @@ export default function OnboardingPage() {
   function goPrev() { setStep((s) => s - 1); }
 
   // ── 최종 제출 ────────────────────────────────────────────────────────────
+  // POST /api/sites 1번으로 site + curator person 동시 생성 (백엔드 §26 단일 트랜잭션)
   async function handleSubmit() {
     setSubmitting(true);
     try {
-      // 1. subdomain 배정
-      const sdRes = await apiFetch('/api/subdomain/assign', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          surnameKo:  lastName.trim(),
-          bonGwanKo:  bonGwanSelected?.name ?? (bonGwanQuery.trim() || null),
-        }),
-      });
-      const subdomain = sdRes.subdomain;
-
-      // 2. 박물관(site) 생성
-      const siteRes = await apiFetch('/api/sites', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subdomain }),
-      });
-      const siteId = siteRes.site?.id ?? siteRes.id;
-
-      // 3. 관장 인물 생성 (OPS)
       const birthDate = [birthYear, birthMonth.padStart(2,'0'), birthDay.padStart(2,'0')]
         .filter(Boolean).join('-') || null;
 
-      await apiFetch('/api/persons', {
+      const siteRes = await apiFetch('/api/sites', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          siteId,
-          subdomain,
-          lastName:    lastName.trim(),
-          firstName:   firstName.trim(),
-          gender,
-          birth_date:  birthDate,
-          birth_lunar: lunarBirth,
-          eng_last:    engLast.trim()  || null,
-          eng_first:   engFirst.trim() || null,
-          bonGwanKo:   bonGwanSelected?.name ?? (bonGwanQuery.trim() || null),
-          isCurator:   true,
+          surname_ko:     lastName.trim(),
+          given_name:     firstName.trim(),
+          bon_gwan_ko:    bonGwanSelected?.name ?? (bonGwanQuery.trim() || null),
+          curator_gender: gender,
+          birth_date:     birthDate,
+          birth_lunar:    lunarBirth,
+          surname_en:     engLast.trim()  || null,
+          name_en:        [engLast.trim(), engFirst.trim()].filter(Boolean).join(' ') || null,
         }),
       });
 
+      const subdomain = siteRes.data?.subdomain ?? siteRes.subdomain;
       toast.success('박물관이 개설되었습니다!');
       navigate(`/${subdomain}`);
     } catch (err) {
