@@ -6,6 +6,41 @@ const { sendMagicLinkEmail } = require('../services/emailService');
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+// OAuth2Client 팩토리 (redirect flow용 — client_secret 포함)
+function makeOAuthClient() {
+    return new OAuth2Client(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+        process.env.GOOGLE_REDIRECT_URI || 'https://orgcell.com/api/auth/google/callback'
+    );
+}
+
+// 공통 유저 upsert → JWT 발급 헬퍼
+async function upsertUserAndIssueJwt(res, { googleId, email, name, picture }) {
+    const { rows } = await db.query(
+        `INSERT INTO users (google_id, email, name, avatar_url)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (google_id) DO UPDATE SET
+            email = EXCLUDED.email,
+            name = EXCLUDED.name,
+            avatar_url = EXCLUDED.avatar_url,
+            updated_at = CURRENT_TIMESTAMP
+         RETURNING id, google_id, email, name, avatar_url`,
+        [googleId, email, name || email, picture || null]
+    );
+    const user = rows[0];
+    const { rows: famRows } = await db.query('SELECT family_id, role FROM users WHERE id = $1', [user.id]);
+    const familyId = famRows[0]?.family_id || null;
+    const role = famRows[0]?.role || 'guest';
+    const token = jwt.sign(
+        { user: { id: user.id, email: user.email, name: user.name, family_id: familyId, role } },
+        process.env.JWT_SECRET,
+        { expiresIn: '30d' }
+    );
+    res.cookie('orgcell_token', token, COOKIE_OPTIONS);
+    return { user, familyId, role };
+}
+
 const COOKIE_OPTIONS = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -32,50 +67,64 @@ exports.googleLogin = async (req, res) => {
         const payload = ticket.getPayload();
         const { sub: googleId, email, name, picture } = payload;
 
-        // Upsert user
-        const { rows } = await db.query(
-            `INSERT INTO users (google_id, email, name, avatar_url)
-             VALUES ($1, $2, $3, $4)
-             ON CONFLICT (google_id) DO UPDATE SET
-                email = EXCLUDED.email,
-                name = EXCLUDED.name,
-                avatar_url = EXCLUDED.avatar_url,
-                updated_at = CURRENT_TIMESTAMP
-             RETURNING id, google_id, email, name, avatar_url`,
-            [googleId, email, name, picture]
-        );
-
-        const user = rows[0];
-
-        // Fetch family info
-        const { rows: famRows } = await db.query(
-            'SELECT family_id, role FROM users WHERE id = $1', [user.id]
-        );
-        const familyId = famRows[0]?.family_id || null;
-        const role = famRows[0]?.role || 'guest';
-
-        // Generate JWT
-        const token = jwt.sign(
-            { user: { id: user.id, email: user.email, name: user.name, family_id: familyId, role } },
-            process.env.JWT_SECRET,
-            { expiresIn: '30d' }
-        );
-
-        res.cookie('orgcell_token', token, COOKIE_OPTIONS);
+        const { user, familyId, role } = await upsertUserAndIssueJwt(res, { googleId, email, name, picture });
         res.json({
             success: true,
-            user: {
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                avatar_url: user.avatar_url,
-                family_id: familyId,
-                role,
-            },
+            user: { id: user.id, email: user.email, name: user.name, avatar_url: user.avatar_url, family_id: familyId, role },
         });
     } catch (error) {
         console.error('Google Login Error:', error);
         res.status(500).json({ success: false, message: 'Google login failed' });
+    }
+};
+
+// @desc    Google OAuth redirect 시작
+// @route   GET /api/auth/google
+exports.googleOAuthInit = (req, res) => {
+    try {
+        const client = makeOAuthClient();
+        const state = encodeURIComponent(req.query.state || '/');
+        const url = client.generateAuthUrl({
+            access_type: 'offline',
+            scope: ['profile', 'email'],
+            state,
+            prompt: 'select_account',
+        });
+        res.redirect(url);
+    } catch (err) {
+        console.error('googleOAuthInit Error:', err);
+        const fe = process.env.FRONTEND_URL || 'https://orgcell.com';
+        res.redirect(`${fe}/login?error=oauth_init_failed`);
+    }
+};
+
+// @desc    Google OAuth 콜백
+// @route   GET /api/auth/google/callback
+exports.googleOAuthCallback = async (req, res) => {
+    const fe = process.env.FRONTEND_URL || 'https://orgcell.com';
+    try {
+        const { code, state } = req.query;
+        if (!code) return res.redirect(`${fe}/login?error=no_code`);
+
+        const client = makeOAuthClient();
+        const { tokens } = await client.getToken(code);
+        client.setCredentials(tokens);
+
+        const ticket = await client.verifyIdToken({
+            idToken: tokens.id_token,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+        const payload = ticket.getPayload();
+        const { sub: googleId, email, name, picture } = payload;
+
+        await upsertUserAndIssueJwt(res, { googleId, email, name, picture });
+
+        const redirectPath = state ? decodeURIComponent(state) : '/';
+        const safeRedirect = redirectPath.startsWith('/') ? redirectPath : '/';
+        res.redirect(`${fe}${safeRedirect}`);
+    } catch (err) {
+        console.error('googleOAuthCallback Error:', err);
+        res.redirect(`${fe}/login?error=google_failed`);
     }
 };
 

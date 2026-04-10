@@ -776,3 +776,54 @@ exports.searchPersons = async (req, res) => {
         return res.status(500).json({ success: false, message: '검색 실패' });
     }
 };
+
+// POST /api/persons/link-account
+// 온보딩 시 기존 인물(ghost)에 현재 로그인 계정 연결 (§26-4)
+exports.linkAccount = async (req, res) => {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, message: '인증 필요' });
+
+    const { site_id, person_id } = req.body; // person_id = oc_id
+    if (!site_id || !person_id) {
+        return res.status(400).json({ success: false, message: 'site_id, person_id 필수' });
+    }
+
+    const client = await db.pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const personRes = await client.query(
+            `SELECT id, match_status, user_id FROM persons
+             WHERE oc_id = $1 AND site_id = $2 FOR UPDATE`,
+            [person_id, site_id]
+        );
+        if (personRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: '인물을 찾을 수 없습니다.' });
+        }
+        const person = personRes.rows[0];
+
+        if (person.user_id && person.user_id !== userId) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ success: false, message: '이미 다른 계정과 연결된 인물입니다.' });
+        }
+
+        await client.query(
+            `UPDATE persons SET user_id = $1, match_status = 'linked' WHERE id = $2`,
+            [userId, person.id]
+        );
+
+        const { rows: siteRows } = await client.query(
+            `SELECT subdomain FROM family_sites WHERE id = $1`, [site_id]
+        );
+        await client.query('COMMIT');
+
+        return res.json({ success: true, subdomain: siteRows[0]?.subdomain });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('linkAccount error:', err);
+        return res.status(500).json({ success: false, message: err.message });
+    } finally {
+        client.release();
+    }
+};

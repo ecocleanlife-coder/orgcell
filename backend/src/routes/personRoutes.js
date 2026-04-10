@@ -8,6 +8,9 @@ const ctrl = require('../controllers/personController');
 // ── 온보딩 본인확인 검색 (§26-3) ── 인증 불필요 (가입 전 호출)
 router.post('/search', ctrl.searchPersons);
 
+// ── 기존 인물에 계정 연결 (온보딩 §26-4) ── 인증 필요
+router.post('/link-account', protect, ctrl.linkAccount);
+
 // ── OPS 파이프라인 (§26): 인물 생성 + 관계 + path 배정 ──
 // POST /api/persons  (siteId 없음 — subdomain + anchor로 식별)
 router.post('/', protect, ctrl.createPersonOPS);
