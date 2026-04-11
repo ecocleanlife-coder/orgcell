@@ -17,6 +17,9 @@ function makeOAuthClient() {
 
 // 공통 유저 upsert → JWT 발급 헬퍼
 async function upsertUserAndIssueJwt(res, { googleId, email, name, picture }) {
+    // 이메일은 항상 소문자로 정규화하여 저장 (대소문자 불일치 방지)
+    const normalizedEmail = email.toLowerCase().trim();
+
     const { rows } = await db.query(
         `INSERT INTO users (google_id, email, name, avatar_url)
          VALUES ($1, $2, $3, $4)
@@ -26,9 +29,45 @@ async function upsertUserAndIssueJwt(res, { googleId, email, name, picture }) {
             avatar_url = EXCLUDED.avatar_url,
             updated_at = CURRENT_TIMESTAMP
          RETURNING id, google_id, email, name, avatar_url`,
-        [googleId, email, name || email, picture || null]
+        [googleId, normalizedEmail, name || normalizedEmail, picture || null]
     );
     const user = rows[0];
+
+    // ★ owner_email 연결 수정:
+    // 구글 로그인 성공 시, 이메일이 일치하는 family_sites의 user_id를
+    // 현재 users.id로 자동 연결한다 (소문자 비교).
+    //
+    // family_sites에 owner_email 컬럼이 있는 경우: LOWER(owner_email) 비교
+    // 없는 경우: users 테이블 JOIN으로 이메일 매칭
+    //
+    // 아래는 두 경우를 모두 커버하는 쿼리:
+    // 1순위: owner_email 컬럼이 있으면 직접 비교
+    // 2순위: users 테이블에 같은 이메일로 등록된 다른 user_id가 있으면 병합
+    await db.query(
+        `UPDATE family_sites fs
+         SET user_id = $1
+         WHERE user_id IS DISTINCT FROM $1
+           AND (
+             -- owner_email 컬럼이 있는 경우 (없으면 이 조건은 에러 → catch에서 무시)
+             LOWER(fs.owner_email) = $2
+           )`,
+        [user.id, normalizedEmail]
+    ).catch(() => {
+        // owner_email 컬럼이 없는 경우 무시 — 아래 fallback 쿼리로 처리
+    });
+
+    // fallback: users 테이블에 같은 이메일의 다른 계정이 있던 경우
+    // 해당 구 user_id 로 등록된 family_sites를 현재 id로 이전
+    await db.query(
+        `UPDATE family_sites fs
+         SET user_id = $1
+         FROM users old_u
+         WHERE old_u.id = fs.user_id
+           AND LOWER(old_u.email) = $2
+           AND old_u.id != $1`,
+        [user.id, normalizedEmail]
+    ).catch(() => {});
+
     const { rows: famRows } = await db.query('SELECT family_id, role FROM users WHERE id = $1', [user.id]);
     const familyId = famRows[0]?.family_id || null;
     const role = famRows[0]?.role || 'guest';
