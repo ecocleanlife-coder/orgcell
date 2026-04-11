@@ -71,7 +71,7 @@ export default function ArchivePage() {
   useEffect(() => {
     api(`/api/museum/${subdomain}`)
       .then(d => {
-        const m = d.museum ?? d;
+        const m = d.data ?? d.museum ?? d;
         setMuseum(m);
         const id = m.id ?? m.site_id;
         if (id) setSiteId(id);
@@ -415,9 +415,6 @@ function PhotoSection({ siteId, curatorNode, ready }) {
   function handleResizeEnd() { resizeRef.current = null; }
 
   async function handleFile(file) {
-    console.log('[handleFile] called', file);
-    console.log('[handleFile] curatorNode', curatorNode);
-    console.log('[handleFile] siteId', siteId);
     if (!file || !siteId || !curatorNode) return;
     setUploading(true);
     try {
@@ -533,7 +530,7 @@ function PhotoSection({ siteId, curatorNode, ready }) {
           onPointerCancel={preview ? handleDragEnd : undefined}
           onDragOver={e => e.preventDefault()}
           onDrop={e => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}
-          onClick={!preview ? () => fileRef.current?.click() : undefined}
+          onClick={preview ? undefined : () => fileRef.current?.click()}
         >
           {preview ? (
             <>
