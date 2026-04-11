@@ -22,7 +22,7 @@ const LoginPage      = lazy(() => import('./pages/LoginPage'));
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage'));
 const InvitePage     = lazy(() => import('./pages/InvitePage'));
 const MuseumPage     = lazy(() => import('./pages/MuseumPage'));
-const ArchivePage    = lazy(() => import('./pages/archive/ArchivePage'));
+const ArchivePage    = lazy(() => import('./pages/Archive/ArchivePage'));
 const ExhibitionPage = lazy(() => import('./pages/ExhibitionPage'));
 
 function PageLoader() {
