@@ -54,7 +54,12 @@ export const useAuthStore = create((set, get) => ({
   // ─────────────────────────────────────────────────────────────────────────
   async fetchMe() {
     const now = Date.now();
-    if (get().isAuthenticated && now - _meLastFetched < ME_CACHE_MS) return;
+    // 버그 C 수정: 캐시 HIT 시에도 curatorSites가 비어있으면 fetchMyCuration 재실행
+    const { isAuthenticated: authed, curatorSites } = get();
+    if (authed && now - _meLastFetched < ME_CACHE_MS) {
+      if (curatorSites.size === 0) await get().fetchMyCuration();
+      return;
+    }
 
     if (_meFetchPromise) return _meFetchPromise;
 
@@ -116,7 +121,8 @@ export const useAuthStore = create((set, get) => ({
   // isCuratorOf — 해당 subdomain의 관장인지 확인
   // ─────────────────────────────────────────────────────────────────────────
   isCuratorOf(subdomain) {
-    return get().curatorSites.has(subdomain);
+    // 버그 A 수정: curatorSites는 lowercase 저장이므로 입력값도 정규화
+    return get().curatorSites.has(subdomain?.toLowerCase() ?? '');
   },
 
   // ─────────────────────────────────────────────────────────────────────────
