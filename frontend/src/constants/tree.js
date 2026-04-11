@@ -6,10 +6,10 @@
  */
 
 // ─── §24-1 부부 노드 규격 ─────────────────────────────────────────────────────
-export const COUPLE_WIDTH   = 440;  // CoupleBlock 너비 강제
-export const CARD_WIDTH     = 220;  // COUPLE_WIDTH / 2 (카드 간격 0px 밀착)
-export const HALF_CARD      = 110;  // CARD_WIDTH / 2
-export const CARD_HEIGHT    = 140;  // 규칙서 미명시 → 백엔드 엔진과 동일 기본값
+export const COUPLE_WIDTH   = 440;  // CoupleBlock 너비 강제 (§24-1)
+export const CARD_WIDTH     = 220;  // 440 / 2
+export const HALF_CARD      = 110;  // 220 / 2
+export const CARD_HEIGHT    = 220;  // 정사각형
 export const COUPLE_BG      = '#F9F7F2'; // 부부 박스 배경
 
 // ─── §24-2 X축 좌표 기본값 ───────────────────────────────────────────────────

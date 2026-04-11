@@ -12,7 +12,7 @@ const C = {
   CARD_WIDTH:       220,    // §24-1: CoupleBlock 440 / 2
   COUPLE_WIDTH:     440,    // §24-1
   HALF_CARD:        110,    // 220 / 2
-  CARD_HEIGHT:      140,    // 규칙서 미명시 → 엔진 기본값, 프론트 override 가능
+  CARD_HEIGHT:      220,    // §24-1 (정사각형)
   ROW_GAP:          280,    // Q1 확정
   SIBLING_GAP:      260,    // §23: 남편 형제 왼쪽 / 아내 형제 오른쪽 260px씩
   CHILD_BLOCK_STEP: 500,    // Q2 확정: COUPLE_WIDTH(440) + GAP(60)
