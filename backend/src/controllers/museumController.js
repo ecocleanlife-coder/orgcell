@@ -73,7 +73,7 @@ exports.getMuseumBySubdomain = async (req, res) => {
         const subdomain = req.params.subdomain.toLowerCase();
         const { rows } = await db.query(
             `SELECT fs.id, fs.user_id, fs.subdomain, fs.theme, fs.status, fs.created_at,
-                    p.name AS curator_name, p.name_en_first, p.name_en_last
+                    p.name AS curator_name
              FROM family_sites fs
              LEFT JOIN persons p
                ON p.site_id = fs.id
