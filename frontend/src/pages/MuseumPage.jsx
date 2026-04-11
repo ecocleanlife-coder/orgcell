@@ -147,7 +147,7 @@ export default function MuseumPage() {
         <MuseumHeader
           museumName={museumName} lang={lang} setLang={setLang}
           isAuthenticated={isAuthenticated} onLogout={handleLogout}
-          isCurator={false}
+          isCurator={false} subdomain={subdomain}
         />
         <div style={s.gateWrap}>
           <div style={s.gateCard}>
@@ -182,7 +182,7 @@ export default function MuseumPage() {
       <MuseumHeader
         museumName={museumName} lang={lang} setLang={setLang}
         isAuthenticated={isAuthenticated} onLogout={handleLogout}
-        isCurator={isCurator}
+        isCurator={isCurator} subdomain={subdomain}
       />
 
       <MenuBar exhibitions={exhibitions} subdomain={subdomain} navigate={navigate} />
@@ -209,7 +209,7 @@ export default function MuseumPage() {
 // ══════════════════════════════════════════════════════════════════════════════
 // Header (§31)
 // ══════════════════════════════════════════════════════════════════════════════
-function MuseumHeader({ museumName, lang, setLang, isAuthenticated, onLogout, isCurator }) {
+function MuseumHeader({ museumName, lang, setLang, isAuthenticated, onLogout, isCurator, subdomain }) {
   const navigate = useNavigate();
   return (
     <header style={s.header}>
@@ -225,6 +225,18 @@ function MuseumHeader({ museumName, lang, setLang, isAuthenticated, onLogout, is
           <option value="ko">한국어</option>
           <option value="en">English</option>
         </select>
+        {/* §6/§8: 관장일 때만 표시 */}
+        {isCurator && (
+          <button
+            style={s.manageBtn}
+            onClick={() => navigate(`/${subdomain}/archive`)}
+            onMouseDown={e => e.currentTarget.style.transform = 'translateY(1px)'}
+            onMouseUp={e   => e.currentTarget.style.transform = 'translateY(0)'}
+            onMouseLeave={e=> e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            박물관 관리
+          </button>
+        )}
         {isAuthenticated
           ? <button style={s.logoutBtn} onClick={onLogout}>로그아웃</button>
           : <button style={s.logoutBtn} onClick={() => navigate('/login')}>로그인</button>
@@ -369,6 +381,7 @@ const s = {
   headerRight: { display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 },
   langSelect:  { padding: '4px 8px', border: '1px solid #C4A882', borderRadius: 4, background: '#FAFAF5', fontSize: 13, color: '#8B7355', cursor: 'pointer' },
   logoutBtn:   { padding: '5px 12px', background: 'none', border: '1px solid #C4A882', borderRadius: 4, fontSize: 13, color: '#8B7355', cursor: 'pointer' },
+  manageBtn:   { padding: '5px 14px', background: '#8B7355', border: '1px solid #7a6040', borderBottom: '2px solid #5a4030', borderRight: '2px solid #6a5040', borderRadius: 4, fontSize: 13, fontWeight: 600, color: '#FDF8F0', cursor: 'pointer', transition: 'transform 0.05s', boxShadow: '1px 1px 0 #c4a87a' },
 
   // MenuBar §12
   menuBar:     { display: 'flex', flexWrap: 'wrap', gap: 8, padding: '10px 20px', background: '#FDFBF7', borderBottom: '1px solid #E8DFD0' },
