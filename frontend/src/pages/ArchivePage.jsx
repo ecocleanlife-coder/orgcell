@@ -3,6 +3,11 @@
  *
  * 좌: 180×180 사진 에디터 + 인물정보 폼 + [관계] 탭
  * 우: 메뉴 버튼 (세로 배치, §12 자판기 스타일)
+ *
+ * 변경 내역 (2026-04-11):
+ *  - 버튼 이름 변경: 저장→본인 인적사항 저장, 생성→새 가족 추가, 수정→선택한 가족 정보 수정, 제거→가족 관계 삭제
+ *  - 영문 이름 자동 로드: curatorNode 또는 선택된 인물의 nameEnFirst/nameEnLast 저장값이 있으면 자동 입력
+ *  - 새 가족 추가 후 invalidate() 호출 → 트리 즉시 갱신
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -109,27 +114,33 @@ export default function ArchivePage() {
     })();
   }, [subdomain]);
 
-  // ── curatorNode → 폼 동기화 ────────────────────────────────────────────────
+  // ── curatorNode → 폼 동기화 (영문 이름 자동 로드 포함) ───────────────────
   useEffect(() => {
-    // Bug 3: curatorNode null이어도 preview 초기화 실행
+    // curatorNode null이어도 preview 초기화 실행
     const ph = curatorNode?.photoUrl ?? null;
     setPreview(ph && !ph.startsWith('blob:') ? `${ph}?v=${Date.now()}` : ph);
     if (!curatorNode) return;
-    // Bug 1: ISO 타임스탬프 ("1990-01-12T00:00:00.000Z") → T 기준 앞만 파싱
+
+    // ISO 타임스탬프 ("1990-01-12T00:00:00.000Z") → T 기준 앞만 파싱
     const bdate = curatorNode.birthDate ?? curatorNode.birth_date ?? '';
     const [by = '', bm = '', bd = ''] = bdate ? bdate.split('T')[0].split('-') : [];
+
+    // 영문 이름: 저장된 값이 있으면 자동 로드, 없으면 빈 문자열
+    const savedEnFirst = curatorNode.nameEnFirst ?? curatorNode.name_en_first ?? '';
+    const savedEnLast  = curatorNode.nameEnLast  ?? curatorNode.name_en_last  ?? '';
+
     setForm({
-      name:        curatorNode.name                                    ?? '',
-      nameEnFirst: curatorNode.nameEnFirst ?? curatorNode.name_en_first ?? '',
-      nameEnLast:  curatorNode.nameEnLast  ?? curatorNode.name_en_last  ?? '',
-      gender:      curatorNode.gender                                  ?? 'male',
+      name:        curatorNode.name   ?? '',
+      nameEnFirst: savedEnFirst,        // ← 자동 로드
+      nameEnLast:  savedEnLast,         // ← 자동 로드
+      gender:      curatorNode.gender  ?? 'male',
       birthYear:   by,
       birthMonth:  bm,
       birthDay:    bd,
-      isDeceased:  curatorNode.isDeceased                              ?? false,
-      deathDate:   curatorNode.deathDate   ?? curatorNode.death_date    ?? '',
+      isDeceased:  curatorNode.isDeceased                           ?? false,
+      deathDate:   curatorNode.deathDate ?? curatorNode.death_date  ?? '',
     });
-  }, [curatorNode]); // Bug 3: curatorNode 전체를 의존성으로 추가
+  }, [curatorNode]);
 
   // ── 관계 목록 로드 ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -182,7 +193,7 @@ export default function ArchivePage() {
     window.addEventListener('pointerup', onUp);
   }
 
-  // ── 인물정보 저장 ──────────────────────────────────────────────────────────
+  // ── 본인 인적사항 저장 (구: 저장) ─────────────────────────────────────────
   async function handleSave() {
     if (!siteId || !personId) return;
     setSaving(true);
@@ -204,7 +215,7 @@ export default function ArchivePage() {
         }),
       });
       await invalidate();
-      await refreshRelations(); // Bug 5
+      await refreshRelations();
       toast.success('저장됐습니다.');
     } catch {
       toast.error('저장 실패');
@@ -213,7 +224,8 @@ export default function ArchivePage() {
     }
   }
 
-  // ── 인물 생성 (Bug 4: [생성] onClick) ─────────────────────────────────────
+  // ── 새 가족 추가 (구: 생성) ────────────────────────────────────────────────
+  // §19: person_relations 기반. 생성 후 invalidate() → 트리 즉시 갱신
   async function handleCreatePerson() {
     if (!siteId || !form.name.trim()) { toast.error('이름을 입력해주세요'); return; }
     setSaving(true);
@@ -226,6 +238,8 @@ export default function ArchivePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name:        form.name,
+          name_en_first: form.nameEnFirst || null,
+          name_en_last:  form.nameEnLast  || null,
           name_en:     [form.nameEnFirst, form.nameEnLast].filter(Boolean).join(' ') || null,
           gender:      form.gender,
           birth_date:  birthDate,
@@ -233,17 +247,18 @@ export default function ArchivePage() {
           death_date:  form.deathDate || null,
         }),
       });
+      // §19/§24-4: 트리 캐시 무효화 → FamilyTreeCanvas 즉시 갱신
       await invalidate();
       await refreshRelations();
-      toast.success('인물이 생성됐습니다.');
+      toast.success('새 가족이 추가됐습니다. 트리에 바로 표시됩니다.');
     } catch (err) {
-      toast.error(err.message || '생성 실패');
+      toast.error(err.message || '추가 실패');
     } finally {
       setSaving(false);
     }
   }
 
-  // ── 인물 제거 (Bug 4: [제거] onClick) ─────────────────────────────────────
+  // ── 가족 관계 삭제 (구: 제거) ──────────────────────────────────────────────
   async function handleDeletePerson() {
     if (!siteId || !personId) return;
     if (!window.confirm('이 인물을 트리에서 제거하시겠습니까?')) return;
@@ -257,19 +272,19 @@ export default function ArchivePage() {
     }
   }
 
-  // ── 관계 목록 재조회 (Bug 5: 생성/삭제 후 호출) ───────────────────────────
+  // ── 관계 목록 재조회 ───────────────────────────────────────────────────────
   async function refreshRelations() {
     if (!siteId) return;
     const d = await apiFetch(`/api/persons/${siteId}/relations`).catch(() => ({ data: [] }));
     setRelations(d.data ?? []);
   }
 
-  // ── 관계 삭제 ──────────────────────────────────────────────────────────────
+  // ── 관계 삭제 (§8/§9: "정말 관계를 해제하시겠습니까?" 확인 후 삭제) ──────
   async function handleDeleteRelation(relationId) {
     try {
       await apiFetch(`/api/persons/${siteId}/relations/${relationId}`, { method: 'DELETE' });
       await invalidate();
-      await refreshRelations(); // Bug 5
+      await refreshRelations();
       toast.success('관계가 해제됐습니다.');
     } catch {
       toast.error('삭제 실패');
@@ -395,12 +410,13 @@ export default function ArchivePage() {
               </>
             )}
 
+            {/* ── [본인 인적사항 저장] 버튼 (구: 저장) ── */}
             <button
               style={{ ...s.saveBtn, opacity: !saving ? 1 : 0.6 }}
               disabled={saving}
               onClick={handleSave}
             >
-              {saving ? '저장 중...' : '저장'}
+              {saving ? '저장 중...' : '본인 인적사항 저장'}
             </button>
           </div>
 
@@ -435,24 +451,37 @@ export default function ArchivePage() {
               })}
             </div>
 
-            {/* 인물 CRUD 버튼 — 항상 표시 */}
-            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+            {/* 인물 CRUD 버튼 — §8/§9 규칙 적용 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+              {/* [새 가족 추가] — 미등록 시 활성 (구: 생성) */}
               <button
                 data-testid="relation-create-btn"
-                style={{ ...s.btnPri, flex: 1 }}
-                disabled={!!curatorNode}
+                style={{ ...s.btnPri, width: '100%' }}
+                disabled={!!curatorNode && saving}
                 onClick={handleCreatePerson}
-              >생성</button>
-              <button
-                style={{ ...s.btnSec, flex: 1 }}
-                disabled={!curatorNode}
-                onClick={handleSave}
-              >수정</button>
-              <button
-                style={{ ...s.btnDng, flex: 1 }}
-                disabled={!curatorNode}
-                onClick={handleDeletePerson}
-              >제거</button>
+              >
+                {saving ? '추가 중...' : '새 가족 추가'}
+              </button>
+
+              <div style={{ display: 'flex', gap: 6 }}>
+                {/* [선택한 가족 정보 수정] — 등록된 인물 선택 시 활성 (구: 수정) */}
+                <button
+                  style={{ ...s.btnSec, flex: 1 }}
+                  disabled={!curatorNode}
+                  onClick={handleSave}
+                >
+                  선택한 가족 정보 수정
+                </button>
+
+                {/* [가족 관계 삭제] — 등록된 인물 선택 시 활성, 빨간색 (구: 제거) */}
+                <button
+                  style={{ ...s.btnDng, flex: 1 }}
+                  disabled={!curatorNode}
+                  onClick={handleDeletePerson}
+                >
+                  가족 관계 삭제
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -475,7 +504,7 @@ export default function ArchivePage() {
         </aside>
       </div>
 
-      {/* ── 삭제 확인 모달 ──────────────────────────────────────────────────── */}
+      {/* ── 삭제 확인 모달 §8/§9 ───────────────────────────────────────────── */}
       {confirmDel && (
         <div style={s.overlay} data-testid="confirm-delete-modal">
           <div style={s.modal}>
@@ -530,9 +559,9 @@ const s = {
   relEmpty: { display: 'flex', justifyContent: 'center', paddingTop: 6 },
 
   // 버튼
-  btnPri: { padding: '6px 14px', background: '#8B7355', color: '#fff', border: 'none', borderRadius: 4, fontSize: 12, cursor: 'pointer' },
-  btnSec: { padding: '5px 10px', background: 'none', border: '1px solid #C4A882', borderRadius: 4, fontSize: 12, color: '#8B7355', cursor: 'pointer' },
-  btnDng: { padding: '5px 10px', background: '#C0392B', color: '#fff', border: 'none', borderRadius: 4, fontSize: 12, cursor: 'pointer' },
+  btnPri: { padding: '8px 14px', background: '#8B7355', color: '#fff', border: 'none', borderRadius: 4, fontSize: 12, cursor: 'pointer', fontWeight: 600 },
+  btnSec: { padding: '6px 10px', background: 'none', border: '1px solid #C4A882', borderRadius: 4, fontSize: 12, color: '#8B7355', cursor: 'pointer' },
+  btnDng: { padding: '6px 10px', background: '#C0392B', color: '#fff', border: 'none', borderRadius: 4, fontSize: 12, cursor: 'pointer', fontWeight: 600 },
 
   // 우측 메뉴 (§12 자판기 스타일)
   right:   { display: 'flex', flexDirection: 'column', gap: 4, padding: 12, background: '#FDF8F0', width: 140, borderLeft: '1px solid #E8DFD0', overflowY: 'auto' },
