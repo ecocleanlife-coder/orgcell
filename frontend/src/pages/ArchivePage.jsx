@@ -89,7 +89,7 @@ export default function ArchivePage() {
   const [mergeNotifs,     setMergeNotifs]     = useState([]);
 
   const curatorNode = nodes.find(n => n.personId === curatorId) ?? null;
-  const personId    = curatorNode?.personId ?? null;
+  const personId    = curatorNode?.id ?? null;
   const dataReady   = !!siteId;
 
   // ── 초기 로드 ──────────────────────────────────────────────────────────────
@@ -111,11 +111,13 @@ export default function ArchivePage() {
 
   // ── curatorNode → 폼 동기화 ────────────────────────────────────────────────
   useEffect(() => {
-    if (!curatorNode) return;
-    const ph = curatorNode.photoUrl ?? null;
+    // Bug 3: curatorNode null이어도 preview 초기화 실행
+    const ph = curatorNode?.photoUrl ?? null;
     setPreview(ph && !ph.startsWith('blob:') ? `${ph}?v=${Date.now()}` : ph);
+    if (!curatorNode) return;
+    // Bug 1: ISO 타임스탬프 ("1990-01-12T00:00:00.000Z") → T 기준 앞만 파싱
     const bdate = curatorNode.birthDate ?? curatorNode.birth_date ?? '';
-    const [by = '', bm = '', bd = ''] = bdate ? bdate.split('-') : [];
+    const [by = '', bm = '', bd = ''] = bdate ? bdate.split('T')[0].split('-') : [];
     setForm({
       name:        curatorNode.name                                    ?? '',
       nameEnFirst: curatorNode.nameEnFirst ?? curatorNode.name_en_first ?? '',
@@ -127,7 +129,7 @@ export default function ArchivePage() {
       isDeceased:  curatorNode.isDeceased                              ?? false,
       deathDate:   curatorNode.deathDate   ?? curatorNode.death_date    ?? '',
     });
-  }, [curatorNode?.personId]);
+  }, [curatorNode]); // Bug 3: curatorNode 전체를 의존성으로 추가
 
   // ── 관계 목록 로드 ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -201,7 +203,8 @@ export default function ArchivePage() {
           death_date:    form.deathDate   || null,
         }),
       });
-      invalidate();
+      await invalidate();
+      await refreshRelations(); // Bug 5
       toast.success('저장됐습니다.');
     } catch {
       toast.error('저장 실패');
@@ -210,12 +213,63 @@ export default function ArchivePage() {
     }
   }
 
+  // ── 인물 생성 (Bug 4: [생성] onClick) ─────────────────────────────────────
+  async function handleCreatePerson() {
+    if (!siteId || !form.name.trim()) { toast.error('이름을 입력해주세요'); return; }
+    setSaving(true);
+    try {
+      const birthDate = form.birthYear
+        ? [form.birthYear, form.birthMonth?.padStart(2, '0'), form.birthDay?.padStart(2, '0')].filter(Boolean).join('-')
+        : null;
+      await apiFetch(`/api/persons/${siteId}`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name:        form.name,
+          name_en:     [form.nameEnFirst, form.nameEnLast].filter(Boolean).join(' ') || null,
+          gender:      form.gender,
+          birth_date:  birthDate,
+          is_deceased: form.isDeceased,
+          death_date:  form.deathDate || null,
+        }),
+      });
+      await invalidate();
+      await refreshRelations();
+      toast.success('인물이 생성됐습니다.');
+    } catch (err) {
+      toast.error(err.message || '생성 실패');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // ── 인물 제거 (Bug 4: [제거] onClick) ─────────────────────────────────────
+  async function handleDeletePerson() {
+    if (!siteId || !personId) return;
+    if (!window.confirm('이 인물을 트리에서 제거하시겠습니까?')) return;
+    try {
+      await apiFetch(`/api/persons/${siteId}/${personId}`, { method: 'DELETE' });
+      await invalidate();
+      await refreshRelations();
+      toast.success('인물이 제거됐습니다.');
+    } catch {
+      toast.error('제거 실패');
+    }
+  }
+
+  // ── 관계 목록 재조회 (Bug 5: 생성/삭제 후 호출) ───────────────────────────
+  async function refreshRelations() {
+    if (!siteId) return;
+    const d = await apiFetch(`/api/persons/${siteId}/relations`).catch(() => ({ data: [] }));
+    setRelations(d.data ?? []);
+  }
+
   // ── 관계 삭제 ──────────────────────────────────────────────────────────────
   async function handleDeleteRelation(relationId) {
     try {
       await apiFetch(`/api/persons/${siteId}/relations/${relationId}`, { method: 'DELETE' });
-      setRelations(prev => prev.filter(r => r.id !== relationId));
-      invalidate();
+      await invalidate();
+      await refreshRelations(); // Bug 5
       toast.success('관계가 해제됐습니다.');
     } catch {
       toast.error('삭제 실패');
@@ -387,14 +441,17 @@ export default function ArchivePage() {
                 data-testid="relation-create-btn"
                 style={{ ...s.btnPri, flex: 1 }}
                 disabled={!!curatorNode}
+                onClick={handleCreatePerson}
               >생성</button>
               <button
                 style={{ ...s.btnSec, flex: 1 }}
                 disabled={!curatorNode}
+                onClick={handleSave}
               >수정</button>
               <button
                 style={{ ...s.btnDng, flex: 1 }}
                 disabled={!curatorNode}
+                onClick={handleDeletePerson}
               >제거</button>
             </div>
           </div>

@@ -22,13 +22,7 @@ router.get('/path/*', optionalAuth, ctrl.getPersonByPath);
 router.get('/:siteId', optionalAuth, ctrl.listPersons);
 
 // 생성/수정/삭제는 protect (인증 필수)
-// [DEPRECATED] 레거시 생성 엔드포인트 — OPS(POST /api/persons) 사용 필수
-router.post('/:siteId', protect, (req, res) => {
-    return res.status(400).json({
-        success: false,
-        message: '이 API는 더 이상 사용되지 않습니다. POST /api/persons (OPS)를 사용하세요.',
-    });
-});
+router.post('/:siteId', protect, ctrl.createPerson);
 router.put('/:siteId/:personId', protect, ctrl.updatePerson);
 router.delete('/:siteId/:personId', protect, ctrl.deletePerson);
 
