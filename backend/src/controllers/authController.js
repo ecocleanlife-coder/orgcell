@@ -49,7 +49,7 @@ async function upsertUserAndIssueJwt(res, { googleId, email, name, picture }) {
          WHERE user_id IS DISTINCT FROM $1
            AND (
              -- owner_email 컬럼이 있는 경우 (없으면 이 조건은 에러 → catch에서 무시)
-             LOWER(fs.owner_email) = $2
+             TRIM(LOWER(fs.owner_email)) = $2
            )`,
         [user.id, normalizedEmail]
     ).catch(() => {
@@ -71,13 +71,21 @@ async function upsertUserAndIssueJwt(res, { googleId, email, name, picture }) {
     const { rows: famRows } = await db.query('SELECT family_id, role FROM users WHERE id = $1', [user.id]);
     const familyId = famRows[0]?.family_id || null;
     const role = famRows[0]?.role || 'guest';
+
+    // 사용자가 owner_email로 등록된 모든 family_sites의 subdomain 목록 조회
+    const { rows: siteRows } = await db.query(
+        `SELECT subdomain FROM family_sites WHERE user_id = $1 OR TRIM(LOWER(owner_email)) = $2`,
+        [user.id, normalizedEmail]
+    );
+    const curatorSites = siteRows.map(row => row.subdomain);
+
     const token = jwt.sign(
-        { user: { id: user.id, email: user.email, name: user.name, family_id: familyId, role } },
+        { user: { id: user.id, email: user.email, name: user.name, family_id: familyId, role, curatorSites } },
         process.env.JWT_SECRET,
         { expiresIn: '30d' }
     );
     res.cookie('orgcell_token', token, COOKIE_OPTIONS);
-    return { user, familyId, role };
+    return { user, familyId, role, curatorSites };
 }
 
 const COOKIE_OPTIONS = {
@@ -106,16 +114,26 @@ exports.googleLogin = async (req, res) => {
         const payload = ticket.getPayload();
         const { sub: googleId, email, name, picture } = payload;
 
-        const { user, familyId, role } = await upsertUserAndIssueJwt(res, { googleId, email, name, picture });
+        const { user, familyId, role, curatorSites } = await upsertUserAndIssueJwt(res, { googleId, email, name, picture });
         res.json({
             success: true,
-            user: { id: user.id, email: user.email, name: user.name, avatar_url: user.avatar_url, family_id: familyId, role },
+            user: { id: user.id, email: user.email, name: user.name, avatar_url: user.avatar_url, family_id: familyId, role, curatorSites },
         });
     } catch (error) {
         console.error('Google Login Error:', error);
         res.status(500).json({ success: false, message: 'Google login failed' });
     }
 };
+    const token = jwt.sign(
+        { user: { id: user.id, email: user.email, name: user.name, family_id: familyId, role } },
+        process.env.JWT_SECRET,
+        { expiresIn: '30d' }
+    );
+    res.cookie('orgcell_token', token, COOKIE_OPTIONS);
+    return { user, familyId, role };
+}
+
+
 
 // @desc    Google OAuth redirect 시작
 // @route   GET /api/auth/google
@@ -348,9 +366,16 @@ exports.verifyMagicLink = async (req, res) => {
         const familyId = famRows[0]?.family_id || null;
         const role = famRows[0]?.role || 'guest';
 
+        // 사용자가 owner_email로 등록된 모든 family_sites의 subdomain 목록 조회
+        const { rows: siteRows } = await db.query(
+            `SELECT subdomain FROM family_sites WHERE user_id = $1 OR TRIM(LOWER(owner_email)) = $2`,
+            [user.id, email]
+        );
+        const curatorSites = siteRows.map(row => row.subdomain);
+
         // Generate JWT (same format as Google login)
         const jwtToken = jwt.sign(
-            { user: { id: user.id, email: user.email, name: user.name, family_id: familyId, role } },
+            { user: { id: user.id, email: user.email, name: user.name, family_id: familyId, role, curatorSites } },
             process.env.JWT_SECRET,
             { expiresIn: '30d' }
         );
@@ -365,6 +390,7 @@ exports.verifyMagicLink = async (req, res) => {
                 avatar_url: user.avatar_url,
                 family_id: familyId,
                 role,
+                curatorSites,
             },
         });
     } catch (error) {

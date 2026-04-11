@@ -121,6 +121,7 @@ exports.createSite = async (req, res) => {
             success: true,
             data: {
                 ...site,
+                subdomain: site.subdomain, // Explicitly add subdomain at top level of data
                 url: `https://orgcell.com/${subdomain.toLowerCase()}`,
                 curator_person_id: curatorPersonId,
                 curator_int_id: curatorIntId,
