@@ -89,14 +89,15 @@ test.describe('§8 자료실 좌측 영역', () => {
     await expect(page.locator('text=사망').first()).toBeVisible({ timeout: 8000 });
   });
 
-  test('2-1-6 대표정보 1/2/3 입력 필드 렌더링', async ({ page }) => {
+  test('2-1-6 대표정보 1/2/3 제거됨 (§8)', async ({ page }) => {
     await mockAuthAsCurator(page, SUBDOMAIN, CURATOR_ID);
     await setupArchiveMocks(page);
     await page.goto(`/${SUBDOMAIN}/archive`);
     await page.waitForLoadState('networkidle', { timeout: 10000 });
-    await expect(page.locator('text=대표정보 1').first()).toBeVisible({ timeout: 8000 });
-    await expect(page.locator('text=대표정보 2').first()).toBeVisible({ timeout: 8000 });
-    await expect(page.locator('text=대표정보 3').first()).toBeVisible({ timeout: 8000 });
+    // §8에서 대표정보 1/2/3 제거됨 — 렌더링 되지 않아야 함
+    await expect(page.locator('text=대표정보 1').first()).not.toBeVisible({ timeout: 8000 });
+    await expect(page.locator('text=대표정보 2').first()).not.toBeVisible({ timeout: 8000 });
+    await expect(page.locator('text=대표정보 3').first()).not.toBeVisible({ timeout: 8000 });
   });
 
 });
