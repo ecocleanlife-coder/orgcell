@@ -67,12 +67,20 @@ exports.getMyMuseums = async (req, res) => {
 };
 
 // GET /api/museum/:subdomain  (optionalAuth)
-// Returns site info + caller's role: 'public' | 'member' | 'owner'
+// Returns site info + curator name + caller's role: 'public' | 'member' | 'owner'
 exports.getMuseumBySubdomain = async (req, res) => {
     try {
         const subdomain = req.params.subdomain.toLowerCase();
         const { rows } = await db.query(
-            'SELECT id, user_id, subdomain, theme, status, created_at FROM family_sites WHERE LOWER(subdomain) = $1',
+            `SELECT fs.id, fs.user_id, fs.subdomain, fs.theme, fs.status, fs.created_at,
+                    p.name AS curator_name, p.name_en_first, p.name_en_last
+             FROM family_sites fs
+             LEFT JOIN persons p
+               ON p.site_id = fs.id
+              AND p.user_id = fs.user_id
+              AND p.match_status = 'linked'
+             WHERE LOWER(fs.subdomain) = $1
+             LIMIT 1`,
             [subdomain]
         );
         if (!rows.length) return res.status(404).json({ success: false, message: 'Museum not found' });

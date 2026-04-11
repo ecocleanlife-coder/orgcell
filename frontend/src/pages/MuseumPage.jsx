@@ -71,7 +71,7 @@ export default function MuseumPage() {
       // fetchMe 완료 후 curatorSites 확정 (레이스 컨디션 방지)
       await fetchMe();
       const data = await apiFetch(`/api/museum/${subdomain}`);
-      const m = data.museum ?? data;
+      const m = data.data ?? data.museum ?? data;
       setMuseum(m);
 
       // siteId를 treeStore에 저장 (PersonEditModal PUT API에 필요)
@@ -138,7 +138,7 @@ export default function MuseumPage() {
     }
   }
 
-  const museumName = museum?.museum_name ?? museum?.name ?? `${subdomain} 가족유산박물관`;
+  const museumName = formatMuseumName(museum?.curator_name) ?? `${subdomain} 가족유산박물관`;
 
   // ── 접근 불가 화면 (§16 문패만) ─────────────────────────────────────────────
   if (access === false) {
@@ -416,3 +416,20 @@ const s = {
   reqBtn:    { display: 'block', width: '100%', padding: '11px 0', background: '#8B7355', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 10 },
   loginBtn:  { display: 'block', width: '100%', padding: '9px 0', background: 'none', border: '1px solid #C4A882', borderRadius: 4, fontSize: 14, color: '#8B7355', cursor: 'pointer' },
 };
+
+// ── §31 헤더 박물관명 포맷 ──────────────────────────────────────────────────────
+// 한글/한자 포함 → 전체 이름. 영문만 & 10자 초과 → "F. LastName"
+function formatMuseumName(name) {
+  if (!name) return null;
+  const isAsian = /[\u3040-\u9FFF\uAC00-\uD7AF]/.test(name);
+  if (isAsian) return `${name} 가족유산박물관`;
+  if (name.length > 10) {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      const initial = parts[0][0].toUpperCase();
+      const last    = parts[parts.length - 1];
+      return `${initial}. ${last} 가족유산박물관`;
+    }
+  }
+  return `${name} 가족유산박물관`;
+}
