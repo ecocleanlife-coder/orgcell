@@ -12,7 +12,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { toast }                        from 'react-hot-toast';
-import { useTreeStore }                 from '../../store/treeStore';
+import { useTreeStore }                 from '../../../store/treeStore';
 import { savePerson, uploadPhoto }      from '../hooks/archiveApi';
 import KoreanDateInput                  from './KoreanDateInput';
 
