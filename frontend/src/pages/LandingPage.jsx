@@ -6,9 +6,7 @@
  * 역할:
  *   - "/" 루트 방문 시 보이는 서비스 진입 화면
  *   - 비로그인: 서비스 소개 + 구글 로그인 / 이메일 로그인 유도
- *   - 로그인 상태: 내 박물관 목록 또는 온보딩으로 자동 이동
- *
- * §5 금색 톤 디자인 (cardBorder, curatorBg 팔레트 준수)
+ *   - 로그인 상태: 내 박물관으로 자동 이동, 박물관 없으면 온보딩
  */
 
 import { useEffect } from 'react';
@@ -17,16 +15,14 @@ import { useAuthStore } from '../store/authStore';
 import Footer from '../components/common/Footer';
 
 export default function LandingPage() {
-  const { isAuthenticated, isLoading, fetchMe, user } = useAuthStore();
+  const { isAuthenticated, isLoading, fetchMe } = useAuthStore();
   const navigate = useNavigate();
 
-  // 이미 로그인된 경우 → 내 박물관으로 이동
   useEffect(() => {
     fetchMe().then(() => {
       const { isAuthenticated: authed, curatorSites } = useAuthStore.getState();
-      if (authed && curatorSites.size > 0) {
-        const subdomain = [...curatorSites][0];
-        navigate(`/${subdomain}`, { replace: true });
+      if (authed && curatorSites?.length > 0) {
+        navigate(`/${curatorSites[0]}`, { replace: true });
       } else if (authed) {
         navigate('/onboarding', { replace: true });
       }
@@ -43,77 +39,78 @@ export default function LandingPage() {
 
   return (
     <div style={s.page}>
-      {/* 배경 패턴 */}
       <div style={s.bgPattern} />
 
-      {/* 문패 카드 */}
       <div style={s.plaque}>
+        {/* 장식 상단 */}
+        <Decor />
 
-        {/* 장식 테두리 상단 */}
-        <div style={s.decorTop}>
-          <span style={s.decorLine} />
-          <span style={s.decorDot}>◆</span>
-          <span style={s.decorLine} />
-        </div>
-
-        {/* 로고 + 서비스명 */}
+        {/* 로고 */}
         <div style={s.logoWrap}>
           <div style={s.logoIcon}>🏛️</div>
           <h1 style={s.title}>가족유산박물관</h1>
           <p style={s.subtitle}>Family Heritage Museum</p>
         </div>
 
-        {/* 설명 */}
-        <p style={s.desc}>
-          소중한 가족의 이야기를 하나의 박물관에 담습니다.<br />
-          사진, 약력, 자서전, 육성 녹음까지 — 대대로 이어지는 유산.
+        {/* 헤드라인 */}
+        <p style={s.headline}>
+          FamilySearch가 과거를 기록하는 도서관이라면,<br />
+          <strong>Orgcell은 우리 가족의 현재를 전시하는<br />살아있는 박물관입니다.</strong>
         </p>
 
-        {/* 구분선 */}
+        {/* 주요 기능 */}
+        <div style={s.features}>
+          {[
+            { icon: '🌳', label: '가족 트리',    desc: '3대를 한눈에, 웜홀로 연결' },
+            { icon: '🖼️', label: '7대 전시관',   desc: '사진·약력·자서전·육성녹음' },
+            { icon: '🔐', label: '입장권 시스템', desc: '초대받은 가족만 입장 가능' },
+          ].map(f => (
+            <div key={f.label} style={s.featureItem}>
+              <span style={{ fontSize: 24 }}>{f.icon}</span>
+              <span style={s.featureLabel}>{f.label}</span>
+              <span style={s.featureDesc}>{f.desc}</span>
+            </div>
+          ))}
+        </div>
+
         <div style={s.divider} />
 
         {/* 로그인 버튼 */}
         <div style={s.btnGroup}>
-          <a
-            href="/api/auth/google"
-            style={{ ...s.btn, ...s.btnGoogle }}
-          >
+          <a href="/api/auth/google" style={{ ...s.btn, ...s.btnGoogle }}>
             <GoogleIcon />
             구글로 시작하기
           </a>
-          <button
-            style={{ ...s.btn, ...s.btnEmail }}
-            onClick={() => navigate('/login')}
-          >
+          <button style={{ ...s.btn, ...s.btnEmail }} onClick={() => navigate('/login')}>
             이메일로 시작하기
           </button>
         </div>
 
-        {/* 이미 입장권 있는 경우 */}
         <p style={s.passHint}>
           입장권이 있으신가요?{' '}
-          <button style={s.linkBtn} onClick={() => navigate('/login')}>
-            로그인
-          </button>
+          <button style={s.linkBtn} onClick={() => navigate('/login')}>로그인</button>
           {' '}후 바로 입장하실 수 있습니다.
         </p>
 
-        {/* 장식 테두리 하단 */}
-        <div style={{ ...s.decorTop, marginTop: 20, marginBottom: 0 }}>
-          <span style={s.decorLine} />
-          <span style={s.decorDot}>◆</span>
-          <span style={s.decorLine} />
-        </div>
-
+        {/* 장식 하단 */}
+        <Decor />
       </div>
 
-      {/* §20 Footer */}
       <Footer variant="minimal" />
     </div>
   );
 }
 
-// ── 구글 아이콘 ──────────────────────────────────────────────────────────────
+function Decor() {
+  return (
+    <div style={s.decorTop}>
+      <span style={s.decorLine} />
+      <span style={s.decorDot}>◆</span>
+      <span style={s.decorLine} />
+    </div>
+  );
+}
+
 function GoogleIcon() {
   return (
     <svg viewBox="0 0 24 24" width="18" height="18" style={{ flexShrink: 0 }}>
@@ -125,181 +122,45 @@ function GoogleIcon() {
   );
 }
 
-// ─── 스타일 ───────────────────────────────────────────────────────────────────
 const s = {
-  page: {
-    minHeight:       '100vh',
-    display:         'flex',
-    flexDirection:   'column',
-    alignItems:      'center',
-    justifyContent:  'center',
-    padding:         '32px 16px',
-    boxSizing:       'border-box',
-    background:      '#F5F0E8',
-    position:        'relative',
-    overflow:        'hidden',
-  },
-  bgPattern: {
-    position:   'absolute',
-    inset:       0,
-    background: 'repeating-linear-gradient(45deg, transparent, transparent 40px, rgba(196,168,130,0.04) 40px, rgba(196,168,130,0.04) 80px)',
-    pointerEvents: 'none',
-  },
-  loadingWrap: {
-    height:         '100vh',
-    display:        'flex',
-    alignItems:     'center',
-    justifyContent: 'center',
-    background:     '#F5F0E8',
-  },
-  loadingDot: {
-    width:        12,
-    height:       12,
-    borderRadius: '50%',
-    background:   '#C4A882',
-    animation:    'pulse 1s ease-in-out infinite',
-  },
+  page:        { minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 16px', boxSizing: 'border-box', background: '#F5F0E8', position: 'relative', overflow: 'hidden' },
+  bgPattern:   { position: 'absolute', inset: 0, background: 'repeating-linear-gradient(45deg, transparent, transparent 40px, rgba(196,168,130,0.04) 40px, rgba(196,168,130,0.04) 80px)', pointerEvents: 'none' },
+  loadingWrap: { height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F0E8' },
+  loadingDot:  { width: 12, height: 12, borderRadius: '50%', background: '#C4A882', animation: 'pulse 1s ease-in-out infinite' },
 
-  // ── 문패 카드 ──────────────────────────────────────────────────────────────
   plaque: {
-    position:       'relative',
-    zIndex:          1,
-    background:     '#FDFBF7',
-    border:         '1px solid #C4A882',
-    borderRight:    '2px solid #b09060',
-    borderBottom:   '2px solid #9a7a50',
-    boxShadow:      '3px 3px 0 #c4a87a, 6px 6px 0 #b09060',
-    borderRadius:    10,
-    padding:        '36px 48px 28px',
-    width:           420,
-    maxWidth:       'calc(100vw - 32px)',
-    display:        'flex',
-    flexDirection:  'column',
-    alignItems:     'center',
-    textAlign:      'center',
+    position: 'relative', zIndex: 1,
+    background: '#FDFBF7', border: '1px solid #C4A882',
+    borderRight: '2px solid #b09060', borderBottom: '2px solid #9a7a50',
+    boxShadow: '3px 3px 0 #c4a87a, 6px 6px 0 #b09060',
+    borderRadius: 10, padding: '32px 48px 28px',
+    width: 440, maxWidth: 'calc(100vw - 32px)',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
   },
 
-  // ── 장식 ────────────────────────────────────────────────────────────────────
-  decorTop: {
-    display:        'flex',
-    alignItems:     'center',
-    gap:             8,
-    marginBottom:   20,
-    width:          '100%',
-  },
-  decorLine: {
-    flex:       1,
-    height:     1,
-    background: 'linear-gradient(to right, transparent, #C4A882, transparent)',
-  },
-  decorDot: {
-    fontSize: 10,
-    color:    '#C4A882',
-  },
+  decorTop:  { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, width: '100%' },
+  decorLine: { flex: 1, height: 1, background: 'linear-gradient(to right, transparent, #C4A882, transparent)' },
+  decorDot:  { fontSize: 10, color: '#C4A882' },
 
-  // ── 로고 ────────────────────────────────────────────────────────────────────
-  logoWrap: {
-    display:       'flex',
-    flexDirection: 'column',
-    alignItems:    'center',
-    gap:            6,
-    marginBottom:  16,
-  },
-  logoIcon: {
-    fontSize:     44,
-    lineHeight:    1,
-    marginBottom:  6,
-  },
-  title: {
-    fontSize:      28,
-    fontWeight:    800,
-    color:         '#3a2a1a',
-    margin:         0,
-    letterSpacing:  1,
-  },
-  subtitle: {
-    fontSize:      13,
-    color:         '#9a8a75',
-    margin:         0,
-    letterSpacing:  2,
-    fontStyle:     'italic',
-  },
+  logoWrap:  { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 14 },
+  logoIcon:  { fontSize: 44, lineHeight: 1, marginBottom: 4 },
+  title:     { fontSize: 28, fontWeight: 800, color: '#3a2a1a', margin: 0, letterSpacing: 1 },
+  subtitle:  { fontSize: 13, color: '#9a8a75', margin: 0, letterSpacing: 2, fontStyle: 'italic' },
 
-  // ── 설명 ────────────────────────────────────────────────────────────────────
-  desc: {
-    fontSize:   13,
-    color:      '#6a5a45',
-    lineHeight: 1.8,
-    margin:     '0 0 20px',
-  },
-  divider: {
-    width:        '70%',
-    height:        1,
-    background:   'repeating-linear-gradient(to right, #C4A882 0, #C4A882 4px, transparent 4px, transparent 8px)',
-    marginBottom: 20,
-    opacity:      0.5,
-  },
+  headline:  { fontSize: 13, color: '#6a5a45', lineHeight: 1.8, margin: '0 0 18px' },
 
-  // ── 버튼 ────────────────────────────────────────────────────────────────────
-  btnGroup: {
-    display:       'flex',
-    flexDirection: 'column',
-    gap:            10,
-    width:         '100%',
-    marginBottom:  14,
-  },
-  btn: {
-    display:        'flex',
-    alignItems:     'center',
-    justifyContent: 'center',
-    gap:             10,
-    width:          '100%',
-    padding:        '12px 0',
-    borderRadius:    7,
-    fontSize:        14,
-    fontWeight:      600,
-    cursor:          'pointer',
-    textDecoration:  'none',
-    border:          'none',
-    transition:      'transform 0.1s, box-shadow 0.1s',
-    boxSizing:       'border-box',
-  },
-  btnGoogle: {
-    background:  '#fff',
-    color:       '#3a2a1a',
-    border:      '1px solid #C4A882',
-    boxShadow:   '0 1px 3px rgba(0,0,0,0.1)',
-  },
-  btnEmail: {
-    background:  '#8B7355',
-    color:       '#fff',
-    boxShadow:   '0 1px 3px rgba(0,0,0,0.15)',
-  },
+  features:      { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, width: '100%', marginBottom: 18 },
+  featureItem:   { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '12px 6px', background: '#F5F0E8', borderRadius: 6, border: '1px solid #E8DFD0' },
+  featureLabel:  { fontSize: 11, fontWeight: 700, color: '#5a4a35' },
+  featureDesc:   { fontSize: 10, color: '#9a8a75', textAlign: 'center', lineHeight: 1.4 },
 
-  // ── 힌트 / 링크 ────────────────────────────────────────────────────────────
-  passHint: {
-    fontSize:  12,
-    color:     '#9a8a75',
-    margin:     0,
-    lineHeight: 1.6,
-  },
-  linkBtn: {
-    background:   'none',
-    border:       'none',
-    color:        '#8B7355',
-    fontWeight:   600,
-    cursor:       'pointer',
-    fontSize:     12,
-    padding:       0,
-    textDecoration:'underline',
-  },
+  divider:   { width: '70%', height: 1, background: 'repeating-linear-gradient(to right, #C4A882 0, #C4A882 4px, transparent 4px, transparent 8px)', marginBottom: 18, opacity: 0.5 },
 
-  // ── 저작권 ──────────────────────────────────────────────────────────────────
-  copyright: {
-    position: 'relative',
-    zIndex:    1,
-    fontSize: 11,
-    color:    '#b09a80',
-    marginTop: 20,
-  },
+  btnGroup:  { display: 'flex', flexDirection: 'column', gap: 10, width: '100%', marginBottom: 14 },
+  btn:       { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, width: '100%', padding: '12px 0', borderRadius: 7, fontSize: 14, fontWeight: 600, cursor: 'pointer', textDecoration: 'none', border: 'none', boxSizing: 'border-box' },
+  btnGoogle: { background: '#fff', color: '#3a2a1a', border: '1px solid #C4A882', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+  btnEmail:  { background: '#8B7355', color: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' },
+
+  passHint:  { fontSize: 12, color: '#9a8a75', margin: '0 0 20px', lineHeight: 1.6 },
+  linkBtn:   { background: 'none', border: 'none', color: '#8B7355', fontWeight: 600, cursor: 'pointer', fontSize: 12, padding: 0, textDecoration: 'underline' },
 };
