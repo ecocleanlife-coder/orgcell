@@ -17,101 +17,102 @@ exports.createFamily = async (req, res) => {
             surname_en, name_en,
         } = req.body;
 
-        // 1. 이미 박물관(family_sites)을 소유한 경우 체크
+        if (!first_name || !last_name) {
+            return res.status(400).json({ success: false, message: '성과 이름을 입력해주세요.' });
+        }
+
+        // 1. 이미 family_sites를 소유한 경우 체크
         const { rows: existingSite } = await client.query(
-            "SELECT id, subdomain FROM family_sites WHERE user_id = $1 LIMIT 1", [userId]
+            'SELECT id, subdomain FROM family_sites WHERE user_id = $1 LIMIT 1', [userId]
         );
         if (existingSite.length > 0) {
             return res.status(400).json({
                 success: false,
-                message: "이미 박물관이 있습니다.",
+                message: '이미 박물관이 있습니다.',
                 subdomain: existingSite[0].subdomain,
             });
         }
 
         // 2. subdomain 자동 생성 (§26-1-1: 성씨영문 + 순번)
-        //    surname_en 또는 last_name 로마자 변환 기반
         const baseSlug = (surname_en || last_name || 'user')
             .toLowerCase()
             .replace(/[^a-z0-9]/g, '')
             .slice(0, 10) || 'user';
 
-        // 충돌 없는 순번 찾기
         let finalSubdomain = null;
         for (let seq = 1; seq <= 999; seq++) {
             const candidate = `${baseSlug}-${seq}`;
             const { rows: check } = await client.query(
-                "SELECT id FROM family_sites WHERE subdomain = $1", [candidate]
+                'SELECT id FROM family_sites WHERE subdomain = $1', [candidate]
             );
             if (check.length === 0) { finalSubdomain = candidate; break; }
         }
-        if (!finalSubdomain) throw new Error("subdomain 자동 생성 실패");
+        if (!finalSubdomain) throw new Error('subdomain 자동 생성 실패');
 
-        // 3. families 레코드 생성 (bon_gwan 저장, status='active')
-        const adminKey = "ORG-FM-" + crypto.randomBytes(3).toString("hex").toUpperCase();
-        const { rows: userRows } = await client.query(
-            "SELECT google_drive_token FROM users WHERE id = $1", [userId]
-        );
-        const driveToken = userRows[0]?.google_drive_token || null;
+        // 3. families 레코드 생성
+        const adminKey = 'ORG-FM-' + crypto.randomBytes(3).toString('hex').toUpperCase();
+        const familyName = name || `${last_name}${first_name} 가족`;
 
         const { rows: familyRows } = await client.query(
-            `INSERT INTO families (name, admin_user_id, admin_key, subdomain, google_drive_token, bon_gwan, status)
-             VALUES ($1, $2, $3, $4, $5, $6, 'active')
+            `INSERT INTO families (name, admin_user_id, admin_key, subdomain, bon_gwan, status)
+             VALUES ($1, $2, $3, $4, $5, 'active')
              RETURNING id, name, admin_key, subdomain, bon_gwan`,
-            [name || `${last_name}${first_name} 가족`, userId, adminKey, finalSubdomain, driveToken, bon_gwan?.trim() || null]
+            [familyName, userId, adminKey, finalSubdomain, bon_gwan?.trim() || null]
         );
         const family = familyRows[0];
 
-        // 4. family_sites 레코드 생성 (bon_gwan 함께 저장)
+        // 4. family_sites 레코드 생성
         const { rows: siteRows } = await client.query(
-            `INSERT INTO family_sites (user_id, subdomain, site_name, bon_gwan)
+            `INSERT INTO family_sites (user_id, subdomain, title, bon_gwan)
              VALUES ($1, $2, $3, $4)
              RETURNING id`,
-            [userId, finalSubdomain, name || `${last_name}${first_name} 가족`, bon_gwan?.trim() || null]
+            [userId, finalSubdomain, familyName, bon_gwan?.trim() || null]
         );
         const siteId = siteRows[0].id;
 
-        // 5. 부모님 person 레코드 생성 (match_status='ghost' — 직접 계정 없음)
+        // 5. 부(父) person 생성 (ghost)
         let fatherPersonId = null;
-        if (father_first_name && father_last_name) {
-            const { rows: fatherRows } = await client.query(
+        if (father_first_name?.trim() && father_last_name?.trim()) {
+            const fName = `${father_last_name.trim()}${father_first_name.trim()}`;
+            const { rows: fRows } = await client.query(
                 `INSERT INTO persons (site_id, name, first_name, last_name, gender, match_status)
-                 VALUES ($1, $2, $3, $4, 'M', 'ghost')
-                 RETURNING id`,
-                [siteId, `${father_last_name.trim()}${father_first_name.trim()}`, father_first_name.trim(), father_last_name.trim()]
+                 VALUES ($1, $2, $3, $4, 'M', 'ghost') RETURNING id`,
+                [siteId, fName, father_first_name.trim(), father_last_name.trim()]
             );
-            fatherPersonId = fatherRows[0].id;
+            fatherPersonId = fRows[0].id;
         }
 
+        // 6. 모(母) person 생성 (ghost)
         let motherPersonId = null;
-        if (mother_first_name && mother_last_name) {
-            const { rows: motherRows } = await client.query(
+        if (mother_first_name?.trim() && mother_last_name?.trim()) {
+            const mName = `${mother_last_name.trim()}${mother_first_name.trim()}`;
+            const { rows: mRows } = await client.query(
                 `INSERT INTO persons (site_id, name, first_name, last_name, gender, match_status)
-                 VALUES ($1, $2, $3, $4, 'F', 'ghost')
-                 RETURNING id`,
-                [siteId, `${mother_last_name.trim()}${mother_first_name.trim()}`, mother_first_name.trim(), mother_last_name.trim()]
+                 VALUES ($1, $2, $3, $4, 'F', 'ghost') RETURNING id`,
+                [siteId, mName, mother_first_name.trim(), mother_last_name.trim()]
             );
-            motherPersonId = motherRows[0].id;
+            motherPersonId = mRows[0].id;
         }
 
-        // 6. 본인(관장) person 레코드 생성 (bon_gwan 포함)
-        const { rows: curatorRows } = await client.query(
+        // 7. 관장(본인) person 생성 (linked)
+        const curatorName = `${last_name.trim()}${first_name.trim()}`;
+        await client.query(
             `INSERT INTO persons
                (site_id, name, first_name, last_name, gender, birth_date, birth_lunar,
-                user_id, parent1_id, parent2_id, match_status, bon_gwan, name_en)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'linked', $11, $12)
-             RETURNING id`,
+                user_id, parent1_id, parent2_id, match_status, bon_gwan, name_en,
+                father_first_name, father_last_name, mother_first_name, mother_last_name)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'linked',$11,$12,$13,$14,$15,$16)`,
             [
-                siteId, `${last_name.trim()}${first_name.trim()}`,
-                first_name.trim(), last_name.trim(),
-                curator_gender, birth_date || null, birth_lunar || false,
+                siteId, curatorName, first_name.trim(), last_name.trim(),
+                curator_gender || null, birth_date || null, birth_lunar || false,
                 userId, fatherPersonId, motherPersonId,
-                bon_gwan?.trim() || null,
-                name_en || null,
+                bon_gwan?.trim() || null, name_en || null,
+                father_first_name?.trim() || null, father_last_name?.trim() || null,
+                mother_first_name?.trim() || null, mother_last_name?.trim() || null,
             ]
         );
 
-        // 7. family_sites.user_id 자동 연결 (authController와 동기화)
+        // 8. users 테이블 업데이트
         await client.query(
             "UPDATE users SET family_id = $1, role = 'admin' WHERE id = $2",
             [family.id, userId]
@@ -119,7 +120,6 @@ exports.createFamily = async (req, res) => {
 
         await client.query('COMMIT');
 
-        // OnboardingPage가 navigate(`/${subdomain}`) 하도록 subdomain 반환
         res.json({
             success: true,
             subdomain: finalSubdomain,
@@ -128,15 +128,13 @@ exports.createFamily = async (req, res) => {
 
     } catch (error) {
         await client.query('ROLLBACK');
-        console.error("createFamily Error:", error);
-        res.status(500).json({ success: false, message: error.message || "Failed to create family" });
+        console.error('createFamily Error:', error);
+        res.status(500).json({ success: false, message: error.message || 'Failed to create family' });
     } finally {
         client.release();
     }
 };
 
-// @desc    Join a family via admin_key (게스트/멤버 가입)
-// @route   POST /api/family/join
 exports.joinFamily = async (req, res) => {
     try {
         const userId = req.user.id;
