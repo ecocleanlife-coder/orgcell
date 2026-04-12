@@ -50,7 +50,7 @@ export const useAuthStore = create((set, get) => ({
   // 내가 관장인 박물관 목록 조회
   fetchMyCuration: async () => {
     try {
-      const res = await apiFetch('/api/museums/my-curations');
+      const res = await apiFetch('/api/museum/mine');
       // 응답 데이터 구조에 따라 유연하게 처리
       const sites = res.data || res.sites || (Array.isArray(res) ? res : []);
       const subdomains = sites.map(s => s.subdomain);
