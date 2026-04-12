@@ -11,7 +11,7 @@
  */
 
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuthStore }   from '../store/authStore';
+import { useAuthStore }   from '@/store/authStore.js';
 import { useArchiveData } from './hooks/useArchiveData';
 import MyInfoPanel        from './panels/MyInfoPanel';
 import FamilyPanel        from './panels/FamilyPanel';

@@ -11,13 +11,13 @@
 
 import { useState }           from 'react';
 import { toast }              from 'react-hot-toast';
-import { useTreeStore }       from '../../store/treeStore';
+import { useTreeStore }       from '@/store/treeStore.js';
 import {
   createPerson,
   savePerson,
   deletePerson,
   deleteRelation,
-} from '../hooks/archiveApi';
+} from './archiveApi.js';
 
 // ── 상수 ─────────────────────────────────────────────────────────────────────
 const REL_TABS = [

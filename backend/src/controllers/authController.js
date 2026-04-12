@@ -124,14 +124,7 @@ exports.googleLogin = async (req, res) => {
         res.status(500).json({ success: false, message: 'Google login failed' });
     }
 };
-    const token = jwt.sign(
-        { user: { id: user.id, email: user.email, name: user.name, family_id: familyId, role } },
-        process.env.JWT_SECRET,
-        { expiresIn: '30d' }
-    );
-    res.cookie('orgcell_token', token, COOKIE_OPTIONS);
-    return { user, familyId, role };
-}
+
 
 
 
@@ -333,6 +326,12 @@ exports.verifyMagicLink = async (req, res) => {
 
         const linkToken = tokenRows[0];
 
+        console.log(`[Magic Link Verify] Backend Current UTC Time: ${new Date().toISOString()}`);
+        console.log(`[Magic Link Verify] Token Expires At (DB Value): ${linkToken.expires_at.toISOString()}`);
+
+        console.log(`[Magic Link Verify] Backend Current UTC Time: ${new Date().toISOString()}`);
+        console.log(`[Magic Link Verify] Token Expires At (DB Value): ${linkToken.expires_at.toISOString()}`);
+
         if (linkToken.used) {
             return res.status(400).json({ success: false, message: 'This link has already been used' });
         }
@@ -353,11 +352,13 @@ exports.verifyMagicLink = async (req, res) => {
              VALUES (NULL, $1, $2)
              ON CONFLICT (email) DO UPDATE SET
                 updated_at = CURRENT_TIMESTAMP
-             RETURNING id, email, name, avatar_url`,
+             RETURNING id, email, name, avatar_url, created_at`,
             [email, name]
         );
 
         const user = userRows[0];
+
+        console.log(`[Magic Link Verify] User Created At (DB Value): ${user.created_at.toISOString()}`);
 
         // Fetch family info
         const { rows: famRows } = await db.query(

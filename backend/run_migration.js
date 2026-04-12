@@ -1,11 +1,11 @@
 const { Client } = require('pg');
 const client = new Client({
-  user: 'nci_admin',
-  password: '8FEm0bLQZ6aFWWz1ur7^ftuz',
-  host: 'nci-sage-pro-dev-db.cjwiuoomek1b.ap-northeast-2.rds.amazonaws.com',
+  user: 'orgcell_user',
+  password: 'orgcellpass',
+  host: 'localhost',
   port: 5432,
   database: 'orgcell',
-  ssl: { rejectUnauthorized: false }
+
 });
 
 async function run() {

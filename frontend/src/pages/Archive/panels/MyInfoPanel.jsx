@@ -12,8 +12,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { toast }                        from 'react-hot-toast';
-import { useTreeStore }                 from '../../store/treeStore';
-import { savePerson, uploadPhoto }      from '../hooks/archiveApi';
+import { useTreeStore }                 from '@/store/treeStore.js';
+import { savePerson, uploadPhoto }      from './archiveApi.js';
 
 export default function MyInfoPanel({ curatorNode, personId, siteId, mergeNotifs }) {
   const { invalidate } = useTreeStore();

@@ -1,4 +1,5 @@
 require('dotenv').config();
+process.env.TZ = 'UTC';
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');

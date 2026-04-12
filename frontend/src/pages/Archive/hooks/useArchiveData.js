@@ -16,13 +16,13 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate }         from 'react-router-dom';
-import { useTreeStore }        from '../../store/treeStore';
-import { useAuthStore }        from '../../store/authStore';
+import { useTreeStore }        from '@/store/treeStore.js';
+import { useAuthStore }        from '@/store/authStore.js';
 import {
   fetchMuseum,
   fetchRelations,
   fetchMergeNotifications,
-} from './archiveApi';
+} from '../panels/archiveApi.js';
 
 export function useArchiveData(subdomain) {
   const navigate = useNavigate();
