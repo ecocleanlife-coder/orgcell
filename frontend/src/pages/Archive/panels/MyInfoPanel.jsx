@@ -12,8 +12,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { toast }                        from 'react-hot-toast';
-import { useTreeStore }                 from '@/store/treeStore.js';
-import { savePerson, uploadPhoto }      from './archiveApi.js';
+import { useTreeStore }                 from '../../store/treeStore';
+import { savePerson, uploadPhoto }      from '../hooks/archiveApi';
+import KoreanDateInput                  from './KoreanDateInput';
 
 export default function MyInfoPanel({ curatorNode, personId, siteId, mergeNotifs }) {
   const { invalidate } = useTreeStore();
@@ -23,7 +24,7 @@ export default function MyInfoPanel({ curatorNode, personId, siteId, mergeNotifs
   const [photoOffset, setPhotoOffset] = useState({ x: 0, y: 0 });
   const [photoScale,  setPhotoScale]  = useState(1);
   const [form,        setForm]        = useState({
-    name: '', nameEnFirst: '', nameEnLast: '',
+    lastName: '', firstName: '', nameEnFirst: '', nameEnLast: '',
     gender: 'male', birthYear: '', birthMonth: '', birthDay: '',
     isDeceased: false, deathDate: '',
   });
@@ -40,19 +41,36 @@ export default function MyInfoPanel({ curatorNode, personId, siteId, mergeNotifs
     const bdate = curatorNode.birthDate ?? curatorNode.birth_date ?? '';
     const [by = '', bm = '', bd = ''] = bdate ? bdate.split('T')[0].split('-') : [];
 
-    // 영문 이름: 저장된 값이 있으면 자동 로드, 없으면 빈 문자열
+    // 영문 이름: name_en "LEE HANDBONG" → 성/이름 분리
+    // name_en_first/last 개별 컬럼이 있으면 우선 사용
     const savedEnFirst = curatorNode.nameEnFirst ?? curatorNode.name_en_first ?? '';
     const savedEnLast  = curatorNode.nameEnLast  ?? curatorNode.name_en_last  ?? '';
+    // 개별 컬럼 없으면 name_en 단일값에서 파싱 (첫 번째 단어=성, 나머지=이름)
+    let enLast = savedEnLast, enFirst = savedEnFirst;
+    if (!enLast && !enFirst && curatorNode.name_en) {
+      const parts = curatorNode.name_en.trim().split(/\s+/);
+      enLast  = parts[0] || '';
+      enFirst = parts.slice(1).join(' ') || '';
+    }
+
+    // first_name/last_name 우선, 없으면 name 전체를 lastName으로
+    const savedLastName  = curatorNode.lastName  ?? curatorNode.last_name  ?? '';
+    const savedFirstName = curatorNode.firstName ?? curatorNode.first_name ?? '';
+
+    // gender: DB값 'M'/'F' → 폼값 'male'/'female' 변환
+    const rawGender = curatorNode.gender ?? '';
+    const genderVal = rawGender === 'M' ? 'male' : rawGender === 'F' ? 'female' : rawGender || 'male';
 
     setForm({
-      name:        curatorNode.name  ?? '',
-      nameEnFirst: savedEnFirst,
-      nameEnLast:  savedEnLast,
-      gender:      curatorNode.gender ?? 'male',
+      lastName:    savedLastName,
+      firstName:   savedFirstName,
+      nameEnFirst: enFirst,
+      nameEnLast:  enLast,
+      gender:      genderVal,
       birthYear:   by,
       birthMonth:  bm,
       birthDay:    bd,
-      isDeceased:  curatorNode.isDeceased ?? false,
+      isDeceased:  curatorNode.isDeceased ?? curatorNode.is_deceased ?? false,
       deathDate:   curatorNode.deathDate ?? curatorNode.death_date ?? '',
     });
   }, [curatorNode]);
@@ -103,14 +121,17 @@ export default function MyInfoPanel({ curatorNode, personId, siteId, mergeNotifs
           ].filter(Boolean).join('-')
         : null;
 
+      // gender: 폼값 'male'/'female' → DB 컬럼값 'M'/'F' 변환
+      const genderDb = form.gender === 'male' ? 'M' : form.gender === 'female' ? 'F' : form.gender;
       await savePerson(siteId, personId, {
-        name:          form.name,
-        name_en_first: form.nameEnFirst || null,
-        name_en_last:  form.nameEnLast  || null,
-        gender:        form.gender,
-        birth_date:    birthDate,
-        is_deceased:   form.isDeceased,
-        death_date:    form.deathDate   || null,
+        name:       `${(form.lastName || '').trim()}${(form.firstName || '').trim()}`,
+        first_name: form.firstName?.trim() || null,
+        last_name:  form.lastName?.trim()  || null,
+        name_en:    [form.nameEnLast, form.nameEnFirst].filter(Boolean).join(' ') || null,
+        gender:     genderDb,
+        birth_date: birthDate,
+        is_deceased: form.isDeceased,
+        death_date: form.deathDate || null,
       });
       await invalidate();
       toast.success('저장됐습니다.');
@@ -197,13 +218,26 @@ export default function MyInfoPanel({ curatorNode, personId, siteId, mergeNotifs
 
       {/* 인물정보 폼 */}
       <div style={s.form}>
-        <label style={s.lbl}>이름</label>
-        <input
-          style={s.inp}
-          value={form.name}
-          onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-          placeholder="성함"
-        />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ flex: 1 }}>
+            <label style={s.lbl}>성 (姓)</label>
+            <input
+              style={s.inp}
+              value={form.lastName}
+              onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))}
+              placeholder="예) 이"
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={s.lbl}>이름</label>
+            <input
+              style={s.inp}
+              value={form.firstName}
+              onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))}
+              placeholder="예) 한봉"
+            />
+          </div>
+        </div>
 
         <div style={{ display: 'flex', gap: 8 }}>
           <div style={{ flex: 1 }}>
@@ -275,11 +309,9 @@ export default function MyInfoPanel({ curatorNode, personId, siteId, mergeNotifs
         {form.isDeceased && (
           <>
             <label style={s.lbl}>사망일</label>
-            <input
-              style={s.inp}
-              type="date"
+            <KoreanDateInput
               value={form.deathDate}
-              onChange={e => setForm(f => ({ ...f, deathDate: e.target.value }))}
+              onChange={v => setForm(f => ({ ...f, deathDate: v }))}
             />
           </>
         )}
