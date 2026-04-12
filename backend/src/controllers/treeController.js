@@ -25,11 +25,13 @@ async function getSiteBySubdomain(subdomain) {
 // 관장 person 조회 (site 소유자 + match_status=linked)
 async function getCurator(siteId, userId) {
   const { rows } = await db.query(
-    `SELECT id, person_id, oc_id, name, name_en, name_suffix, gender,
+    `SELECT id, person_id, oc_id, name, first_name, last_name, name_en, name_suffix, gender,
             birth_date, birth_year, death_date, death_year,
             is_deceased, birth_lunar, death_lunar,
             photo_url, bio1, bio2, bio3,
             name_legal_last, name_legal_first, name_other,
+            bon_gwan, father_first_name, father_last_name,
+            mother_first_name, mother_last_name,
             match_status
      FROM persons
      WHERE site_id = $1
@@ -44,11 +46,13 @@ async function getCurator(siteId, userId) {
 // 사이트 전체 인물 조회
 async function getAllPersons(siteId) {
   const { rows } = await db.query(
-    `SELECT p.id, p.person_id, p.oc_id, p.name, p.name_en, p.name_suffix,
+    `SELECT p.id, p.person_id, p.oc_id, p.name, p.first_name, p.last_name, p.name_en, p.name_suffix,
             p.gender, p.birth_date, p.birth_year, p.death_date, p.death_year,
             p.is_deceased, p.birth_lunar, p.death_lunar,
             p.photo_url, p.bio1, p.bio2, p.bio3,
             p.name_legal_last, p.name_legal_first, p.name_other,
+            p.bon_gwan, p.father_first_name, p.father_last_name,
+            p.mother_first_name, p.mother_last_name,
             p.parent1_id, p.parent2_id, p.spouse_id,
             p.match_status, p.privacy_level
      FROM persons p
