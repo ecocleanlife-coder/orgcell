@@ -106,3 +106,28 @@ export async function fetchMergeNotifications(siteId) {
   const d = await apiFetch(`/api/notifications?siteId=${siteId}`);
   return (d.data ?? []).filter(n => n.mergedPersonId);
 }
+
+export async function fetchExhibitionItems(siteId, type) {
+  const d = await apiFetch(`/api/exhibitions/${siteId}/${type}`);
+  return d.data ?? [];
+}
+
+export async function uploadExhibitionFile(siteId, type, files, meta = {}) {
+  const form = new FormData();
+  files.forEach(f => form.append('files', f));
+  if (meta.title)       form.append('title', meta.title);
+  if (meta.description) form.append('description', meta.description);
+  form.append('isPublic', meta.isPublic ? 'true' : 'false');
+  const token = localStorage.getItem('token');
+  const res = await fetch(`/api/exhibitions/${siteId}/${type}/upload`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  if (!res.ok) throw new Error((await res.json()).message || '업로드 실패');
+  return res.json();
+}
+
+export async function deleteExhibitionItem(siteId, type, itemId) {
+  return apiFetch(`/api/exhibitions/${siteId}/${type}/${itemId}`, { method: 'DELETE' });
+}
