@@ -258,7 +258,7 @@ exports.updatePerson = async (req, res) => {
         }
 
         const ALLOWED = [
-            'first_name', 'last_name', 'name_en', 'name_suffix', 'name_legal_last', 'name_legal_first',
+            'first_name', 'last_name', 'name_en', 'name_suffix',
             'maiden_name', 'former_name', 'birth_year', 'death_year', 'gender', 'privacy_level',
             'parent1_id', 'parent2_id', 'spouse_id', 'generation',
             'photo_url', 'birth_date', 'death_date',
@@ -697,7 +697,10 @@ exports.searchPersons = async (req, res) => {
     try {
         const {
             first_name, last_name, birth_date, birth_lunar,
-            bon_gwan, parent_name1, parent_name2, name_other,
+            bon_gwan, name_other,
+            // 부모 필드 — OnboardingPage 전송 필드명과 일치
+            father_last_name, father_first_name,
+            mother_last_name, mother_first_name,
         } = req.body;
 
         if (!last_name || typeof last_name !== 'string' || last_name.trim().length > 50) {
@@ -709,74 +712,64 @@ exports.searchPersons = async (req, res) => {
 
         const lastName  = last_name.trim();
         const firstName = first_name.trim();
-        const fullName  = `${lastName}${firstName}`;
         const birthDate = birth_date || null;
         const isLunar   = !!birth_lunar;
 
-        // 다른 이름 목록 (어릴때, 개명전, 별명 등)
-        const otherNames = Array.isArray(name_other)
-            ? name_other.map(n => (typeof n === 'object' ? n.name : n)).filter(Boolean)
-            : [];
-
         // §26-3: 이름 + 생년월일 매칭 (linked 인물만)
-        // bon_gwan: persons.bon_gwan 또는 family_sites.bon_gwan 사용
+        // - families JOIN 제거: persons.bon_gwan, family_sites.bon_gwan 직접 사용
+        // - name_legal_first/last 제거: 컬럼 미존재 가능성
+        // - name_other jsonb 조건: 컬럼 없을 경우 에러 방지를 위해 try/catch 대신 IS NOT NULL 체크
+        // - birthDate null 시 ::date cast 에러 방지: $4 조건에 IS NOT NULL 추가
         const { rows } = await db.query(
             `SELECT
-               p.id, p.first_name, p.last_name, p.name_en, p.name_suffix,
+               p.id, p.first_name, p.last_name,
                p.birth_date, p.birth_lunar, p.gender, p.oc_id, p.match_status,
                fs.subdomain, fs.id AS site_id,
                COALESCE(p.bon_gwan, fs.bon_gwan) AS bon_gwan
              FROM persons p
              JOIN family_sites fs ON fs.id = p.site_id
              WHERE p.match_status = 'linked'
-               AND (
-                 (p.first_name ILIKE $1 AND p.last_name ILIKE $2)
-                 OR (p.name_legal_first ILIKE $1 AND p.name_legal_last ILIKE $2)
-                 OR EXISTS (
-                   SELECT 1 FROM jsonb_array_elements(COALESCE(p.name_other,'[]'::jsonb)) n
-                   WHERE n->>\'name\' ILIKE $1 OR n->>\'name\' ILIKE $2
-                 )
-               )
+               AND p.first_name ILIKE $1
+               AND p.last_name  ILIKE $2
                AND ($3::VARCHAR IS NULL
-                    OR p.bon_gwan ILIKE $3
+                    OR p.bon_gwan  ILIKE $3
                     OR fs.bon_gwan ILIKE $3)
+               AND ($4::DATE IS NULL OR p.birth_date::date = $4::date)
              ORDER BY
-               CASE WHEN $4::VARCHAR IS NOT NULL AND p.birth_date::date = $4::date THEN 0 ELSE 1 END,
+               CASE WHEN $4::DATE IS NOT NULL AND p.birth_date IS NOT NULL
+                         AND p.birth_date::date = $4::date THEN 0 ELSE 1 END,
                p.created_at ASC
              LIMIT 10`,
-            [`%${firstName}%`, `%${lastName}%`, bon_gwan || null, birthDate]
+            [
+                `%${firstName}%`,
+                `%${lastName}%`,
+                bon_gwan?.trim() || null,
+                birthDate,
+            ]
         );
 
         // 매칭 강도 계산 (§26-3)
         const candidates = rows.map(row => {
-            let strength = 'weak'; // 이름만 일치
+            let strength = 'weak';
             if (row.birth_date && birthDate) {
-                const dbDate = new Date(row.birth_date).toISOString().slice(0, 10);
+                const dbDate   = new Date(row.birth_date).toISOString().slice(0, 10);
                 const sameDate = dbDate === birthDate;
                 const sameLunar = row.birth_lunar === isLunar;
-                if (sameDate && sameLunar) {
-                    strength = 'strong'; // 이름 + 생년월일 + 음/양력 = Level 3
-                } else if (sameDate) {
-                    strength = 'medium'; // 이름 + 날짜 일치, 음/양력 미확인
-                }
+                if (sameDate && sameLunar) strength = 'strong';
+                else if (sameDate)         strength = 'medium';
             }
-            const displayName = row.last_name && row.first_name
-                ? `${row.last_name}${row.first_name}`
-                : (row.name_legal_last && row.name_legal_first
-                    ? `${row.name_legal_last}${row.name_legal_first}`
-                    : null); // Fallback if no specific name fields are populated
 
             return {
-                person_id: row.oc_id,
-                name: displayName,
-                first_name: row.first_name,
-                last_name: row.last_name,
-                birth_date: row.birth_date,
-                birth_lunar: row.birth_lunar,
-                gender: row.gender,
-                subdomain: row.subdomain,
-                site_id: row.site_id,
-                bon_gwan: row.bon_gwan,
+                person_id:      row.oc_id,
+                name:           `${row.last_name}${row.first_name}`,
+                first_name:     row.first_name,
+                last_name:      row.last_name,
+                birth_date:     row.birth_date,
+                birth_lunar:    row.birth_lunar,
+                gender:         row.gender,
+                subdomain:      row.subdomain,
+                site_id:        row.site_id,
+                bon_gwan:       row.bon_gwan,
                 match_strength: strength,
             };
         });
