@@ -719,26 +719,29 @@ exports.searchPersons = async (req, res) => {
             : [];
 
         // §26-3: 이름 + 생년월일 매칭 (linked 인물만)
+        // bon_gwan: persons.bon_gwan 또는 family_sites.bon_gwan 사용
         const { rows } = await db.query(
             `SELECT
                p.id, p.first_name, p.last_name, p.name_en, p.name_suffix,
                p.birth_date, p.birth_lunar, p.gender, p.oc_id, p.match_status,
-               fs.subdomain, fs.id AS site_id, f.bon_gwan
+               fs.subdomain, fs.id AS site_id,
+               COALESCE(p.bon_gwan, fs.bon_gwan) AS bon_gwan
              FROM persons p
              JOIN family_sites fs ON fs.id = p.site_id
-             LEFT JOIN families f ON f.id = fs.family_id
              WHERE p.match_status = 'linked'
                AND (
                  (p.first_name ILIKE $1 AND p.last_name ILIKE $2)
                  OR (p.name_legal_first ILIKE $1 AND p.name_legal_last ILIKE $2)
                  OR EXISTS (
                    SELECT 1 FROM jsonb_array_elements(COALESCE(p.name_other,'[]'::jsonb)) n
-                   WHERE n->>'name' ILIKE $1 OR n->>'name' ILIKE $2
+                   WHERE n->>\'name\' ILIKE $1 OR n->>\'name\' ILIKE $2
                  )
                )
-               AND ($3::VARCHAR IS NULL OR f.bon_gwan ILIKE $3)
+               AND ($3::VARCHAR IS NULL
+                    OR p.bon_gwan ILIKE $3
+                    OR fs.bon_gwan ILIKE $3)
              ORDER BY
-               CASE WHEN p.birth_date::date = $4::date THEN 0 ELSE 1 END,
+               CASE WHEN $4::VARCHAR IS NOT NULL AND p.birth_date::date = $4::date THEN 0 ELSE 1 END,
                p.created_at ASC
              LIMIT 10`,
             [`%${firstName}%`, `%${lastName}%`, bon_gwan || null, birthDate]
