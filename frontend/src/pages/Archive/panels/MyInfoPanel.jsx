@@ -13,7 +13,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { toast }                        from 'react-hot-toast';
 import { useTreeStore }                 from '../../../store/treeStore';
-import { savePerson, uploadPhoto }      from '../hooks/archiveApi';
+import { savePerson, uploadPhoto }      from './archiveApi';
 import KoreanDateInput                  from './KoreanDateInput';
 
 export default function MyInfoPanel({ curatorNode, personId, siteId, mergeNotifs }) {
