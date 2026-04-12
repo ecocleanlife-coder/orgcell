@@ -7,7 +7,7 @@
  * - [새 가족 추가]: 성/이름/성별/생년월일 입력 후 추가 → invalidate() 트리 즉시 갱신
  * - [가족 관계 삭제]: 확인 모달 후 person_relations 삭제 (§8/§9)
  */
-
+// v2
 import { useState, useRef, useEffect } from 'react';
 import { toast }                        from 'react-hot-toast';
 import { useTreeStore }                 from '../../../store/treeStore';
