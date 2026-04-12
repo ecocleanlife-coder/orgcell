@@ -23,7 +23,8 @@ const OnboardingPage = lazy(() => import('./pages/OnboardingPage'));
 const InvitePage     = lazy(() => import('./pages/InvitePage'));
 const MuseumPage     = lazy(() => import('./pages/MuseumPage'));
 const ArchivePage    = lazy(() => import('./pages/Archive/ArchivePage'));
-const ExhibitionPage = lazy(() => import('./pages/ExhibitionPage'));
+const ExhibitionPage   = lazy(() => import('./pages/ExhibitionPage'));
+const MagicVerifyPage = lazy(() => import('./pages/MagicVerifyPage'));
 
 function PageLoader() {
   return (
@@ -44,7 +45,8 @@ export default function App() {
         <Route path="/"              element={<LandingPage />} />
         <Route path="/login"         element={<LoginPage />} />
         <Route path="/onboarding"    element={<OnboardingPage />} />
-        <Route path="/invite/:token" element={<InvitePage />} />
+        <Route path="/invite/:token"  element={<InvitePage />} />
+        <Route path="/auth/verify"    element={<MagicVerifyPage />} />
 
         {/* 박물관 경로 — /:subdomain 기반 */}
         <Route path="/:subdomain/archive"              element={<ArchivePage />} />

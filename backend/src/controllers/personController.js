@@ -1,11 +1,11 @@
-const db = require('../config/db');
-const fs = require('fs');
-const path = require('path');
-const { generateOcId, resolveCountryCode } = require('../utils/ocIdGenerator');
-const { assignPath, assignCuratorPath, getAnchorPath } = require('../services/pathAssigner');
-const { matchAndMerge } = require('../services/personMatcher');
+const db = require("../config/db");
+const fs = require("fs");
+const path = require("path");
+const { generateOcId, resolveCountryCode } = require("../utils/ocIdGenerator");
+const { assignPath, assignCuratorPath, getAnchorPath } = require("../services/pathAssigner");
+const { matchAndMerge } = require("../services/personMatcher");
 
-const PERSON_UPLOADS_DIR = path.join(__dirname, '../../uploads/persons');
+const PERSON_UPLOADS_DIR = path.join(__dirname, "../../uploads/persons");
 
 // 사이트 접근 권한 확인 (owner 또는 member)
 async function checkSiteAccess(userId, siteId) {
@@ -44,13 +44,14 @@ exports.listPersons = async (req, res) => {
 
         // 인물 조회 (site_id 기반 — 기존 스키마 호환)
         const { rows: persons } = await db.query(
-            `SELECT p.id, p.person_id, p.oc_id, p.name, p.name_en, p.name_suffix, p.gender,
+            `SELECT p.id, p.person_id, p.oc_id, p.first_name, p.last_name, p.name_en, p.name_suffix, p.gender,
                     p.birth_date, p.birth_year, p.death_date, p.death_year,
                     p.is_deceased, p.birth_lunar, p.death_lunar,
                     p.bio1, p.bio2, p.bio3, p.biography,
                     p.photo_url, p.photo_position, p.match_status,
                     p.parent1_id, p.parent2_id, p.spouse_id,
-                    p.privacy_level, p.generation, p.created_at
+                    p.privacy_level, p.generation, p.created_at,
+                    p.father_first_name, p.father_last_name, p.mother_first_name, p.mother_last_name
              FROM persons p
              WHERE p.site_id = $1
              ORDER BY p.id ASC`,
@@ -141,18 +142,18 @@ exports.createPerson = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Forbidden' });
         }
 
-        const { name, name_en, name_suffix, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date, is_deceased, birth_lunar, death_lunar, photo_position } = req.body;
+        const { first_name, last_name, name_en, name_suffix, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date, is_deceased, birth_lunar, death_lunar, photo_position, father_first_name, father_last_name, mother_first_name, mother_last_name } = req.body;
 
-        if (!name) {
-            return res.status(400).json({ success: false, message: 'name is required' });
+        if (!first_name || !last_name) {
+            return res.status(400).json({ success: false, message: 'first_name and last_name are required' });
         }
 
         // ── 중복 이름 체크 ──────────────────────────────────────
-        // 1. 한글 이름 + 생년월일 완전 일치 → 400
+        // 1. 성 + 이름 + 생년월일 완전 일치 → 400
         if (birth_date) {
             const { rows: exact } = await db.query(
-                `SELECT id, name FROM persons WHERE site_id = $1 AND name = $2 AND birth_date = $3 LIMIT 1`,
-                [siteId, name.trim(), birth_date]
+                `SELECT id, first_name, last_name FROM persons WHERE site_id = $1 AND first_name = $2 AND last_name = $3 AND birth_date = $4 LIMIT 1`,
+                [siteId, first_name.trim(), last_name.trim(), birth_date]
             );
             if (exact.length > 0) {
                 return res.status(400).json({
@@ -164,15 +165,15 @@ exports.createPerson = async (req, res) => {
             }
         }
 
-        // 2. 한글 이름만 일치 → 409 (프론트가 확인 모달 표시)
+        // 2. 성 + 이름만 일치 → 409 (프론트가 확인 모달 표시)
         const { rows: nameOnly } = await db.query(
-            `SELECT id, name, birth_date, gender FROM persons WHERE site_id = $1 AND name = $2 LIMIT 1`,
-            [siteId, name.trim()]
+            `SELECT id, first_name, last_name, birth_date, gender FROM persons WHERE site_id = $1 AND first_name = $2 AND last_name = $3 LIMIT 1`,
+            [siteId, first_name.trim(), last_name.trim()]
         );
         if (nameOnly.length > 0 && !req.body.force_create) {
             return res.status(409).json({
                 success: false,
-                message: `${name.trim()}님이 이미 등록되어 있습니다. 같은 분인가요?`,
+                message: `${last_name.trim()}${first_name.trim()}님이 이미 등록되어 있습니다. 같은 분인가요?`,
                 code: 'NAME_DUPLICATE',
                 existingPerson: nameOnly[0],
             });
@@ -181,10 +182,10 @@ exports.createPerson = async (req, res) => {
 
         // persons 테이블에 INSERT
         const { rows } = await db.query(
-            `INSERT INTO persons (site_id, name, name_en, name_suffix, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date, is_deceased, birth_lunar, death_lunar, photo_position)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+            `INSERT INTO persons (site_id, first_name, last_name, name_en, name_suffix, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date, is_deceased, birth_lunar, death_lunar, photo_position, father_first_name, father_last_name, mother_first_name, mother_last_name)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
              RETURNING *`,
-            [siteId, name.trim(), name_en || null, name_suffix || null, birth_year || null, death_year || null, gender || null, privacy_level || 'family', parent1_id || null, parent2_id || null, spouse_id || null, generation || 0, photo_url || null, birth_date || null, death_date || null, is_deceased ?? false, birth_lunar ?? false, death_lunar ?? false, photo_position ? JSON.stringify(photo_position) : '{"x":50,"y":50}']
+            [siteId, first_name.trim(), last_name.trim(), name_en || null, name_suffix || null, birth_year || null, death_year || null, gender || null, privacy_level || 'family', parent1_id || null, parent2_id || null, spouse_id || null, generation || 0, photo_url || null, birth_date || null, death_date || null, is_deceased ?? false, birth_lunar ?? false, death_lunar ?? false, photo_position ? JSON.stringify(photo_position) : '{"x":50,"y":50}', father_first_name || null, father_last_name || null, mother_first_name || null, mother_last_name || null]
         );
 
         const newPerson = rows[0];
@@ -257,12 +258,13 @@ exports.updatePerson = async (req, res) => {
         }
 
         const ALLOWED = [
-            'name', 'name_en', 'name_suffix', 'name_legal_last', 'name_legal_first',
+            'first_name', 'last_name', 'name_en', 'name_suffix', 'name_legal_last', 'name_legal_first',
             'maiden_name', 'former_name', 'birth_year', 'death_year', 'gender', 'privacy_level',
             'parent1_id', 'parent2_id', 'spouse_id', 'generation',
             'photo_url', 'birth_date', 'death_date',
             'is_deceased', 'birth_lunar', 'death_lunar', 'photo_position', 'biography',
             'bio1', 'bio2', 'bio3',
+            'father_first_name', 'father_last_name', 'mother_first_name', 'mother_last_name',
         ];
 
         const setClauses = [];
@@ -344,20 +346,20 @@ exports.updatePerson = async (req, res) => {
                     `INSERT INTO person_relations (site_id, person1_id, person2_id, relation_type, is_active)
                      VALUES ($1, $2, $3, 'spouse', true)
                      ON CONFLICT (site_id, person1_id, person2_id, relation_type) DO NOTHING`,
-                    [siteId, Math.min(parseInt(personId), newSpouseId), Math.max(parseInt(personId), newSpouseId)]
+                    [siteId, Math.min(newPersonId, spouse_id), Math.max(newPersonId, spouse_id)]
                 );
                 // 과도기: 상대방 persons.spouse_id도 동기화
                 await db.query(
                     `UPDATE persons SET spouse_id = $1 WHERE id = $2 AND site_id = $3`,
                     [personId, newSpouseId, siteId]
                 );
-            } else {
-                // 과도기: 이전 배우자의 persons.spouse_id 해제
-                await db.query(
-                    `UPDATE persons SET spouse_id = NULL WHERE spouse_id = $1 AND site_id = $2`,
-                    [personId, siteId]
-                );
             }
+        } else {
+            // 과도기: 이전 배우자의 persons.spouse_id 해제
+            await db.query(
+                `UPDATE persons SET spouse_id = NULL WHERE spouse_id = $1 AND site_id = $2`,
+                [personId, siteId]
+            );
         }
 
         res.json({ success: true, data: rows[0] });
@@ -522,12 +524,12 @@ const RELATION_RULES = {
 };
 
 exports.createPersonOPS = async (req, res) => {
-  const { name, gender, birth_date, death_date, bio1, bio2, bio3,
+  const { first_name, last_name, gender, birth_date, death_date, bio1, bio2, bio3,
           birth_lunar, is_deceased, death_lunar, privacy_level, generation,
           site_subdomain, anchor_person_id, relation_key } = req.body;
 
   // ── 입력 검증 ──
-  if (!name?.trim())          return res.status(400).json({ success: false, message: 'name 필수' });
+  if (!first_name?.trim() || !last_name?.trim()) return res.status(400).json({ success: false, message: 'first_name, last_name 필수' });
   if (!anchor_person_id)      return res.status(400).json({ success: false, message: 'anchor_person_id 필수' });
   if (!relation_key)          return res.status(400).json({ success: false, message: 'relation_key 필수' });
   if (!site_subdomain)        return res.status(400).json({ success: false, message: 'site_subdomain 필수' });
@@ -575,15 +577,15 @@ exports.createPersonOPS = async (req, res) => {
     // 3. persons 테이블에 인물 저장 (기존 스키마 호환)
     const { rows: personRows } = await client.query(
       `INSERT INTO persons
-         (site_id, name, gender, birth_date, death_date,
+         (site_id, first_name, last_name, gender, birth_date, death_date,
           bio1, bio2, bio3, nationality, oc_id, person_id, match_status,
           birth_lunar, is_deceased, death_lunar, privacy_level, generation)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10, 'ghost', $11, $12, $13, $14, $15)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'ghost', $13, $14, $15, $16, $17)
        RETURNING *`,
-      [anchor.site_id, name.trim(), gender || null,
+      [anchor.site_id, first_name.trim(), last_name.trim(), gender || null,
        birth_date || null, death_date || null,
        bio1 || null, bio2 || null, bio3 || null,
-       cc, newPersonId,
+       cc, newPersonId, newPersonId,
        birth_lunar ?? false, is_deceased ?? false, death_lunar ?? false,
        privacy_level || 'family', generation || null]
     );
@@ -625,7 +627,8 @@ exports.createPersonOPS = async (req, res) => {
     try {
       await matchAndMerge({
         person_id: newPersonId,
-        name: newPerson.name,
+        first_name: newPerson.first_name,
+        last_name: newPerson.last_name,
         birth_date: newPerson.birth_date,
         gender: newPerson.gender,
         new_path: assignedPath,
@@ -693,53 +696,52 @@ exports.getPersonByPath = async (req, res) => {
 exports.searchPersons = async (req, res) => {
     try {
         const {
-            surname_ko, given_name, birth_date, birth_lunar,
-            bon_gwan_ko, parent_name1, parent_name2, name_other,
+            first_name, last_name, birth_date, birth_lunar,
+            bon_gwan, parent_name1, parent_name2, name_other,
         } = req.body;
 
-        if (!surname_ko || typeof surname_ko !== 'string' || surname_ko.trim().length > 10) {
-            return res.status(400).json({ success: false, message: '성(surname_ko) 필수 (10자 이내)' });
+        if (!last_name || typeof last_name !== 'string' || last_name.trim().length > 50) {
+            return res.status(400).json({ success: false, message: '성(last_name) 필수 (50자 이내)' });
         }
-        if (!given_name || typeof given_name !== 'string' || given_name.trim().length > 20) {
-            return res.status(400).json({ success: false, message: '이름(given_name) 필수 (20자 이내)' });
+        if (!first_name || typeof first_name !== 'string' || first_name.trim().length > 50) {
+            return res.status(400).json({ success: false, message: '이름(first_name) 필수 (50자 이내)' });
         }
 
-        const surnameKo  = surname_ko.trim();
-        const givenName  = given_name.trim();
-        const fullName   = `${surnameKo}${givenName}`;
-        const birthDate  = birth_date || null;
-        const isLunar    = !!birth_lunar;
+        const lastName  = last_name.trim();
+        const firstName = first_name.trim();
+        const fullName  = `${lastName}${firstName}`;
+        const birthDate = birth_date || null;
+        const isLunar   = !!birth_lunar;
 
         // 다른 이름 목록 (어릴때, 개명전, 별명 등)
         const otherNames = Array.isArray(name_other)
-            ? name_other.map(n => (typeof n === 'object' ? n.name : n)).filter(Boolean)
+            ? otherNames.map(n => (typeof n === 'object' ? n.name : n)).filter(Boolean)
             : [];
 
         // §26-3: 이름 + 생년월일 매칭 (linked 인물만)
-        // name 컬럼(기존) OR name_legal 컬럼(신규) OR name_other JSONB 포함
         const { rows } = await db.query(
             `SELECT
-               p.id, p.name, p.name_legal_last, p.name_legal_first,
+               p.id, p.first_name, p.last_name, p.name_en, p.name_suffix,
                p.birth_date, p.birth_lunar, p.gender, p.oc_id, p.match_status,
-               fs.subdomain, fs.id AS site_id
+               fs.subdomain, fs.id AS site_id, f.bon_gwan
              FROM persons p
              JOIN family_sites fs ON fs.id = p.site_id
+             LEFT JOIN families f ON f.site_id = fs.id -- Assuming families.site_id exists and links to family_sites
              WHERE p.match_status = 'linked'
                AND (
-                 p.name ILIKE $1
-                 OR p.name ILIKE $2
-                 OR (p.name_legal_last || p.name_legal_first) ILIKE $1
-                 OR p.name_legal_first ILIKE $2
+                 (p.first_name ILIKE $1 AND p.last_name ILIKE $2)
+                 OR (p.name_legal_first ILIKE $1 AND p.name_legal_last ILIKE $2)
                  OR EXISTS (
                    SELECT 1 FROM jsonb_array_elements(COALESCE(p.name_other,'[]'::jsonb)) n
-                   WHERE n->>'name' ILIKE $2
+                   WHERE n->>'name' ILIKE $1 OR n->>'name' ILIKE $2
                  )
                )
+               AND ($3::VARCHAR IS NULL OR f.bon_gwan ILIKE $3)
              ORDER BY
-               CASE WHEN p.birth_date::date = $3::date THEN 0 ELSE 1 END,
+               CASE WHEN p.birth_date::date = $4::date THEN 0 ELSE 1 END,
                p.created_at ASC
              LIMIT 10`,
-            [`%${fullName}%`, `%${givenName}%`, birthDate]
+            [`%${firstName}%`, `%${lastName}%`, bon_gwan || null, birthDate]
         );
 
         // 매칭 강도 계산 (§26-3)
@@ -755,17 +757,23 @@ exports.searchPersons = async (req, res) => {
                     strength = 'medium'; // 이름 + 날짜 일치, 음/양력 미확인
                 }
             }
-            const displayName = row.name_legal_last && row.name_legal_first
-                ? `${row.name_legal_last}${row.name_legal_first}`
-                : row.name;
+            const displayName = row.last_name && row.first_name
+                ? `${row.last_name}${row.first_name}`
+                : (row.name_legal_last && row.name_legal_first
+                    ? `${row.name_legal_last}${row.name_legal_first}`
+                    : null); // Fallback if no specific name fields are populated
+
             return {
                 person_id: row.oc_id,
                 name: displayName,
+                first_name: row.first_name,
+                last_name: row.last_name,
                 birth_date: row.birth_date,
                 birth_lunar: row.birth_lunar,
                 gender: row.gender,
                 subdomain: row.subdomain,
                 site_id: row.site_id,
+                bon_gwan: row.bon_gwan,
                 match_strength: strength,
             };
         });

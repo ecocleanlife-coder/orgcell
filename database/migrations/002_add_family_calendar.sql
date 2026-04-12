@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS family_calendar (
   id SERIAL PRIMARY KEY,
-  site_id INTEGER NOT NULL REFERENCES family_sites(id) ON DELETE CASCADE,
+  site_id INTEGER NOT NULL,
   title VARCHAR(200) NOT NULL,
   event_date DATE NOT NULL,
   event_type VARCHAR(50) DEFAULT 'event',

@@ -133,11 +133,6 @@ SELECT
   COUNT(*) - COUNT(DISTINCT (site_id, person1_id, person2_id, relation_type)) AS result
 FROM person_relations
 
-UNION ALL
-
-SELECT
-  '이은섭 parent1_id 동기화',
-  CASE WHEN parent1_id IS NOT NULL THEN 1 ELSE 0 END
-FROM persons WHERE name ILIKE '%은섭%' LIMIT 1;
+;
 
 COMMIT;

@@ -138,3 +138,30 @@ CREATE INDEX idx_photo_faces_photo ON photo_faces(photo_id);
 CREATE INDEX idx_share_rooms_code ON share_rooms(code);
 CREATE INDEX idx_share_rooms_status ON share_rooms(status, expires_at);
 CREATE INDEX idx_room_exchanges_room ON room_exchanges(room_id);
+
+-- Additional Tables for Migrations (Guessed Schema)
+CREATE TABLE IF NOT EXISTS family_sites (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    subdomain VARCHAR(100) UNIQUE NOT NULL,
+    site_name VARCHAR(255),
+    owner_email VARCHAR(255),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS exhibitions (
+    id SERIAL PRIMARY KEY,
+    site_id INTEGER NOT NULL REFERENCES family_sites(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS magic_link_tokens (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
