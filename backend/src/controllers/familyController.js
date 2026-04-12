@@ -63,8 +63,8 @@ exports.createFamily = async (req, res) => {
 
         // 4. family_sites 레코드 생성
         const { rows: siteRows } = await client.query(
-            `INSERT INTO family_sites (user_id, subdomain, title, bon_gwan)
-             VALUES ($1, $2, $3, $4)
+            `INSERT INTO family_sites (user_id, subdomain, title, bon_gwan, status)
+             VALUES ($1, $2, $3, $4, 'active')
              RETURNING id`,
             [userId, finalSubdomain, familyName, bon_gwan?.trim() || null]
         );
