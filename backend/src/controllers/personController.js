@@ -715,7 +715,7 @@ exports.searchPersons = async (req, res) => {
 
         // 다른 이름 목록 (어릴때, 개명전, 별명 등)
         const otherNames = Array.isArray(name_other)
-            ? otherNames.map(n => (typeof n === 'object' ? n.name : n)).filter(Boolean)
+            ? name_other.map(n => (typeof n === 'object' ? n.name : n)).filter(Boolean)
             : [];
 
         // §26-3: 이름 + 생년월일 매칭 (linked 인물만)
@@ -726,7 +726,7 @@ exports.searchPersons = async (req, res) => {
                fs.subdomain, fs.id AS site_id, f.bon_gwan
              FROM persons p
              JOIN family_sites fs ON fs.id = p.site_id
-             LEFT JOIN families f ON f.site_id = fs.id -- Assuming families.site_id exists and links to family_sites
+             LEFT JOIN families f ON f.id = fs.family_id
              WHERE p.match_status = 'linked'
                AND (
                  (p.first_name ILIKE $1 AND p.last_name ILIKE $2)
