@@ -75,10 +75,10 @@ exports.createFamily = async (req, res) => {
         let fatherPersonId = null;
         if (father_first_name && father_last_name) {
             const { rows: fatherRows } = await client.query(
-                `INSERT INTO persons (site_id, first_name, last_name, gender, match_status)
-                 VALUES ($1, $2, $3, 'M', 'ghost')
+                `INSERT INTO persons (site_id, name, first_name, last_name, gender, match_status)
+                 VALUES ($1, $2, $3, $4, 'M', 'ghost')
                  RETURNING id`,
-                [siteId, father_first_name.trim(), father_last_name.trim()]
+                [siteId, `${father_last_name.trim()}${father_first_name.trim()}`, father_first_name.trim(), father_last_name.trim()]
             );
             fatherPersonId = fatherRows[0].id;
         }
@@ -86,10 +86,10 @@ exports.createFamily = async (req, res) => {
         let motherPersonId = null;
         if (mother_first_name && mother_last_name) {
             const { rows: motherRows } = await client.query(
-                `INSERT INTO persons (site_id, first_name, last_name, gender, match_status)
-                 VALUES ($1, $2, $3, 'F', 'ghost')
+                `INSERT INTO persons (site_id, name, first_name, last_name, gender, match_status)
+                 VALUES ($1, $2, $3, $4, 'F', 'ghost')
                  RETURNING id`,
-                [siteId, mother_first_name.trim(), mother_last_name.trim()]
+                [siteId, `${mother_last_name.trim()}${mother_first_name.trim()}`, mother_first_name.trim(), mother_last_name.trim()]
             );
             motherPersonId = motherRows[0].id;
         }
@@ -97,12 +97,13 @@ exports.createFamily = async (req, res) => {
         // 6. 본인(관장) person 레코드 생성 (bon_gwan 포함)
         const { rows: curatorRows } = await client.query(
             `INSERT INTO persons
-               (site_id, first_name, last_name, gender, birth_date, birth_lunar,
+               (site_id, name, first_name, last_name, gender, birth_date, birth_lunar,
                 user_id, parent1_id, parent2_id, match_status, bon_gwan, name_en)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'linked', $10, $11)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'linked', $11, $12)
              RETURNING id`,
             [
-                siteId, first_name.trim(), last_name.trim(),
+                siteId, `${last_name.trim()}${first_name.trim()}`,
+                first_name.trim(), last_name.trim(),
                 curator_gender, birth_date || null, birth_lunar || false,
                 userId, fatherPersonId, motherPersonId,
                 bon_gwan?.trim() || null,
