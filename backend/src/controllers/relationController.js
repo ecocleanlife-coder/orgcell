@@ -15,15 +15,47 @@ async function checkSiteAccess(userId, siteId) {
 exports.listRelations = async (req, res) => {
     try {
         const { siteId } = req.params;
-        const { rows } = await db.query(
+
+        // person_relations 테이블 조회
+        const { rows: relRows } = await db.query(
             `SELECT id, site_id, person1_id, person2_id, relation_type, label,
                     is_active, start_date, end_date, created_at
              FROM person_relations WHERE site_id = $1
              ORDER BY id ASC`,
             [siteId]
         );
+
+        // persons 컬럼 기반 관계 보완 (parent1_id/parent2_id/spouse_id)
+        const { rows: persons } = await db.query(
+            `SELECT id, parent1_id, parent2_id, spouse_id FROM persons WHERE site_id = $1`,
+            [siteId]
+        );
+
+        const relSet = new Set(relRows.map(r => `${r.person1_id}-${r.person2_id}-${r.relation_type}`));
+        const extraRels = [];
+        let vid = -1;
+
+        for (const p of persons) {
+            for (const parentId of [p.parent1_id, p.parent2_id]) {
+                if (!parentId) continue;
+                const key = `${parentId}-${p.id}-parent`;
+                if (!relSet.has(key)) {
+                    extraRels.push({ id: vid--, site_id: Number(siteId), person1_id: parentId, person2_id: p.id, relation_type: 'parent', label: null, is_active: true, start_date: null, end_date: null, created_at: null });
+                    relSet.add(key);
+                }
+            }
+            if (p.spouse_id) {
+                const k1 = `${p.id}-${p.spouse_id}-spouse`;
+                const k2 = `${p.spouse_id}-${p.id}-spouse`;
+                if (!relSet.has(k1) && !relSet.has(k2)) {
+                    extraRels.push({ id: vid--, site_id: Number(siteId), person1_id: p.id, person2_id: p.spouse_id, relation_type: 'spouse', label: null, is_active: true, start_date: null, end_date: null, created_at: null });
+                    relSet.add(k1);
+                }
+            }
+        }
+
         res.set({ 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0' });
-        res.json({ success: true, data: rows });
+        res.json({ success: true, data: [...relRows, ...extraRels] });
     } catch (err) {
         console.error('listRelations error:', err);
         res.status(500).json({ success: false, message: 'Failed to list relations' });
