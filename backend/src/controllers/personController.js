@@ -5,7 +5,8 @@ const { generateOcId, resolveCountryCode } = require("../utils/ocIdGenerator");
 const { assignPath, assignCuratorPath, getAnchorPath } = require("../services/pathAssigner");
 const { matchAndMerge } = require("../services/personMatcher");
 
-const PERSON_UPLOADS_DIR = path.join(__dirname, "../../uploads/persons");
+const PERSON_UPLOADS_DIR = path.join(__dirname, "../../uploads/persons"); // 레거시 경로 (구 데이터 호환)
+const UPLOADS_BASE_DIR   = path.join(__dirname, "../../uploads");          // §19/§26 신규 경로 기준
 
 // 사이트 접근 권한 확인 (owner 또는 member)
 async function checkSiteAccess(userId, siteId) {
@@ -457,6 +458,7 @@ exports.backfillOcIds = async (req, res) => {
 };
 
 // POST /api/persons/:siteId/:personId/photo
+// §19/§26: 저장 경로 = uploads/{subdomain}/{ops_path}/profile.jpg
 exports.uploadPhoto = async (req, res) => {
     try {
         const { siteId, personId } = req.params;
@@ -469,24 +471,34 @@ exports.uploadPhoto = async (req, res) => {
             return res.status(400).json({ success: false, message: 'No file uploaded' });
         }
 
-        // 개인 폴더에 profile.jpg로 저장 (§19)
-        const personDir = path.join(PERSON_UPLOADS_DIR, String(personId));
-        fs.mkdirSync(personDir, { recursive: true });
-        const profilePath = path.join(personDir, 'profile.jpg');
+        // 인물 정보 + 사이트 subdomain 조회
+        const { rows: personRows } = await db.query(
+            `SELECT p.ops_path, fs.subdomain
+             FROM persons p JOIN family_sites fs ON fs.id = p.site_id
+             WHERE p.id = $1 AND p.site_id = $2`,
+            [personId, siteId]
+        );
+        if (!personRows.length) {
+            return res.status(404).json({ success: false, message: 'Person not found' });
+        }
 
-        // 업로드된 파일을 profile.jpg로 이동
+        const { ops_path, subdomain } = personRows[0];
+
+        // §19/§26: 경로 = uploads/{subdomain}/{ops_path}/
+        // 관장(ops_path=null)은 uploads/{subdomain}/ 에 바로 저장
+        const relDir = ops_path ? `${subdomain}/${ops_path}` : subdomain;
+        const personDir = path.join(UPLOADS_BASE_DIR, relDir);
+        fs.mkdirSync(personDir, { recursive: true });
+
+        const profilePath = path.join(personDir, 'profile.jpg');
         fs.renameSync(req.file.path, profilePath);
 
-        const photo_url = `/uploads/persons/${personId}/profile.jpg`;
+        const photo_url = `/uploads/${relDir}/profile.jpg`;
 
         const { rows } = await db.query(
             `UPDATE persons SET photo_url = $1 WHERE id = $2 AND site_id = $3 RETURNING *`,
             [photo_url, personId, siteId]
         );
-
-        if (!rows.length) {
-            return res.status(404).json({ success: false, message: 'Person not found' });
-        }
 
         res.json({ success: true, data: rows[0] });
     } catch (err) {

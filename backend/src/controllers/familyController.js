@@ -1,5 +1,8 @@
 const db = require("../config/db");
 const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
+const UPLOADS_BASE_DIR = path.join(__dirname, "../../uploads");
 
 // @desc    Create a new family (대표자가 가족 생성)
 // @route   POST /api/family
@@ -70,25 +73,36 @@ exports.createFamily = async (req, res) => {
         );
         const siteId = siteRows[0].id;
 
-        // 5. 부(父) person 생성 (ghost)
+        // §19/§26: 박물관 폴더 구조 자동 생성
+        // uploads/{subdomain}/         ← 관장
+        // uploads/{subdomain}/f/       ← 아버지
+        // uploads/{subdomain}/m/       ← 어머니
+        try {
+            fs.mkdirSync(path.join(UPLOADS_BASE_DIR, finalSubdomain, 'f'), { recursive: true });
+            fs.mkdirSync(path.join(UPLOADS_BASE_DIR, finalSubdomain, 'm'), { recursive: true });
+        } catch (e) {
+            console.error('uploads 폴더 생성 실패:', e.message);
+        }
+
+        // 5. 부(父) person 생성 (ghost, ops_path='f')
         let fatherPersonId = null;
         if (father_first_name?.trim() && father_last_name?.trim()) {
             const fName = `${father_last_name.trim()}${father_first_name.trim()}`;
             const { rows: fRows } = await client.query(
-                `INSERT INTO persons (site_id, name, first_name, last_name, gender, match_status)
-                 VALUES ($1, $2, $3, $4, 'M', 'ghost') RETURNING id`,
+                `INSERT INTO persons (site_id, name, first_name, last_name, gender, match_status, ops_path)
+                 VALUES ($1, $2, $3, $4, 'M', 'ghost', 'f') RETURNING id`,
                 [siteId, fName, father_first_name.trim(), father_last_name.trim()]
             );
             fatherPersonId = fRows[0].id;
         }
 
-        // 6. 모(母) person 생성 (ghost)
+        // 6. 모(母) person 생성 (ghost, ops_path='m')
         let motherPersonId = null;
         if (mother_first_name?.trim() && mother_last_name?.trim()) {
             const mName = `${mother_last_name.trim()}${mother_first_name.trim()}`;
             const { rows: mRows } = await client.query(
-                `INSERT INTO persons (site_id, name, first_name, last_name, gender, match_status)
-                 VALUES ($1, $2, $3, $4, 'F', 'ghost') RETURNING id`,
+                `INSERT INTO persons (site_id, name, first_name, last_name, gender, match_status, ops_path)
+                 VALUES ($1, $2, $3, $4, 'F', 'ghost', 'm') RETURNING id`,
                 [siteId, mName, mother_first_name.trim(), mother_last_name.trim()]
             );
             motherPersonId = mRows[0].id;
