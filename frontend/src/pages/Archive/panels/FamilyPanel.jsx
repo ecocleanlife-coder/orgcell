@@ -285,15 +285,30 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
     gender: 'M', birthYear: '', birthMonth: '', birthDay: '',
   });
 
-  const tabRels     = filterRels(relations, personId, relTab);
-  const getNode     = id => nodes.find(n => n.id === id || n.personId === id) ?? null;
-  const getNodeName = id => { const n = getNode(id); return n ? (n.name ?? `${n.last_name??''}${n.first_name??''}`) : `#${id}`; };
-  const selectedNode = selectedId ? getNode(selectedId) : null;
+  const [selectedNodeCache, setSelectedNodeCache] = useState(null);
+
+  const tabRels = filterRels(relations, personId, relTab);
+
+  // nodes에 없는 인물도 찾을 수 있도록 Number 강제 비교
+  const getNode = id => {
+    if (id === null || id === undefined) return null;
+    const numId = Number(id);
+    return nodes.find(n => Number(n.id) === numId || n.personId === String(id)) ?? null;
+  };
+
+  const getNodeName = id => {
+    const n = getNode(id);
+    return n ? (n.name ?? `${n.last_name ?? ''}${n.first_name ?? ''}`) : String(id);
+  };
+
+  // getNode 실패 시 캐시된 노드 사용 (relation.person1/2 데이터 기반)
+  const selectedNode = selectedId ? (getNode(selectedId) ?? selectedNodeCache) : null;
 
   // 탭 변경 시 선택 초기화
   function handleTabChange(key) {
     setRelTab(key);
     setSelectedId(null);
+    setSelectedNodeCache(null);
     setShowAddForm(false);
   }
 
@@ -372,15 +387,26 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
             ) : (
               tabRels.map(rel => {
                 const otherId = otherPersonId(rel, personId, relTab);
-                const node    = getNode(otherId);
-                const name    = getNodeName(otherId);
+                // nodes에 있으면 노드 사용, 없으면 relation 내 person 데이터 폴백
+                const relPerson = Number(rel.person1?.id) === Number(otherId) ? rel.person1 : rel.person2;
+                const node    = getNode(otherId) ?? relPerson ?? null;
+                const name    = node ? (node.name ?? `${node.last_name ?? ''}${node.first_name ?? ''}`) : String(otherId);
                 const photo   = node?.photoUrl ?? node?.photo_url;
-                const isSelected = selectedId === otherId;
+                const isSelected = Number(selectedId) === Number(otherId);
                 return (
                   <div
                     key={rel.id}
                     style={{ ...s.relRow, ...(isSelected ? s.relRowOn : {}) }}
-                    onClick={() => { setSelectedId(isSelected ? null : otherId); setShowAddForm(false); }}
+                    onClick={() => {
+                      if (isSelected) {
+                        setSelectedId(null);
+                        setSelectedNodeCache(null);
+                      } else {
+                        setSelectedId(otherId);
+                        setSelectedNodeCache(node);
+                      }
+                      setShowAddForm(false);
+                    }}
                   >
                     {/* 썸네일 */}
                     <div style={s.thumb}>

@@ -12,9 +12,20 @@ async function checkSiteAccess(userId, siteId) {
 }
 
 // GET /api/persons/:siteId/relations
+// person1 / person2 상세 정보도 함께 반환 → 프론트가 nodes에 없는 인물도 편집 가능
 exports.listRelations = async (req, res) => {
     try {
         const { siteId } = req.params;
+
+        // persons 전체 조회 (컬럼 관계 + person 상세 정보 동시 활용)
+        const { rows: persons } = await db.query(
+            `SELECT id, parent1_id, parent2_id, spouse_id,
+                    name, first_name, last_name, gender, photo_url,
+                    birth_date, death_date, is_deceased, name_en
+             FROM persons WHERE site_id = $1`,
+            [siteId]
+        );
+        const personMap = new Map(persons.map(p => [p.id, p]));
 
         // person_relations 테이블 조회
         const { rows: relRows } = await db.query(
@@ -25,12 +36,7 @@ exports.listRelations = async (req, res) => {
             [siteId]
         );
 
-        // persons 컬럼 기반 관계 보완 (parent1_id/parent2_id/spouse_id)
-        const { rows: persons } = await db.query(
-            `SELECT id, parent1_id, parent2_id, spouse_id FROM persons WHERE site_id = $1`,
-            [siteId]
-        );
-
+        // persons 컬럼 기반 가상 관계 생성 (parent1_id/parent2_id/spouse_id)
         const relSet = new Set(relRows.map(r => `${r.person1_id}-${r.person2_id}-${r.relation_type}`));
         const extraRels = [];
         let vid = -1;
@@ -54,8 +60,21 @@ exports.listRelations = async (req, res) => {
             }
         }
 
+        // person1 / person2 상세 첨부 (nodes에 없어도 편집 가능하도록)
+        const toPerson = (p) => p ? {
+            id: p.id, name: p.name, first_name: p.first_name, last_name: p.last_name,
+            gender: p.gender, photo_url: p.photo_url, birth_date: p.birth_date,
+            death_date: p.death_date, is_deceased: p.is_deceased, name_en: p.name_en,
+        } : null;
+
+        const enrich = (rel) => ({
+            ...rel,
+            person1: toPerson(personMap.get(Number(rel.person1_id))),
+            person2: toPerson(personMap.get(Number(rel.person2_id))),
+        });
+
         res.set({ 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0' });
-        res.json({ success: true, data: [...relRows, ...extraRels] });
+        res.json({ success: true, data: [...relRows, ...extraRels].map(enrich) });
     } catch (err) {
         console.error('listRelations error:', err);
         res.status(500).json({ success: false, message: 'Failed to list relations' });
