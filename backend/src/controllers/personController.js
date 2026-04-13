@@ -143,10 +143,33 @@ exports.createPerson = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Forbidden' });
         }
 
-        const { first_name, last_name, name_en, name_suffix, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date, is_deceased, birth_lunar, death_lunar, photo_position, father_first_name, father_last_name, mother_first_name, mother_last_name } = req.body;
+        const {
+            first_name, last_name, name_en, name_suffix, birth_year, death_year,
+            gender, privacy_level, parent1_id, parent2_id, spouse_id, generation,
+            photo_url, birth_date, death_date, is_deceased, birth_lunar, death_lunar,
+            photo_position, father_first_name, father_last_name, mother_first_name, mother_last_name,
+            relation_type, relative_id, // FamilyPanel에서 전달하는 관계 정보
+        } = req.body;
 
         if (!first_name || !last_name) {
             return res.status(400).json({ success: false, message: 'first_name and last_name are required' });
+        }
+
+        // §19: relation_type + gender 기반 ops_path 자동 설정
+        // 부(父) → f, 모(母) → m
+        // 아들 → s, 딸 → d
+        // 배우자(남편) → h, 배우자(아내) → w
+        // 형제자매 → sib
+        let autoOpsPath = null;
+        const isMale = (gender === 'M' || gender === 'male');
+        if (relation_type === 'parent') {
+            autoOpsPath = isMale ? 'f' : 'm';
+        } else if (relation_type === 'child') {
+            autoOpsPath = isMale ? 's' : 'd';
+        } else if (relation_type === 'spouse') {
+            autoOpsPath = isMale ? 'h' : 'w';
+        } else if (relation_type === 'sibling') {
+            autoOpsPath = 'sib';
         }
 
         // ── 중복 이름 체크 ──────────────────────────────────────
@@ -183,19 +206,30 @@ exports.createPerson = async (req, res) => {
 
         // persons 테이블에 INSERT
         const { rows } = await db.query(
-            `INSERT INTO persons (site_id, name, first_name, last_name, name_en, name_suffix, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date, is_deceased, birth_lunar, death_lunar, photo_position, father_first_name, father_last_name, mother_first_name, mother_last_name)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+            `INSERT INTO persons (site_id, name, first_name, last_name, name_en, name_suffix, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date, is_deceased, birth_lunar, death_lunar, photo_position, father_first_name, father_last_name, mother_first_name, mother_last_name, ops_path)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
              RETURNING *`,
-            [siteId, `${last_name.trim()}${first_name.trim()}`, first_name.trim(), last_name.trim(), name_en || null, name_suffix || null, birth_year || null, death_year || null, gender || null, privacy_level || 'family', parent1_id || null, parent2_id || null, spouse_id || null, generation || 0, photo_url || null, birth_date || null, death_date || null, is_deceased ?? false, birth_lunar ?? false, death_lunar ?? false, photo_position ? JSON.stringify(photo_position) : '{"x":50,"y":50}', father_first_name || null, father_last_name || null, mother_first_name || null, mother_last_name || null]
+            [siteId, `${last_name.trim()}${first_name.trim()}`, first_name.trim(), last_name.trim(), name_en || null, name_suffix || null, birth_year || null, death_year || null, gender || null, privacy_level || 'family', parent1_id || null, parent2_id || null, spouse_id || null, generation || 0, photo_url || null, birth_date || null, death_date || null, is_deceased ?? false, birth_lunar ?? false, death_lunar ?? false, photo_position ? JSON.stringify(photo_position) : '{"x":50,"y":50}', father_first_name || null, father_last_name || null, mother_first_name || null, mother_last_name || null, autoOpsPath]
         );
 
         const newPerson = rows[0];
         const newPersonId = newPerson.id;
 
-        // 개인 폴더 자동 생성 (§19)
+        // §19: ops_path 기반 폴더 자동 생성
         try {
-            const personDir = path.join(PERSON_UPLOADS_DIR, String(newPersonId));
-            fs.mkdirSync(personDir, { recursive: true });
+            // subdomain 조회
+            const { rows: siteRows } = await db.query(
+                'SELECT subdomain FROM family_sites WHERE id = $1', [siteId]
+            );
+            const subdomain = siteRows[0]?.subdomain;
+            if (subdomain) {
+                const baseDir = path.join(process.cwd(), 'uploads', subdomain);
+                if (autoOpsPath) {
+                    fs.mkdirSync(path.join(baseDir, autoOpsPath), { recursive: true });
+                } else {
+                    fs.mkdirSync(baseDir, { recursive: true });
+                }
+            }
         } catch (e) {
             console.error('person folder creation failed:', e.message);
         }
@@ -239,6 +273,46 @@ exports.createPerson = async (req, res) => {
                  ON CONFLICT (site_id, person1_id, person2_id, relation_type) DO NOTHING`,
                 [siteId, Math.min(newPersonId, spouse_id), Math.max(newPersonId, spouse_id)]
             );
+        }
+
+        // FamilyPanel relation_type/relative_id 기반 관계 자동 생성
+        if (relation_type && relative_id) {
+            const relativeIdNum = Number(relative_id);
+            try {
+                if (relation_type === 'parent') {
+                    // 새 인물이 relative_id의 부모
+                    await db.query(
+                        `INSERT INTO person_relations (site_id, person1_id, person2_id, relation_type, is_active)
+                         VALUES ($1, $2, $3, 'parent', true)
+                         ON CONFLICT (site_id, person1_id, person2_id, relation_type) DO NOTHING`,
+                        [siteId, newPersonId, relativeIdNum]
+                    );
+                } else if (relation_type === 'child') {
+                    // 새 인물이 relative_id의 자녀
+                    await db.query(
+                        `INSERT INTO person_relations (site_id, person1_id, person2_id, relation_type, is_active)
+                         VALUES ($1, $2, $3, 'parent', true)
+                         ON CONFLICT (site_id, person1_id, person2_id, relation_type) DO NOTHING`,
+                        [siteId, relativeIdNum, newPersonId]
+                    );
+                } else if (relation_type === 'spouse') {
+                    await db.query(
+                        `INSERT INTO person_relations (site_id, person1_id, person2_id, relation_type, is_active)
+                         VALUES ($1, $2, $3, 'spouse', true)
+                         ON CONFLICT (site_id, person1_id, person2_id, relation_type) DO NOTHING`,
+                        [siteId, Math.min(newPersonId, relativeIdNum), Math.max(newPersonId, relativeIdNum)]
+                    );
+                } else if (relation_type === 'sibling') {
+                    await db.query(
+                        `INSERT INTO person_relations (site_id, person1_id, person2_id, relation_type, is_active)
+                         VALUES ($1, $2, $3, 'sibling', true)
+                         ON CONFLICT (site_id, person1_id, person2_id, relation_type) DO NOTHING`,
+                        [siteId, Math.min(newPersonId, relativeIdNum), Math.max(newPersonId, relativeIdNum)]
+                    );
+                }
+            } catch (relErr) {
+                console.error('relation insert error:', relErr.message);
+            }
         }
 
         res.status(201).json({ success: true, data: newPerson });

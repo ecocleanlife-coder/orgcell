@@ -36,7 +36,7 @@ const BLOCK_H       = CARD_HEIGHT + BLOCK_PADDING * 2;   // 220 + 16 = 236
 const DBL_CLICK_MS = 250;
 
 // ══════════════════════════════════════════════════════════════════════════════
-export default function CoupleBlock({ group, offsetX, offsetY, curatorPersonId, onDoubleClick, onWormhole }) {
+export default function CoupleBlock({ group, offsetX, offsetY, scale = 1, curatorPersonId, onDoubleClick, onWormhole }) {
   const { nodes, blockX, y } = group;
 
   const left   = nodes.find(n => n.coupleRole === 'left');
@@ -48,8 +48,9 @@ export default function CoupleBlock({ group, offsetX, offsetY, curatorPersonId, 
   const animOrder      = Math.min(...nodes.map(n => n.animOrder ?? 0));
 
   const blockW = single ? CARD_WIDTH + BLOCK_PADDING * 2 : COUPLE_WIDTH;
-  const pxLeft = offsetX + blockX - blockW / 2;
-  const pxTop  = offsetY + y - BLOCK_H / 2;
+  // scale 적용: 카드 위치와 크기 모두 scale 반영
+  const pxLeft = (offsetX + blockX - blockW / 2) * scale;
+  const pxTop  = (offsetY + y - BLOCK_H / 2) * scale;
 
   // §5 블록 레벨 테두리 (카드 개별 테두리 금지, §24-1)
   const blockBorder = isCuratorBlock ? {
@@ -76,8 +77,8 @@ export default function CoupleBlock({ group, offsetX, offsetY, curatorPersonId, 
         position:      'absolute',
         left:          pxLeft,
         top:           pxTop,
-        width:         blockW,
-        height:        BLOCK_H,
+        width:         blockW * scale,
+        height:        BLOCK_H * scale,
         display:       'flex',
         gap:           CARD_GAP,
         padding:       BLOCK_PADDING,
@@ -131,8 +132,8 @@ function FolderCard({ node, isCuratorCard, isLeft, isRight, onDoubleClick, onWor
   const [hovered, setHovered] = useState(false);
   const timerRef = useRef(null);
 
-  // Ghost 인물: GhostCard 표시
-  if (!node.name || node.matchStatus === 'ghost') {
+  // Ghost 인물: 이름 있으면 일반 카드처럼, 없으면 GhostCard
+  if (node.matchStatus === 'ghost' && !node.name) {
     return (
       <GhostCard
         width={CARD_WIDTH}
@@ -187,9 +188,13 @@ function FolderCard({ node, isCuratorCard, isLeft, isRight, onDoubleClick, onWor
       {/* §4 이름 하단 그라데이션 오버레이 */}
       <div style={s.nameOverlay}>{node.name}</div>
 
-      {/* §4 호버 툴팁 "OOO 박물관" (linked 인물만) */}
-      {hovered && node.matchStatus === 'linked' && (
-        <div style={s.tooltip}>{node.name} 박물관</div>
+      {/* §4 호버 툴팁 */}
+      {hovered && (
+        <div style={s.tooltip}>
+          {node.matchStatus === 'linked'
+            ? `${node.name} 박물관 — 더블클릭`
+            : '더블클릭으로 정보 수정'}
+        </div>
       )}
     </div>
   );
