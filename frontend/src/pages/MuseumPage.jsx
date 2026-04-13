@@ -281,6 +281,16 @@ function SlideBanner({ subdomain, isCurator, navigate }) {
   const timerRef = useRef(null);
 
   useEffect(() => {
+    // LED 스크롤 애니메이션 CSS 삽입
+    if (!document.getElementById('led-style')) {
+      const style = document.createElement('style');
+      style.id = 'led-style';
+      style.textContent = '@keyframes ledScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }';
+      document.head.appendChild(style);
+    }
+  }, []);
+
+  useEffect(() => {
     // 슬라이드 소스: 최근 공개 사진 조회 (없으면 placeholder)
     apiFetch(`/api/museum/${subdomain}`).then((data) => {
       const banner = data?.museum?.banner_slides ?? data?.banner_slides ?? [];
@@ -299,6 +309,11 @@ function SlideBanner({ subdomain, isCurator, navigate }) {
 
   const slide = slides[idx] || {};
 
+  // LED 전광판 텍스트
+  const museumData = slides[0];
+  const curatorName = museumData?.curatorName ?? museumData?.curator_name ?? '';
+  const ledText = `${curatorName ? curatorName + ' ' : ''}가족유산박물관에 오신것을 환영합니다 　　　　 사진들이 전시되는 공간입니다 　　　　 `;
+
   return (
     <div style={s.banner}>
       {/* 배경 사진 */}
@@ -312,6 +327,13 @@ function SlideBanner({ subdomain, isCurator, navigate }) {
       <div style={s.bannerOverlay}>
         {slide.name && <span style={s.bannerName}>{slide.name}</span>}
         {slide.description && <span style={s.bannerDesc}>{slide.description}</span>}
+      </div>
+
+      {/* LED 전광판 */}
+      <div style={s.ledWrap}>
+        <div style={s.ledTrack}>
+          <span style={s.ledText}>{ledText}{ledText}</span>
+        </div>
       </div>
 
       {/* 하단 컨트롤 */}
@@ -406,6 +428,9 @@ const s = {
   bannerControls: { position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 },
   bannerDot:      { width: 7, height: 7, borderRadius: '50%', background: '#fff', cursor: 'pointer', display: 'inline-block' },
   bannerClickArea:{ position: 'absolute', inset: 0, cursor: 'pointer' },
+  ledWrap: { position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.75)', overflow: 'hidden', height: 28, display: 'flex', alignItems: 'center' },
+  ledTrack: { display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', animation: 'ledScroll 20s linear infinite' },
+  ledText: { fontSize: 13, color: '#FFD700', fontFamily: 'monospace', fontWeight: 600, letterSpacing: 2, paddingRight: 40 },
   settingBtn:     { position: 'absolute', top: 10, right: 12, padding: '4px 10px', fontSize: 12, background: 'rgba(255,255,255,0.85)', border: '1px solid #C4A882', borderRadius: 4, cursor: 'pointer', color: '#5a4a35', zIndex: 10 },
   settingPanel:   { position: 'absolute', top: 40, right: 12, background: '#FDFBF7', border: '1px solid #C4A882', borderRadius: 6, padding: '14px 16px', zIndex: 20, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: 180 },
   settingRow:     { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 },
