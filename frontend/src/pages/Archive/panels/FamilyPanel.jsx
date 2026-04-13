@@ -55,9 +55,20 @@ function MiniTree({ curatorNode, relations, nodes, personId }) {
     const n = Number(id);
     return nodes.find(x => Number(x.id) === n) ?? null;
   };
+  // nodes에 없으면 relations의 person1/person2 데이터에서 찾기
+  const getPersonData = id => {
+    const node = getNode(id);
+    if (node) return node;
+    const n = Number(id);
+    for (const r of relations) {
+      if (Number(r.person1?.id) === n) return r.person1;
+      if (Number(r.person2?.id) === n) return r.person2;
+    }
+    return null;
+  };
   const getName = id => {
-    const n = getNode(id);
-    return n ? (n.name ?? `${n.last_name ?? ''}${n.first_name ?? ''}`) : null;
+    const p = getPersonData(id);
+    return p ? (p.name ?? `${p.last_name ?? ''}${p.first_name ?? ''}`) : null;
   };
 
   const id = Number(personId);
@@ -132,7 +143,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
 
   const [form, setForm] = useState({
     lastName: '', firstName: '', nameEnLast: '', nameEnFirst: '',
-    birthDate: '', isDeceased: false, deathDate: '',
+    birthDate: '', birthLunar: false, isDeceased: false, deathDate: '',
   });
 
   // 현재 탭의 관계 목록
@@ -183,6 +194,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
       nameEnLast:  selectedNode.name_en_last  ?? (enParts[0] || ''),
       nameEnFirst: selectedNode.name_en_first ?? (enParts.slice(1).join(' ') || ''),
       birthDate:  (selectedNode.birthDate ?? selectedNode.birth_date ?? '').split('T')[0] || '',
+      birthLunar: selectedNode.birthLunar ?? selectedNode.birth_lunar ?? false,
       isDeceased: selectedNode.isDeceased ?? selectedNode.is_deceased ?? false,
       deathDate:  (selectedNode.deathDate ?? selectedNode.death_date ?? '').split('T')[0] || '',
     });
@@ -233,6 +245,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
         name_en:     [form.nameEnLast, form.nameEnFirst].filter(Boolean).join(' ') || null,
         gender:      genderDb,
         birth_date:  form.birthDate || null,
+        birth_lunar: form.birthLunar || false,
         is_deceased: form.isDeceased,
         death_date:  form.deathDate || null,
       };
@@ -258,8 +271,8 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
         }
         toast.success('추가됐습니다.');
       }
-      await invalidate();
       await refreshRelations();
+      await invalidate();
     } catch (err) {
       toast.error(err.message || '저장 실패');
     } finally {
@@ -411,10 +424,16 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
         </div>
 
         <label style={s.lbl}>생년월일</label>
-        <KoreanDateInput
-          value={form.birthDate}
-          onChange={v => setForm(f => ({ ...f, birthDate: v }))}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <KoreanDateInput
+            value={form.birthDate}
+            onChange={v => setForm(f => ({ ...f, birthDate: v }))}
+          />
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            <input type="checkbox" checked={form.birthLunar} onChange={e => setForm(f => ({ ...f, birthLunar: e.target.checked }))} />
+            음력
+          </label>
+        </div>
 
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', margin: '8px 0 4px' }}>
           <input type="checkbox" checked={form.isDeceased} onChange={e => setForm(f => ({ ...f, isDeceased: e.target.checked }))} />
