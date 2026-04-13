@@ -203,10 +203,17 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
   // 사진 드래그
   function handleDragStart(e) {
     e.preventDefault();
+    e.stopPropagation();
     const sx = e.clientX - photoOffset.x;
     const sy = e.clientY - photoOffset.y;
-    const onMove = ev => setPhotoOffset({ x: ev.clientX - sx, y: ev.clientY - sy });
-    const onUp   = () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
+    const onMove = ev => {
+      ev.preventDefault();
+      setPhotoOffset({ x: ev.clientX - sx, y: ev.clientY - sy });
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
   }
@@ -250,9 +257,9 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
         death_date:  form.deathDate || null,
       };
 
-      if (selectedId) {
+      if (selectedId && Number(selectedId) > 0) {
         // 기존 인물 수정
-        await savePerson(siteId, selectedId, fields);
+        await savePerson(siteId, Number(selectedId), fields);
         toast.success('저장됐습니다.');
       } else {
         // 새 인물 생성
@@ -270,6 +277,10 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
           await uploadPhoto(siteId, newId, file);
         }
         toast.success('추가됐습니다.');
+        // 생성 후 폼 클리어
+        resetForm();
+        setSelectedId(null);
+        setSelectedPersonCache(null);
       }
       await refreshRelations();
       await invalidate();
@@ -470,6 +481,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
 
       {/* 간이 가계도 */}
       <MiniTree
+        key={relations.length}
         curatorNode={curatorNode}
         relations={relations}
         nodes={nodes}
