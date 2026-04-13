@@ -1,22 +1,23 @@
 /**
- * panels/FamilyPanel.jsx — §8/§9 가족 관리
+ * FamilyPanel.jsx — §8/§9 가족 관리
  *
- * - 관계 탭: 부모 / 자녀 / 배우자 / 형제자매
- * - 탭의 인물 행 클릭 → 우측에 해당 인물 편집 패널 표시
- *   (사진 업로드 §19, 이름/성별/생년월일/사망 수정, 저장)
- * - [새 가족 추가]: 성/이름/성별/생년월일 입력 후 추가 → invalidate() 트리 즉시 갱신
- * - [가족 관계 삭제]: 확인 모달 후 person_relations 삭제 (§8/§9)
+ * 흐름:
+ *   1. 관계 탭(부모/자녀/배우자/형제자매) → 인물 목록
+ *   2. 인물 클릭 → 우측에 MyInfoPanel과 동일한 편집 패널
+ *      - 해당 person 서브디렉토리 있으면 기존 데이터 불러오기
+ *      - 없으면 새로 입력 후 §19 룰대로 저장
+ *   3. + 추가 버튼 → 새 가족 추가 폼
+ *   4. 저장 후 invalidate() → 트리 즉시 갱신 (§19/§24-4)
  */
-// v2
+
 import { useState, useRef, useEffect } from 'react';
 import { toast }                        from 'react-hot-toast';
 import { useTreeStore }                 from '../../../store/treeStore';
 import {
   createPerson,
   savePerson,
-  deletePerson,
-  deleteRelation,
   uploadPhoto,
+  deleteRelation,
 } from './archiveApi';
 
 // ── 상수 ─────────────────────────────────────────────────────────────────────
@@ -27,19 +28,15 @@ const REL_TABS = [
   { key: 'sibling', label: '형제자매' },
 ];
 
-const GENDER_OPTS = [
-  { value: 'M', label: '남' },
-  { value: 'F', label: '여' },
-];
-
-// ── 관계 필터 헬퍼 ────────────────────────────────────────────────────────────
+// ── 관계 필터 ─────────────────────────────────────────────────────────────────
 function filterRels(relations, personId, tab) {
   if (!personId) return [];
+  const id = Number(personId);
   switch (tab) {
-    case 'parent':  return relations.filter(r => r.relation_type === 'parent'  && r.person2_id === personId);
-    case 'child':   return relations.filter(r => r.relation_type === 'parent'  && r.person1_id === personId);
-    case 'spouse':  return relations.filter(r => r.relation_type === 'spouse'  && (r.person1_id === personId || r.person2_id === personId));
-    case 'sibling': return relations.filter(r => r.relation_type === 'sibling' && (r.person1_id === personId || r.person2_id === personId));
+    case 'parent':  return relations.filter(r => r.relation_type === 'parent'  && Number(r.person2_id) === id);
+    case 'child':   return relations.filter(r => r.relation_type === 'parent'  && Number(r.person1_id) === id);
+    case 'spouse':  return relations.filter(r => r.relation_type === 'spouse'  && (Number(r.person1_id) === id || Number(r.person2_id) === id));
+    case 'sibling': return relations.filter(r => r.relation_type === 'sibling' && (Number(r.person1_id) === id || Number(r.person2_id) === id));
     default: return [];
   }
 }
@@ -47,10 +44,10 @@ function filterRels(relations, personId, tab) {
 function otherPersonId(rel, personId, tab) {
   if (tab === 'parent') return rel.person1_id;
   if (tab === 'child')  return rel.person2_id;
-  return rel.person1_id === personId ? rel.person2_id : rel.person1_id;
+  return Number(rel.person1_id) === Number(personId) ? rel.person2_id : rel.person1_id;
 }
 
-// ── 인물 편집 서브패널 ────────────────────────────────────────────────────────
+// ── 인물 편집 패널 (MyInfoPanel과 동일 구조) ─────────────────────────────────
 function PersonEditPanel({ node, siteId, onSaved, onClose }) {
   const fileRef = useRef(null);
   const [preview,     setPreview]     = useState(null);
@@ -59,8 +56,10 @@ function PersonEditPanel({ node, siteId, onSaved, onClose }) {
   const [uploading,   setUploading]   = useState(false);
   const [saving,      setSaving]      = useState(false);
   const [form, setForm] = useState({
-    lastName: '', firstName: '', nameEnLast: '', nameEnFirst: '',
-    gender: 'M', birthYear: '', birthMonth: '', birthDay: '',
+    lastName: '', firstName: '',
+    nameEnLast: '', nameEnFirst: '',
+    gender: 'M',
+    birthYear: '', birthMonth: '', birthDay: '',
     isDeceased: false, deathDate: '',
   });
 
@@ -75,8 +74,7 @@ function PersonEditPanel({ node, siteId, onSaved, onClose }) {
     const bdate = node.birthDate ?? node.birth_date ?? '';
     const [by = '', bm = '', bd = ''] = bdate ? bdate.split('T')[0].split('-') : [];
 
-    // name_en 파싱
-    const enFull  = node.name_en ?? '';
+    const enFull  = node.name_en ?? node.nameEn ?? '';
     const enParts = enFull.trim().split(/\s+/);
     const enLast  = node.name_en_last  ?? (enParts[0] || '');
     const enFirst = node.name_en_first ?? (enParts.slice(1).join(' ') || '');
@@ -85,8 +83,8 @@ function PersonEditPanel({ node, siteId, onSaved, onClose }) {
     const gender = rawGender === 'male' ? 'M' : rawGender === 'female' ? 'F' : rawGender || 'M';
 
     setForm({
-      lastName:  node.last_name  ?? node.lastName  ?? '',
-      firstName: node.first_name ?? node.firstName ?? node.name ?? '',
+      lastName:   node.last_name  ?? node.lastName  ?? '',
+      firstName:  node.first_name ?? node.firstName ?? node.name ?? '',
       nameEnLast:  enLast,
       nameEnFirst: enFirst,
       gender,
@@ -118,7 +116,7 @@ function PersonEditPanel({ node, siteId, onSaved, onClose }) {
     if (!file || !siteId || !node?.id) return;
     setUploading(true);
     try {
-      const json = await uploadPhoto(siteId, node.id, file);
+      const json   = await uploadPhoto(siteId, node.id, file);
       const rawUrl = json.data?.photo_url ?? URL.createObjectURL(file);
       setPreview(rawUrl.startsWith('blob:') ? rawUrl : `${rawUrl}?v=${Date.now()}`);
       toast.success('사진이 저장됐습니다.');
@@ -140,14 +138,14 @@ function PersonEditPanel({ node, siteId, onSaved, onClose }) {
         : null;
       const genderDb = form.gender === 'male' ? 'M' : form.gender === 'female' ? 'F' : form.gender;
       await savePerson(siteId, node.id, {
-        name:       `${(form.lastName||'').trim()}${(form.firstName||'').trim()}`,
-        first_name: form.firstName?.trim() || null,
-        last_name:  form.lastName?.trim()  || null,
-        name_en:    [form.nameEnLast, form.nameEnFirst].filter(Boolean).join(' ') || null,
-        gender:     genderDb,
-        birth_date: birthDate,
+        name:        `${(form.lastName||'').trim()}${(form.firstName||'').trim()}`,
+        first_name:  form.firstName?.trim() || null,
+        last_name:   form.lastName?.trim()  || null,
+        name_en:     [form.nameEnLast, form.nameEnFirst].filter(Boolean).join(' ') || null,
+        gender:      genderDb,
+        birth_date:  birthDate,
         is_deceased: form.isDeceased,
-        death_date: form.deathDate || null,
+        death_date:  form.deathDate || null,
       });
       toast.success('저장됐습니다.');
       onSaved?.();
@@ -160,10 +158,13 @@ function PersonEditPanel({ node, siteId, onSaved, onClose }) {
 
   if (!node) return null;
 
+  const displayName = node.name ?? `${node.last_name ?? ''}${node.first_name ?? ''}`;
+
   return (
     <div style={ep.wrap}>
+      {/* 헤더 */}
       <div style={ep.header}>
-        <span style={ep.title}>{node.name ?? `${node.last_name}${node.first_name}`}</span>
+        <span style={ep.title}>{displayName}</span>
         <button style={ep.closeBtn} onClick={onClose}>✕</button>
       </div>
 
@@ -213,7 +214,7 @@ function PersonEditPanel({ node, siteId, onSaved, onClose }) {
       <div style={ep.row2}>
         <div>
           <label style={ep.lbl}>성 (姓)</label>
-          <input style={ep.inp} value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} placeholder="이" />
+          <input style={ep.inp} value={form.lastName}  onChange={e => setForm(f => ({ ...f, lastName:  e.target.value }))} placeholder="이" />
         </div>
         <div>
           <label style={ep.lbl}>이름</label>
@@ -223,7 +224,7 @@ function PersonEditPanel({ node, siteId, onSaved, onClose }) {
       <div style={ep.row2}>
         <div>
           <label style={ep.lbl}>영문 성</label>
-          <input style={ep.inp} value={form.nameEnLast} onChange={e => setForm(f => ({ ...f, nameEnLast: e.target.value }))} placeholder="LEE" />
+          <input style={ep.inp} value={form.nameEnLast}  onChange={e => setForm(f => ({ ...f, nameEnLast:  e.target.value }))} placeholder="LEE" />
         </div>
         <div>
           <label style={ep.lbl}>영문 이름</label>
@@ -233,7 +234,7 @@ function PersonEditPanel({ node, siteId, onSaved, onClose }) {
 
       <label style={ep.lbl}>성별</label>
       <div style={{ display: 'flex', gap: 12, marginBottom: 4 }}>
-        {GENDER_OPTS.map(g => (
+        {[{ value: 'M', label: '남' }, { value: 'F', label: '여' }].map(g => (
           <label key={g.value} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, cursor: 'pointer' }}>
             <input type="radio" value={g.value} checked={form.gender === g.value} onChange={() => setForm(f => ({ ...f, gender: g.value }))} />
             {g.label}
@@ -243,9 +244,9 @@ function PersonEditPanel({ node, siteId, onSaved, onClose }) {
 
       <label style={ep.lbl}>생년월일</label>
       <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
-        <input style={{ ...ep.inp, width: 64 }} value={form.birthYear}  onChange={e => setForm(f => ({ ...f, birthYear: e.target.value }))}  placeholder="년" maxLength={4} />
+        <input style={{ ...ep.inp, width: 64 }} value={form.birthYear}  onChange={e => setForm(f => ({ ...f, birthYear:  e.target.value }))} placeholder="년" maxLength={4} />
         <input style={{ ...ep.inp, width: 44 }} value={form.birthMonth} onChange={e => setForm(f => ({ ...f, birthMonth: e.target.value }))} placeholder="월" maxLength={2} />
-        <input style={{ ...ep.inp, width: 44 }} value={form.birthDay}   onChange={e => setForm(f => ({ ...f, birthDay: e.target.value }))}   placeholder="일" maxLength={2} />
+        <input style={{ ...ep.inp, width: 44 }} value={form.birthDay}   onChange={e => setForm(f => ({ ...f, birthDay:   e.target.value }))} placeholder="일" maxLength={2} />
       </div>
 
       <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', marginBottom: 4 }}>
@@ -271,38 +272,28 @@ function PersonEditPanel({ node, siteId, onSaved, onClose }) {
 }
 
 // ── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
-export default function FamilyPanel({ curatorNode, personId, siteId, relations, refreshRelations }) {
+export default function FamilyPanel({ personId, siteId, relations, refreshRelations }) {
   const { nodes, invalidate } = useTreeStore();
 
-  const [relTab,      setRelTab]      = useState('parent');
-  const [selectedId,  setSelectedId]  = useState(null); // 편집 중인 인물 node id
-  const [confirmDel,  setConfirmDel]  = useState(null);
-  const [saving,      setSaving]      = useState(false);
-  const [showAddForm, setShowAddForm] = useState(false);
-
+  const [relTab,           setRelTab]           = useState('parent');
+  const [selectedId,       setSelectedId]       = useState(null);
+  const [selectedNodeCache,setSelectedNodeCache] = useState(null);
+  const [confirmDel,       setConfirmDel]       = useState(null);
+  const [saving,           setSaving]           = useState(false);
+  const [showAddForm,      setShowAddForm]      = useState(false);
   const [newForm, setNewForm] = useState({
     lastName: '', firstName: '', nameEnLast: '', nameEnFirst: '',
-    gender: 'M', birthYear: '', birthMonth: '', birthDay: '',
+    gender: 'M', birthYear: '',
   });
-
-  const [selectedNodeCache, setSelectedNodeCache] = useState(null);
 
   const tabRels = filterRels(relations, personId, relTab);
 
-  // nodes에 없는 인물도 찾을 수 있도록 Number 강제 비교
+  // nodes에 없는 인물도 Number 강제 비교로 찾기
   const getNode = id => {
-    if (id === null || id === undefined) return null;
+    if (id == null) return null;
     const numId = Number(id);
     return nodes.find(n => Number(n.id) === numId || n.personId === String(id)) ?? null;
   };
-
-  const getNodeName = id => {
-    const n = getNode(id);
-    return n ? (n.name ?? `${n.last_name ?? ''}${n.first_name ?? ''}`) : String(id);
-  };
-
-  // getNode 실패 시 캐시된 노드 사용 (relation.person1/2 데이터 기반)
-  const selectedNode = selectedId ? (getNode(selectedId) ?? selectedNodeCache) : null;
 
   // 탭 변경 시 선택 초기화
   function handleTabChange(key) {
@@ -312,20 +303,20 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
     setShowAddForm(false);
   }
 
+  // 선택된 노드: treeStore에 있으면 사용, 없으면 relation에서 캐시된 person 데이터 사용
+  const selectedNode = selectedId ? (getNode(selectedId) ?? selectedNodeCache) : null;
+
   // 새 가족 추가
-  async function handleCreatePerson() {
+  async function handleCreate() {
     if (!siteId || !newForm.firstName.trim()) {
       toast.error('이름을 입력해주세요');
       return;
     }
     setSaving(true);
     try {
-      const birthDate = newForm.birthYear
-        ? [newForm.birthYear, newForm.birthMonth?.padStart(2,'0'), newForm.birthDay?.padStart(2,'0')].filter(Boolean).join('-')
-        : null;
-      const fullName = `${newForm.lastName.trim()}${newForm.firstName.trim()}`;
+      const birthDate = newForm.birthYear ? `${newForm.birthYear}-01-01` : null;
       await createPerson(siteId, {
-        name:          fullName,
+        name:          `${newForm.lastName.trim()}${newForm.firstName.trim()}`,
         first_name:    newForm.firstName.trim(),
         last_name:     newForm.lastName.trim() || null,
         name_en:       [newForm.nameEnLast, newForm.nameEnFirst].filter(Boolean).join(' ') || null,
@@ -336,9 +327,9 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
       });
       await invalidate();
       await refreshRelations();
-      setNewForm({ lastName: '', firstName: '', nameEnLast: '', nameEnFirst: '', gender: 'M', birthYear: '', birthMonth: '', birthDay: '' });
+      setNewForm({ lastName: '', firstName: '', nameEnLast: '', nameEnFirst: '', gender: 'M', birthYear: '' });
       setShowAddForm(false);
-      toast.success('새 가족이 추가됐습니다. 트리에 바로 표시됩니다.');
+      toast.success('추가됐습니다. 트리에 바로 표시됩니다.');
     } catch (err) {
       toast.error(err.message || '추가 실패');
     } finally {
@@ -353,6 +344,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
       await invalidate();
       await refreshRelations();
       setSelectedId(null);
+      setSelectedNodeCache(null);
       toast.success('관계가 해제됐습니다.');
     } catch {
       toast.error('삭제 실패');
@@ -377,7 +369,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
       </div>
 
       <div style={s.body}>
-        {/* 좌: 관계 목록 */}
+        {/* 좌: 인물 목록 */}
         <div style={s.listCol}>
           <div style={s.relBody}>
             {tabRels.length === 0 ? (
@@ -386,19 +378,22 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
               </p>
             ) : (
               tabRels.map(rel => {
-                const otherId = otherPersonId(rel, personId, relTab);
-                // nodes에 있으면 노드 사용, 없으면 relation 내 person 데이터 폴백
+                const otherId  = otherPersonId(rel, personId, relTab);
+                // relation에 person 상세 데이터가 있으면 폴백으로 사용
                 const relPerson = Number(rel.person1?.id) === Number(otherId) ? rel.person1 : rel.person2;
-                const node    = getNode(otherId) ?? relPerson ?? null;
-                const name    = node ? (node.name ?? `${node.last_name ?? ''}${node.first_name ?? ''}`) : String(otherId);
-                const photo   = node?.photoUrl ?? node?.photo_url;
-                const isSelected = Number(selectedId) === Number(otherId);
+                const node     = getNode(otherId) ?? relPerson ?? null;
+                const name     = node
+                  ? (node.name ?? `${node.last_name ?? ''}${node.first_name ?? ''}`)
+                  : `#${otherId}`;
+                const photo    = node?.photoUrl ?? node?.photo_url;
+                const isSel    = Number(selectedId) === Number(otherId);
+
                 return (
                   <div
                     key={rel.id}
-                    style={{ ...s.relRow, ...(isSelected ? s.relRowOn : {}) }}
+                    style={{ ...s.relRow, ...(isSel ? s.relRowOn : {}) }}
                     onClick={() => {
-                      if (isSelected) {
+                      if (isSel) {
                         setSelectedId(null);
                         setSelectedNodeCache(null);
                       } else {
@@ -408,7 +403,6 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
                       setShowAddForm(false);
                     }}
                   >
-                    {/* 썸네일 */}
                     <div style={s.thumb}>
                       {photo
                         ? <img src={photo} alt={name} style={s.thumbImg} />
@@ -426,31 +420,31 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
             )}
           </div>
 
-          {/* 새 가족 추가 버튼 */}
+          {/* 추가 버튼 */}
           <button
             style={{ ...s.btnPri, width: '100%', marginTop: 8 }}
-            onClick={() => { setShowAddForm(v => !v); setSelectedId(null); }}
+            onClick={() => { setShowAddForm(v => !v); setSelectedId(null); setSelectedNodeCache(null); }}
           >
-            {showAddForm ? '취소' : `+ ${REL_TABS.find(t=>t.key===relTab)?.label} 추가`}
+            {showAddForm ? '취소' : `+ ${REL_TABS.find(t => t.key === relTab)?.label} 추가`}
           </button>
 
-          {/* 새 가족 추가 폼 */}
+          {/* 추가 폼 */}
           {showAddForm && (
             <div style={s.addForm}>
               <div style={s.row2}>
                 <div>
-                  <label style={s.lbl}>성 (姓)</label>
-                  <input style={s.inp} value={newForm.lastName}  onChange={e => setNewForm(f => ({ ...f, lastName: e.target.value }))}  placeholder="이" />
+                  <label style={s.lbl}>성</label>
+                  <input style={s.inp} value={newForm.lastName}   onChange={e => setNewForm(f => ({ ...f, lastName:   e.target.value }))} placeholder="이" />
                 </div>
                 <div>
                   <label style={s.lbl}>이름 *</label>
-                  <input style={s.inp} value={newForm.firstName} onChange={e => setNewForm(f => ({ ...f, firstName: e.target.value }))} placeholder="상훈" />
+                  <input style={s.inp} value={newForm.firstName}  onChange={e => setNewForm(f => ({ ...f, firstName:  e.target.value }))} placeholder="상훈" />
                 </div>
               </div>
               <div style={s.row2}>
                 <div>
                   <label style={s.lbl}>영문 성</label>
-                  <input style={s.inp} value={newForm.nameEnLast}  onChange={e => setNewForm(f => ({ ...f, nameEnLast: e.target.value }))}  placeholder="LEE" />
+                  <input style={s.inp} value={newForm.nameEnLast}  onChange={e => setNewForm(f => ({ ...f, nameEnLast:  e.target.value }))} placeholder="LEE" />
                 </div>
                 <div>
                   <label style={s.lbl}>영문 이름</label>
@@ -473,7 +467,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
               <button
                 style={{ ...s.btnPri, width: '100%', marginTop: 8, opacity: saving ? 0.6 : 1 }}
                 disabled={saving}
-                onClick={handleCreatePerson}
+                onClick={handleCreate}
               >
                 {saving ? '추가 중...' : '추가'}
               </button>
@@ -487,7 +481,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
             node={selectedNode}
             siteId={siteId}
             onSaved={async () => { await invalidate(); await refreshRelations(); }}
-            onClose={() => setSelectedId(null)}
+            onClose={() => { setSelectedId(null); setSelectedNodeCache(null); }}
           />
         )}
       </div>
@@ -534,7 +528,6 @@ const s = {
   modal:    { background: '#FDFBF7', border: '1px solid #C4A882', borderRadius: 8, padding: '28px 32px', minWidth: 280, textAlign: 'center' },
 };
 
-// PersonEditPanel 스타일
 const ep = {
   wrap:          { flex: 1, border: '1px solid #E8DFD0', borderRadius: 6, padding: 12, background: '#FDFBF7', display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto' },
   header:        { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
