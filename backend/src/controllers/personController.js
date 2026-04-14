@@ -209,7 +209,9 @@ exports.createPerson = async (req, res) => {
         }
 
         // 2. 성 + 이름만 일치 → 409 (프론트가 확인 모달 표시)
-        const { rows: nameOnly } = await db.query(
+        // child/sibling은 동명이인이 흔하므로 중복 체크 스킵
+        const skipNameDupCheck = (relation_type === 'child' || relation_type === 'sibling');
+        const { rows: nameOnly } = skipNameDupCheck ? { rows: [] } : await db.query(
             `SELECT id, first_name, last_name, birth_date, gender FROM persons WHERE site_id = $1 AND first_name = $2 AND last_name = $3 LIMIT 1`,
             [siteId, first_name.trim(), last_name.trim()]
         );
@@ -291,6 +293,26 @@ exports.createPerson = async (req, res) => {
                  VALUES ($1, $2, $3, 'spouse', true)
                  ON CONFLICT (site_id, person1_id, person2_id, relation_type) DO NOTHING`,
                 [siteId, Math.min(newPersonId, spouse_id), Math.max(newPersonId, spouse_id)]
+            );
+        }
+
+        // relation_type === 'child': relative_id(관장) → newPersonId 부모-자녀 관계 INSERT
+        if (relation_type === 'child' && relative_id) {
+            await db.query(
+                `INSERT INTO person_relations (site_id, person1_id, person2_id, relation_type, is_active)
+                 VALUES ($1, $2, $3, 'parent', true)
+                 ON CONFLICT (site_id, person1_id, person2_id, relation_type) DO NOTHING`,
+                [siteId, Number(relative_id), newPersonId]
+            );
+        }
+
+        // relation_type === 'sibling': relative_id ↔ newPersonId 형제 관계 INSERT
+        if (relation_type === 'sibling' && relative_id) {
+            await db.query(
+                `INSERT INTO person_relations (site_id, person1_id, person2_id, relation_type, is_active)
+                 VALUES ($1, $2, $3, 'sibling', true)
+                 ON CONFLICT (site_id, person1_id, person2_id, relation_type) DO NOTHING`,
+                [siteId, Math.min(Number(relative_id), newPersonId), Math.max(Number(relative_id), newPersonId)]
             );
         }
 
