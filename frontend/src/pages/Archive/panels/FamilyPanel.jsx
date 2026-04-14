@@ -289,7 +289,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
         gender:        form.gender,
         birth_date:    birthDate,
         birth_lunar:   form.birthLunar,
-        relation_type: relTab === 'child' ? 'parent' : relTab,
+        relation_type: relTab,
         relative_id:   personId,
       });
       await invalidate();
