@@ -141,6 +141,88 @@ export async function deleteExhibitionItem(siteId, type, itemId) {
   return apiFetch(`/api/exhibitions/${siteId}/${type}/${itemId}`, { method: 'DELETE' });
 }
 
+// ── 사진자료실 폴더 (§8-A) ────────────────────────────────────────────────────
+
+const photoBase = (siteId) => `/api/photo-folders/${siteId}`;
+
+/** 폴더 목록 (사진 수 포함) */
+export async function fetchPhotoFolders(siteId) {
+  const d = await apiFetch(photoBase(siteId));
+  return d.data ?? [];
+}
+
+/** 폴더 생성 */
+export async function createPhotoFolder(siteId, name, sort_order = 0) {
+  return apiFetch(photoBase(siteId), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, sort_order }),
+  });
+}
+
+/** 폴더 이름 변경 */
+export async function renamePhotoFolder(siteId, folderId, name) {
+  return apiFetch(`${photoBase(siteId)}/${folderId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+}
+
+/** 폴더 삭제 */
+export async function deletePhotoFolder(siteId, folderId) {
+  return apiFetch(`${photoBase(siteId)}/${folderId}`, { method: 'DELETE' });
+}
+
+/** 드래그 순서 일괄 저장 */
+export async function reorderPhotoFolders(siteId, orders) {
+  return apiFetch(`${photoBase(siteId)}/reorder`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orders }),
+  });
+}
+
+/** 전체 사진 수 */
+export async function getPhotoCount(siteId) {
+  const d = await apiFetch(`${photoBase(siteId)}/count`);
+  return d.count ?? 0;
+}
+
+/** 폴더 사진 목록 */
+export async function fetchFolderPhotos(siteId, folderId) {
+  const d = await apiFetch(`${photoBase(siteId)}/${folderId}/photos`);
+  return d.data ?? [];
+}
+
+/** 사진 업로드 */
+export async function uploadFolderPhotos(siteId, folderId, files) {
+  const form = new FormData();
+  files.forEach(f => form.append('photos', f));
+  const res = await fetch(`${photoBase(siteId)}/${folderId}/photos`, {
+    method: 'POST',
+    body: form,
+    credentials: 'include',
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.message || '업로드 실패');
+  return json;
+}
+
+/** 사진 메모/태그/대표 수정 */
+export async function updateFolderPhoto(siteId, folderId, photoId, fields) {
+  return apiFetch(`${photoBase(siteId)}/${folderId}/photos/${photoId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(fields),
+  });
+}
+
+/** 사진 삭제 */
+export async function deleteFolderPhoto(siteId, folderId, photoId) {
+  return apiFetch(`${photoBase(siteId)}/${folderId}/photos/${photoId}`, { method: 'DELETE' });
+}
+
 /**
  * POST /api/persons/:siteId/:personId/divorce
  * 이혼 처리 (§30-2: spouse 관계 해제)
