@@ -25,11 +25,12 @@ const C = {
 
 // 활성 배우자 ID 반환
 function getSpouseId(personId, rels) {
+  const pid = Number(personId);
   const r = rels.find(r =>
     r.relation_type === 'spouse' &&
-    (r.person1_id === personId || r.person2_id === personId)
+    (Number(r.person1_id) === pid || Number(r.person2_id) === pid)
   );
-  return r ? (r.person1_id === personId ? r.person2_id : r.person1_id) : null;
+  return r ? (Number(r.person1_id) === pid ? Number(r.person2_id) : Number(r.person1_id)) : null;
 }
 
 // 자녀 ID 배열 (person1=부모, person2=자녀)
@@ -37,9 +38,9 @@ function getChildrenIds(personId, rels) {
   return rels
     .filter(r =>
       (r.relation_type === 'parent' || r.relation_type === 'parent-child') &&
-      r.person1_id === personId
+      Number(r.person1_id) === Number(personId)
     )
-    .map(r => r.person2_id);
+    .map(r => Number(r.person2_id));
 }
 
 // 부모 ID 배열 (최대 2명)
@@ -47,9 +48,9 @@ function getParentIds(personId, rels) {
   return rels
     .filter(r =>
       (r.relation_type === 'parent' || r.relation_type === 'parent-child') &&
-      r.person2_id === personId
+      Number(r.person2_id) === Number(personId)
     )
-    .map(r => r.person1_id);
+    .map(r => Number(r.person1_id));
 }
 
 // 형제/자매 ID 배열
@@ -57,9 +58,9 @@ function getSiblingIds(personId, rels) {
   return rels
     .filter(r =>
       (r.relation_type === 'sibling' || r.relation_type === 'half_sibling') &&
-      (r.person1_id === personId || r.person2_id === personId)
+      (Number(r.person1_id) === Number(personId) || Number(r.person2_id) === Number(personId))
     )
-    .map(r => r.person1_id === personId ? r.person2_id : r.person1_id);
+    .map(r => Number(r.person1_id) === Number(personId) ? Number(r.person2_id) : Number(r.person1_id));
 }
 
 // 생년월일 오름차순 정렬 (§23: 자녀 순서)
@@ -459,19 +460,20 @@ function buildConnectors(nodes, curatorCardX, spouseCardX, rels) {
 function buildTreeLayout(curatorId, persons, relations) {
   if (!curatorId) throw new Error('curatorId required');
 
-  const personById = new Map(persons.map(p => [p.id, p]));
-  if (!personById.has(curatorId)) throw new Error(`Curator id=${curatorId} not found`);
+  const personById = new Map(persons.map(p => [Number(p.id), p]));
+  const numCuratorId = Number(curatorId);
+  if (!personById.has(numCuratorId)) throw new Error(`Curator id=${curatorId} not found`);
 
   // §22 z=0/z=1 분류
   const { z0Set, depthMap, roleMap, spouseId, curatorSibIds, spouseSibIds } =
-    classifyZ0(curatorId, personById, relations);
+    classifyZ0(numCuratorId, personById, relations);
 
   // §22 [철칙]: z=1 인물 수 집계 (응답에 포함 금지)
   const z1Count = persons.filter(p => !z0Set.has(p.id)).length;
 
   // §23/§24 배치 계산 (z=0만)
   const { nodes, curatorCardX, spouseCardX } =
-    buildNodes(curatorId, personById, relations, z0Set, depthMap, roleMap, spouseId, curatorSibIds, spouseSibIds);
+    buildNodes(numCuratorId, personById, relations, z0Set, depthMap, roleMap, spouseId, curatorSibIds, spouseSibIds);
 
   // §23 연결선
   const connectors = buildConnectors(nodes, curatorCardX, spouseCardX, relations);
@@ -480,7 +482,7 @@ function buildTreeLayout(curatorId, persons, relations) {
     nodes,
     connectors,
     meta: {
-      curatorId,
+      curatorId: numCuratorId,
       totalZ0:   nodes.length,
       totalZ1:   z1Count,
       constants: C,

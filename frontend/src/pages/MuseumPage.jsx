@@ -197,7 +197,7 @@ export default function MuseumPage() {
 
       <MenuBar exhibitions={exhibitions} subdomain={subdomain} navigate={navigate} />
 
-      <SlideBanner subdomain={subdomain} isCurator={isCurator} navigate={navigate} />
+      <SlideBanner subdomain={subdomain} isCurator={isCurator} navigate={navigate} museum={museum} />
 
       <div style={s.treeArea}>
         {treeLoading && <div style={s.treeLoading}>트리 불러오는 중…</div>}
@@ -273,68 +273,98 @@ function MenuBar({ exhibitions, subdomain, navigate }) {
 // ══════════════════════════════════════════════════════════════════════════════
 const BANNER_INTERVAL_DEFAULT = 4000; // ms
 
-function SlideBanner({ subdomain, isCurator, navigate }) {
-  const [slides,   setSlides]   = useState([]);
-  const [idx,      setIdx]      = useState(0);
-  const [interval, setInterval2]= useState(BANNER_INTERVAL_DEFAULT);
+function SlideBanner({ subdomain, isCurator, navigate, museum }) {
+  const [slides,      setSlides]      = useState([]);
+  const [idx,         setIdx]         = useState(0);
+  const [msgIdx,      setMsgIdx]      = useState(0);
+  const [fadeIn,      setFadeIn]      = useState(true);
+  const [interval,    setInterval2]   = useState(BANNER_INTERVAL_DEFAULT);
   const [showSetting, setShowSetting] = useState(false);
-  const timerRef = useRef(null);
+  const timerRef  = useRef(null);
+  const msgTimer  = useRef(null);
 
+  // CSS 애니메이션 삽입
   useEffect(() => {
-    // LED 스크롤 애니메이션 CSS 삽입
-    if (!document.getElementById('led-style')) {
-      const style = document.createElement('style');
-      style.id = 'led-style';
-      style.textContent = '@keyframes ledScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }';
-      document.head.appendChild(style);
+    if (!document.getElementById('banner-style')) {
+      const el = document.createElement('style');
+      el.id = 'banner-style';
+      el.textContent = `
+        @keyframes fadeInUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes fadeOutUp { from { opacity:1; transform:translateY(0); } to { opacity:0; transform:translateY(-12px); } }
+        @keyframes logoPulse { 0%,100%{ opacity:1; } 50%{ opacity:0.75; } }
+      `;
+      document.head.appendChild(el);
     }
   }, []);
 
   useEffect(() => {
-    // 슬라이드 소스: 최근 공개 사진 조회 (없으면 placeholder)
     apiFetch(`/api/museum/${subdomain}`).then((data) => {
       const banner = data?.museum?.banner_slides ?? data?.banner_slides ?? [];
-      setSlides(banner.length ? banner : [{ photoUrl: null, name: '', description: subdomain + ' 가족유산박물관', exhibitionType: null }]);
-    }).catch(() => {
-      setSlides([{ photoUrl: null, name: '', description: subdomain + ' 가족유산박물관', exhibitionType: null }]);
-    });
+      setSlides(banner.length ? banner : [{ photoUrl: null }]);
+    }).catch(() => setSlides([{ photoUrl: null }]));
   }, [subdomain]);
 
-  // 자동 전환
+  // 사진 슬라이드 자동 전환
   useEffect(() => {
     if (slides.length < 2) return;
     timerRef.current = setInterval(() => setIdx(i => (i + 1) % slides.length), interval);
     return () => clearInterval(timerRef.current);
   }, [slides, interval]);
 
-  const slide = slides[idx] || {};
+  // 문구 페이드 전환 (4초마다)
+  const curatorName = museum?.curator_name ?? museum?.curatorName ?? subdomain;
+  const messages = [
+    `🏛️  ${curatorName} 가족유산박물관에 오신것을 환영합니다`,
+    '사진들이 전시되는 공간입니다',
+  ];
 
-  // LED 전광판 텍스트
-  const museumData = slides[0];
-  const curatorName = museumData?.curatorName ?? museumData?.curator_name ?? '';
-  const ledText = `${curatorName ? curatorName + ' ' : ''}가족유산박물관에 오신것을 환영합니다 　　　　 사진들이 전시되는 공간입니다 　　　　 `;
+  useEffect(() => {
+    msgTimer.current = setInterval(() => {
+      setFadeIn(false);
+      setTimeout(() => {
+        setMsgIdx(i => (i + 1) % messages.length);
+        setFadeIn(true);
+      }, 500);
+    }, 4000);
+    return () => clearInterval(msgTimer.current);
+  }, [messages.length]);
+
+  const slide = slides[idx] || {};
+  const hasPhoto = !!slide.photoUrl;
 
   return (
     <div style={s.banner}>
-      {/* 배경 사진 */}
+      {/* 배경 */}
       <div style={{
         ...s.bannerBg,
-        backgroundImage: slide.photoUrl ? `url(${slide.photoUrl})` : 'none',
-        background: slide.photoUrl ? undefined : 'linear-gradient(135deg, #C4A882 0%, #8B7355 100%)',
+        backgroundImage: hasPhoto ? `url(${slide.photoUrl})` : 'none',
+        background: hasPhoto ? undefined : 'linear-gradient(160deg, #3a2a1a 0%, #5a4a35 50%, #3a2a1a 100%)',
       }} />
 
-      {/* 오버레이 텍스트 */}
-      <div style={s.bannerOverlay}>
-        {slide.name && <span style={s.bannerName}>{slide.name}</span>}
-        {slide.description && <span style={s.bannerDesc}>{slide.description}</span>}
-      </div>
-
-      {/* LED 전광판 */}
-      <div style={s.ledWrap}>
-        <div style={s.ledTrack}>
-          <span style={s.ledText}>{ledText}{ledText}</span>
+      {/* 사진 없을 때: 로고 + 문구 */}
+      {!hasPhoto && (
+        <div style={s.bannerCenter}>
+          {/* 로고 */}
+          <div style={s.bannerLogo}>
+            <span style={s.bannerLogoIcon}>🏛️</span>
+            <span style={s.bannerLogoText}>Orgcell</span>
+          </div>
+          {/* 문구 페이드인/아웃 */}
+          <div style={{
+            ...s.bannerMsg,
+            animation: fadeIn ? 'fadeInUp 0.5s ease forwards' : 'fadeOutUp 0.4s ease forwards',
+          }}>
+            {messages[msgIdx]}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* 사진 있을 때: 오버레이 텍스트 */}
+      {hasPhoto && (
+        <div style={s.bannerOverlay}>
+          {slide.name && <span style={s.bannerName}>{slide.name}</span>}
+        </div>
+      )}
 
       {/* 하단 컨트롤 */}
       <div style={s.bannerControls}>
@@ -428,9 +458,11 @@ const s = {
   bannerControls: { position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 },
   bannerDot:      { width: 7, height: 7, borderRadius: '50%', background: '#fff', cursor: 'pointer', display: 'inline-block' },
   bannerClickArea:{ position: 'absolute', inset: 0, cursor: 'pointer' },
-  ledWrap: { position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.75)', overflow: 'hidden', height: 28, display: 'flex', alignItems: 'center' },
-  ledTrack: { display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', animation: 'ledScroll 20s linear infinite' },
-  ledText: { fontSize: 13, color: '#FFD700', fontFamily: 'monospace', fontWeight: 600, letterSpacing: 2, paddingRight: 40 },
+  bannerCenter:   { position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 },
+  bannerLogo:     { display: 'flex', alignItems: 'center', gap: 10 },
+  bannerLogoIcon: { fontSize: 36, animation: 'logoPulse 3s ease-in-out infinite' },
+  bannerLogoText: { fontSize: 28, fontWeight: 800, color: '#C4A882', letterSpacing: 4, fontFamily: 'serif', textShadow: '0 2px 12px rgba(196,168,130,0.4)' },
+  bannerMsg:      { fontSize: 16, color: '#FDFBF7', letterSpacing: 1, textAlign: 'center', padding: '0 24px', lineHeight: 1.6, fontWeight: 500 },
   settingBtn:     { position: 'absolute', top: 10, right: 12, padding: '4px 10px', fontSize: 12, background: 'rgba(255,255,255,0.85)', border: '1px solid #C4A882', borderRadius: 4, cursor: 'pointer', color: '#5a4a35', zIndex: 10 },
   settingPanel:   { position: 'absolute', top: 40, right: 12, background: '#FDFBF7', border: '1px solid #C4A882', borderRadius: 6, padding: '14px 16px', zIndex: 20, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: 180 },
   settingRow:     { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 },
