@@ -106,3 +106,103 @@ exports.getMuseumBySubdomain = async (req, res) => {
         res.status(500).json({ success: false, message: 'Internal server error' });
     }
 };
+
+
+// PATCH /api/museum/:subdomain/tree-public — 가계도 타인 공개 여부 토글 (관장 전용)
+exports.setTreePublic = async (req, res) => {
+  try {
+    const { subdomain } = req.params;
+    const { tree_public } = req.body;
+    if (typeof tree_public !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'tree_public must be boolean' });
+    }
+    const { rows } = await db.query(
+      `UPDATE family_sites SET tree_public = $1
+       WHERE LOWER(subdomain) = $2 AND user_id = $3
+       RETURNING id, subdomain, tree_public`,
+      [tree_public, subdomain.toLowerCase(), req.user.id]
+    );
+    if (!rows.length) return res.status(403).json({ success: false, message: '권한 없음' });
+    res.json({ success: true, data: rows[0] });
+  } catch (err) {
+    console.error('setTreePublic error:', err);
+    res.status(500).json({ success: false, message: '설정 변경 실패' });
+  }
+};
+
+// POST /api/museum/open — 가상 박물관 개설 (미개설 인물이 본인 박물관 개설)
+exports.openMuseum = async (req, res) => {
+  try {
+    const { personDbId, email, siteId } = req.body;
+    if (!personDbId || !email) {
+      return res.status(400).json({ success: false, message: 'personDbId, email 필수' });
+    }
+
+    // 인물 조회
+    const { rows: personRows } = await db.query(
+      `SELECT * FROM persons WHERE id = $1`, [personDbId]
+    );
+    if (!personRows.length) return res.status(404).json({ success: false, message: '인물 없음' });
+    const person = personRows[0];
+
+    // 이메일로 기존 유저 확인 또는 신규 생성 (magic link 방식)
+    let userId = req.user?.id;
+    if (!userId) {
+      const { rows: userRows } = await db.query(
+        `SELECT id FROM users WHERE LOWER(email) = $1`, [email.toLowerCase()]
+      );
+      userId = userRows[0]?.id;
+    }
+
+    if (!userId) {
+      // 신규 유저 생성 (임시 — magic link로 인증 필요)
+      const { rows: newUser } = await db.query(
+        `INSERT INTO users (email, created_at) VALUES ($1, NOW()) RETURNING id`,
+        [email.toLowerCase()]
+      );
+      userId = newUser[0].id;
+    }
+
+    // 사이트 소유자의 subdomain을 기반으로 새 subdomain 생성 (§26-1-1)
+    const baseDomain = person.last_name
+      ? `${person.last_name.toLowerCase().replace(/[^a-z]/g, '')}-1`
+      : `person-${personDbId}`;
+    // 중복 방지
+    let subdomain = baseDomain;
+    let suffix = 1;
+    while (true) {
+      const { rows: exist } = await db.query(
+        `SELECT 1 FROM family_sites WHERE LOWER(subdomain) = $1`, [subdomain]
+      );
+      if (!exist.length) break;
+      suffix++;
+      subdomain = `${baseDomain.replace(/-\d+$/, '')}-${suffix}`;
+    }
+
+    // family_sites 생성
+    const { rows: siteRows } = await db.query(
+      `INSERT INTO family_sites (user_id, subdomain, title, status, tree_public, created_at)
+       VALUES ($1, $2, $3, 'active', TRUE, NOW())
+       RETURNING id, subdomain`,
+      [userId, subdomain, `${person.name} 가족유산박물관`]
+    );
+    const newSite = siteRows[0];
+
+    // 인물 match_status → linked, user_id 연결
+    await db.query(
+      `UPDATE persons SET match_status = 'linked', user_id = $1 WHERE id = $2`,
+      [userId, personDbId]
+    );
+
+    // magic link 발송 (이메일 인증)
+    try {
+      const { sendMagicLink } = require('../services/emailService');
+      await sendMagicLink(email, `/${subdomain}`);
+    } catch (_) {}
+
+    res.json({ success: true, subdomain: newSite.subdomain, message: '박물관이 개설되었습니다.' });
+  } catch (err) {
+    console.error('openMuseum error:', err);
+    res.status(500).json({ success: false, message: '박물관 개설 실패: ' + err.message });
+  }
+};

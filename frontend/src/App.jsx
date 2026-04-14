@@ -17,14 +17,15 @@ import { Routes, Route } from 'react-router-dom';
  * lazy import: 각 페이지는 최초 접근 시 번들 로드
  */
 
-const LandingPage    = lazy(() => import('./pages/LandingPage'));
-const LoginPage      = lazy(() => import('./pages/LoginPage'));
-const OnboardingPage = lazy(() => import('./pages/OnboardingPage'));
-const InvitePage     = lazy(() => import('./pages/InvitePage'));
-const MuseumPage     = lazy(() => import('./pages/MuseumPage'));
-const ArchivePage    = lazy(() => import('./pages/Archive/ArchivePage'));
-const ExhibitionPage   = lazy(() => import('./pages/ExhibitionPage'));
-const MagicVerifyPage = lazy(() => import('./pages/MagicVerifyPage'));
+const LandingPage       = lazy(() => import('./pages/LandingPage'));
+const LoginPage         = lazy(() => import('./pages/LoginPage'));
+const OnboardingPage    = lazy(() => import('./pages/OnboardingPage'));
+const InvitePage        = lazy(() => import('./pages/InvitePage'));
+const MuseumPage        = lazy(() => import('./pages/MuseumPage'));
+const PersonMuseumPage  = lazy(() => import('./pages/PersonMuseumPage'));
+const ArchivePage       = lazy(() => import('./pages/Archive/ArchivePage'));
+const ExhibitionPage    = lazy(() => import('./pages/ExhibitionPage'));
+const MagicVerifyPage   = lazy(() => import('./pages/MagicVerifyPage'));
 
 function PageLoader() {
   return (
@@ -47,6 +48,9 @@ export default function App() {
         <Route path="/onboarding"    element={<OnboardingPage />} />
         <Route path="/invite/:token"  element={<InvitePage />} />
         <Route path="/auth/verify"    element={<MagicVerifyPage />} />
+
+        {/* 가상 박물관 — 미개설 인물 (/:subdomain 보다 먼저 등록) */}
+        <Route path="/person/:personDbId"  element={<PersonMuseumPage />} />
 
         {/* 박물관 경로 — /:subdomain 기반 */}
         <Route path="/:subdomain/archive"              element={<ArchivePage />} />

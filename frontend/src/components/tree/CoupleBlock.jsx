@@ -152,8 +152,13 @@ function FolderCard({ node, isCuratorCard, isLeft, isRight, onDoubleClick, onWor
     }
     timerRef.current = setTimeout(() => {
       timerRef.current = null;
-      if (!isCuratorCard && node.matchStatus === 'linked') {
-        onWormhole({ subdomain: node.personId, name: node.name });
+      // §6/§30-1 개정: matchStatus 무관 — 모든 타인 카드 클릭 시 웜홀 모달
+      if (!isCuratorCard) {
+        onWormhole({
+          subdomain:   node.matchStatus === 'linked' ? node.personId : null,
+          personDbId:  node.id,
+          name:        node.name,
+        });
       }
     }, DBL_CLICK_MS);
   }

@@ -129,6 +129,53 @@ async function mergePersonColumnRelations(persons, existingRels, siteId) {
   return [...existingRels, ...extraRels];
 }
 
+// ─── GET /api/tree/person/:dbId (가상 박물관 — 미개설 인물 기준 트리) ────────────
+exports.getPersonTreeLayout = async (req, res) => {
+  try {
+    const dbId = Number(req.params.dbId);
+    if (!dbId) return res.status(400).json({ success: false, message: '잘못된 인물 ID' });
+
+    // 인물 + 소속 사이트 조회
+    const { rows: personRows } = await db.query(
+      `SELECT p.*, fs.subdomain, fs.id AS site_id_val
+       FROM persons p
+       JOIN family_sites fs ON fs.id = p.site_id
+       WHERE p.id = $1 LIMIT 1`,
+      [dbId]
+    );
+    if (!personRows.length) {
+      return res.status(404).json({ success: false, message: '인물을 찾을 수 없습니다.' });
+    }
+    const person   = personRows[0];
+    const siteId   = person.site_id_val;
+    const subdomain = person.subdomain;
+
+    // 해당 사이트 전체 인물 + 관계
+    const [persons, rawRels] = await Promise.all([
+      getAllPersons(siteId),
+      getAllRelations(siteId),
+    ]);
+    const relations = await mergePersonColumnRelations(persons, rawRels, siteId);
+
+    // 해당 인물을 curatorId로 트리 계산
+    const layout = buildTreeLayout(dbId, persons, relations);
+
+    res.set({ 'Cache-Control': 'no-cache, no-store, must-revalidate' });
+    res.json({
+      success:    true,
+      subdomain,
+      personDbId: dbId,
+      personName: person.name,
+      siteId,
+      curatorId:  person.oc_id || String(dbId),
+      ...layout,
+    });
+  } catch (err) {
+    console.error('getPersonTreeLayout error:', err);
+    res.status(500).json({ success: false, message: '트리 계산 실패', detail: err.message });
+  }
+};
+
 // ─── GET /api/tree/:subdomain ──────────────────────────────────────────────────
 exports.getTreeLayout = async (req, res) => {
   try {
@@ -139,6 +186,15 @@ exports.getTreeLayout = async (req, res) => {
     if (!site) {
       return res.status(404).json({ success: false, message: '박물관을 찾을 수 없습니다.' });
     }
+
+    // tree_public 조회 (컬럼 없으면 true 기본)
+    let treePublic = true;
+    try {
+      const { rows: tpRows } = await db.query(
+        `SELECT tree_public FROM family_sites WHERE id = $1`, [site.id]
+      );
+      if (tpRows[0] && tpRows[0].tree_public !== undefined) treePublic = tpRows[0].tree_public;
+    } catch (_) {}
 
     // 관장 조회
     const curator = await getCurator(site.id, site.user_id);
@@ -160,9 +216,11 @@ exports.getTreeLayout = async (req, res) => {
 
     res.set({ 'Cache-Control': 'no-cache, no-store, must-revalidate' });
     res.json({
-      success:  true,
+      success:    true,
       subdomain,
-      curatorId: curator.oc_id || String(curator.id),
+      siteId:     site.id,
+      treePublic,
+      curatorId:  curator.oc_id || String(curator.id),
       ...layout,
     });
   } catch (err) {

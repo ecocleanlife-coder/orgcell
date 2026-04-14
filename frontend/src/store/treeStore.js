@@ -47,6 +47,7 @@ export const useTreeStore = create((set, get) => ({
   // ── UI 선택 상태 ────────────────────────────────────────────────────────────
   selectedPersonId: null, // 더블클릭 → PersonEditModal
   wormholeTarget:   null, // { subdomain, name } → WormholeModal (§6)
+  treePublic:       true, // §10/§16 가계도 타인 공개 여부
 
   // ── 내부 캐시 (subdomain → { nodes, connectors, meta, curatorId, ts }) ─────
   _cache: {},
@@ -75,7 +76,7 @@ export const useTreeStore = create((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const json = await fetchLayoutApi(subdomain);
-      const { nodes, connectors, meta, curatorId } = json;
+      const { nodes, connectors, meta, curatorId, treePublic, siteId } = json;
 
       set((state) => ({
         nodes,
@@ -84,11 +85,13 @@ export const useTreeStore = create((set, get) => ({
         subdomain,
         curatorId,
         mainId:    curatorId,
+        treePublic: treePublic ?? true,
+        siteId:     siteId ?? state.siteId,
         isLoading: false,
         error:     null,
         _cache: {
           ...state._cache,
-          [subdomain]: { nodes, connectors, meta, curatorId, ts: Date.now() },
+          [subdomain]: { nodes, connectors, meta, curatorId, treePublic, siteId, ts: Date.now() },
         },
       }));
     } catch (err) {

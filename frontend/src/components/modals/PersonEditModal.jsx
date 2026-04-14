@@ -58,24 +58,41 @@ async function putPerson(siteId, personDbId, body) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-export default function PersonEditModal() {
+// virtualMode=true : PersonMuseumPage에서 호출 (미개설 인물 가상 박물관)
+// siteIdOverride   : 원래 사이트 ID (편집 API용)
+// isCuratorOverride: 원래 사이트의 관장 여부
+export default function PersonEditModal({ virtualMode = false, siteIdOverride, isCuratorOverride }) {
   const { subdomain } = useParams();
   const navigate = useNavigate();
 
   const {
     selectedPersonId, clearSelection,
-    nodes, siteId, curatorId, invalidate,
+    nodes, siteId: storeSiteId, curatorId, invalidate,
   } = useTreeStore();
 
   const { isCuratorOf } = useAuthStore();
-  const isCurator = isCuratorOf(subdomain);
+  const isCurator = isCuratorOverride ?? isCuratorOf(subdomain);
+  const siteId    = siteIdOverride    ?? storeSiteId;
 
   // 선택된 노드
   const node = nodes.find(n => n.personId === selectedPersonId) ?? null;
 
+  // 박물관 개설 모달 상태
+  const [showOpenModal, setShowOpenModal] = useState(false);
+  const [openEmail,     setOpenEmail]     = useState('');
+  const [openStep,      setOpenStep]      = useState('ask'); // 'ask' | 'email' | 'creating'
+
   // ── §6 권한 분기 ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!selectedPersonId || !node) return;
+    setShowOpenModal(false);
+    setOpenStep('ask');
+
+    if (virtualMode && node.role === 'curator') {
+      // 가상 박물관에서 본인(중심) 카드 더블클릭 → 개설 모달
+      setShowOpenModal(true);
+      return;
+    }
 
     // 관장 본인 카드 → archive 이동
     if (node.role === 'curator' && isCurator) {
@@ -191,7 +208,93 @@ export default function PersonEditModal() {
   }
 
   // 모달 닫기
-  function handleClose() { clearSelection(); }
+  function handleClose() { clearSelection(); setShowOpenModal(false); }
+
+  // ── 박물관 개설 핸들러 ────────────────────────────────────────────────────
+  async function handleOpenMuseum() {
+    if (!openEmail.trim()) { toast.error('이메일을 입력하세요.'); return; }
+    setOpenStep('creating');
+    try {
+      const res  = await fetch('/api/museum/open', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ personDbId: node.id, email: openEmail.trim(), siteId }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message || '개설 실패');
+      toast.success('박물관이 개설되었습니다! 이메일을 확인해 주세요.');
+      clearSelection();
+      if (json.subdomain) navigate(`/${json.subdomain}`);
+    } catch (err) {
+      toast.error(err.message);
+      setOpenStep('email');
+    }
+  }
+
+  // ── 개설 모달 렌더 ────────────────────────────────────────────────────────
+  if (showOpenModal && selectedPersonId && node) {
+    return (
+      <>
+        <div style={s.backdrop} onClick={handleClose} />
+        <div style={s.modal} role="dialog">
+          <div style={s.modalHeader}>
+            <span style={s.modalTitle}>🏛 박물관 개설</span>
+            <button style={s.closeBtn} onClick={handleClose}>✕</button>
+          </div>
+          <div style={{ ...s.body, alignItems: 'center', textAlign: 'center' }}>
+            {openStep === 'ask' && (
+              <>
+                <p style={{ fontSize: 16, color: '#3a2a1a', lineHeight: 1.7 }}>
+                  <strong>{node.name}</strong>님의 가족유산박물관을<br />개설하시겠습니까?
+                </p>
+                <p style={{ fontSize: 12, color: '#A09070', marginTop: 4 }}>
+                  개설 후에는 본인만 편집할 수 있습니다.
+                </p>
+                <div style={{ display: 'flex', gap: 10, marginTop: 16, width: '100%' }}>
+                  <button style={{ ...s.cancelBtn, flex: 1 }} onClick={() => { setShowOpenModal(false); }}>
+                    나중에
+                  </button>
+                  <button style={{ ...s.saveBtn, flex: 1 }} onClick={() => setOpenStep('email')}>
+                    개설하기 →
+                  </button>
+                </div>
+              </>
+            )}
+            {(openStep === 'email' || openStep === 'creating') && (
+              <>
+                <p style={{ fontSize: 14, color: '#5a4a35', marginBottom: 12 }}>
+                  로그인에 사용할 이메일을 입력하세요.
+                </p>
+                <input
+                  style={{ ...s.input, width: '100%' }}
+                  type="email"
+                  placeholder="email@example.com"
+                  value={openEmail}
+                  onChange={e => setOpenEmail(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleOpenMuseum()}
+                  disabled={openStep === 'creating'}
+                  autoFocus
+                />
+                <div style={{ display: 'flex', gap: 10, marginTop: 12, width: '100%' }}>
+                  <button style={{ ...s.cancelBtn, flex: 1 }} onClick={() => setOpenStep('ask')} disabled={openStep === 'creating'}>
+                    ← 뒤로
+                  </button>
+                  <button
+                    style={{ ...s.saveBtn, flex: 1, opacity: openStep === 'creating' ? 0.7 : 1 }}
+                    onClick={handleOpenMuseum}
+                    disabled={openStep === 'creating'}
+                  >
+                    {openStep === 'creating' ? '개설 중…' : '시작하기'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </>
+    );
+  }
 
   // 표시 조건: 선택된 인물이 있고, 관장이며, 아직 redirect 처리 안 된 카드
   if (!selectedPersonId || !node || !isCurator || node.role === 'curator') return null;

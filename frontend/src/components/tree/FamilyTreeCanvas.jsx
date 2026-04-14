@@ -12,10 +12,13 @@
  */
 
 import { useRef, useState, useEffect, useCallback } from 'react';
+import { useParams }      from 'react-router-dom';
 import { useTreeStore }   from '../../store/treeStore';
+import { useAuthStore }   from '../../store/authStore';
 import { CARD_WIDTH, CARD_HEIGHT, COUPLE_WIDTH } from '../../constants/tree';
 import CoupleBlock        from './CoupleBlock';
 import ConnectorLine      from './ConnectorLine';
+import toast              from 'react-hot-toast';
 
 const CANVAS_PAD = 600; // 패닝 여유 공간
 
@@ -33,11 +36,36 @@ function buildCoupleGroups(nodes) {
 
 // ══════════════════════════════════════════════════════════════════════════════
 export default function FamilyTreeCanvas() {
+  const { subdomain } = useParams() ?? {};
   const {
     nodes, connectors,
-    curatorId,
+    curatorId, treePublic, subdomain: storeSubdomain,
     getCuratorNode, selectPerson, openWormhole,
   } = useTreeStore();
+  const { isCuratorOf } = useAuthStore();
+  const isCurator = subdomain ? isCuratorOf(subdomain) : isCuratorOf(storeSubdomain);
+
+  const [localPublic, setLocalPublic] = useState(treePublic);
+  useEffect(() => { setLocalPublic(treePublic); }, [treePublic]);
+
+  async function handleTogglePublic() {
+    const next = !localPublic;
+    setLocalPublic(next);
+    try {
+      const dom = subdomain || storeSubdomain;
+      const res  = await fetch(`/api/museum/${dom}/tree-public`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ tree_public: next }),
+      });
+      if (!res.ok) throw new Error('변경 실패');
+      toast.success(next ? '가계도를 공개했습니다.' : '가계도를 비공개했습니다.');
+    } catch {
+      setLocalPublic(!next);
+      toast.error('설정 변경에 실패했습니다.');
+    }
+  }
 
   const wrapRef = useRef(null);
   const dragRef = useRef(null); // { startX, startY, ox, oy }
@@ -180,6 +208,17 @@ export default function FamilyTreeCanvas() {
         <button style={s.zoomBtn} onClick={() => setScale(1)}>⟳</button>
         <button style={s.zoomBtn} onClick={() => setScale(s => Math.max(0.3, s * 0.8))}>－</button>
       </div>
+
+      {/* 가계도 공개 여부 토글 (관장만 표시) */}
+      {isCurator && (
+        <button
+          style={{ ...s.publicToggle, background: localPublic ? '#E8F5E9' : '#FFF3E0' }}
+          onClick={handleTogglePublic}
+          title={localPublic ? '현재 공개 중 — 클릭하면 비공개' : '현재 비공개 — 클릭하면 공개'}
+        >
+          {localPublic ? '🌐 가계도 공개' : '🔒 가계도 비공개'}
+        </button>
+      )}
     </div>
   );
 }
@@ -195,4 +234,11 @@ const s = {
   },
   zoomBtns: { position: 'absolute', bottom: 16, right: 16, display: 'flex', flexDirection: 'column', gap: 4, zIndex: 10 },
   zoomBtn:  { width: 36, height: 36, background: 'rgba(253,251,247,0.9)', border: '1px solid #C4A882', borderRadius: 6, fontSize: 18, cursor: 'pointer', color: '#8B7355', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  publicToggle: {
+    position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
+    padding: '5px 14px', fontSize: 12, fontWeight: 600,
+    border: '1px solid #C4A882', borderRadius: 20,
+    cursor: 'pointer', zIndex: 10, color: '#5a4a35',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+  },
 };

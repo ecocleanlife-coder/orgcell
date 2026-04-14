@@ -32,19 +32,19 @@ export default function WormholeModal() {
 
   if (!wormholeTarget || phase === 'idle') return null;
 
-  const { subdomain, name } = wormholeTarget;
+  const { subdomain, personDbId, name } = wormholeTarget;
+  // linked 박물관이면 /:subdomain, 미개설이면 /person/:dbId
+  const destPath = subdomain ? `/${subdomain}` : `/person/${personDbId}`;
 
   // ── 이동 확인 ────────────────────────────────────────────────────────────────
   async function handleConfirm() {
     setPhase('fading');
-
-    // 페이드아웃 → 이동 메시지
     setTimeout(() => setPhase('moving'), FADE_DURATION_MS);
-
-    // 실제 이동
     setTimeout(async () => {
-      await navigateTo(subdomain);      // 트리 캐시 초기화 + 재fetch
-      navigate(`/${subdomain}`);        // URL 변경
+      if (subdomain) {
+        await navigateTo(subdomain);   // 트리 캐시 초기화 + 재fetch
+      }
+      navigate(destPath);
       setPhase('idle');
     }, NAV_DELAY_MS);
   }
@@ -88,7 +88,9 @@ export default function WormholeModal() {
           <strong style={s.nameHighlight}>{name}</strong>님의 박물관으로<br />
           이동하시겠습니까?
         </p>
-        <p style={s.subMessage}>{subdomain} 가족유산박물관</p>
+        <p style={s.subMessage}>
+          {subdomain ? `${subdomain} 가족유산박물관` : '아직 개설되지 않은 박물관'}
+        </p>
 
         <div style={s.btnRow}>
           <button style={s.cancelBtn} onClick={handleCancel}>
