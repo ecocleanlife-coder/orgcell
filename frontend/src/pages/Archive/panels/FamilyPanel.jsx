@@ -19,6 +19,7 @@ import {
   uploadPhoto,
   deleteRelation,
   deletePerson,
+  apiFetch,
 } from './archiveApi';
 
 // ── 상수 ─────────────────────────────────────────────────────────────────────
@@ -27,6 +28,7 @@ const REL_TABS = [
   { key: 'child',   label: '자녀'     },
   { key: 'spouse',  label: '배우자'   },
   { key: 'sibling', label: '형제자매' },
+  { key: 'divorce', label: '이혼'     },
 ];
 
 // ── 관계 필터 ─────────────────────────────────────────────────────────────────
@@ -38,6 +40,7 @@ function filterRels(relations, personId, tab) {
     case 'child':   return relations.filter(r => r.relation_type === 'parent'  && Number(r.person1_id) === id);
     case 'spouse':  return relations.filter(r => r.relation_type === 'spouse'  && (Number(r.person1_id) === id || Number(r.person2_id) === id));
     case 'sibling': return relations.filter(r => r.relation_type === 'sibling' && (Number(r.person1_id) === id || Number(r.person2_id) === id));
+    case 'divorce': return relations.filter(r => r.relation_type === 'spouse' && r.status === 'divorced' && (Number(r.person1_id) === id || Number(r.person2_id) === id));
     default: return [];
   }
 }
@@ -139,7 +142,8 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
   const [saving,    setSaving]    = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [selectedPersonCache, setSelectedPersonCache] = useState(null);
-  const [confirmDel, setConfirmDel] = useState(null);
+  const [confirmDel,     setConfirmDel]     = useState(null);
+  const [confirmDivorce, setConfirmDivorce] = useState(null);
 
   const [form, setForm] = useState({
     lastName: '', firstName: '', nameEnLast: '', nameEnFirst: '',
@@ -468,6 +472,14 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
           >
             {saving ? '저장 중...' : selectedId ? '수정/저장' : '생성/저장'}
           </button>
+          {selectedId && relTab === 'spouse' && (
+            <button
+              style={{ ...s.btnWarn, flex: 1 }}
+              onClick={() => setConfirmDivorce({ id: selectedId, name: form.firstName || form.lastName })}
+            >
+              이혼
+            </button>
+          )}
           {selectedId && (
             <button
               style={{ ...s.btnDng, flex: 1 }}
@@ -487,6 +499,24 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
         nodes={nodes}
         personId={personId}
       />
+
+      {/* 이혼 확인 모달 */}
+      {confirmDivorce && (
+        <div style={s.overlay}>
+          <div style={s.modal}>
+            <p style={{ fontSize: 14, color: '#3a2a1a', marginBottom: 8 }}>
+              "{confirmDivorce.name}"와의 이혼을 처리하시겠습니까?
+            </p>
+            <p style={{ fontSize: 12, color: '#8B7355', marginBottom: 20 }}>
+              이혼 이력은 보존되며 [이혼] 탭에서 확인할 수 있습니다.
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              <button style={s.btnWarn} onClick={handleDivorce}>이혼 처리</button>
+              <button style={s.btnSec} onClick={() => setConfirmDivorce(null)}>취소</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 제거 확인 모달 */}
       {confirmDel && (
@@ -534,6 +564,7 @@ const s = {
   btnPri:       { padding: '9px 0', background: '#8B7355', color: '#fff', border: 'none', borderRadius: 4, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
   btnSec:       { padding: '6px 10px', background: 'none', border: '1px solid #C4A882', borderRadius: 4, fontSize: 12, color: '#8B7355', cursor: 'pointer' },
   btnDng:       { padding: '9px 0', background: '#C0392B', color: '#fff', border: 'none', borderRadius: 4, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+  btnWarn:      { padding: '9px 0', background: '#E67E22', color: '#fff', border: 'none', borderRadius: 4, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
   overlay:      { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   modal:        { background: '#FDFBF7', border: '1px solid #C4A882', borderRadius: 8, padding: '28px 32px', minWidth: 280, textAlign: 'center' },
 };

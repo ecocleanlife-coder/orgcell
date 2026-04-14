@@ -149,6 +149,8 @@ exports.createPerson = async (req, res) => {
             photo_url, birth_date, death_date, is_deceased, birth_lunar, death_lunar,
             photo_position, father_first_name, father_last_name, mother_first_name, mother_last_name,
             relation_type, relative_id, // FamilyPanel에서 전달하는 관계 정보
+            spouse_surname_en,  // 배우자 성씨 영문 (여권 기준, §30-4)
+            force_create,       // 중복 무시 강제 생성
         } = req.body;
 
         if (!first_name || !last_name) {
@@ -162,14 +164,31 @@ exports.createPerson = async (req, res) => {
         // 형제자매 → sib
         let autoOpsPath = null;
         const isMale = (gender === 'M' || gender === 'male');
+
+        // §26-1: 자녀/형제자매는 생성 순서 기반 번호 부여
+        async function nextOpsPathNum(prefix) {
+            const { rows: existing } = await db.query(
+                `SELECT ops_path FROM persons WHERE site_id = $1 AND ops_path ~ $2`,
+                [siteId, `^${prefix}[0-9]+$`]
+            );
+            const nums = existing.map(r => parseInt(r.ops_path.replace(prefix, ''), 10)).filter(n => !isNaN(n));
+            return nums.length > 0 ? Math.max(...nums) + 1 : 1;
+        }
+
         if (relation_type === 'parent') {
             autoOpsPath = isMale ? 'f' : 'm';
         } else if (relation_type === 'child') {
-            autoOpsPath = isMale ? 's' : 'd';
+            const prefix = isMale ? 's' : 'd';
+            const num = await nextOpsPathNum(prefix);
+            autoOpsPath = `${prefix}${num}`;
         } else if (relation_type === 'spouse') {
+            // §30-4: 배우자는 자기 아버지 박물관의 d{n}/s{n}에 귀속
+            // 현재 박물관에는 임시 저장 (h 또는 w)
             autoOpsPath = isMale ? 'h' : 'w';
         } else if (relation_type === 'sibling') {
-            autoOpsPath = 'sib';
+            const prefix = isMale ? 'b' : 'si';
+            const num = await nextOpsPathNum(prefix);
+            autoOpsPath = `${prefix}${num}`;
         }
 
         // ── 중복 이름 체크 ──────────────────────────────────────
@@ -273,6 +292,105 @@ exports.createPerson = async (req, res) => {
                  ON CONFLICT (site_id, person1_id, person2_id, relation_type) DO NOTHING`,
                 [siteId, Math.min(newPersonId, spouse_id), Math.max(newPersonId, spouse_id)]
             );
+        }
+
+        // §30: 배우자 등록 시 spouse_oc_id 상호 설정 + ghost 박물관 자동 생성
+        if (relation_type === 'spouse' && relative_id && newPerson.oc_id) {
+            const relativeIdNum = Number(relative_id);
+            try {
+                // 관장(relative_id) oc_id 조회
+                const { rows: relRows } = await db.query(
+                    'SELECT oc_id FROM persons WHERE id = $1', [relativeIdNum]
+                );
+                const relativeOcId = relRows[0]?.oc_id;
+
+                if (relativeOcId) {
+                    // 상호 spouse_oc_id 설정: 상대방 oc_id + "C"
+                    await db.query(
+                        'UPDATE persons SET spouse_oc_id = $1 WHERE id = $2',
+                        [`${relativeOcId}C`, newPersonId]
+                    );
+                    await db.query(
+                        'UPDATE persons SET spouse_oc_id = $1 WHERE id = $2',
+                        [`${newPerson.oc_id}C`, relativeIdNum]
+                    );
+                }
+
+                // §30-4: 배우자 아버지 박물관 ghost 자동 생성
+                // spouse_surname_en 입력된 경우에만
+                if (spouse_surname_en?.trim()) {
+                    const surnameSlug = spouse_surname_en.trim().toUpperCase().replace(/[^A-Z]/g, '');
+                    // subdomain 순번 찾기
+                    let ghostSubdomain = null;
+                    for (let seq = 1; seq <= 999; seq++) {
+                        const candidate = `${surnameSlug}-${seq}`;
+                        const { rows: check } = await db.query(
+                            'SELECT id FROM family_sites WHERE subdomain = $1', [candidate]
+                        );
+                        if (check.length === 0) { ghostSubdomain = candidate; break; }
+                    }
+
+                    if (ghostSubdomain) {
+                        // ghost family_sites 생성 (status='ghost')
+                        const { rows: ghostSite } = await db.query(
+                            `INSERT INTO family_sites (subdomain, status, title)
+                             VALUES ($1, 'ghost', $2)
+                             ON CONFLICT (subdomain) DO UPDATE SET subdomain = EXCLUDED.subdomain
+                             RETURNING id`,
+                            [ghostSubdomain, `${surnameSlug} 가족유산박물관`]
+                        );
+                        const ghostSiteId = ghostSite[0].id;
+
+                        // 배우자 아버지(ghost) person 생성
+                        const fatherName = `${spouse_surname_en.trim()} 부`;
+                        const { rows: fatherRows } = await db.query(
+                            `INSERT INTO persons (site_id, name, last_name, first_name, gender, match_status, ops_path)
+                             VALUES ($1, $2, $3, $4, 'M', 'ghost', 'f')
+                             RETURNING id`,
+                            [ghostSiteId, fatherName, spouse_surname_en.trim(), '부']
+                        );
+                        const fatherPersonId = fatherRows[0].id;
+
+                        // 배우자 어머니(ghost) person 생성
+                        const { rows: motherRows } = await db.query(
+                            `INSERT INTO persons (site_id, name, last_name, first_name, gender, match_status, ops_path)
+                             VALUES ($1, $2, $3, $4, 'F', 'ghost', 'm')
+                             RETURNING id`,
+                            [ghostSiteId, `${spouse_surname_en.trim()} 모`, spouse_surname_en.trim(), '모']
+                        );
+
+                        // 배우자(신세라)를 ghost 박물관의 d{n}으로 이동
+                        const { rows: dnRows } = await db.query(
+                            `SELECT ops_path FROM persons WHERE site_id = $1 AND ops_path ~ '^d[0-9]+$'`,
+                            [ghostSiteId]
+                        );
+                        const dnNums = dnRows.map(r => parseInt(r.ops_path.replace('d',''), 10)).filter(n => !isNaN(n));
+                        const dnNum = dnNums.length > 0 ? Math.max(...dnNums) + 1 : 1;
+                        const spouseOpsPath = `d${dnNum}`;
+
+                        // 배우자 person의 site_id와 ops_path 업데이트
+                        await db.query(
+                            'UPDATE persons SET site_id = $1, ops_path = $2, parent1_id = $3 WHERE id = $4',
+                            [ghostSiteId, spouseOpsPath, fatherPersonId, newPersonId]
+                        );
+
+                        // ghost 박물관 폴더 생성
+                        try {
+                            const ghostDir = path.join(process.cwd(), 'uploads', ghostSubdomain);
+                            fs.mkdirSync(path.join(ghostDir, spouseOpsPath), { recursive: true });
+                            fs.mkdirSync(path.join(ghostDir, 'f'), { recursive: true });
+                            fs.mkdirSync(path.join(ghostDir, 'm'), { recursive: true });
+                        } catch (e) {
+                            console.error('ghost folder creation failed:', e.message);
+                        }
+
+                        newPerson.ghost_subdomain = ghostSubdomain;
+                        newPerson.spouse_ops_path = spouseOpsPath;
+                    }
+                }
+            } catch (spouseErr) {
+                console.error('spouse setup error:', spouseErr.message);
+            }
         }
 
         // FamilyPanel relation_type/relative_id 기반 관계 자동 생성
@@ -915,5 +1033,67 @@ exports.linkAccount = async (req, res) => {
         return res.status(500).json({ success: false, message: err.message });
     } finally {
         client.release();
+    }
+};
+// ── POST /api/persons/:siteId/:personId/divorce ──────────────────────────────
+// §30-2: 이혼 처리 — spouse_oc_id에 X 추가, person_relations.status = 'divorced'
+exports.divorceSpouse = async (req, res) => {
+    try {
+        const { siteId, personId } = req.params;
+        const userId = req.user?.id;
+        if (!await checkSiteAccess(userId, siteId)) {
+            return res.status(403).json({ success: false, message: 'Forbidden' });
+        }
+
+        // 현재 배우자 관계 조회
+        const { rows: spouseRels } = await db.query(
+            `SELECT id, person1_id, person2_id FROM person_relations
+             WHERE site_id = $1
+               AND relation_type = 'spouse'
+               AND (person1_id = $2 OR person2_id = $2)
+               AND status = 'active'
+             LIMIT 1`,
+            [siteId, personId]
+        );
+
+        if (spouseRels.length === 0) {
+            return res.status(404).json({ success: false, message: '배우자 관계가 없습니다.' });
+        }
+
+        const rel = spouseRels[0];
+        const spousePersonId = Number(rel.person1_id) === Number(personId)
+            ? rel.person2_id : rel.person1_id;
+
+        // person_relations.status = 'divorced'
+        await db.query(
+            `UPDATE person_relations SET status = 'divorced' WHERE id = $1`,
+            [rel.id]
+        );
+
+        // 양측 spouse_oc_id에 X 추가
+        const { rows: p1 } = await db.query(
+            'SELECT spouse_oc_id FROM persons WHERE id = $1', [personId]
+        );
+        const { rows: p2 } = await db.query(
+            'SELECT spouse_oc_id FROM persons WHERE id = $1', [spousePersonId]
+        );
+
+        if (p1[0]?.spouse_oc_id) {
+            await db.query(
+                'UPDATE persons SET spouse_oc_id = $1 WHERE id = $2',
+                [p1[0].spouse_oc_id + 'X', personId]
+            );
+        }
+        if (p2[0]?.spouse_oc_id) {
+            await db.query(
+                'UPDATE persons SET spouse_oc_id = $1 WHERE id = $2',
+                [p2[0].spouse_oc_id + 'X', spousePersonId]
+            );
+        }
+
+        res.json({ success: true, message: '이혼 처리됐습니다.' });
+    } catch (err) {
+        console.error('divorceSpouse error:', err);
+        res.status(500).json({ success: false, message: '이혼 처리 실패' });
     }
 };

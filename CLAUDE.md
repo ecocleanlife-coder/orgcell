@@ -36,3 +36,55 @@
 * 코드도 이 정신으로: 정직하게 보고하고
 모르면 모른다고 하며 룰을 속이지 않는다
 
+---
+
+## \[CRITICAL] 반복 실수 방지 (2026-04-12 추가)
+
+### 작업 전 필수 확인
+* 파일 수정 전 반드시 실제 파일 구조 확인 (추정 금지)
+* DB 스키마 확인 없이 컬럼명 추정 절대 금지
+* 배포 후 GitHub Actions ✅ 확인 → 번들에 실제 반영 확인 → 브라우저 동작 확인 순서 준수
+
+### 프로젝트 구조 (경로 기준)
+```
+frontend/src/
+├── store/authStore.js, treeStore.js
+└── pages/Archive/
+    ├── ArchivePage.jsx
+    ├── hooks/useArchiveData.js
+    └── panels/
+        ├── archiveApi.js   ← hooks/ 아닌 panels/ 안에 있음
+        ├── FamilyPanel.jsx
+        ├── MyInfoPanel.jsx
+        └── ArchivePanel.jsx
+```
+
+### Import 경로 규칙 (panels/ 기준)
+```js
+from '../../../store/treeStore'  // store → 3단계 위
+from '../../../store/authStore'
+from './archiveApi'              // archiveApi → 같은 폴더 (panels/)
+```
+
+### DB 실제 컬럼 (추정 금지)
+* **persons**: `name`(NOT NULL), `first_name`, `last_name`, `gender`('M'/'F'), `bon_gwan`, `father_first_name`, `father_last_name`, `mother_first_name`, `mother_last_name`, `match_status`('ghost'/'linked')
+* **family_sites**: `title`(site_name 아님), `status` 기본값 'pending' → INSERT 시 'active' 명시
+* **families**: `bon_gwan`, `status`('active')
+* **users**: `family_id`, `role`
+
+### 자주 틀리는 로직
+* `curatorSites`는 **배열** → `.length` 사용 (`.size` 아님)
+* `gender` DB값 `'M'/'F'` ↔ 폼값 `'male'/'female'` 변환 필요
+* `persons` INSERT 시 `name` 컬럼(NOT NULL) 반드시 포함
+* `family_sites` INSERT 시 `status='active'` 명시
+* `birthDate` null일 때 `::date` cast 에러 → `$4::DATE IS NULL` 조건 추가
+
+### 배포 체크리스트
+1. `git push` 후 GitHub Actions ✅ 확인
+2. `docker exec orgcell-frontend grep -r "수정내용키워드" /usr/share/nginx/html/assets/` 로 번들 반영 확인
+3. 브라우저에서 실제 동작 확인
+
+### EC2 접속 정보
+* DB: 유저 `orgcell_user` / DB명 `orgcell` / 비번 `orgcell_secure_2026`
+* docker-compose 위치: `/opt/orgcell/`
+* 프론트: `orgcell-frontend` (8081:80) / 백엔드: `orgcell-backend` (5001)

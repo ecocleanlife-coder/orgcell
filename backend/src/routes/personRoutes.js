@@ -32,6 +32,9 @@ router.get('/:siteId/:personId/photos', optionalAuth, ctrl.listPersonPhotos);
 // 사진 업로드 (HEIC 자동 변환 및 일반 이미지 EXIF 보정)
 router.post('/:siteId/:personId/photo', protect, uploadPerson.single('photo'), convertHeicIfNeeded, autoRotateImage, ctrl.uploadPhoto);
 
+// 이혼 처리 (§30-2)
+router.post('/:siteId/:personId/divorce', protect, ctrl.divorceSpouse);
+
 // oc_id 일괄 부여 (기존 인물 중 oc_id 없는 것에 부여)
 router.post('/:siteId/backfill-oc-ids', protect, ctrl.backfillOcIds);
 
