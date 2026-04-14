@@ -286,7 +286,18 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
   });
 
   const tabRels     = filterRels(relations, personId, relTab);
-  const getNode     = id => nodes.find(n => n.id === id || n.personId === id) ?? null;
+
+  // treeStore에 없으면 relation 내장 person1/person2 fallback (z>0 인물 대응)
+  const getNode = id => {
+    const n = nodes.find(n => n.id === Number(id) || n.personId === String(id));
+    if (n) return n;
+    for (const rel of relations) {
+      if (Number(rel.person1_id) === Number(id) && rel.person1) return rel.person1;
+      if (Number(rel.person2_id) === Number(id) && rel.person2) return rel.person2;
+    }
+    return null;
+  };
+
   const getNodeName = id => { const n = getNode(id); return n ? (n.name ?? `${n.last_name??''}${n.first_name??''}`) : `#${id}`; };
   const selectedNode = selectedId ? getNode(selectedId) : null;
 
