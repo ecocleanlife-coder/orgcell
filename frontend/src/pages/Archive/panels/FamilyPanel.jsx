@@ -519,7 +519,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
         <div
           style={{ ...s.photoBox, cursor: (canPhotoUpload && preview) ? 'grab' : (canPhotoUpload ? 'pointer' : 'default') }}
           onPointerDown={(canPhotoUpload && preview) ? handleDragStart : undefined}
-          onClick={canPhotoUpload ? () => fileRef.current?.click() : undefined}
+          onDoubleClick={canPhotoUpload ? () => fileRef.current?.click() : undefined}
           onDrop={canPhotoUpload ? e => {
             e.preventDefault();
             if (e.dataTransfer.files[0]) { fileRef.current.files = e.dataTransfer.files; handleFile({ target: fileRef.current }); }
@@ -550,7 +550,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
                 {isAddMode
                   ? '저장 후 사진 추가'
                   : selectedId !== null
-                    ? (uploading ? '업로드 중...' : '클릭 또는 끌어다 놓기')
+                    ? (uploading ? '업로드 중...' : '더블클릭 또는 사진추가 버튼')
                     : '인물을 선택하면\n사진을 편집할 수 있습니다'}
               </p>
             </div>
@@ -558,9 +558,11 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
         </div>
       </div>
       <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onInput={handleFile} />
-      {canPhotoUpload && preview && (
+      {canPhotoUpload && (
         <div style={{ textAlign: 'center', marginBottom: 8 }}>
-          <button style={s.btnSec} onClick={() => fileRef.current?.click()}>사진 변경</button>
+          <button style={s.btnSec} onClick={() => fileRef.current?.click()}>
+            {preview ? '사진 변경' : '사진 추가'}
+          </button>
         </div>
       )}
 
