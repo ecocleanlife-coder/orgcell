@@ -177,8 +177,24 @@ exports.createPerson = async (req, res) => {
             return rows[0]?.next_num ?? 1;
         }
 
+        // 단일 고정 경로(f/m/h/w)도 중복 시 번호 부여 (f→f2, m→m2...)
+        async function uniqueSimplePath(base) {
+            const { rows: exists } = await db.query(
+                `SELECT 1 FROM persons WHERE site_id=$1 AND ops_path=$2 LIMIT 1`,
+                [Number(siteId), base]
+            );
+            if (!exists.length) return base;
+            const pattern = `^${base}[0-9]+$`;
+            const { rows: n } = await db.query(
+                `SELECT COALESCE(MAX(CAST(SUBSTRING(ops_path FROM ${base.length + 1}) AS INT)), 1) + 1 AS next_num
+                 FROM persons WHERE site_id=$1 AND ops_path ~ $2`,
+                [Number(siteId), pattern]
+            );
+            return `${base}${n[0]?.next_num ?? 2}`;
+        }
+
         if (relation_type === 'parent') {
-            autoOpsPath = isMale ? 'f' : 'm';
+            autoOpsPath = await uniqueSimplePath(isMale ? 'f' : 'm');
         } else if (relation_type === 'child') {
             const prefix = isMale ? 's' : 'd';
             const num = await nextOpsPathNum(prefix);
@@ -186,7 +202,7 @@ exports.createPerson = async (req, res) => {
         } else if (relation_type === 'spouse') {
             // §30-4: 배우자는 자기 아버지 박물관의 d{n}/s{n}에 귀속
             // 현재 박물관에는 임시 저장 (h 또는 w)
-            autoOpsPath = isMale ? 'h' : 'w';
+            autoOpsPath = await uniqueSimplePath(isMale ? 'h' : 'w');
         } else if (relation_type === 'sibling') {
             const prefix = isMale ? 'b' : 'si';
             const num = await nextOpsPathNum(prefix);
@@ -238,20 +254,18 @@ exports.createPerson = async (req, res) => {
         const newPerson = rows[0];
         const newPersonId = newPerson.id;
 
-        // §19: ops_path 기반 폴더 자동 생성
+        // §19: ops_path/{personId} 기반 폴더 자동 생성 (personId 포함으로 충돌 방지)
         try {
-            // subdomain 조회
             const { rows: siteRows } = await db.query(
                 'SELECT subdomain FROM family_sites WHERE id = $1', [siteId]
             );
             const subdomain = siteRows[0]?.subdomain;
             if (subdomain) {
                 const baseDir = path.join(process.cwd(), 'uploads', subdomain);
-                if (autoOpsPath) {
-                    fs.mkdirSync(path.join(baseDir, autoOpsPath), { recursive: true });
-                } else {
-                    fs.mkdirSync(baseDir, { recursive: true });
-                }
+                const personFolderPath = autoOpsPath
+                    ? path.join(baseDir, autoOpsPath, String(newPersonId))
+                    : path.join(baseDir, String(newPersonId));
+                fs.mkdirSync(personFolderPath, { recursive: true });
             }
         } catch (e) {
             console.error('person folder creation failed:', e.message);
@@ -700,9 +714,12 @@ exports.uploadPhoto = async (req, res) => {
 
         const { ops_path, subdomain } = personRows[0];
 
-        // §19/§26: 경로 = uploads/{subdomain}/{ops_path}/
-        // 관장(ops_path=null)은 uploads/{subdomain}/ 에 바로 저장
-        const relDir = ops_path ? `${subdomain}/${ops_path}` : subdomain;
+        // §19/§26: 경로 = uploads/{subdomain}/{ops_path}/{personId}/
+        // 관장(ops_path=null)은 uploads/{subdomain}/{personId}/ 에 저장
+        // personId 포함으로 같은 ops_path 공유 시 사진 충돌 방지
+        const relDir = ops_path
+            ? `${subdomain}/${ops_path}/${personId}`
+            : `${subdomain}/${personId}`;
         const personDir = path.join(UPLOADS_BASE_DIR, relDir);
         fs.mkdirSync(personDir, { recursive: true });
 
