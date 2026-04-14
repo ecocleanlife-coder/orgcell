@@ -25,7 +25,7 @@ export default function MyInfoPanel({ curatorNode, personId, siteId, mergeNotifs
   const [photoScale,  setPhotoScale]  = useState(1);
   const [form,        setForm]        = useState({
     lastName: '', firstName: '', nameEnFirst: '', nameEnLast: '',
-    gender: 'male', birthYear: '', birthMonth: '', birthDay: '',
+    gender: 'male', birthYear: '', birthMonth: '', birthDay: '', birthLunar: false,
     isDeceased: false, deathDate: '',
   });
   const [saving,    setSaving]    = useState(false);
@@ -70,6 +70,7 @@ export default function MyInfoPanel({ curatorNode, personId, siteId, mergeNotifs
       birthYear:   by,
       birthMonth:  bm,
       birthDay:    bd,
+      birthLunar:  curatorNode.birthLunar  ?? curatorNode.birth_lunar  ?? false,
       isDeceased:  curatorNode.isDeceased ?? curatorNode.is_deceased ?? false,
       deathDate:   curatorNode.deathDate ?? curatorNode.death_date ?? '',
     });
@@ -276,25 +277,31 @@ export default function MyInfoPanel({ curatorNode, personId, siteId, mergeNotifs
         </div>
 
         <label style={s.lbl}>생년월일</label>
-        <div style={{ display: 'flex', gap: 4 }}>
-          <input
-            style={{ ...s.inp, flex: 2 }}
-            value={form.birthYear}
-            onChange={e => setForm(f => ({ ...f, birthYear: e.target.value }))}
-            placeholder="년" maxLength={4}
-          />
-          <input
-            style={{ ...s.inp, flex: 1 }}
-            value={form.birthMonth}
-            onChange={e => setForm(f => ({ ...f, birthMonth: e.target.value }))}
-            placeholder="월" maxLength={2}
-          />
-          <input
-            style={{ ...s.inp, flex: 1 }}
-            value={form.birthDay}
-            onChange={e => setForm(f => ({ ...f, birthDay: e.target.value }))}
-            placeholder="일" maxLength={2}
-          />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 4, flex: 1 }}>
+            <input
+              style={{ ...s.inp, flex: 2 }}
+              value={form.birthYear}
+              onChange={e => setForm(f => ({ ...f, birthYear: e.target.value }))}
+              placeholder="년" maxLength={4}
+            />
+            <input
+              style={{ ...s.inp, flex: 1 }}
+              value={form.birthMonth}
+              onChange={e => setForm(f => ({ ...f, birthMonth: e.target.value }))}
+              placeholder="월" maxLength={2}
+            />
+            <input
+              style={{ ...s.inp, flex: 1 }}
+              value={form.birthDay}
+              onChange={e => setForm(f => ({ ...f, birthDay: e.target.value }))}
+              placeholder="일" maxLength={2}
+            />
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            <input type="checkbox" checked={form.birthLunar} onChange={e => setForm(f => ({ ...f, birthLunar: e.target.checked }))} />
+            음력
+          </label>
         </div>
 
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', margin: '8px 0' }}>
