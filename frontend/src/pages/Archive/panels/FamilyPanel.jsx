@@ -241,6 +241,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
   const [confirmDel,        setConfirmDel]        = useState(null);
   const [confirmSave,       setConfirmSave]       = useState(false);
   const [confirmDivorce,    setConfirmDivorce]    = useState(false);
+  const [confirmDupChild,   setConfirmDupChild]   = useState(null); // { name } 중복 자녀
   const [saving,            setSaving]            = useState(false);
   const [uploading,         setUploading]         = useState(false);
 
@@ -428,6 +429,18 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
   // ── 생성 ──────────────────────────────────────────────────────────────────
   async function handleCreate() {
     if (!siteId || !form.firstName.trim()) { toast.error('이름을 입력해주세요'); return; }
+    // 중복 자녀 이름 체크: 같은 이름의 자녀가 이미 있으면 확인 요청
+    if (relTab === 'child') {
+      const fullName = `${form.lastName.trim()}${form.firstName.trim()}`;
+      const dupExists = filterRels(relations, personId, 'child').some(r => {
+        const id = otherOf(r, personId);
+        return getNodeName(id) === fullName;
+      });
+      if (dupExists) {
+        setConfirmDupChild({ name: fullName });
+        return;
+      }
+    }
     setSaving(true);
     try {
       const birthDate = form.birthYear
@@ -678,6 +691,23 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
               <button style={s.btnPri} onClick={() => { setConfirmSave(false); handleSave(); }}>저장</button>
               <button style={s.btnSec} onClick={() => setConfirmSave(false)}>취소</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 중복 자녀 이름 경고 모달 ── */}
+      {confirmDupChild && (
+        <div style={s.overlay}>
+          <div style={s.modal}>
+            <p style={{ fontSize: 14, color: '#3a2a1a', marginBottom: 8 }}>
+              이미 "{confirmDupChild.name}"이라는 자녀가 등록되어 있습니다.
+            </p>
+            <p style={{ fontSize: 12, color: '#8B7355', marginBottom: 20 }}>
+              중복 등록을 방지하기 위해 새 자녀를 추가하지 않겠습니다.
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              <button style={s.btnSec} onClick={() => setConfirmDupChild(null)}>확인</button>
             </div>
           </div>
         </div>

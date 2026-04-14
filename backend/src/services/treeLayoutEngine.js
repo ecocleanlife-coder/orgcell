@@ -320,8 +320,9 @@ function buildNodes(curatorId, personById, rels, z0Set, depthMap, roleMap, spous
     const childXs = [curatorCardX, ...sortedCurSibs.map((s, i) => curatorCardX - C.SIBLING_GAP * (i + 1))];
     const pCenterX = sortedCurSibs.length > 0 ? Math.round(avg(childXs)) : C.PARENT_X;
     const parents  = curParentIds.map(id => personById.get(id));
-    const father   = parents.find(p => p.gender !== 'female') || parents[0];
-    const mother   = parents.find(p => p.gender === 'female' && p !== father);
+    const isFemale = p => p.gender === 'female' || p.gender === 'F';
+    const father   = parents.find(p => !isFemale(p)) || parents[0];
+    const mother   = parents.find(p => isFemale(p) && p !== father);
 
     if (mother) {
       push(father, pCenterX - C.HALF_CARD, -C.ROW_GAP, -1, 'parent', 'couple-curator-parents', 'left',  pCenterX);
@@ -338,8 +339,9 @@ function buildNodes(curatorId, personById, rels, z0Set, depthMap, roleMap, spous
       const childXs  = [(spouseCardX ?? 0), ...sortedSpSibs.map((s, i) => (spouseCardX ?? 0) + C.SIBLING_GAP * (i + 1))];
       const pCenterX = sortedSpSibs.length > 0 ? Math.round(avg(childXs)) : C.PARENT_IN_LAW_X;
       const parents  = spParentIds.map(id => personById.get(id));
-      const father   = parents.find(p => p.gender !== 'female') || parents[0];
-      const mother   = parents.find(p => p.gender === 'female' && p !== father);
+      const isFemale2 = p => p.gender === 'female' || p.gender === 'F';
+      const father   = parents.find(p => !isFemale2(p)) || parents[0];
+      const mother   = parents.find(p => isFemale2(p) && p !== father);
 
       if (mother) {
         push(father, pCenterX - C.HALF_CARD, -C.ROW_GAP, -1, 'parent-in-law', 'couple-spouse-parents', 'left',  pCenterX);

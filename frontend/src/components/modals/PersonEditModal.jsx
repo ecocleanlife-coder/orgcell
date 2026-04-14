@@ -116,7 +116,9 @@ export default function PersonEditModal() {
     const [engL = '', engF = ''] = (node.nameEn || '').split(' ');
 
     setLastName(ln);   setFirstName(fn);
-    setGender(node.gender || '');
+    // DB는 'M'/'F' 저장, 모달 내부는 'male'/'female' 사용
+    const gNorm = node.gender === 'M' ? 'male' : node.gender === 'F' ? 'female' : (node.gender || '');
+    setGender(gNorm);
     setBirthY(birth.y); setBirthM(birth.m); setBirthD(birth.d);
     setBirthLunar(false); // birthLunar는 node에 없음 — 기본 양력
     setDeceased(node.isDeceased || false);
@@ -136,7 +138,7 @@ export default function PersonEditModal() {
     try {
       const body = {
         name:        `${lastName.trim()}${firstName.trim()}`,
-        gender:      gender || null,
+        gender:      gender === 'male' ? 'M' : gender === 'female' ? 'F' : (gender || null),
         birth_date:  joinDate(birthY, birthM, birthD),
         birth_lunar: birthLunar,
         is_deceased: deceased,
