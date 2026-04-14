@@ -1154,6 +1154,7 @@ exports.repairRelations = async (req, res) => {
 
         let created = 0;
 
+        // ── 1단계: person_paths 테이블 기반 복구 ──────────────────────────────
         try {
             // ops_path 번호 없는 것 보정 ('s'→'s1', 'd'→'d1', 'b'→'b1', 'si'→'si1')
             await db.query(`
@@ -1168,16 +1169,16 @@ exports.repairRelations = async (req, res) => {
                   )
             `, [siteId]);
 
-            // 자녀 타입 path(s*, d*)이지만 person_relations 없는 인물 탐색
+            // 자녀 타입 path(s*, d* — 번호 유무 모두 포함)이지만 parent relation 없는 인물 탐색
             const { rows: missing } = await db.query(`
-                SELECT p.id
+                SELECT DISTINCT p.id
                 FROM persons p
                 JOIN person_paths pp
                   ON (p.person_id = pp.person_id OR p.oc_id = pp.person_id)
                 WHERE p.site_id = $1
                   AND p.id != $2
                   AND pp.is_canonical = TRUE
-                  AND pp.path ~ '^[sd][0-9]+$'
+                  AND (pp.path ~ '^[sd][0-9]*$')
                   AND NOT EXISTS (
                       SELECT 1 FROM person_relations pr
                       WHERE pr.site_id = $1
@@ -1191,14 +1192,58 @@ exports.repairRelations = async (req, res) => {
             for (const row of missing) {
                 await db.query(`
                     INSERT INTO person_relations (site_id, person1_id, person2_id, relation_type, is_active)
-                    VALUES ($1, $2, $3, 'parent', TRUE)
-                    ON CONFLICT DO NOTHING
+                    SELECT $1, $2, $3, 'parent', TRUE
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM person_relations
+                        WHERE site_id = $1 AND person1_id = $2 AND person2_id = $3 AND relation_type = 'parent'
+                    )
                 `, [siteId, curatorId, row.id]);
                 created++;
             }
         } catch (pathErr) {
             // person_paths 테이블 없는 경우 조용히 무시
-            console.warn('repairRelations: person_paths 쿼리 실패 (테이블 없음?)', pathErr.message);
+            console.warn('repairRelations: person_paths 쿼리 실패', pathErr.message);
+        }
+
+        // ── 2단계: persons.ops_path 컬럼 기반 복구 (fallback) ──────────────────
+        try {
+            const { rows: missing2 } = await db.query(`
+                SELECT DISTINCT p.id
+                FROM persons p
+                WHERE p.site_id = $1
+                  AND p.id != $2
+                  AND p.ops_path ~ '^[sd][0-9]*$'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM person_relations pr
+                      WHERE pr.site_id = $1
+                        AND pr.person1_id = $2
+                        AND pr.person2_id = p.id
+                        AND pr.relation_type = 'parent'
+                        AND pr.is_active = TRUE
+                  )
+            `, [siteId, curatorId]);
+
+            for (const row of missing2) {
+                await db.query(`
+                    INSERT INTO person_relations (site_id, person1_id, person2_id, relation_type, is_active)
+                    SELECT $1, $2, $3, 'parent', TRUE
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM person_relations
+                        WHERE site_id = $1 AND person1_id = $2 AND person2_id = $3 AND relation_type = 'parent'
+                    )
+                `, [siteId, curatorId, row.id]);
+                created++;
+            }
+
+            // persons.ops_path 번호 보정 ('s'→'s1', 'd'→'d1')
+            await db.query(`
+                UPDATE persons
+                SET ops_path = ops_path || '1'
+                WHERE site_id = $1
+                  AND ops_path IN ('s', 'd', 'b', 'si')
+            `, [siteId]);
+        } catch {
+            // persons.ops_path 컬럼 없으면 무시
         }
 
         return res.json({ success: true, created, message: `${created}개 관계 복구 완료` });

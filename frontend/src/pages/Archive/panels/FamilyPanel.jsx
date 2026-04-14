@@ -1,16 +1,19 @@
 /**
  * panels/FamilyPanel.jsx — §8/§9 가족 관리
  *
- * 구조:
- *   1. 간이 가계도 (MiniTree): 클릭 가능한 노드 + 추가 버튼
- *   2. 편집/추가 패널: MyInfoPanel과 동일한 구조 (180×180 사진 + 폼)
+ * 레이아웃 (MyInfoPanel과 동일 구조):
+ *   1. 180×180 사진박스 (항상 표시)
+ *   2. 인물정보 폼 (항상 표시, 선택 인물에 따라 내용 변경)
+ *   3. [저장/생성] 버튼
+ *   ── 구분선 ──
+ *   4. 간이 가계도 (MiniTree) — 하단 항상 표시
+ *      클릭 → 해당 인물 폼에 로드 / + 버튼 → 추가 모드
  *
- * §23 연결선 규칙:
- *   - 부모→자녀: 수직선 + 다자녀 수평 브래킷
- *   - 배우자: 수평선 연결
- *   - 형제: 관장 왼쪽 수평선 연결
+ * §23 연결선:
+ *   - 단일 자녀: 수직선
+ *   - 다자녀: width:fit-content 브래킷 + 개별 수직선
  *
- * 보완 구조: 마운트 시 관계 누락 인물 자동 복구 (repairRelations)
+ * 보완 구조: 마운트 시 관계 누락 인물 자동 복구
  */
 
 import { useState, useRef, useEffect } from 'react';
@@ -22,8 +25,8 @@ import {
 
 // ── 상수 ─────────────────────────────────────────────────────────────────────
 const LINE      = '#C4A882';
-const MINI_W    = 56;   // MiniNode 컬럼 너비 px (수평 브래킷 계산 기준)
-const MINI_GAP  = 8;    // MiniNode 간 gap px
+const MINI_W    = 56;
+const MINI_GAP  = 8;
 const REL_LABEL = { parent: '부모', child: '자녀', spouse: '배우자', sibling: '형제자매' };
 
 // ── 관계 필터 헬퍼 ────────────────────────────────────────────────────────────
@@ -50,7 +53,7 @@ function MiniNode({ name, photo, isMain, isSelected, onClick, onRemove }) {
       <div
         style={{
           ...mn.box,
-          ...(isMain    ? mn.boxMain : {}),
+          ...(isMain     ? mn.boxMain : {}),
           ...(isSelected ? mn.boxSel  : {}),
           cursor: isMain ? 'default' : 'pointer',
         }}
@@ -85,21 +88,21 @@ const mn = {
 
 // ── 간이 가계도 ───────────────────────────────────────────────────────────────
 function MiniTree({ personId, relations, getNodeName, getNodePhoto, selectedId, onSelect, onAdd, onRemoveRel }) {
-  const myId     = Number(personId);
   const parents  = filterRels(relations, personId, 'parent');
   const spouses  = filterRels(relations, personId, 'spouse');
   const children = filterRels(relations, personId, 'child');
   const siblings = filterRels(relations, personId, 'sibling');
 
-  const Vline = () => <div style={{ width: 1, height: 16, background: LINE, margin: '0 auto' }} />;
+  const Vline = () => <div style={{ width: 1, height: 16, background: LINE, margin: '2px auto' }} />;
 
   return (
     <div style={mt.wrap}>
+      <div style={mt.divider} />
       <div style={mt.title}>간이 가계도</div>
 
       {/* 부모 행 */}
       {parents.length > 0 && (
-        <div style={{ display: 'flex', gap: MINI_GAP, justifyContent: 'center' }}>
+        <div style={{ display: 'flex', gap: MINI_GAP, justifyContent: 'center', marginBottom: 2 }}>
           {parents.map(r => {
             const id = Number(r.person1_id);
             return (
@@ -116,8 +119,7 @@ function MiniTree({ personId, relations, getNodeName, getNodePhoto, selectedId, 
       {parents.length > 0 && <Vline />}
 
       {/* 관장 + 형제 + 배우자 행 */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0 }}>
-        {/* 형제들 (관장 왼쪽) */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {siblings.map(r => {
           const id = Number(otherOf(r, personId));
           return (
@@ -128,24 +130,16 @@ function MiniTree({ personId, relations, getNodeName, getNodePhoto, selectedId, 
                 onClick={() => onSelect(id)}
                 onRemove={() => onRemoveRel(r.id, getNodeName(id))}
               />
-              <div style={{ width: 16, height: 1, background: LINE }} />
+              <div style={{ width: 12, height: 1, background: LINE }} />
             </div>
           );
         })}
-
-        {/* 관장 */}
-        <MiniNode
-          name={getNodeName(myId)}
-          photo={getNodePhoto(myId)}
-          isMain
-        />
-
-        {/* 배우자 (관장 오른쪽) */}
+        <MiniNode name={getNodeName(Number(personId))} photo={getNodePhoto(Number(personId))} isMain />
         {spouses.map(r => {
           const id = Number(otherOf(r, personId));
           return (
             <div key={id} style={{ display: 'flex', alignItems: 'center' }}>
-              <div style={{ width: 16, height: 1, background: LINE }} />
+              <div style={{ width: 12, height: 1, background: LINE }} />
               <MiniNode
                 name={getNodeName(id)} photo={getNodePhoto(id)}
                 isSelected={selectedId === id}
@@ -157,8 +151,8 @@ function MiniTree({ personId, relations, getNodeName, getNodePhoto, selectedId, 
         })}
       </div>
 
-      {/* 추가 버튼 행 */}
-      <div style={{ display: 'flex', gap: 4, justifyContent: 'center', flexWrap: 'wrap', marginTop: 6 }}>
+      {/* 관계 추가 버튼 */}
+      <div style={{ display: 'flex', gap: 4, justifyContent: 'center', flexWrap: 'wrap', margin: '6px 0' }}>
         <button style={mt.addBtn} onClick={() => onAdd('parent')}>+ 부모</button>
         <button style={mt.addBtn} onClick={() => onAdd('sibling')}>+ 형제</button>
         <button style={mt.addBtn} onClick={() => onAdd('spouse')}>+ 배우자</button>
@@ -167,9 +161,9 @@ function MiniTree({ personId, relations, getNodeName, getNodePhoto, selectedId, 
       {/* 자녀 연결선 */}
       {children.length > 0 && <Vline />}
 
-      {/* 자녀 행 — §23: 수평 브래킷 + 개별 수직선 */}
+      {/* 자녀 행 — §23 수평 브래킷 */}
       {children.length === 1 && (() => {
-        const r  = children[0];
+        const r = children[0];
         const id = Number(r.person2_id);
         return (
           <div style={{ display: 'flex', justifyContent: 'center' }}>
@@ -184,18 +178,8 @@ function MiniTree({ personId, relations, getNodeName, getNodePhoto, selectedId, 
       })()}
 
       {children.length > 1 && (
-        <div style={{
-          position: 'relative',
-          display: 'flex', gap: MINI_GAP,
-          width: 'fit-content', margin: '0 auto',
-          paddingTop: 10,
-        }}>
-          {/* 수평 브래킷: 첫 자녀 중앙 → 마지막 자녀 중앙 */}
-          <div style={{
-            position: 'absolute', top: 0,
-            left: MINI_W / 2, right: MINI_W / 2,
-            height: 1, background: LINE,
-          }} />
+        <div style={{ position: 'relative', display: 'flex', gap: MINI_GAP, width: 'fit-content', margin: '0 auto', paddingTop: 10 }}>
+          <div style={{ position: 'absolute', top: 0, left: MINI_W / 2, right: MINI_W / 2, height: 1, background: LINE }} />
           {children.map(r => {
             const id = Number(r.person2_id);
             return (
@@ -220,12 +204,20 @@ function MiniTree({ personId, relations, getNodeName, getNodePhoto, selectedId, 
   );
 }
 
+// ── 빈 폼 기본값 ──────────────────────────────────────────────────────────────
+const EMPTY_FORM = {
+  lastName: '', firstName: '', nameEnLast: '', nameEnFirst: '',
+  gender: 'M',
+  birthYear: '', birthMonth: '', birthDay: '', birthLunar: false,
+  isDeceased: false, deathYear: '', deathMonth: '', deathDay: '',
+};
+
 // ── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
 export default function FamilyPanel({ curatorNode, personId, siteId, relations, refreshRelations }) {
   const { nodes, invalidate } = useTreeStore();
   const fileRef = useRef(null);
 
-  const [relTab,            setRelTab]            = useState('parent');
+  const [relTab,            setRelTab]            = useState('child');
   const [selectedId,        setSelectedId]        = useState(null);
   const [selectedNodeCache, setSelectedNodeCache] = useState(null);
   const [isAddMode,         setIsAddMode]         = useState(false);
@@ -236,14 +228,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
   const [preview,     setPreview]     = useState(null);
   const [photoOffset, setPhotoOffset] = useState({ x: 0, y: 0 });
   const [photoScale,  setPhotoScale]  = useState(1);
-
-  const emptyForm = {
-    lastName: '', firstName: '', nameEnLast: '', nameEnFirst: '',
-    gender: 'M',
-    birthYear: '', birthMonth: '', birthDay: '', birthLunar: false,
-    isDeceased: false, deathYear: '', deathMonth: '', deathDay: '',
-  };
-  const [form, setForm] = useState(emptyForm);
+  const [form,        setForm]        = useState(EMPTY_FORM);
 
   // ── 노드 조회 헬퍼 ─────────────────────────────────────────────────────────
   const getNode = id => {
@@ -278,7 +263,10 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
 
   // ── 선택 인물 → 폼 동기화 ──────────────────────────────────────────────────
   useEffect(() => {
-    if (!selectedNode) return;
+    if (!selectedNode) {
+      if (!isAddMode) { setPreview(null); setForm(EMPTY_FORM); }
+      return;
+    }
     const ph = selectedNode.photoUrl ?? selectedNode.photo_url ?? null;
     setPreview(ph && !ph.startsWith('blob:') ? `${ph}?v=${Date.now()}` : ph);
     setPhotoOffset({ x: 0, y: 0 });
@@ -320,7 +308,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
     setSelectedNodeCache(null);
     setIsAddMode(true);
     setPreview(null);
-    setForm(emptyForm);
+    setForm(EMPTY_FORM);
   }
 
   function cancelEdit() {
@@ -328,7 +316,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
     setSelectedNodeCache(null);
     setIsAddMode(false);
     setPreview(null);
-    setForm(emptyForm);
+    setForm(EMPTY_FORM);
   }
 
   function findRelation(otherId) {
@@ -450,15 +438,158 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
     }
   }
 
-  const showEditArea = !!(selectedNode || isAddMode);
-  const editTitle    = isAddMode
+  // ── 헤더 레이블 결정 ────────────────────────────────────────────────────────
+  const canPhotoUpload = !isAddMode && !!selectedNode;
+  const headerLabel = isAddMode
     ? `+ ${REL_LABEL[relTab]} 추가`
-    : (selectedNode?.name ?? '편집');
+    : selectedNode
+      ? (selectedNode.name ?? getNodeName(selectedId))
+      : '가족 구성원을 선택하거나 추가하세요';
 
   return (
     <div style={s.wrap}>
 
-      {/* ── 간이 가계도 ── */}
+      {/* ── 헤더 ── */}
+      <div style={s.header}>{headerLabel}</div>
+
+      {/* ── 180×180 사진박스 ── */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+        <div
+          style={{ ...s.photoBox, cursor: (canPhotoUpload && preview) ? 'grab' : (canPhotoUpload ? 'pointer' : 'default') }}
+          onPointerDown={(canPhotoUpload && preview) ? handleDragStart : undefined}
+          onClick={canPhotoUpload ? () => fileRef.current?.click() : undefined}
+          onDrop={canPhotoUpload ? e => {
+            e.preventDefault();
+            if (e.dataTransfer.files[0]) { fileRef.current.files = e.dataTransfer.files; handleFile({ target: fileRef.current }); }
+          } : undefined}
+          onDragOver={canPhotoUpload ? e => e.preventDefault() : undefined}
+        >
+          {preview ? (
+            <>
+              <img src={preview} alt="프로필" draggable={false}
+                style={{ ...s.photoImg, transform: `translate(${photoOffset.x}px,${photoOffset.y}px) scale(${photoScale})` }}
+              />
+              <div
+                style={s.resizeHandle}
+                onPointerDown={e => {
+                  e.stopPropagation();
+                  const sy = e.clientY, sc = photoScale;
+                  const onMove = ev => setPhotoScale(Math.max(0.5, Math.min(3, sc + (ev.clientY - sy) * 0.005)));
+                  const onUp   = () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
+                  window.addEventListener('pointermove', onMove);
+                  window.addEventListener('pointerup', onUp);
+                }}
+              />
+            </>
+          ) : (
+            <div style={s.photoEmpty}>
+              <span style={{ fontSize: 32, color: LINE }}>📷</span>
+              <p style={{ color: '#8B7355', fontSize: 11, margin: '6px 0 0', textAlign: 'center' }}>
+                {isAddMode
+                  ? '저장 후 사진 추가'
+                  : selectedNode
+                    ? (uploading ? '업로드 중...' : '클릭 또는 끌어다 놓기')
+                    : '인물을 선택하면\n사진을 편집할 수 있습니다'}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+      <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onInput={handleFile} />
+      {canPhotoUpload && preview && (
+        <div style={{ textAlign: 'center', marginBottom: 8 }}>
+          <button style={s.btnSec} onClick={() => fileRef.current?.click()}>사진 변경</button>
+        </div>
+      )}
+
+      {/* ── 인물정보 폼 ── */}
+      <div style={s.form}>
+
+        <div style={s.row2}>
+          <div>
+            <label style={s.lbl}>성 (姓)</label>
+            <input style={s.inp} value={form.lastName}  onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))}  placeholder="이" />
+          </div>
+          <div>
+            <label style={s.lbl}>이름 *</label>
+            <input style={s.inp} value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} placeholder="상훈" />
+          </div>
+        </div>
+
+        <div style={s.row2}>
+          <div>
+            <label style={s.lbl}>성 (영문)</label>
+            <input style={s.inp} value={form.nameEnLast}  onChange={e => setForm(f => ({ ...f, nameEnLast: e.target.value }))}  placeholder="LEE" />
+          </div>
+          <div>
+            <label style={s.lbl}>이름 (영문)</label>
+            <input style={s.inp} value={form.nameEnFirst} onChange={e => setForm(f => ({ ...f, nameEnFirst: e.target.value }))} placeholder="SANGHUN" />
+          </div>
+        </div>
+
+        <label style={s.lbl}>성별</label>
+        <div style={{ display: 'flex', gap: 16, marginBottom: 4 }}>
+          {[{ v: 'M', l: '남' }, { v: 'F', l: '여' }].map(g => (
+            <label key={g.v} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, cursor: 'pointer' }}>
+              <input type="radio" value={g.v} checked={form.gender === g.v} onChange={() => setForm(f => ({ ...f, gender: g.v }))} />
+              {g.l}
+            </label>
+          ))}
+        </div>
+
+        <label style={s.lbl}>생년월일</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+          <input style={{ ...s.inp, flex: 2 }} value={form.birthYear}  onChange={e => setForm(f => ({ ...f, birthYear: e.target.value }))}  placeholder="년" maxLength={4} />
+          <input style={{ ...s.inp, flex: 1 }} value={form.birthMonth} onChange={e => setForm(f => ({ ...f, birthMonth: e.target.value }))} placeholder="월" maxLength={2} />
+          <input style={{ ...s.inp, flex: 1 }} value={form.birthDay}   onChange={e => setForm(f => ({ ...f, birthDay: e.target.value }))}   placeholder="일" maxLength={2} />
+          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            <input type="checkbox" checked={form.birthLunar} onChange={e => setForm(f => ({ ...f, birthLunar: e.target.checked }))} />
+            음력
+          </label>
+        </div>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', margin: '6px 0' }}>
+          <input type="checkbox" checked={form.isDeceased} onChange={e => setForm(f => ({ ...f, isDeceased: e.target.checked }))} />
+          사망
+        </label>
+        {form.isDeceased && (
+          <>
+            <label style={s.lbl}>사망일</label>
+            <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+              <input style={{ ...s.inp, flex: 2 }} value={form.deathYear}  onChange={e => setForm(f => ({ ...f, deathYear: e.target.value }))}  placeholder="년" maxLength={4} />
+              <input style={{ ...s.inp, flex: 1 }} value={form.deathMonth} onChange={e => setForm(f => ({ ...f, deathMonth: e.target.value }))} placeholder="월" maxLength={2} />
+              <input style={{ ...s.inp, flex: 1 }} value={form.deathDay}   onChange={e => setForm(f => ({ ...f, deathDay: e.target.value }))}   placeholder="일" maxLength={2} />
+            </div>
+          </>
+        )}
+
+        {/* 버튼 */}
+        <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+          {(isAddMode || selectedNode) && (
+            <button
+              style={{ ...s.btnPri, flex: 1, opacity: saving ? 0.6 : 1 }}
+              disabled={saving}
+              onClick={isAddMode ? handleCreate : handleSave}
+            >
+              {saving ? '처리 중...' : isAddMode ? '생성' : '저장'}
+            </button>
+          )}
+          {!isAddMode && selectedNode && (
+            <button
+              style={s.btnDng}
+              onClick={() => {
+                const rel = findRelation(selectedId);
+                if (rel) setConfirmDel({ id: rel.id, name: getNodeName(selectedId) });
+              }}
+            >제거</button>
+          )}
+          {(isAddMode || selectedNode) && (
+            <button style={s.btnSec} onClick={cancelEdit}>취소</button>
+          )}
+        </div>
+      </div>
+
+      {/* ── 간이 가계도 (항상 하단 표시) ── */}
       <MiniTree
         personId={personId}
         relations={relations}
@@ -469,150 +600,6 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
         onAdd={handleAddMode}
         onRemoveRel={(relId, name) => setConfirmDel({ id: relId, name })}
       />
-
-      {/* ── 편집/추가 패널 (MyInfoPanel 동일 구조) ── */}
-      {showEditArea && (
-        <div style={s.editPanel}>
-
-          {/* 헤더 */}
-          <div style={s.editHeader}>{editTitle}</div>
-
-          {/* 180×180 사진 박스 */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-            <div
-              style={{ ...s.photoBox, cursor: (!isAddMode && preview) ? 'grab' : (isAddMode ? 'default' : 'pointer') }}
-              onPointerDown={(!isAddMode && preview) ? handleDragStart : undefined}
-              onClick={!isAddMode ? () => fileRef.current?.click() : undefined}
-              onDrop={!isAddMode ? e => {
-                e.preventDefault();
-                if (e.dataTransfer.files[0]) { fileRef.current.files = e.dataTransfer.files; handleFile({ target: fileRef.current }); }
-              } : undefined}
-              onDragOver={!isAddMode ? e => e.preventDefault() : undefined}
-            >
-              {preview ? (
-                <>
-                  <img src={preview} alt="프로필" draggable={false}
-                    style={{ ...s.photoImg, transform: `translate(${photoOffset.x}px,${photoOffset.y}px) scale(${photoScale})` }}
-                  />
-                  <div
-                    style={s.resizeHandle}
-                    onPointerDown={e => {
-                      e.stopPropagation();
-                      const sy = e.clientY, sc = photoScale;
-                      const onMove = ev => setPhotoScale(Math.max(0.5, Math.min(3, sc + (ev.clientY - sy) * 0.005)));
-                      const onUp   = () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
-                      window.addEventListener('pointermove', onMove);
-                      window.addEventListener('pointerup', onUp);
-                    }}
-                  />
-                </>
-              ) : (
-                <div style={s.photoEmpty}>
-                  <span style={{ fontSize: 32, color: LINE }}>📷</span>
-                  <p style={{ color: '#8B7355', fontSize: 11, margin: '6px 0 0', textAlign: 'center' }}>
-                    {isAddMode ? '저장 후 사진 추가' : uploading ? '업로드 중...' : '클릭 또는 끌어다 놓기'}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-          <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onInput={handleFile} />
-          {!isAddMode && preview && (
-            <div style={{ textAlign: 'center', marginBottom: 8 }}>
-              <button style={s.btnSec} onClick={() => fileRef.current?.click()}>사진 변경</button>
-            </div>
-          )}
-
-          {/* 인물정보 폼 */}
-          <div style={s.form}>
-
-            {/* 성/이름 */}
-            <div style={s.row2}>
-              <div>
-                <label style={s.lbl}>성 (姓)</label>
-                <input style={s.inp} value={form.lastName}  onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))}  placeholder="이" />
-              </div>
-              <div>
-                <label style={s.lbl}>이름 *</label>
-                <input style={s.inp} value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} placeholder="상훈" />
-              </div>
-            </div>
-
-            {/* 영문 성/이름 */}
-            <div style={s.row2}>
-              <div>
-                <label style={s.lbl}>성 (영문)</label>
-                <input style={s.inp} value={form.nameEnLast}  onChange={e => setForm(f => ({ ...f, nameEnLast: e.target.value }))}  placeholder="LEE" />
-              </div>
-              <div>
-                <label style={s.lbl}>이름 (영문)</label>
-                <input style={s.inp} value={form.nameEnFirst} onChange={e => setForm(f => ({ ...f, nameEnFirst: e.target.value }))} placeholder="SANGHUN" />
-              </div>
-            </div>
-
-            {/* 성별 */}
-            <label style={s.lbl}>성별</label>
-            <div style={{ display: 'flex', gap: 16, marginBottom: 4 }}>
-              {[{ v: 'M', l: '남' }, { v: 'F', l: '여' }].map(g => (
-                <label key={g.v} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, cursor: 'pointer' }}>
-                  <input type="radio" value={g.v} checked={form.gender === g.v} onChange={() => setForm(f => ({ ...f, gender: g.v }))} />
-                  {g.l}
-                </label>
-              ))}
-            </div>
-
-            {/* 생년월일 */}
-            <label style={s.lbl}>생년월일</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-              <input style={{ ...s.inp, flex: 2 }} value={form.birthYear}  onChange={e => setForm(f => ({ ...f, birthYear: e.target.value }))}  placeholder="년" maxLength={4} />
-              <input style={{ ...s.inp, flex: 1 }} value={form.birthMonth} onChange={e => setForm(f => ({ ...f, birthMonth: e.target.value }))} placeholder="월" maxLength={2} />
-              <input style={{ ...s.inp, flex: 1 }} value={form.birthDay}   onChange={e => setForm(f => ({ ...f, birthDay: e.target.value }))}   placeholder="일" maxLength={2} />
-              <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                <input type="checkbox" checked={form.birthLunar} onChange={e => setForm(f => ({ ...f, birthLunar: e.target.checked }))} />
-                음력
-              </label>
-            </div>
-
-            {/* 사망 */}
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', margin: '6px 0' }}>
-              <input type="checkbox" checked={form.isDeceased} onChange={e => setForm(f => ({ ...f, isDeceased: e.target.checked }))} />
-              사망
-            </label>
-            {form.isDeceased && (
-              <>
-                <label style={s.lbl}>사망일</label>
-                <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
-                  <input style={{ ...s.inp, flex: 2 }} value={form.deathYear}  onChange={e => setForm(f => ({ ...f, deathYear: e.target.value }))}  placeholder="년" maxLength={4} />
-                  <input style={{ ...s.inp, flex: 1 }} value={form.deathMonth} onChange={e => setForm(f => ({ ...f, deathMonth: e.target.value }))} placeholder="월" maxLength={2} />
-                  <input style={{ ...s.inp, flex: 1 }} value={form.deathDay}   onChange={e => setForm(f => ({ ...f, deathDay: e.target.value }))}   placeholder="일" maxLength={2} />
-                </div>
-              </>
-            )}
-
-            {/* 버튼 */}
-            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-              <button
-                style={{ ...s.btnPri, flex: 1, opacity: saving ? 0.6 : 1 }}
-                disabled={saving}
-                onClick={isAddMode ? handleCreate : handleSave}
-              >
-                {saving ? '처리 중...' : isAddMode ? '생성' : '저장'}
-              </button>
-              {!isAddMode && selectedNode && (
-                <button
-                  style={s.btnDng}
-                  onClick={() => {
-                    const rel = findRelation(selectedId);
-                    if (rel) setConfirmDel({ id: rel.id, name: getNodeName(selectedId) });
-                  }}
-                >제거</button>
-              )}
-              <button style={s.btnSec} onClick={cancelEdit}>취소</button>
-            </div>
-
-          </div>
-        </div>
-      )}
 
       {/* ── 관계 해제 확인 모달 ── */}
       {confirmDel && (
@@ -636,36 +623,29 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
 const s = {
   wrap:         { display: 'flex', flexDirection: 'column' },
 
-  // 사진 박스 (MyInfoPanel 동일)
+  header:       { fontSize: 12, color: '#5A3D1A', fontWeight: 600, textAlign: 'center', marginBottom: 10, minHeight: 16 },
+
   photoBox:     { width: 180, height: 180, borderRadius: 8, border: `2px solid ${LINE}`, background: '#2a2a2a', overflow: 'hidden', position: 'relative', flexShrink: 0 },
   photoImg:     { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', userSelect: 'none' },
   resizeHandle: { position: 'absolute', bottom: 4, right: 4, width: 12, height: 12, background: LINE, borderRadius: 2, cursor: 'se-resize', zIndex: 2 },
   photoEmpty:   { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 12 },
 
-  // 편집 패널
-  editPanel:    { marginTop: 14, padding: 12, background: '#FDF8F0', border: `1px solid #E8DFD0`, borderRadius: 8 },
-  editHeader:   { fontSize: 13, fontWeight: 600, color: '#5A3D1A', marginBottom: 10, paddingBottom: 6, borderBottom: `1px solid #E8DFD0` },
-
-  // 폼
   form:         { marginTop: 4 },
   row2:         { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 4 },
   lbl:          { display: 'block', fontSize: 11, color: '#8B7355', marginBottom: 2, marginTop: 6 },
   inp:          { width: '100%', boxSizing: 'border-box', border: `1px solid ${LINE}`, borderRadius: 4, padding: '5px 7px', fontSize: 12, background: '#FAFAF5', outline: 'none' },
 
-  // 버튼
   btnPri:       { padding: '8px 12px', background: '#8B7355', color: '#fff', border: 'none', borderRadius: 4, fontSize: 12, cursor: 'pointer', fontWeight: 600 },
   btnSec:       { padding: '7px 10px', background: 'none', border: `1px solid ${LINE}`, borderRadius: 4, fontSize: 12, color: '#8B7355', cursor: 'pointer' },
   btnDng:       { padding: '7px 10px', background: '#C0392B', color: '#fff', border: 'none', borderRadius: 4, fontSize: 12, cursor: 'pointer', fontWeight: 600 },
 
-  // 모달
   overlay:      { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   modal:        { background: '#FDFBF7', border: `1px solid ${LINE}`, borderRadius: 8, padding: '28px 32px', minWidth: 280, textAlign: 'center' },
 };
 
-// 간이 가계도 스타일
 const mt = {
-  wrap:   { marginBottom: 4, padding: '10px 0' },
-  title:  { fontSize: 11, color: '#8B7355', fontWeight: 600, textAlign: 'center', marginBottom: 10, letterSpacing: '0.05em' },
-  addBtn: { padding: '3px 8px', fontSize: 10, border: `1px solid ${LINE}`, background: '#FDFBF7', borderRadius: 3, cursor: 'pointer', color: '#8B7355' },
-  vline:  { width: 1, height: 16, background: LINE, margin: '2px auto' },
+  wrap:    { marginTop: 16 },
+  divider: { height: 1, background: '#E8DFD0', marginBottom: 12 },
+  title:   { fontSize: 11, color: '#8B7355', fontWeight: 600, textAlign: 'center', marginBottom: 10, letterSpacing: '0.05em' },
+  addBtn:  { padding: '3px 8px', fontSize: 10, border: `1px solid ${LINE}`, background: '#FDFBF7', borderRadius: 3, cursor: 'pointer', color: '#8B7355' },
 };

@@ -143,17 +143,16 @@ export default function FamilyTreeCanvas() {
       onTouchEnd={onTouchEnd}
     >
       {/* ── SVG 연결선 레이어 ─────────────────────────────────────────────── */}
+      {/* §23: left/top/width/height 에 scale 포함 → CSS transform 추가 시 이중 스케일로 카드와 어긋남 */}
       <svg
         style={{
           position: 'absolute',
-          left: offset.x * scale + minX * scale,
-          top:  offset.y * scale + minY * scale,
+          left: (offset.x + minX) * scale,
+          top:  (offset.y + minY) * scale,
           width:  (maxX - minX) * scale,
           height: (maxY - minY) * scale,
           overflow: 'visible',
           pointerEvents: 'none',
-          transform: `scale(${scale})`,
-          transformOrigin: '0 0',
         }}
         viewBox={`${minX} ${minY} ${maxX - minX} ${maxY - minY}`}
       >
