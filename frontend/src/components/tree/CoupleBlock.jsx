@@ -183,8 +183,7 @@ function FolderCard({ node, isCuratorCard, subdomain, isLeft, isRight, onDoubleC
       navigate(`/${subdomain}/archive`);
       return;
     }
-    // fallback: PersonEditModal
-    onDoubleClick(node.personId);
+    // 타인 카드: 더블클릭 무반응 (PersonEditModal 열지 않음)
   }
 
   // §24-1: 우측 카드 왼쪽에만 구분선
