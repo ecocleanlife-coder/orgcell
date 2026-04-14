@@ -256,6 +256,40 @@ ORGCELL_CODING_RULES.md 파일을 아래 내용으로 완전히 교체해서 저
 
 ---
 
+### §8-D 자서전 세부 정책
+
+공개명: 자서전전시관
+
+#### 에디터
+- TipTap (@tiptap/react, @tiptap/starter-kit, @tiptap/extension-underline)
+- 저장 포맷: TipTap HTML 문자열 (TEXT 컬럼)
+- 자동저장: 30초 간격, 저장 상태 표시 ('saved' / 'saving' / 'unsaved')
+
+#### 챕터 구조
+- 챕터별 제목(필수) + TipTap 본문 + is_public
+- 드래그 순서변경, 챕터 수 제한 없음
+- 공개 챕터 1개 이상 → 자서전전시관 메뉴 노출
+
+#### 파일 업로드 처리
+- txt / doc / docx: 텍스트 추출(mammoth) → 단일 챕터 자동 생성
+- pdf: pdf-parse 추출 시도 → 실패 시 원본 보관 + 안내
+- hwp / hwpx: 추출 없음, 다운로드 전용
+  안내문: "편집을 원하시면 docx로 변환 후 업로드해주세요."
+
+#### API 경로: /api/autobiography
+- GET    /:siteId                 — 챕터+파일 목록 (관장: 전체, 방문자: is_public만)
+- POST   /:siteId/chapters        — 챕터 추가
+- PUT    /:siteId/chapters/reorder — 순서 저장
+- PUT    /:siteId/chapters/:id    — 수정 (title/content/is_public)
+- DELETE /:siteId/chapters/:id    — 삭제
+- POST   /:siteId/upload          — 파일 업로드 (50MB 한도)
+
+#### DB 구조
+- `autobiography_chapters` (id, site_id, person_id, title VARCHAR(255), content TEXT, sort_order, is_public, created_at, updated_at)
+- `autobiography_files` (id, site_id, person_id, file_url TEXT, file_type VARCHAR(20), file_name VARCHAR(255), is_extracted, created_at)
+
+---
+
 ## 9. 관계 탭 동작 규칙
 - 탭 선택 시 해당 인물 기존 데이터 자동 로드
 - 등록된 인물 → [수정][제거] 활성화, [생성] 비활성화

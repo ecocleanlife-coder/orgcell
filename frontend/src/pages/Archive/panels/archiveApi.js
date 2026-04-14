@@ -338,6 +338,58 @@ export async function deleteCareerItem(siteId, itemId) {
   return apiFetch(`${careerBase(siteId)}/${itemId}`, { method: 'DELETE' });
 }
 
+// ── §8-D 자서전 ───────────────────────────────────────────────────────────────
+
+const autoBase = (siteId) => `/api/autobiography/${siteId}`;
+
+/** GET /api/autobiography/:siteId — 챕터 + 파일 목록 */
+export async function fetchAutoChapters(siteId) {
+  return apiFetch(autoBase(siteId));
+}
+
+/** POST /api/autobiography/:siteId/chapters — 챕터 추가 */
+export async function createAutoChapter(siteId, fields) {
+  return apiFetch(`${autoBase(siteId)}/chapters`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(fields),
+  });
+}
+
+/** PUT /api/autobiography/:siteId/chapters/reorder */
+export async function reorderAutoChapters(siteId, orderedIds) {
+  return apiFetch(`${autoBase(siteId)}/chapters/reorder`, {
+    method:  'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ orderedIds }),
+  });
+}
+
+/** PUT /api/autobiography/:siteId/chapters/:id */
+export async function updateAutoChapter(siteId, id, fields) {
+  return apiFetch(`${autoBase(siteId)}/chapters/${id}`, {
+    method:  'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(fields),
+  });
+}
+
+/** DELETE /api/autobiography/:siteId/chapters/:id */
+export async function deleteAutoChapter(siteId, id) {
+  return apiFetch(`${autoBase(siteId)}/chapters/${id}`, { method: 'DELETE' });
+}
+
+/** POST /api/autobiography/:siteId/upload — 파일 업로드 */
+export async function uploadAutoFile(siteId, personId, file) {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('person_id', String(personId ?? 0));
+  const res  = await fetch(autoBase(siteId) + '/upload', { method: 'POST', credentials: 'include', body: form });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`);
+  return json;
+}
+
 /**
  * POST /api/persons/:siteId/:personId/divorce
  * 이혼 처리 (§30-2: spouse 관계 해제)

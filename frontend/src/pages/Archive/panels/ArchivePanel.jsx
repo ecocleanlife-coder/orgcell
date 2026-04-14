@@ -23,6 +23,7 @@ import {
 import PhotoArchiveSection    from './PhotoArchiveSection';
 import DocumentArchiveSection from './DocumentArchiveSection';
 import CareerSection          from './CareerSection';
+import AutobiographySection   from './AutobiographySection';
 
 // ── 메뉴 정의 ─────────────────────────────────────────────────────────────────
 const MENU_BTNS = [
@@ -116,7 +117,11 @@ export default function ArchivePanel({ siteId, personId }) {
             <CareerSection key="career" siteId={siteId} personId={personId} />
           )}
 
-          {activeMenu && activeMeta && activeMenu !== 'photo' && activeMenu !== 'main' && activeMenu !== 'career' && (
+          {activeMenu === 'memoir' && (
+            <AutobiographySection key="memoir" siteId={siteId} personId={personId} />
+          )}
+
+          {activeMenu && activeMeta && activeMenu !== 'photo' && activeMenu !== 'main' && activeMenu !== 'career' && activeMenu !== 'memoir' && (
             <ExhibitionSection
               key={activeMenu}
               siteId={siteId}
