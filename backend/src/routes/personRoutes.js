@@ -38,4 +38,7 @@ router.post('/:siteId/:personId/divorce', protect, ctrl.divorceSpouse);
 // oc_id 일괄 부여 (기존 인물 중 oc_id 없는 것에 부여)
 router.post('/:siteId/backfill-oc-ids', protect, ctrl.backfillOcIds);
 
+// 관계 누락 인물 자동 복구 (보완 구조)
+router.post('/:siteId/repair-relations', protect, ctrl.repairRelations);
+
 module.exports = router;

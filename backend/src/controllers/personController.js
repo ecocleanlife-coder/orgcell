@@ -1121,3 +1121,89 @@ exports.divorceSpouse = async (req, res) => {
         res.status(500).json({ success: false, message: '이혼 처리 실패' });
     }
 };
+
+// ── 관계 보완/복구 ─────────────────────────────────────────────────────────────
+// POST /api/persons/:siteId/repair-relations
+// 자녀 타입 ops_path가 있지만 person_relations가 없는 인물 자동 복구
+exports.repairRelations = async (req, res) => {
+    const { siteId } = req.params;
+    const userId = req.user?.id;
+
+    try {
+        if (!await checkSiteAccess(userId, siteId)) {
+            return res.status(403).json({ success: false, message: 'Forbidden' });
+        }
+
+        // 관장 조회 (site 소유자 + linked)
+        const siteRes = await db.query(
+            `SELECT user_id FROM family_sites WHERE id = $1`, [siteId]
+        );
+        if (!siteRes.rows[0]) {
+            return res.status(404).json({ success: false, message: '사이트 없음' });
+        }
+        const siteOwnerId = siteRes.rows[0].user_id;
+
+        const curatorRes = await db.query(
+            `SELECT id FROM persons WHERE site_id = $1 AND user_id = $2 AND match_status = 'linked' LIMIT 1`,
+            [siteId, siteOwnerId]
+        );
+        if (!curatorRes.rows[0]) {
+            return res.json({ success: true, created: 0, message: '관장 없음' });
+        }
+        const curatorId = curatorRes.rows[0].id;
+
+        let created = 0;
+
+        try {
+            // ops_path 번호 없는 것 보정 ('s'→'s1', 'd'→'d1', 'b'→'b1', 'si'→'si1')
+            await db.query(`
+                UPDATE person_paths pp
+                SET path = path || '1'
+                WHERE pp.is_canonical = TRUE
+                  AND pp.path IN ('s', 'd', 'b', 'si')
+                  AND EXISTS (
+                      SELECT 1 FROM persons p
+                      WHERE (p.person_id = pp.person_id OR p.oc_id = pp.person_id)
+                        AND p.site_id = $1
+                  )
+            `, [siteId]);
+
+            // 자녀 타입 path(s*, d*)이지만 person_relations 없는 인물 탐색
+            const { rows: missing } = await db.query(`
+                SELECT p.id
+                FROM persons p
+                JOIN person_paths pp
+                  ON (p.person_id = pp.person_id OR p.oc_id = pp.person_id)
+                WHERE p.site_id = $1
+                  AND p.id != $2
+                  AND pp.is_canonical = TRUE
+                  AND pp.path ~ '^[sd][0-9]+$'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM person_relations pr
+                      WHERE pr.site_id = $1
+                        AND pr.person1_id = $2
+                        AND pr.person2_id = p.id
+                        AND pr.relation_type = 'parent'
+                        AND pr.is_active = TRUE
+                  )
+            `, [siteId, curatorId]);
+
+            for (const row of missing) {
+                await db.query(`
+                    INSERT INTO person_relations (site_id, person1_id, person2_id, relation_type, is_active)
+                    VALUES ($1, $2, $3, 'parent', TRUE)
+                    ON CONFLICT DO NOTHING
+                `, [siteId, curatorId, row.id]);
+                created++;
+            }
+        } catch (pathErr) {
+            // person_paths 테이블 없는 경우 조용히 무시
+            console.warn('repairRelations: person_paths 쿼리 실패 (테이블 없음?)', pathErr.message);
+        }
+
+        return res.json({ success: true, created, message: `${created}개 관계 복구 완료` });
+    } catch (err) {
+        console.error('repairRelations error:', err);
+        return res.status(500).json({ success: false, message: '복구 실패', detail: err.message });
+    }
+};

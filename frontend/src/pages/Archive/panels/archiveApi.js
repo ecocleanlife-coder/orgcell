@@ -131,3 +131,11 @@ export async function uploadExhibitionFile(siteId, type, files, meta = {}) {
 export async function deleteExhibitionItem(siteId, type, itemId) {
   return apiFetch(`/api/exhibitions/${siteId}/${type}/${itemId}`, { method: 'DELETE' });
 }
+
+/**
+ * POST /api/persons/:siteId/repair-relations
+ * 관계 누락 인물 자동 복구 (보완 구조 §3)
+ */
+export async function repairRelations(siteId) {
+  return apiFetch(`/api/persons/${siteId}/repair-relations`, { method: 'POST' });
+}
