@@ -688,7 +688,7 @@ exports.backfillOcIds = async (req, res) => {
 };
 
 // POST /api/persons/:siteId/:personId/photo
-// §19/§26: 저장 경로 = uploads/{subdomain}/{ops_path}/profile.jpg
+// §19/§26: 저장 경로 = uploads/{subdomain}/{ops_path}/{personId}/profile.jpg
 exports.uploadPhoto = async (req, res) => {
     try {
         const { siteId, personId } = req.params;

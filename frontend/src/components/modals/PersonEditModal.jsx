@@ -15,7 +15,7 @@
  * 저장 후: treeStore.invalidate() → 트리 갱신
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTreeStore }           from '../../store/treeStore';
 import { useAuthStore }           from '../../store/authStore';
@@ -28,10 +28,12 @@ function splitKoreanName(fullName = '') {
   return { lastName: trimmed.slice(0, 1), firstName: trimmed.slice(1) };
 }
 
-// ─── 날짜 분리 헬퍼 (YYYY-MM-DD → 년/월/일) ─────────────────────────────────
+// ─── 날짜 분리 헬퍼 (YYYY-MM-DD 또는 ISO 문자열 → 년/월/일) ───────────────────
 function splitDate(dateStr = '') {
   if (!dateStr) return { y: '', m: '', d: '' };
-  const [y = '', m = '', d = ''] = dateStr.split('-');
+  // ISO datetime (2000-01-27T00:00:00.000Z) → 앞 10자만 사용
+  const clean = String(dateStr).slice(0, 10);
+  const [y = '', m = '', d = ''] = clean.split('-');
   return { y, m: m.replace(/^0/, ''), d: d.replace(/^0/, '') };
 }
 
@@ -106,6 +108,9 @@ export default function PersonEditModal() {
   const [bio2,       setBio2]       = useState('');
   const [bio3,       setBio3]       = useState('');
   const [saving,     setSaving]     = useState(false);
+  const [preview,    setPreview]    = useState('');
+  const [uploading,  setUploading]  = useState(false);
+  const fileRef = useRef(null);
 
   // 노드 변경 시 폼 초기화
   useEffect(() => {
@@ -126,7 +131,32 @@ export default function PersonEditModal() {
     setEngLast(engL);  setEngFirst(engF);
     setBio1(node.bio1 || ''); setBio2(node.bio2 || ''); setBio3(node.bio3 || '');
     setSaving(false);
+    setPreview(node.photoUrl ? `${node.photoUrl}?v=${Date.now()}` : '');
+    setUploading(false);
   }, [selectedPersonId]);
+
+  // ── 사진 업로드 ────────────────────────────────────────────────────────────
+  async function handlePhotoFile(e) {
+    const file = e.target.files?.[0];
+    if (!file || !siteId || !node?.id) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('photo', file);
+      const res  = await fetch(`/api/persons/${siteId}/${node.id}/photo`, { method: 'POST', body: fd, credentials: 'include' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message || '업로드 실패');
+      const url = json.data?.photo_url;
+      setPreview(url ? `${url}?v=${Date.now()}` : URL.createObjectURL(file));
+      await invalidate();
+      toast.success('사진이 저장됐습니다.');
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  }
 
   // ── 저장 ──────────────────────────────────────────────────────────────────
   async function handleSave() {
@@ -179,13 +209,32 @@ export default function PersonEditModal() {
         </div>
 
         <div style={s.body}>
+          {/* 사진 박스 */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+            <div
+              style={s.photoBox}
+              onDoubleClick={() => fileRef.current?.click()}
+              title="더블클릭 또는 버튼으로 사진 변경"
+            >
+              {preview
+                ? <img src={preview} alt={node.name} style={s.photoImg} />
+                : <span style={{ fontSize: 40, color: '#C4A882' }}>{node.gender === 'F' || node.gender === 'female' ? '♀' : '♂'}</span>
+              }
+              {uploading && <div style={s.uploadingOverlay}>업로드 중…</div>}
+            </div>
+            <button style={s.photoBtn} onClick={() => fileRef.current?.click()} disabled={uploading}>
+              {preview ? '사진 변경' : '사진 추가'}
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoFile} />
+          </div>
+
           {/* 성 / 이름 (§27 분리) */}
           <div style={s.row2}>
             <Field label={<>성 (姓) <Req /></>}>
-              <input style={s.input} value={lastName}  onChange={e => setLastName(e.target.value)}  placeholder="이" />
+              <input style={s.input} value={lastName}  onChange={e => setLastName(e.target.value)} />
             </Field>
             <Field label={<>이름 <Req /></>}>
-              <input style={s.input} value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="상훈" />
+              <input style={s.input} value={firstName} onChange={e => setFirstName(e.target.value)} />
             </Field>
           </div>
 
@@ -356,6 +405,22 @@ const s = {
   radioRow:  { display: 'flex', gap: 20, paddingTop: 4 },
   checkLabel:{ display: 'flex', alignItems: 'center', fontSize: 13, color: '#5a4a35', cursor: 'pointer' },
   sectionTitle: { fontSize: 12, color: '#8B7355', fontWeight: 600, margin: '4px 0 0' },
+  photoBox: {
+    width: 100, height: 100, borderRadius: 8,
+    border: '1px solid #C4A882', background: '#F0EAE0',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden', position: 'relative', cursor: 'pointer',
+  },
+  photoImg: { width: '100%', height: '100%', objectFit: 'cover' },
+  uploadingOverlay: {
+    position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)',
+    color: '#fff', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  photoBtn: {
+    padding: '5px 14px', fontSize: 12, cursor: 'pointer',
+    background: 'none', border: '1px solid #C4A882',
+    borderRadius: 4, color: '#8B7355',
+  },
   cancelBtn: {
     padding: '9px 20px',
     background: 'none', border: '1px solid #C4A882',
