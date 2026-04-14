@@ -53,6 +53,7 @@ export default function App() {
         <Route path="/person/:personDbId"  element={<PersonMuseumPage />} />
 
         {/* 박물관 경로 — /:subdomain 기반 */}
+        <Route path="/:subdomain/:personPath/archive"  element={<ArchivePage />} />
         <Route path="/:subdomain/archive"              element={<ArchivePage />} />
         <Route path="/:subdomain/exhibition/:type"     element={<ExhibitionPage />} />
         <Route path="/:subdomain"                      element={<MuseumPage />} />

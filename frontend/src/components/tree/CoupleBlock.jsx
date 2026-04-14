@@ -24,6 +24,7 @@
  */
 
 import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { COUPLE_WIDTH, CARD_WIDTH, CARD_HEIGHT, ANIM_DELAY_BASE, COLOR } from '../../constants/tree';
 import GhostCard from './GhostCard';
 
@@ -36,7 +37,7 @@ const BLOCK_H       = CARD_HEIGHT + BLOCK_PADDING * 2;   // 220 + 16 = 236
 const DBL_CLICK_MS = 250;
 
 // ══════════════════════════════════════════════════════════════════════════════
-export default function CoupleBlock({ group, offsetX, offsetY, scale = 1, curatorPersonId, onDoubleClick, onWormhole }) {
+export default function CoupleBlock({ group, offsetX, offsetY, scale = 1, curatorPersonId, subdomain, onDoubleClick, onWormhole }) {
   const { nodes, blockX, y } = group;
 
   const left   = nodes.find(n => n.coupleRole === 'left');
@@ -95,6 +96,7 @@ export default function CoupleBlock({ group, offsetX, offsetY, scale = 1, curato
           <FolderCard
             node={single}
             isCuratorCard={single.personId === curatorPersonId}
+            subdomain={subdomain}
             onDoubleClick={onDoubleClick}
             onWormhole={onWormhole}
           />
@@ -104,6 +106,7 @@ export default function CoupleBlock({ group, offsetX, offsetY, scale = 1, curato
               <FolderCard
                 node={left}
                 isCuratorCard={left.personId === curatorPersonId}
+                subdomain={subdomain}
                 isLeft
                 onDoubleClick={onDoubleClick}
                 onWormhole={onWormhole}
@@ -113,6 +116,7 @@ export default function CoupleBlock({ group, offsetX, offsetY, scale = 1, curato
               <FolderCard
                 node={right}
                 isCuratorCard={right.personId === curatorPersonId}
+                subdomain={subdomain}
                 isRight
                 onDoubleClick={onDoubleClick}
                 onWormhole={onWormhole}
@@ -128,9 +132,10 @@ export default function CoupleBlock({ group, offsetX, offsetY, scale = 1, curato
 // ══════════════════════════════════════════════════════════════════════════════
 // FolderCard — §4 카드 (전체 사진 cover, 이름 오버레이, † 고인)
 // ══════════════════════════════════════════════════════════════════════════════
-function FolderCard({ node, isCuratorCard, isLeft, isRight, onDoubleClick, onWormhole }) {
+function FolderCard({ node, isCuratorCard, subdomain, isLeft, isRight, onDoubleClick, onWormhole }) {
   const [hovered, setHovered] = useState(false);
-  const timerRef = useRef(null);
+  const timerRef  = useRef(null);
+  const navigate  = useNavigate();
 
   // Ghost 인물: 이름 있으면 일반 카드처럼, 없으면 GhostCard
   if (node.matchStatus === 'ghost' && !node.name) {
@@ -168,6 +173,17 @@ function FolderCard({ node, isCuratorCard, isLeft, isRight, onDoubleClick, onWor
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
+    // §6 더블클릭: ops_path 있는 인물 → /{subdomain}/{opsPath}/archive 이동
+    if (subdomain && node.opsPath) {
+      navigate(`/${subdomain}/${node.opsPath}/archive`);
+      return;
+    }
+    // 관장 본인 카드 → /{subdomain}/archive 이동
+    if (subdomain && isCuratorCard) {
+      navigate(`/${subdomain}/archive`);
+      return;
+    }
+    // fallback: PersonEditModal
     onDoubleClick(node.personId);
   }
 
@@ -196,9 +212,11 @@ function FolderCard({ node, isCuratorCard, isLeft, isRight, onDoubleClick, onWor
       {/* §4 호버 툴팁 */}
       {hovered && (
         <div style={s.tooltip}>
-          {node.matchStatus === 'linked'
-            ? `클릭: ${node.name} 박물관  |  더블클릭: 정보 수정`
-            : '더블클릭으로 정보 수정'}
+          {node.opsPath
+            ? `더블클릭: ${node.name} 자료실`
+            : node.matchStatus === 'linked'
+              ? `클릭: ${node.name} 박물관  |  더블클릭: 정보 수정`
+              : '더블클릭으로 정보 수정'}
         </div>
       )}
     </div>

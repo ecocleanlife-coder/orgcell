@@ -12,6 +12,7 @@
 
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore }   from '@/store/authStore.js';
+import { useTreeStore }   from '@/store/treeStore.js';
 import { useArchiveData } from './hooks/useArchiveData';
 import MyInfoPanel        from './panels/MyInfoPanel';
 import FamilyPanel        from './panels/FamilyPanel';
@@ -26,22 +27,31 @@ const TABS = [
 
 // ── 컴포넌트 ──────────────────────────────────────────────────────────────────
 export default function ArchivePage() {
-  const { subdomain }                  = useParams();
-  const navigate                       = useNavigate();
+  const { subdomain, personPath }       = useParams();
+  const navigate                        = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isAuthenticated }            = useAuthStore();
+  const { isAuthenticated }             = useAuthStore();
 
   const activeTab = searchParams.get('tab') ?? 'myinfo';
 
+  const { nodes } = useTreeStore();
+
   const {
     curatorNode,
-    personId,
+    personId: curatorDbId,
     siteId,
     relations,
     mergeNotifs,
     dataReady,
     refreshRelations,
   } = useArchiveData(subdomain);
+
+  // personPath 있으면 해당 인물 노드 사용 (없으면 관장 노드)
+  const activeNode   = personPath
+    ? (nodes ?? []).find(n => n.opsPath === personPath) ?? curatorNode
+    : curatorNode;
+  const personId     = activeNode?.id ?? null;
+  const personName   = activeNode?.name ?? '';
 
   // ── 렌더 ──────────────────────────────────────────────────────────────────
   if (!isAuthenticated) return null;
@@ -55,6 +65,10 @@ export default function ArchivePage() {
         <button style={s.backBtn} onClick={() => navigate(`/${subdomain}`)}>
           ← 돌아가기
         </button>
+
+        {personPath && personName && (
+          <span style={s.personBadge}>👤 {personName}</span>
+        )}
 
         <nav style={s.tabs}>
           {TABS.map(t => (
@@ -73,7 +87,7 @@ export default function ArchivePage() {
       <div style={s.body}>
         {activeTab === 'myinfo' && (
           <MyInfoPanel
-            curatorNode={curatorNode}
+            curatorNode={activeNode}
             personId={personId}
             siteId={siteId}
             mergeNotifs={mergeNotifs}
@@ -82,7 +96,7 @@ export default function ArchivePage() {
 
         {activeTab === 'family' && (
           <FamilyPanel
-            curatorNode={curatorNode}
+            curatorNode={activeNode}
             personId={personId}
             siteId={siteId}
             relations={relations}

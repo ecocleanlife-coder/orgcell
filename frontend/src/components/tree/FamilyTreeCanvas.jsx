@@ -198,6 +198,7 @@ export default function FamilyTreeCanvas() {
           offsetY={offset.y}
           scale={scale}
           curatorPersonId={curatorId}
+          subdomain={subdomain || storeSubdomain}
           onDoubleClick={selectPerson}
           onWormhole={openWormhole}
         />
