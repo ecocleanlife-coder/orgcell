@@ -226,6 +226,36 @@ ORGCELL_CODING_RULES.md 파일을 아래 내용으로 완전히 교체해서 저
 
 ---
 
+### §8-C 주요약력 세부 정책
+
+공개명: 약력전시관
+
+#### 입력 구조
+- 항목당: 연도(필수, SMALLINT) | 내용(필수, VARCHAR 300) | 보조설명(선택, TEXT)
+- 항목 수 제한 없음, 파일 업로드 없음, 용량 합산 제외
+
+#### 공개 정책
+- 항목별 is_public 개별 선택
+- 공개 항목 1개 이상 → 약력전시관 메뉴 자동 노출
+- 비공개 항목: 관장에게만 표시 (흐리게), 전시관 미노출
+
+#### 편집 권한
+- 관장 본인: 항상 가능
+- 박물관 미보유 가족 구성원: 가능
+- 해당 인물이 본인 계정 생성 후: 권한 자동 이전, 관장 편집 권한 박탈
+
+#### API 경로: /api/career
+- GET    /:siteId          — 목록 (관장: 전체, 방문자: is_public=true만)
+- POST   /:siteId          — 항목 추가
+- PUT    /:siteId/reorder  — 순서 저장
+- PUT    /:siteId/:itemId  — 수정 (year / content / description / is_public)
+- DELETE /:siteId/:itemId  — 삭제
+
+#### DB 구조
+- `career_items` (id, site_id, person_id, year SMALLINT, content VARCHAR(300), description TEXT, sort_order, is_public, created_at, updated_at)
+
+---
+
 ## 9. 관계 탭 동작 규칙
 - 탭 선택 시 해당 인물 기존 데이터 자동 로드
 - 등록된 인물 → [수정][제거] 활성화, [생성] 비활성화

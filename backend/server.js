@@ -120,6 +120,7 @@ const ROUTE_MAP = {
     'treeRoutes': '/api/tree',
     'photoFolderRoutes':    '/api/photo-folders',
     'documentFolderRoutes': '/api/document-folders',
+    'careerRoutes':         '/api/career',
 };
 
 const routesDir = path.join(__dirname, 'src', 'routes');

@@ -107,6 +107,7 @@ export default function ArchivePage() {
         {activeTab === 'archive' && (
           <ArchivePanel
             siteId={siteId}
+            personId={personId}
             subdomain={subdomain}
           />
         )}

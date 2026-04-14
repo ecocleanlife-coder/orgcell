@@ -296,6 +296,48 @@ export async function deleteFolderDocument(siteId, folderId, docId) {
   return apiFetch(`${docBase(siteId)}/${folderId}/documents/${docId}`, { method: 'DELETE' });
 }
 
+// ── §8-C 주요약력 ─────────────────────────────────────────────────────────────
+
+const careerBase = (siteId) => `/api/career/${siteId}`;
+
+/** GET /api/career/:siteId — 약력 목록 */
+export async function fetchCareerItems(siteId) {
+  const data = await apiFetch(careerBase(siteId));
+  return data.items ?? [];
+}
+
+/** POST /api/career/:siteId — 항목 추가 */
+export async function createCareerItem(siteId, fields) {
+  return apiFetch(careerBase(siteId), {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(fields),
+  });
+}
+
+/** PUT /api/career/:siteId/reorder — 순서 저장 */
+export async function reorderCareerItems(siteId, orderedIds) {
+  return apiFetch(`${careerBase(siteId)}/reorder`, {
+    method:  'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ orderedIds }),
+  });
+}
+
+/** PUT /api/career/:siteId/:itemId — 항목 수정 */
+export async function updateCareerItem(siteId, itemId, fields) {
+  return apiFetch(`${careerBase(siteId)}/${itemId}`, {
+    method:  'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(fields),
+  });
+}
+
+/** DELETE /api/career/:siteId/:itemId — 항목 삭제 */
+export async function deleteCareerItem(siteId, itemId) {
+  return apiFetch(`${careerBase(siteId)}/${itemId}`, { method: 'DELETE' });
+}
+
 /**
  * POST /api/persons/:siteId/:personId/divorce
  * 이혼 처리 (§30-2: spouse 관계 해제)

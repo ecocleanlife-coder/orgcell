@@ -22,6 +22,7 @@ import {
 } from './archiveApi';
 import PhotoArchiveSection    from './PhotoArchiveSection';
 import DocumentArchiveSection from './DocumentArchiveSection';
+import CareerSection          from './CareerSection';
 
 // ── 메뉴 정의 ─────────────────────────────────────────────────────────────────
 const MENU_BTNS = [
@@ -44,7 +45,7 @@ const isImage = (url = '', mime = '') =>
   /\.(jpg|jpeg|png|gif|webp|avif)$/i.test(url) || mime?.startsWith('image/');
 
 // ── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
-export default function ArchivePanel({ siteId }) {
+export default function ArchivePanel({ siteId, personId }) {
   const [activeMenu, setActiveMenu] = useState(null);
   const [lightbox,   setLightbox]   = useState(null); // { url, title }
 
@@ -111,7 +112,11 @@ export default function ArchivePanel({ siteId }) {
             <DocumentArchiveSection key="main" siteId={siteId} />
           )}
 
-          {activeMenu && activeMeta && activeMenu !== 'photo' && activeMenu !== 'main' && (
+          {activeMenu === 'career' && (
+            <CareerSection key="career" siteId={siteId} personId={personId} />
+          )}
+
+          {activeMenu && activeMeta && activeMenu !== 'photo' && activeMenu !== 'main' && activeMenu !== 'career' && (
             <ExhibitionSection
               key={activeMenu}
               siteId={siteId}
