@@ -392,7 +392,11 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
                   <div
                     key={rel.id}
                     style={{ ...s.relRow, ...(isSelected ? s.relRowOn : {}) }}
-                    onClick={() => { setSelectedId(isSelected ? null : otherId); setShowAddForm(false); setSelectedNodeCache(node); }}
+                    onClick={() => {
+                      setSelectedId(isSelected ? null : otherId);
+                      setSelectedNodeCache(isSelected ? null : node);
+                      setShowAddForm(false);
+                    }}
                   >
                     {/* 썸네일 */}
                     <div style={s.thumb}>
