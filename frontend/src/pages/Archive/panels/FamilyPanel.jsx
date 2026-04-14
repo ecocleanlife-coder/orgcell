@@ -61,7 +61,7 @@ function PersonEditPanel({ node, siteId, onSaved, onClose }) {
   const [form, setForm] = useState({
     lastName: '', firstName: '', nameEnLast: '', nameEnFirst: '',
     gender: 'M', birthYear: '', birthMonth: '', birthDay: '',
-    isDeceased: false, deathDate: '',
+    isDeceased: false, deathDate: '', birthLunar: false,
   });
 
   // node → 폼 동기화
@@ -93,6 +93,7 @@ function PersonEditPanel({ node, siteId, onSaved, onClose }) {
       birthYear:  by,
       birthMonth: bm,
       birthDay:   bd,
+      birthLunar: node.birthLunar ?? node.birth_lunar ?? false,
       isDeceased: node.isDeceased ?? node.is_deceased ?? false,
       deathDate:  node.deathDate  ?? node.death_date  ?? '',
     });
@@ -146,6 +147,7 @@ function PersonEditPanel({ node, siteId, onSaved, onClose }) {
         name_en:    [form.nameEnLast, form.nameEnFirst].filter(Boolean).join(' ') || null,
         gender:     genderDb,
         birth_date: birthDate,
+        birth_lunar: form.birthLunar,
         is_deceased: form.isDeceased,
         death_date: form.deathDate || null,
       });
@@ -242,10 +244,14 @@ function PersonEditPanel({ node, siteId, onSaved, onClose }) {
       </div>
 
       <label style={ep.lbl}>생년월일</label>
-      <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
         <input style={{ ...ep.inp, width: 64 }} value={form.birthYear}  onChange={e => setForm(f => ({ ...f, birthYear: e.target.value }))}  placeholder="년" maxLength={4} />
         <input style={{ ...ep.inp, width: 44 }} value={form.birthMonth} onChange={e => setForm(f => ({ ...f, birthMonth: e.target.value }))} placeholder="월" maxLength={2} />
         <input style={{ ...ep.inp, width: 44 }} value={form.birthDay}   onChange={e => setForm(f => ({ ...f, birthDay: e.target.value }))}   placeholder="일" maxLength={2} />
+        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          <input type="checkbox" checked={form.birthLunar} onChange={e => setForm(f => ({ ...f, birthLunar: e.target.checked }))} />
+          음력
+        </label>
       </div>
 
       <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', marginBottom: 4 }}>
@@ -530,7 +536,7 @@ const ep = {
   header:        { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   title:         { fontSize: 13, fontWeight: 600, color: '#5a4a35' },
   closeBtn:      { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#8B7355' },
-  cardFrame:     { width: 120, height: 120, borderRadius: 6, border: '2px solid #C4A882', background: '#2a2a2a', overflow: 'hidden', position: 'relative', flexShrink: 0, alignSelf: 'center' },
+  cardFrame:     { width: 180, height: 180, borderRadius: 6, border: '2px solid #C4A882', background: '#2a2a2a', overflow: 'hidden', position: 'relative', flexShrink: 0, alignSelf: 'center' },
   photoImg:      { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', userSelect: 'none' },
   resizeHandle:  { position: 'absolute', bottom: 3, right: 3, width: 10, height: 10, background: '#C4A882', borderRadius: 2, cursor: 'se-resize', zIndex: 2 },
   cardEmpty:     { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' },
