@@ -165,14 +165,16 @@ exports.createPerson = async (req, res) => {
         let autoOpsPath = null;
         const isMale = (gender === 'M' || gender === 'male');
 
-        // §26-1: 자녀/형제자매는 생성 순서 기반 번호 부여
+        // §26-1: 자녀/형제자매는 생성 순서 기반 번호 부여 (DB MAX 집계)
         async function nextOpsPathNum(prefix) {
-            const { rows: existing } = await db.query(
-                `SELECT ops_path FROM persons WHERE site_id = $1 AND ops_path ~ $2`,
-                [siteId, `^${prefix}[0-9]+$`]
+            const pattern = `^${prefix}[0-9]+$`;
+            const { rows } = await db.query(
+                `SELECT COALESCE(MAX(CAST(SUBSTRING(ops_path FROM ${prefix.length + 1}) AS INT)), 0) + 1 AS next_num
+                 FROM persons
+                 WHERE site_id = $1 AND ops_path ~ $2`,
+                [Number(siteId), pattern]
             );
-            const nums = existing.map(r => parseInt(r.ops_path.replace(prefix, ''), 10)).filter(n => !isNaN(n));
-            return nums.length > 0 ? Math.max(...nums) + 1 : 1;
+            return rows[0]?.next_num ?? 1;
         }
 
         if (relation_type === 'parent') {
