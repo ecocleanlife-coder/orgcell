@@ -54,7 +54,7 @@ async function getAllPersons(siteId) {
             p.bon_gwan, p.father_first_name, p.father_last_name,
             p.mother_first_name, p.mother_last_name,
             p.parent1_id, p.parent2_id, p.spouse_id,
-            p.match_status, p.privacy_level
+            p.match_status, p.privacy_level, p.ops_path
      FROM persons p
      WHERE p.site_id = $1
      ORDER BY p.id ASC`,

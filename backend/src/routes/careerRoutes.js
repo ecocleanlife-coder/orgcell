@@ -6,7 +6,7 @@
 const express = require('express');
 const router  = express.Router();
 const ctrl    = require('../controllers/careerController');
-const { protect } = require('../middlewares/auth');
+const { protect } = require('../middlewares/authMiddleware');
 
 // GET    /:siteId          — 목록 (비로그인 가능, 공개만 반환)
 router.get('/:siteId', ctrl.listItems);
