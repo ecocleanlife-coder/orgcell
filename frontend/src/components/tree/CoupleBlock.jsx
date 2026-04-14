@@ -192,7 +192,7 @@ function FolderCard({ node, isCuratorCard, isLeft, isRight, onDoubleClick, onWor
       {hovered && (
         <div style={s.tooltip}>
           {node.matchStatus === 'linked'
-            ? `${node.name} 박물관 — 더블클릭`
+            ? `클릭: ${node.name} 박물관  |  더블클릭: 정보 수정`
             : '더블클릭으로 정보 수정'}
         </div>
       )}

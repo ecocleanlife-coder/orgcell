@@ -142,6 +142,14 @@ export async function deleteExhibitionItem(siteId, type, itemId) {
 }
 
 /**
+ * POST /api/persons/:siteId/:personId/divorce
+ * 이혼 처리 (§30-2: spouse 관계 해제)
+ */
+export async function divorceSpouse(siteId, personId) {
+  return apiFetch(`/api/persons/${siteId}/${personId}/divorce`, { method: 'POST' });
+}
+
+/**
  * POST /api/persons/:siteId/repair-relations
  * 관계 누락 인물 자동 복구 (보완 구조 §3)
  */

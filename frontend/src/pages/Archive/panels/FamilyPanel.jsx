@@ -20,7 +20,7 @@ import { useState, useRef, useEffect } from 'react';
 import { toast }                        from 'react-hot-toast';
 import { useTreeStore }                 from '../../../store/treeStore';
 import {
-  createPerson, savePerson, deleteRelation, uploadPhoto, repairRelations, fetchPersonById,
+  createPerson, savePerson, deleteRelation, divorceSpouse, uploadPhoto, repairRelations, fetchPersonById,
 } from './archiveApi';
 
 // ── 상수 ─────────────────────────────────────────────────────────────────────
@@ -86,12 +86,29 @@ const mn = {
   name:    { fontSize: 10, color: '#3a2a1a', marginTop: 2, width: MINI_W, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
 };
 
+// ── 중복 제거 헬퍼 ────────────────────────────────────────────────────────────
+function dedupRels(rels, getPersonId) {
+  const seen = new Set();
+  return rels.filter(r => {
+    const id = getPersonId(r);
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
 // ── 간이 가계도 ───────────────────────────────────────────────────────────────
 function MiniTree({ personId, relations, getNodeName, getNodePhoto, selectedId, onSelect, onAdd, onRemoveRel }) {
-  const parents  = filterRels(relations, personId, 'parent');
-  const spouses  = filterRels(relations, personId, 'spouse');
-  const children = filterRels(relations, personId, 'child');
-  const siblings = filterRels(relations, personId, 'sibling');
+  const rawParents  = filterRels(relations, personId, 'parent');
+  const rawSpouses  = filterRels(relations, personId, 'spouse');
+  const rawChildren = filterRels(relations, personId, 'child');
+  const rawSiblings = filterRels(relations, personId, 'sibling');
+
+  // 동일 인물 중복 제거
+  const parents  = dedupRels(rawParents,  r => Number(r.person1_id));
+  const spouses  = dedupRels(rawSpouses,  r => Number(otherOf(r, personId)));
+  const children = dedupRels(rawChildren, r => Number(r.person2_id));
+  const siblings = dedupRels(rawSiblings, r => Number(otherOf(r, personId)));
 
   const Vline = () => <div style={{ width: 1, height: 16, background: LINE, margin: '2px auto' }} />;
 
@@ -222,6 +239,8 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
   const [selectedNodeCache, setSelectedNodeCache] = useState(null);
   const [isAddMode,         setIsAddMode]         = useState(false);
   const [confirmDel,        setConfirmDel]        = useState(null);
+  const [confirmSave,       setConfirmSave]       = useState(false);
+  const [confirmDivorce,    setConfirmDivorce]    = useState(false);
   const [saving,            setSaving]            = useState(false);
   const [uploading,         setUploading]         = useState(false);
 
@@ -436,6 +455,21 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
     }
   }
 
+  // ── 이혼 처리 ──────────────────────────────────────────────────────────────
+  async function handleDivorce() {
+    try {
+      await divorceSpouse(siteId, personId);
+      await invalidate();
+      await refreshRelations();
+      cancelEdit();
+      toast.success('이혼 처리됐습니다.');
+    } catch {
+      toast.error('이혼 처리 실패');
+    } finally {
+      setConfirmDivorce(false);
+    }
+  }
+
   // ── 관계 해제 ──────────────────────────────────────────────────────────────
   async function handleDeleteRelation(relationId) {
     try {
@@ -453,6 +487,8 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
 
   // ── 헤더 레이블 결정 ────────────────────────────────────────────────────────
   const canPhotoUpload = !isAddMode && selectedId !== null;
+  const isSpouseSelected = selectedId !== null &&
+    filterRels(relations, personId, 'spouse').some(r => Number(otherOf(r, personId)) === selectedId);
   const headerLabel = isAddMode
     ? `+ ${REL_LABEL[relTab]} 추가`
     : selectedId !== null
@@ -582,12 +618,15 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
             <button
               style={{ ...s.btnPri, flex: 1, opacity: saving ? 0.6 : 1 }}
               disabled={saving}
-              onClick={isAddMode ? handleCreate : handleSave}
+              onClick={isAddMode ? handleCreate : () => setConfirmSave(true)}
             >
               {saving ? '처리 중...' : isAddMode ? '생성' : '저장'}
             </button>
           )}
-          {!isAddMode && selectedId !== null && (
+          {!isAddMode && isSpouseSelected && (
+            <button style={{ ...s.btnDng, background: '#8B4513' }} onClick={() => setConfirmDivorce(true)}>이혼</button>
+          )}
+          {!isAddMode && selectedId !== null && !isSpouseSelected && (
             <button
               style={s.btnDng}
               onClick={() => {
@@ -624,6 +663,39 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
               <button style={s.btnDng} onClick={() => handleDeleteRelation(confirmDel.id)}>해제</button>
               <button style={s.btnSec} onClick={() => setConfirmDel(null)}>취소</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 저장 확인 모달 ── */}
+      {confirmSave && (
+        <div style={s.overlay}>
+          <div style={s.modal}>
+            <p style={{ fontSize: 14, color: '#3a2a1a', marginBottom: 20 }}>
+              수정사항을 저장하시겠습니까?
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              <button style={s.btnPri} onClick={() => { setConfirmSave(false); handleSave(); }}>저장</button>
+              <button style={s.btnSec} onClick={() => setConfirmSave(false)}>취소</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 이혼 확인 모달 ── */}
+      {confirmDivorce && (
+        <div style={s.overlay}>
+          <div style={s.modal}>
+            <p style={{ fontSize: 14, color: '#3a2a1a', marginBottom: 8 }}>
+              이혼 처리하시겠습니까?
+            </p>
+            <p style={{ fontSize: 12, color: '#8B7355', marginBottom: 20 }}>
+              배우자 관계가 해제됩니다.
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              <button style={{ ...s.btnDng, background: '#8B4513' }} onClick={handleDivorce}>이혼 처리</button>
+              <button style={s.btnSec} onClick={() => setConfirmDivorce(false)}>취소</button>
             </div>
           </div>
         </div>

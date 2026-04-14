@@ -1246,6 +1246,76 @@ exports.repairRelations = async (req, res) => {
             // persons.ops_path 컬럼 없으면 무시
         }
 
+        // ── 3단계: persons.ops_path 배우자 복구 (h*, w* path) ─────────────────
+        try {
+            const { rows: missingSpouses } = await db.query(`
+                SELECT DISTINCT p.id
+                FROM persons p
+                WHERE p.site_id = $1
+                  AND p.id != $2
+                  AND p.ops_path ~ '^[hw][0-9]*$'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM person_relations pr
+                      WHERE pr.site_id = $1
+                        AND ((pr.person1_id = $2 AND pr.person2_id = p.id)
+                          OR (pr.person1_id = p.id AND pr.person2_id = $2))
+                        AND pr.relation_type = 'spouse'
+                        AND pr.is_active = TRUE
+                  )
+            `, [siteId, curatorId]);
+
+            for (const row of missingSpouses) {
+                await db.query(`
+                    INSERT INTO person_relations (site_id, person1_id, person2_id, relation_type, is_active)
+                    SELECT $1, $2, $3, 'spouse', TRUE
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM person_relations
+                        WHERE site_id = $1
+                          AND ((person1_id = $2 AND person2_id = $3)
+                            OR (person1_id = $3 AND person2_id = $2))
+                          AND relation_type = 'spouse'
+                    )
+                `, [siteId, curatorId, row.id]);
+                created++;
+            }
+        } catch { /* ops_path 없으면 무시 */ }
+
+        // ── 4단계: person_paths 배우자 복구 (h*, w* path) ──────────────────────
+        try {
+            const { rows: missingSpouses2 } = await db.query(`
+                SELECT DISTINCT p.id
+                FROM persons p
+                JOIN person_paths pp ON (p.person_id = pp.person_id OR p.oc_id = pp.person_id)
+                WHERE p.site_id = $1
+                  AND p.id != $2
+                  AND pp.is_canonical = TRUE
+                  AND pp.path ~ '^[hw][0-9]*$'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM person_relations pr
+                      WHERE pr.site_id = $1
+                        AND ((pr.person1_id = $2 AND pr.person2_id = p.id)
+                          OR (pr.person1_id = p.id AND pr.person2_id = $2))
+                        AND pr.relation_type = 'spouse'
+                        AND pr.is_active = TRUE
+                  )
+            `, [siteId, curatorId]);
+
+            for (const row of missingSpouses2) {
+                await db.query(`
+                    INSERT INTO person_relations (site_id, person1_id, person2_id, relation_type, is_active)
+                    SELECT $1, $2, $3, 'spouse', TRUE
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM person_relations
+                        WHERE site_id = $1
+                          AND ((person1_id = $2 AND person2_id = $3)
+                            OR (person1_id = $3 AND person2_id = $2))
+                          AND relation_type = 'spouse'
+                    )
+                `, [siteId, curatorId, row.id]);
+                created++;
+            }
+        } catch { /* person_paths 없으면 무시 */ }
+
         return res.json({ success: true, created, message: `${created}개 관계 복구 완료` });
     } catch (err) {
         console.error('repairRelations error:', err);
