@@ -279,6 +279,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
   const [confirmDel,  setConfirmDel]  = useState(null);
   const [saving,      setSaving]      = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [selectedNodeCache, setSelectedNodeCache] = useState(null);
 
   const [newForm, setNewForm] = useState({
     lastName: '', firstName: '', nameEnLast: '', nameEnFirst: '',
@@ -299,7 +300,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
   };
 
   const getNodeName = id => { const n = getNode(id); return n ? (n.name ?? `${n.last_name??''}${n.first_name??''}`) : `#${id}`; };
-  const selectedNode = selectedId ? getNode(selectedId) : null;
+  const selectedNode = selectedId ? (getNode(selectedId) ?? selectedNodeCache) : null;
 
   // 탭 변경 시 선택 초기화
   function handleTabChange(key) {
@@ -391,7 +392,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
                   <div
                     key={rel.id}
                     style={{ ...s.relRow, ...(isSelected ? s.relRowOn : {}) }}
-                    onClick={() => { setSelectedId(isSelected ? null : otherId); setShowAddForm(false); }}
+                    onClick={() => { setSelectedId(isSelected ? null : otherId); setShowAddForm(false); setSelectedNodeCache(node); }}
                   >
                     {/* 썸네일 */}
                     <div style={s.thumb}>
