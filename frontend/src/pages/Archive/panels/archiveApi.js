@@ -70,6 +70,15 @@ export async function createPerson(siteId, fields) {
 }
 
 /**
+ * GET /api/persons/:siteId/:personId
+ * 단일 인물 조회 (treeStore에 없는 ghost 인물용)
+ */
+export async function fetchPersonById(siteId, personId) {
+  const d = await apiFetch(`/api/persons/${siteId}/${personId}`);
+  return d.data ?? null;
+}
+
+/**
  * DELETE /api/persons/:siteId/:personId
  * 인물 트리 제거
  */

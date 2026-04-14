@@ -20,6 +20,7 @@ router.get('/path/*', optionalAuth, ctrl.getPersonByPath);
 
 // 조회는 optionalAuth (비로그인도 public 데이터 볼 수 있음)
 router.get('/:siteId', optionalAuth, ctrl.listPersons);
+router.get('/:siteId/:personId', optionalAuth, ctrl.getPerson);
 
 // 생성/수정/삭제는 protect (인증 필수)
 router.post('/:siteId', protect, ctrl.createPerson);

@@ -1252,3 +1252,39 @@ exports.repairRelations = async (req, res) => {
         return res.status(500).json({ success: false, message: '복구 실패', detail: err.message });
     }
 };
+
+// GET /api/persons/:siteId/:personId — 단일 인물 조회
+exports.getPerson = async (req, res) => {
+    try {
+        const { siteId, personId } = req.params;
+
+        // siteId 정수 or subdomain 해석
+        let siteIntId;
+        if (!isNaN(siteId)) {
+            const { rows } = await db.query(`SELECT id FROM family_sites WHERE id = $1`, [siteId]);
+            if (!rows[0]) return res.status(404).json({ success: false, message: 'Site not found' });
+            siteIntId = rows[0].id;
+        } else {
+            const { rows } = await db.query(`SELECT id FROM family_sites WHERE subdomain = $1`, [siteId]);
+            if (!rows[0]) return res.status(404).json({ success: false, message: 'Site not found' });
+            siteIntId = rows[0].id;
+        }
+
+        const { rows } = await db.query(
+            `SELECT id, person_id, oc_id, first_name, last_name, name, name_en, gender,
+                    birth_date, birth_year, death_date, death_year,
+                    is_deceased, birth_lunar, death_lunar,
+                    photo_url, photo_position, match_status,
+                    father_first_name, father_last_name, mother_first_name, mother_last_name
+             FROM persons
+             WHERE site_id = $1 AND id = $2`,
+            [siteIntId, personId]
+        );
+        if (!rows[0]) return res.status(404).json({ success: false, message: 'Person not found' });
+
+        return res.json({ success: true, data: rows[0] });
+    } catch (err) {
+        console.error('getPerson error:', err);
+        return res.status(500).json({ success: false, message: '인물 조회 실패', detail: err.message });
+    }
+};

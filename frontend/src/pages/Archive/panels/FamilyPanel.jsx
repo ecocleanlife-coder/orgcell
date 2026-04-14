@@ -20,7 +20,7 @@ import { useState, useRef, useEffect } from 'react';
 import { toast }                        from 'react-hot-toast';
 import { useTreeStore }                 from '../../../store/treeStore';
 import {
-  createPerson, savePerson, deleteRelation, uploadPhoto, repairRelations,
+  createPerson, savePerson, deleteRelation, uploadPhoto, repairRelations, fetchPersonById,
 } from './archiveApi';
 
 // ── 상수 ─────────────────────────────────────────────────────────────────────
@@ -296,10 +296,21 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
   }, [selectedNode]);
 
   // ── 핸들러 ────────────────────────────────────────────────────────────────
-  function handleSelectNode(id) {
+  async function handleSelectNode(id) {
     setSelectedId(id);
-    setSelectedNodeCache(getNode(id));
     setIsAddMode(false);
+    const local = getNode(id);
+    if (local) {
+      setSelectedNodeCache(local);
+    } else if (siteId) {
+      // treeStore에 없는 ghost 인물 → API로 직접 조회
+      try {
+        const p = await fetchPersonById(siteId, id);
+        setSelectedNodeCache(p);
+      } catch {
+        setSelectedNodeCache(null);
+      }
+    }
   }
 
   function handleAddMode(relType) {
@@ -344,10 +355,11 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
   // ── 사진 업로드 ────────────────────────────────────────────────────────────
   async function handleFile(e) {
     const file = e.target.files?.[0];
-    if (!file || !siteId || !selectedNode?.id) return;
+    const targetId = selectedNode?.id ?? selectedId;
+    if (!file || !siteId || !targetId) return;
     setUploading(true);
     try {
-      const json   = await uploadPhoto(siteId, selectedNode.id, file);
+      const json   = await uploadPhoto(siteId, targetId, file);
       const rawUrl = json.data?.photo_url ?? URL.createObjectURL(file);
       setPreview(rawUrl.startsWith('blob:') ? rawUrl : `${rawUrl}?v=${Date.now()}`);
       invalidate();
@@ -362,7 +374,8 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
 
   // ── 저장 ──────────────────────────────────────────────────────────────────
   async function handleSave() {
-    if (!siteId || !selectedNode?.id) return;
+    const saveId = selectedNode?.id ?? selectedId;
+    if (!siteId || !saveId) return;
     setSaving(true);
     try {
       const birthDate = form.birthYear
@@ -372,7 +385,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
         ? [form.deathYear, form.deathMonth?.padStart(2,'0'), form.deathDay?.padStart(2,'0')].filter(Boolean).join('-')
         : null;
       const genderDb = form.gender === 'male' ? 'M' : form.gender === 'female' ? 'F' : form.gender;
-      await savePerson(siteId, selectedNode.id, {
+      await savePerson(siteId, saveId, {
         name:        `${(form.lastName||'').trim()}${(form.firstName||'').trim()}`,
         first_name:  form.firstName?.trim() || null,
         last_name:   form.lastName?.trim()  || null,
@@ -439,11 +452,11 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
   }
 
   // ── 헤더 레이블 결정 ────────────────────────────────────────────────────────
-  const canPhotoUpload = !isAddMode && !!selectedNode;
+  const canPhotoUpload = !isAddMode && selectedId !== null;
   const headerLabel = isAddMode
     ? `+ ${REL_LABEL[relTab]} 추가`
-    : selectedNode
-      ? (selectedNode.name ?? getNodeName(selectedId))
+    : selectedId !== null
+      ? (selectedNode?.name ?? getNodeName(selectedId))
       : '가족 구성원을 선택하거나 추가하세요';
 
   return (
@@ -487,7 +500,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
               <p style={{ color: '#8B7355', fontSize: 11, margin: '6px 0 0', textAlign: 'center' }}>
                 {isAddMode
                   ? '저장 후 사진 추가'
-                  : selectedNode
+                  : selectedId !== null
                     ? (uploading ? '업로드 중...' : '클릭 또는 끌어다 놓기')
                     : '인물을 선택하면\n사진을 편집할 수 있습니다'}
               </p>
@@ -565,7 +578,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
 
         {/* 버튼 */}
         <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-          {(isAddMode || selectedNode) && (
+          {(isAddMode || selectedId !== null) && (
             <button
               style={{ ...s.btnPri, flex: 1, opacity: saving ? 0.6 : 1 }}
               disabled={saving}
@@ -574,7 +587,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
               {saving ? '처리 중...' : isAddMode ? '생성' : '저장'}
             </button>
           )}
-          {!isAddMode && selectedNode && (
+          {!isAddMode && selectedId !== null && (
             <button
               style={s.btnDng}
               onClick={() => {
@@ -583,7 +596,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
               }}
             >제거</button>
           )}
-          {(isAddMode || selectedNode) && (
+          {(isAddMode || selectedId !== null) && (
             <button style={s.btnSec} onClick={cancelEdit}>취소</button>
           )}
         </div>
