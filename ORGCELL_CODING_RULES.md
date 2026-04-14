@@ -167,7 +167,62 @@ ORGCELL_CODING_RULES.md 파일을 아래 내용으로 완전히 교체해서 저
 
 #### DB 구조
 - `photo_folders` (id, site_id, person_id, name, sort_order, created_at)
-- `photos` (id, site_id, folder_id, filename, url, mime_type, file_size, theme_tag, is_representative, memo, uploaded_by, created_at)
+- `archive_photos` (id, site_id, folder_id, filename, url, mime_type, file_size, theme_tag, is_representative, memo, uploaded_by, created_at)
+
+---
+
+### §8-B 주요자료실 세부 정책
+
+공개명: 자료전시관
+
+#### 지원 파일형식
+- 이미지: jpg / png / heic
+- 문서: pdf / doc / docx
+- 한글문서: hwp / hwpx → 텍스트 추출 불가, 다운로드 전용
+  (파일 목록에 HWP 아이콘 + [다운로드] 버튼, 썸네일 없음)
+
+#### 업로드/편집 권한
+- 관장 본인: 항상 가능
+- 박물관 미보유 가족 구성원: 가능
+- 가족이 본인 계정 생성 후: 해당 자료실 권한 본인에게 자동 이전, 관장 편집 권한 박탈
+
+#### 분류 구조 — 사용자 정의 폴더 (§8-A 동일 패턴)
+- 폴더 삭제 시 "이 폴더의 자료도 함께 삭제됩니다" 확인 모달
+
+최초 진입 시 템플릿 선택 모달 1회:
+  [공식문서] 졸업·학위증 / 수상·표창 / 자격·면허 / 임명·발령
+  [가족관계] 결혼·혼인 / 출생·호적 / 유언·상속
+  [법적문서] 부동산·계약 / 소송·판결 / 기타법문서
+  [언론·기록] 신문기사 / 인터뷰·방송 / 출판·저서
+  [개인기록] 편지·서신 / 일기·수필 / 메모·스케치
+  [직접 만들기] 빈 폴더에서 시작
+
+#### 첫 진입 안내문 (localStorage 1회)
+"살아온 흔적을 기록으로 남겨주세요. 졸업장, 상장, 편지, 기사 등
+어떤 형태의 자료든 괜찮습니다. 후세가 당신의 삶을 이해하는 데
+가장 중요한 단서가 됩니다."
+
+#### 폴더당 초과 안내 (20건 초과 시 폴더당 최초 1회 토스트)
+"한 폴더에 자료가 많아지면 방문자가 핵심을 찾기 어렵습니다.
+가장 중요한 것들 위주로 정리해주세요." — 강제 차단 없음
+
+#### 메모 정책
+- 모든 자료에 메모 권고 (강제 아님)
+- 메모 없는 자료: "이 자료에 대한 설명을 추가하면 더 의미 있는 기록이 됩니다" 안내
+- 클릭 시 메모 입력창 열림
+
+#### 대표 자료
+- 폴더당 1건 설정 가능 (is_representative)
+- 미설정 시 가장 최근 업로드 항목 자동 대표
+
+#### 용량 정책
+- 주요자료실 + 작품실 + 음성·동영상 합산 1GB (무료)
+- 초과 시 선택: BYOS(§19) 연결 또는 유료 플랜(§18)
+- 백엔드 API: GET /api/document-folders/:siteId/usage (bytes 반환)
+
+#### DB 구조
+- `document_folders` (id, site_id, person_id, name, sort_order, created_at)
+- `documents` (id, site_id, person_id, folder_id, title, file_url, file_type, file_size, memo, is_representative, is_public, created_at)
 
 ---
 

@@ -20,7 +20,8 @@ import {
   uploadExhibitionFile,
   deleteExhibitionItem,
 } from './archiveApi';
-import PhotoArchiveSection from './PhotoArchiveSection';
+import PhotoArchiveSection    from './PhotoArchiveSection';
+import DocumentArchiveSection from './DocumentArchiveSection';
 
 // ── 메뉴 정의 ─────────────────────────────────────────────────────────────────
 const MENU_BTNS = [
@@ -106,7 +107,11 @@ export default function ArchivePanel({ siteId }) {
             <PhotoArchiveSection key="photo" siteId={siteId} />
           )}
 
-          {activeMenu && activeMeta && activeMenu !== 'photo' && (
+          {activeMenu === 'main' && (
+            <DocumentArchiveSection key="main" siteId={siteId} />
+          )}
+
+          {activeMenu && activeMeta && activeMenu !== 'photo' && activeMenu !== 'main' && (
             <ExhibitionSection
               key={activeMenu}
               siteId={siteId}

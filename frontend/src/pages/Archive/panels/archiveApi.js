@@ -223,6 +223,79 @@ export async function deleteFolderPhoto(siteId, folderId, photoId) {
   return apiFetch(`${photoBase(siteId)}/${folderId}/photos/${photoId}`, { method: 'DELETE' });
 }
 
+// ── 주요자료실 폴더 (§8-B) ────────────────────────────────────────────────────
+
+const docBase = (siteId) => `/api/document-folders/${siteId}`;
+
+export async function fetchDocFolders(siteId) {
+  const d = await apiFetch(docBase(siteId));
+  return d.data ?? [];
+}
+
+export async function createDocFolder(siteId, name, sort_order = 0) {
+  return apiFetch(docBase(siteId), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, sort_order }),
+  });
+}
+
+export async function renameDocFolder(siteId, folderId, name) {
+  return apiFetch(`${docBase(siteId)}/${folderId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function deleteDocFolder(siteId, folderId) {
+  return apiFetch(`${docBase(siteId)}/${folderId}`, { method: 'DELETE' });
+}
+
+export async function reorderDocFolders(siteId, orders) {
+  return apiFetch(`${docBase(siteId)}/reorder`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orders }),
+  });
+}
+
+export async function getDocUsage(siteId) {
+  const d = await apiFetch(`${docBase(siteId)}/usage`);
+  return d;
+}
+
+export async function fetchFolderDocuments(siteId, folderId) {
+  const d = await apiFetch(`${docBase(siteId)}/${folderId}/documents`);
+  return d.data ?? [];
+}
+
+export async function uploadFolderDocument(siteId, folderId, file, title) {
+  const form = new FormData();
+  form.append('file', file);
+  if (title) form.append('title', title);
+  const res = await fetch(`${docBase(siteId)}/${folderId}/documents`, {
+    method: 'POST',
+    body: form,
+    credentials: 'include',
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.message || '업로드 실패');
+  return json;
+}
+
+export async function updateFolderDocument(siteId, folderId, docId, fields) {
+  return apiFetch(`${docBase(siteId)}/${folderId}/documents/${docId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(fields),
+  });
+}
+
+export async function deleteFolderDocument(siteId, folderId, docId) {
+  return apiFetch(`${docBase(siteId)}/${folderId}/documents/${docId}`, { method: 'DELETE' });
+}
+
 /**
  * POST /api/persons/:siteId/:personId/divorce
  * 이혼 처리 (§30-2: spouse 관계 해제)
