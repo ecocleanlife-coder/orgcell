@@ -32,10 +32,13 @@ export function useArchiveData(subdomain) {
 
   const [relations,   setRelations]   = useState([]);
   const [mergeNotifs, setMergeNotifs] = useState([]);
+  // 트리 로드 완료 여부 — nodes가 현재 subdomain 기준으로 확정될 때까지 대기
+  const [treeLoaded, setTreeLoaded] = useState(false);
 
   // ── 초기 로드: 인증 확인 → 박물관 로드 → 트리 로드 ─────────────────────────
   useEffect(() => {
     if (!subdomain) return;
+    setTreeLoaded(false); // subdomain 변경 시 초기화
     (async () => {
       await fetchMe();
       try {
@@ -43,6 +46,7 @@ export function useArchiveData(subdomain) {
         const id     = museum?.id ?? museum?.site_id;
         if (id) setSiteId(id);
         await fetchTree(subdomain);
+        setTreeLoaded(true); // fetchTree 완료 후에만 true — stale nodes 사용 방지
       } catch (err) {
         // §14/§16: 권한 없으면 박물관 문패로 돌려보냄
         if (err.status === 403) navigate(`/${subdomain}`);
@@ -76,7 +80,8 @@ export function useArchiveData(subdomain) {
   // ── 파생 값 ────────────────────────────────────────────────────────────────
   const curatorNode = nodes.find(n => n.personId === curatorId) ?? null;
   const personId    = curatorNode?.id ?? null;
-  const dataReady   = !!siteId;
+  // treeLoaded 포함: nodes가 현재 subdomain 기준으로 확정된 후에만 페이지 렌더링
+  const dataReady   = !!siteId && treeLoaded;
 
   return {
     curatorNode,

@@ -239,11 +239,17 @@ function buildNodes(curatorId, personById, rels, z0Set, depthMap, roleMap, spous
     ...(spouseId ? getChildrenIds(spouseId, rels) : []),
   ])].filter(id => personById.has(id) && z0Set.has(id));
 
+  // 중복 배치 방지: 잘못된 person_relations(예: 동일 인물이 parent1_id 컬럼과
+  // relation 양쪽에 등록된 경우) 로 인한 같은 인물 이중 배치 및 갭 발생 차단
+  const bfsPlacedIds = new Set();
+
   const bfsQueue = [{ childIds: rootChildIds, depth: 1, parentY: 0, parentBlockX: 0 }];
 
   while (bfsQueue.length > 0) {
     const { childIds, depth, parentY, parentBlockX } = bfsQueue.shift();
-    const children = sortByBirth(childIds.map(id => personById.get(id)));
+    // 이미 배치된 인물 제외 후 N 계산 — 제외하지 않으면 빈 갭 발생
+    const unplacedIds = childIds.filter(id => !bfsPlacedIds.has(id));
+    const children = sortByBirth(unplacedIds.map(id => personById.get(id)));
     const N = children.length;
     const y = parentY + C.ROW_GAP;
     const opacity = depth >= 3 ? C.OPACITY_DEEP : 1.0;
@@ -254,6 +260,9 @@ function buildNodes(curatorId, personById, rels, z0Set, depthMap, roleMap, spous
       const cSpouseId = getSpouseId(child.id, rels);
       const cSpouse   = (cSpouseId && z0Set.has(cSpouseId)) ? personById.get(cSpouseId) : null;
       const cId       = mkCId(`d${depth}c${i}`);
+
+      bfsPlacedIds.add(child.id);
+      if (cSpouseId) bfsPlacedIds.add(cSpouseId);
 
       if (cSpouse) {
         const { aOffset, bOffset } = coupleOffsets(child, cSpouse);
