@@ -29,6 +29,7 @@ import AutobiographySection   from './AutobiographySection';
 import ArtworkSection         from './ArtworkSection';
 import MediaSection           from './MediaSection';
 import SharedAlbumSection     from './SharedAlbumSection';
+import InviteModal            from './InviteModal';
 
 // ── 메뉴 정의 ─────────────────────────────────────────────────────────────────
 const MENU_BTNS = [
@@ -56,8 +57,9 @@ export default function ArchivePanel({ siteId, personId, subdomain }) {
   const sub = subdomain || routeSubdomain;
   const isCurator = useAuthStore(s => s.isCuratorOf)(sub);
 
-  const [activeMenu, setActiveMenu] = useState(null);
-  const [lightbox,   setLightbox]   = useState(null); // { url, title }
+  const [activeMenu,   setActiveMenu]   = useState(null);
+  const [lightbox,     setLightbox]     = useState(null); // { url, title }
+  const [inviteOpen,   setInviteOpen]   = useState(false);
 
   function toggleMenu(key) {
     setActiveMenu(prev => (prev === key ? null : key));
@@ -92,7 +94,10 @@ export default function ArchivePanel({ siteId, personId, subdomain }) {
             <button
               key={btn.key}
               style={{ ...s.menuBtn, ...(activeMenu === btn.key ? s.menuOn : {}) }}
-              onClick={() => toggleMenu(btn.key)}
+              onClick={() => {
+                if (btn.key === 'invite') { setInviteOpen(true); return; }
+                toggleMenu(btn.key);
+              }}
             >
               {btn.label}
             </button>
@@ -155,6 +160,9 @@ export default function ArchivePanel({ siteId, personId, subdomain }) {
 
       {/* 라이트박스 */}
       {lightbox && <Lightbox item={lightbox} onClose={() => setLightbox(null)} />}
+
+      {/* §17 초대하기 모달 */}
+      {inviteOpen && <InviteModal siteId={siteId} onClose={() => setInviteOpen(false)} />}
     </div>
   );
 }

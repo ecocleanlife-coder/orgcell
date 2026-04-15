@@ -61,16 +61,26 @@ export default function InvitePage() {
         return;
       }
 
-      // 초대 정보 로드
+      // 초대 정보 로드 — §17 invitations 테이블 우선, 없으면 기존 family_invites
       try {
-        const res  = await fetch(`/api/invite/${token}`, { credentials: 'include' });
-        if (!res.ok) {
-          if (res.status === 404) throw new Error('초대 링크를 찾을 수 없습니다. 만료되었거나 이미 처리된 초대입니다.');
-          if (res.status === 410) throw new Error('이미 처리된 초대입니다.');
-          throw new Error(`오류 (${res.status})`);
+        const res  = await fetch(`/api/invitations/verify/${token}`, { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) { setInvite(data.data); setStep(STEP.INVITE); return; }
         }
-        const data = await res.json();
-        setInvite(data);
+        if (res.status === 410) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || '이미 처리된 초대입니다.');
+        }
+        // fallback: 기존 family_invites
+        const res2 = await fetch(`/api/invite/${token}`, { credentials: 'include' });
+        if (!res2.ok) {
+          if (res2.status === 404) throw new Error('초대 링크를 찾을 수 없습니다. 만료되었거나 이미 처리된 초대입니다.');
+          if (res2.status === 410) throw new Error('이미 처리된 초대입니다.');
+          throw new Error(`오류 (${res2.status})`);
+        }
+        const data2 = await res2.json();
+        setInvite(data2);
         setStep(STEP.INVITE);
       } catch (err) {
         setErrorMsg(err.message);
@@ -84,16 +94,32 @@ export default function InvitePage() {
   async function handleAccept() {
     setStep(STEP.SUBMITTING);
     try {
-      const res = await fetch(`/api/invite/${token}/respond`, {
+      // §17 신규 엔드포인트 우선 시도
+      const res = await fetch(`/api/invitations/accept/${token}`, {
+        method:      'POST',
+        credentials: 'include',
+        headers:     { 'Content-Type': 'application/json' },
+        body:        JSON.stringify({ displayPref: displayName }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStep(STEP.ACCEPTED);
+        const subdomain = data.subdomain || invite?.subdomain;
+        setTimeout(() => {
+          if (subdomain) navigate(`/${subdomain}`, { replace: true });
+          else navigate('/', { replace: true });
+        }, 2000);
+        return;
+      }
+      // fallback: 기존 엔드포인트
+      const res2 = await fetch(`/api/invite/${token}/respond`, {
         method:      'POST',
         credentials: 'include',
         headers:     { 'Content-Type': 'application/json' },
         body:        JSON.stringify({ action: 'accept', displayName }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res2.ok) throw new Error(`HTTP ${res2.status}`);
       setStep(STEP.ACCEPTED);
-
-      // 2초 후 해당 박물관으로 이동
       setTimeout(() => {
         if (invite?.subdomain) navigate(`/${invite.subdomain}`, { replace: true });
         else navigate('/', { replace: true });
@@ -108,13 +134,19 @@ export default function InvitePage() {
   async function handleReject() {
     setStep(STEP.SUBMITTING);
     try {
-      const res = await fetch(`/api/invite/${token}/respond`, {
+      // §17 신규 엔드포인트 우선 시도
+      const res = await fetch(`/api/invitations/decline/${token}`, {
+        method: 'POST', credentials: 'include',
+      });
+      if (res.ok) { setStep(STEP.REFUSED); return; }
+      // fallback
+      const res2 = await fetch(`/api/invite/${token}/respond`, {
         method:      'POST',
         credentials: 'include',
         headers:     { 'Content-Type': 'application/json' },
         body:        JSON.stringify({ action: 'reject' }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res2.ok) throw new Error(`HTTP ${res2.status}`);
       setStep(STEP.REFUSED);
     } catch {
       setErrorMsg('거절 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
@@ -207,10 +239,16 @@ function InviteView({ invite, errorMsg, onAccept, onReject }) {
 
       {errorMsg && <div style={s.inlineError}>{errorMsg}</div>}
 
+      {invite?.relation === 'family' && (
+        <div style={s.familyNotice}>
+          👨‍👩‍👧 가족 구성원으로 초대되었습니다. 수락하시면 가족 트리에 등록됩니다.
+        </div>
+      )}
+
       {!confirmReject ? (
         <div style={s.btnGroup}>
           <button style={{ ...s.btn, ...s.btnPrimary }} onClick={onAccept}>
-            ✓ 수락하기
+            ✓ {invite?.relation === 'family' ? '내 기록 확인하기' : '초대 수락하기'}
           </button>
           <button style={{ ...s.btn, ...s.btnSecondary }} onClick={() => setConfirmReject(true)}>
             거절하기
@@ -428,6 +466,16 @@ const s = {
     fontSize:      12,
     color:        '#7a5a35',
     marginBottom:  16,
+  },
+  familyNotice: {
+    background:   '#F0F8F0',
+    border:       '1px solid #8BC48A',
+    borderRadius:  5,
+    padding:      '8px 12px',
+    fontSize:      12,
+    color:        '#2d5a2d',
+    marginBottom:  14,
+    lineHeight:    1.6,
   },
   inlineError: {
     background:   '#FFF0F0',

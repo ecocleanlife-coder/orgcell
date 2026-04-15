@@ -302,9 +302,43 @@ Visitor Pass (손님): 관장이 유효기간 설정.
 ---
 
 ## 17. 초대 시스템
-- 이메일 / SMS / 링크 복사
-- 수락/거절 → 노출 선택 (이름 전체 / 성만 / 익명)
-- 거절자 → RefusedPersonBox
+
+### DB
+- **invitations** 테이블: id, site_id, inviter_id, email, phone, token(UUID hex), method, relation, message, status, display_pref, expires_at
+  - `relation`: 'family' | 'friend' | 'other'
+  - `method`: 'email' | 'sms' | 'link'
+  - `status`: 'pending' | 'accepted' | 'declined' | 'expired' | 'cancelled'
+- **refused_persons** 테이블: id, site_id, invitation_id
+- 기존 `family_invites` 테이블과 **별도** 운영
+
+### 백엔드 (`invitationController.js`)
+- POST `/api/invitations/:siteId` — 초대 생성 + 이메일 발송
+- GET  `/api/invitations/:siteId` — 이력 목록
+- DELETE `/api/invitations/:siteId/:id` — 취소
+- POST `/api/invitations/:siteId/:id/resend` — 재초대
+- GET  `/api/invitations/verify/:token` — 토큰 검증 (비로그인)
+- POST `/api/invitations/accept/:token` — 수락 (display_pref) + site_members 추가
+- POST `/api/invitations/decline/:token` — 거절 + refused_persons 기록
+
+### 프론트엔드
+- **InviteModal** (`Archive/panels/InviteModal.jsx`): 3단계 모달
+  - Step 1: 관계 선택 카드 3개 (가족/친구·지인/기타)
+  - Step 2: 전송 방법 탭 (이메일/링크복사/SMS)
+  - Step 3: 메시지 편집 + 미리보기 + 전송
+  - 하단: 초대 이력 (재초대/취소 버튼)
+- **InvitePage** (`/invite/:token`): 관계별 버튼 분기
+  - family → "내 기록 확인하기" + 가족 안내 박스
+  - friend/other → "초대 수락하기"
+  - 수락 → display_pref 선택 → POST /accept/:token
+  - 거절 → POST /decline/:token → RefusedPersonBox
+- **ArchivePanel**: '초대하기' 버튼 클릭 → InviteModal 오픈
+
+### 관계별 이메일 문구
+| relation | 버튼 | 기본 메시지 |
+|----------|------|-------------|
+| family   | 내 기록 확인하기 | 가족 박물관 기록 초대 |
+| friend   | 초대 수락하기   | 방문 요청 |
+| other    | 초대 수락하기   | 처음 뵙는 분 초대 |
 
 ---
 
