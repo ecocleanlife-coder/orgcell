@@ -144,7 +144,7 @@ exports.createPerson = async (req, res) => {
         }
 
         const {
-            first_name, last_name, name_en, name_suffix, birth_year, death_year,
+            first_name, last_name, name_en, name_en_middle, name_suffix, birth_year, death_year,
             gender, privacy_level, parent1_id, parent2_id, spouse_id, generation,
             photo_url, birth_date, death_date, is_deceased, birth_lunar, death_lunar,
             photo_position, father_first_name, father_last_name, mother_first_name, mother_last_name,
@@ -251,10 +251,10 @@ exports.createPerson = async (req, res) => {
 
         // persons 테이블에 INSERT
         const { rows } = await db.query(
-            `INSERT INTO persons (site_id, name, first_name, last_name, name_en, name_suffix, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date, is_deceased, birth_lunar, death_lunar, photo_position, father_first_name, father_last_name, mother_first_name, mother_last_name, ops_path)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+            `INSERT INTO persons (site_id, name, first_name, last_name, name_en, name_en_middle, name_suffix, birth_year, death_year, gender, privacy_level, parent1_id, parent2_id, spouse_id, generation, photo_url, birth_date, death_date, is_deceased, birth_lunar, death_lunar, photo_position, father_first_name, father_last_name, mother_first_name, mother_last_name, ops_path)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
              RETURNING *`,
-            [siteId, `${last_name.trim()}${first_name.trim()}`, first_name.trim(), last_name.trim(), name_en || null, name_suffix || null, birth_year || null, death_year || null, gender || null, privacy_level || 'family', effectiveParent1Id, parent2_id || null, spouse_id || null, generation || 0, photo_url || null, birth_date || null, death_date || null, is_deceased ?? false, birth_lunar ?? false, death_lunar ?? false, photo_position ? JSON.stringify(photo_position) : '{"x":50,"y":50}', father_first_name || null, father_last_name || null, mother_first_name || null, mother_last_name || null, autoOpsPath]
+            [siteId, `${last_name.trim()}${first_name.trim()}`, first_name.trim(), last_name.trim(), name_en || null, name_en_middle || null, name_suffix || null, birth_year || null, death_year || null, gender || null, privacy_level || 'family', effectiveParent1Id, parent2_id || null, spouse_id || null, generation || 0, photo_url || null, birth_date || null, death_date || null, is_deceased ?? false, birth_lunar ?? false, death_lunar ?? false, photo_position ? JSON.stringify(photo_position) : '{"x":50,"y":50}', father_first_name || null, father_last_name || null, mother_first_name || null, mother_last_name || null, autoOpsPath]
         );
 
         const newPerson = rows[0];
@@ -495,7 +495,7 @@ exports.updatePerson = async (req, res) => {
         }
 
         const ALLOWED = [
-            'name', 'first_name', 'last_name', 'name_en', 'name_suffix',
+            'name', 'first_name', 'last_name', 'name_en', 'name_en_middle', 'name_suffix',
             'maiden_name', 'former_name', 'birth_year', 'death_year', 'gender', 'privacy_level',
             'parent1_id', 'parent2_id', 'spouse_id', 'generation',
             'photo_url', 'birth_date', 'death_date',

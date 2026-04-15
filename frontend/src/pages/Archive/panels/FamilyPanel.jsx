@@ -223,7 +223,7 @@ function MiniTree({ personId, relations, getNodeName, getNodePhoto, selectedId, 
 
 // ── 빈 폼 기본값 ──────────────────────────────────────────────────────────────
 const EMPTY_FORM = {
-  lastName: '', firstName: '', nameEnLast: '', nameEnFirst: '',
+  lastName: '', firstName: '', nameEnLast: '', nameEnFirst: '', nameEnMiddle: '',
   gender: 'M',
   birthYear: '', birthMonth: '', birthDay: '', birthLunar: false,
   isDeceased: false, deathYear: '', deathMonth: '', deathDay: '',
@@ -305,8 +305,9 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
     setForm({
       lastName:    selectedNode.last_name  ?? selectedNode.lastName  ?? '',
       firstName:   selectedNode.first_name ?? selectedNode.firstName ?? selectedNode.name ?? '',
-      nameEnLast:  selectedNode.name_en_last  ?? enParts[0] ?? '',
-      nameEnFirst: selectedNode.name_en_first ?? enParts.slice(1).join(' ') ?? '',
+      nameEnLast:   selectedNode.name_en_last   ?? enParts[0] ?? '',
+      nameEnFirst:  selectedNode.name_en_first  ?? enParts.slice(1).join(' ') ?? '',
+      nameEnMiddle: selectedNode.nameEnMiddle   ?? '',
       gender,
       birthYear: by, birthMonth: bm, birthDay: bday,
       birthLunar: selectedNode.birth_lunar ?? false,
@@ -406,15 +407,16 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
         : null;
       const genderDb = form.gender === 'male' ? 'M' : form.gender === 'female' ? 'F' : form.gender;
       await savePerson(siteId, saveId, {
-        name:        `${(form.lastName||'').trim()}${(form.firstName||'').trim()}`,
-        first_name:  form.firstName?.trim() || null,
-        last_name:   form.lastName?.trim()  || null,
-        name_en:     [form.nameEnLast, form.nameEnFirst].filter(Boolean).join(' ') || null,
-        gender:      genderDb,
-        birth_date:  birthDate,
-        birth_lunar: form.birthLunar,
-        is_deceased: form.isDeceased,
-        death_date:  deathDate,
+        name:           `${(form.lastName||'').trim()}${(form.firstName||'').trim()}`,
+        first_name:     form.firstName?.trim() || null,
+        last_name:      form.lastName?.trim()  || null,
+        name_en:        [form.nameEnLast, form.nameEnFirst].filter(Boolean).join(' ') || null,
+        name_en_middle: form.nameEnMiddle?.trim() || null,
+        gender:         genderDb,
+        birth_date:     birthDate,
+        birth_lunar:    form.birthLunar,
+        is_deceased:    form.isDeceased,
+        death_date:     deathDate,
       });
       toast.success('저장됐습니다.');
       await invalidate();
@@ -447,15 +449,16 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
         ? [form.birthYear, form.birthMonth?.padStart(2,'0'), form.birthDay?.padStart(2,'0')].filter(Boolean).join('-')
         : null;
       await createPerson(siteId, {
-        name:          `${form.lastName.trim()}${form.firstName.trim()}`,
-        first_name:    form.firstName.trim(),
-        last_name:     form.lastName.trim() || null,
-        name_en:       [form.nameEnLast, form.nameEnFirst].filter(Boolean).join(' ') || null,
-        gender:        form.gender,
-        birth_date:    birthDate,
-        birth_lunar:   form.birthLunar,
-        relation_type: relTab,
-        relative_id:   personId,
+        name:           `${form.lastName.trim()}${form.firstName.trim()}`,
+        first_name:     form.firstName.trim(),
+        last_name:      form.lastName.trim() || null,
+        name_en:        [form.nameEnLast, form.nameEnFirst].filter(Boolean).join(' ') || null,
+        name_en_middle: form.nameEnMiddle?.trim() || null,
+        gender:         form.gender,
+        birth_date:     birthDate,
+        birth_lunar:    form.birthLunar,
+        relation_type:  relTab,
+        relative_id:    personId,
       });
       await invalidate();
       await refreshRelations();
@@ -589,6 +592,10 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
             <label style={s.lbl}>이름 (영문)</label>
             <input style={s.inp} value={form.nameEnFirst} onChange={e => setForm(f => ({ ...f, nameEnFirst: e.target.value }))} placeholder="SANGHUN" />
           </div>
+        </div>
+        <div>
+          <label style={s.lbl}>미들네임 (영문)</label>
+          <input style={s.inp} value={form.nameEnMiddle} onChange={e => setForm(f => ({ ...f, nameEnMiddle: e.target.value }))} placeholder="JAMES" />
         </div>
 
         <label style={s.lbl}>성별</label>

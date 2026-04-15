@@ -97,6 +97,7 @@ export default function CoupleBlock({ group, offsetX, offsetY, scale = 1, curato
             node={single}
             isCuratorCard={single.personId === curatorPersonId}
             subdomain={subdomain}
+            scale={scale}
             onDoubleClick={onDoubleClick}
             onWormhole={onWormhole}
           />
@@ -107,6 +108,7 @@ export default function CoupleBlock({ group, offsetX, offsetY, scale = 1, curato
                 node={left}
                 isCuratorCard={left.personId === curatorPersonId}
                 subdomain={subdomain}
+                scale={scale}
                 isLeft
                 onDoubleClick={onDoubleClick}
                 onWormhole={onWormhole}
@@ -117,6 +119,7 @@ export default function CoupleBlock({ group, offsetX, offsetY, scale = 1, curato
                 node={right}
                 isCuratorCard={right.personId === curatorPersonId}
                 subdomain={subdomain}
+                scale={scale}
                 isRight
                 onDoubleClick={onDoubleClick}
                 onWormhole={onWormhole}
@@ -132,7 +135,19 @@ export default function CoupleBlock({ group, offsetX, offsetY, scale = 1, curato
 // ══════════════════════════════════════════════════════════════════════════════
 // FolderCard — §4 카드 (전체 사진 cover, 이름 오버레이, † 고인)
 // ══════════════════════════════════════════════════════════════════════════════
-function FolderCard({ node, isCuratorCard, subdomain, isLeft, isRight, onDoubleClick, onWormhole }) {
+// 영문이름 포맷: "Lambert, Daniel James"
+// node.nameEn = "Lambert Daniel" (성 이름), node.nameEnMiddle = "James"
+function formatEnName(nameEn, nameEnMiddle) {
+  if (!nameEn) return null;
+  const parts = nameEn.trim().split(/\s+/);
+  if (parts.length < 2) return nameEnMiddle ? `${nameEn} ${nameEnMiddle}` : nameEn;
+  const last  = parts[0];
+  const first = parts.slice(1).join(' ');
+  const mid   = nameEnMiddle ? ` ${nameEnMiddle.trim()}` : '';
+  return `${last}, ${first}${mid}`;
+}
+
+function FolderCard({ node, isCuratorCard, subdomain, isLeft, isRight, scale, onDoubleClick, onWormhole }) {
   const [hovered, setHovered] = useState(false);
   const timerRef  = useRef(null);
   const navigate  = useNavigate();
@@ -207,8 +222,24 @@ function FolderCard({ node, isCuratorCard, subdomain, isLeft, isRight, onDoubleC
           </div>
       }
 
-      {/* §4 이름 하단 그라데이션 오버레이 */}
-      <div style={s.nameOverlay}>{node.name}</div>
+      {/* §4 이름 하단 그라데이션 오버레이 — 한국어 + 영문이름 (스케일 비례) */}
+      {(() => {
+        const enName = formatEnName(node.nameEn || node.name_en, node.nameEnMiddle);
+        const baseFontKo = 17 * scale;
+        const baseFontEn = 11 * scale;
+        const basePadT   = 28 * scale;
+        const basePadB   = 10 * scale;
+        return (
+          <div style={{ ...s.nameOverlay, padding: `${basePadT}px ${8 * scale}px ${basePadB}px` }}>
+            <div style={{ fontSize: baseFontKo, fontWeight: 700, lineHeight: 1.2 }}>{node.name}</div>
+            {enName && (
+              <div style={{ fontSize: baseFontEn, fontWeight: 500, opacity: 0.85, marginTop: 2 * scale, letterSpacing: '0.02em' }}>
+                {enName}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* §4 호버 툴팁 */}
       {hovered && (
@@ -254,17 +285,12 @@ const s = {
     color:    '#C4A882',
   },
   nameOverlay: {
-    position:     'absolute',
+    position:  'absolute',
     bottom: 0, left: 0, right: 0,
-    background:   'linear-gradient(transparent, rgba(0,0,0,0.65))',
-    color:        '#fff',
-    fontSize:     17,
-    fontWeight:   700,
-    padding:      '28px 8px 10px',
-    textAlign:    'center',
-    whiteSpace:   'nowrap',
-    overflow:     'hidden',
-    textOverflow: 'ellipsis',
+    background: 'linear-gradient(transparent, rgba(0,0,0,0.65))',
+    color:     '#fff',
+    textAlign: 'center',
+    overflow:  'hidden',
   },
   tooltip: {
     position:      'absolute',
