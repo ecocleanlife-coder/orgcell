@@ -299,7 +299,7 @@ jobs:
             # Deploy
             docker-compose pull
             docker-compose up -d
-            docker image prune -f
+            docker image prune -a -f
 
             # 배포 후 호스트 nginx 상태 확인 (반드시 active 여야 함)
             echo "=== Host nginx status ==="
