@@ -419,6 +419,25 @@ z=1 인물은 스토어에만 보관, 화면 렌더링 금지.
 - 순차 등장: §22 순서대로, delay 0.3s 간격
 - 중심 인물 변경 시 이전 캐시 완전 삭제, navKey로 리마운트 강제
 
+### 24-5. 네비게이션 히스토리 (MuseumBreadcrumb)
+
+**treeStore 상태:**
+- `navHistory: { subdomain, displayName }[]` — 웜홀 방문 경로 스택, 최대 10개
+- `displayName: string|null` — 현재 박물관 표시명 (MuseumPage 로드 시 `setDisplayName()`)
+
+**treeStore 액션:**
+- `navigateTo(subdomain)`: 이동 전 현재 subdomain+displayName을 navHistory에 push 후 fetchTree
+- `navigateBack(subdomain)`: 해당 subdomain의 인덱스까지 slice → fetchTree
+- `resetHistory()`: navHistory 초기화 (🏠 클릭 시)
+- `setDisplayName(name)`: 현재 박물관 표시명 저장
+
+**MuseumBreadcrumb** (`frontend/src/components/MuseumBreadcrumb.jsx`):
+- Props: `currentLabel` (현재 위치, 클릭 불가), `backItem?` ({ label, subdomain }, ArchivePage용)
+- 데스크톱: navHistory ≤2개 → 전체 표시 / ≥3개 → 🏠 ← ... ← 최근 2개
+- 모바일 (<600px): 🏠 + 직전 1개만
+- MuseumPage: `<MuseumBreadcrumb currentLabel={museumName} />` (navHistory 없으면 컴포넌트 미표시)
+- ArchivePage: `<MuseumBreadcrumb currentLabel="현재 자료실" backItem={{ label: museumDisplayName, subdomain }} />`
+
 ---
 
 ## 25. 전시 기준 안내

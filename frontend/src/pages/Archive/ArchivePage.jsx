@@ -11,12 +11,13 @@
  */
 
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuthStore }   from '@/store/authStore.js';
-import { useTreeStore }   from '@/store/treeStore.js';
-import { useArchiveData } from './hooks/useArchiveData';
-import MyInfoPanel        from './panels/MyInfoPanel';
-import FamilyPanel        from './panels/FamilyPanel';
-import ArchivePanel       from './panels/ArchivePanel';
+import { useAuthStore }       from '@/store/authStore.js';
+import { useTreeStore }       from '@/store/treeStore.js';
+import { useArchiveData }     from './hooks/useArchiveData';
+import MyInfoPanel            from './panels/MyInfoPanel';
+import FamilyPanel            from './panels/FamilyPanel';
+import ArchivePanel           from './panels/ArchivePanel';
+import MuseumBreadcrumb       from '../../components/MuseumBreadcrumb';
 
 // ── 탭 정의 ───────────────────────────────────────────────────────────────────
 const TABS = [
@@ -34,7 +35,7 @@ export default function ArchivePage() {
 
   const activeTab = searchParams.get('tab') ?? 'myinfo';
 
-  const { nodes } = useTreeStore();
+  const { nodes, displayName: museumDisplayName } = useTreeStore();
 
   const {
     curatorNode,
@@ -60,11 +61,13 @@ export default function ArchivePage() {
   return (
     <div style={s.page}>
 
-      {/* 상단 바: ← 돌아가기 + 탭 */}
+      {/* 상단 바: 네비게이션 빵부스러기 + 탭 */}
       <div style={s.topBar}>
-        <button style={s.backBtn} onClick={() => navigate(`/${subdomain}`)}>
-          ← 돌아가기
-        </button>
+        {/* §24-5 MuseumBreadcrumb: 현재 박물관 → 자료실 */}
+        <MuseumBreadcrumb
+          currentLabel="현재 자료실"
+          backItem={{ label: museumDisplayName || `${subdomain} 박물관`, subdomain }}
+        />
 
         {personPath && personName && (
           <span style={s.personBadge}>👤 {personName}</span>
@@ -122,8 +125,7 @@ const s = {
   page:    { display: 'flex', flexDirection: 'column', height: '100vh', background: '#F9F7F2' },
 
   // 상단 바
-  topBar:  { background: '#FDF8F0', borderBottom: '1px solid #C4A882', padding: '8px 16px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 20 },
-  backBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#8B7355', fontWeight: 600, flexShrink: 0 },
+  topBar:  { background: '#FDF8F0', borderBottom: '1px solid #C4A882', padding: '8px 16px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12 },
 
   // 탭 내비게이션
   tabs:    { display: 'flex', gap: 4 },

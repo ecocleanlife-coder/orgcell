@@ -36,9 +36,11 @@ export const useTreeStore = create((set, get) => ({
   curatorId:  null,
   siteId:     null,   // integer DB id — PUT /api/persons/:siteId/:personId 에 필요
 
-  // ── 네비게이션 (§24-4) ──────────────────────────────────────────────────────
-  mainId: null,   // 현재 화면 중앙 인물 personId
-  navKey: 0,      // FamilyTreeCanvas key prop → 변경 시 강제 리마운트
+  // ── 네비게이션 (§24-4 / §24-5) ─────────────────────────────────────────────
+  mainId:      null,  // 현재 화면 중앙 인물 personId
+  navKey:      0,     // FamilyTreeCanvas key prop → 변경 시 강제 리마운트
+  displayName: null,  // 현재 박물관 표시명 (MuseumBreadcrumb용)
+  navHistory:  [],    // { subdomain, displayName }[] — 웜홀 방문 경로 스택 (최대 10)
 
   // ── 로딩 ───────────────────────────────────────────────────────────────────
   isLoading: false,
@@ -102,18 +104,57 @@ export const useTreeStore = create((set, get) => ({
   // ─────────────────────────────────────────────────────────────────────────
   // navigateTo — 타 박물관 이동 (웜홀 확정 후 호출)
   //   §24-4: 캐시 완전 삭제 + navKey 증가 + 새 트리 fetch
+  //   §24-5: 이동 전 현재 subdomain+displayName을 navHistory에 push (최대 10개)
   // ─────────────────────────────────────────────────────────────────────────
   async navigateTo(subdomain) {
+    const { subdomain: curSub, displayName: curName, navHistory } = get();
+    const newHistory = curSub
+      ? [...navHistory, { subdomain: curSub, displayName: curName || curSub }].slice(-10)
+      : navHistory;
     set((state) => ({
-      navKey:    state.navKey + 1,
-      _cache:    {},                // §24-4: 이전 캐시 완전 삭제
-      nodes:     [],
-      connectors:[],
-      meta:      null,
+      navKey:      state.navKey + 1,
+      _cache:      {},              // §24-4: 이전 캐시 완전 삭제
+      nodes:       [],
+      connectors:  [],
+      meta:        null,
       wormholeTarget: null,
+      navHistory:  newHistory,
     }));
     await get().fetchTree(subdomain);
   },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // navigateBack — 히스토리 특정 지점으로 복귀 (§24-5)
+  //   해당 subdomain 이후 스택 제거 후 fetchTree
+  // ─────────────────────────────────────────────────────────────────────────
+  async navigateBack(subdomain) {
+    const { navHistory } = get();
+    const idx = navHistory.findIndex(h => h.subdomain === subdomain);
+    const newHistory = idx > 0 ? navHistory.slice(0, idx) : [];
+    set({
+      navHistory:  newHistory,
+      navKey:      get().navKey + 1,
+      _cache:      {},
+      nodes:       [],
+      connectors:  [],
+      meta:        null,
+      wormholeTarget: null,
+    });
+    await get().fetchTree(subdomain);
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // resetHistory — 🏠 클릭 시 호출 (§24-5)
+  //   navHistory 초기화 (실제 페이지 이동은 컴포넌트에서)
+  // ─────────────────────────────────────────────────────────────────────────
+  resetHistory() {
+    set({ navHistory: [] });
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // setDisplayName — 현재 박물관 표시명 저장 (MuseumPage가 박물관 로드 후 호출)
+  // ─────────────────────────────────────────────────────────────────────────
+  setDisplayName(name) { set({ displayName: name }); },
 
   // ─────────────────────────────────────────────────────────────────────────
   // invalidate — 인물/관계 변경 후 캐시 무효화 + 재fetch
@@ -175,6 +216,7 @@ export const useTreeStore = create((set, get) => ({
       nodes: [], connectors: [], meta: null,
       subdomain: null, curatorId: null, siteId: null,
       mainId: null, navKey: 0,
+      displayName: null, navHistory: [],
       isLoading: false, error: null,
       selectedPersonId: null, wormholeTarget: null,
       _cache: {},

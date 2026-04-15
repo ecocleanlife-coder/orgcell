@@ -18,6 +18,7 @@ import FamilyTreeCanvas            from '../components/tree/FamilyTreeCanvas';
 import WormholeModal               from '../components/modals/WormholeModal';
 import PersonEditModal             from '../components/modals/PersonEditModal';
 import Footer                      from '../components/common/Footer';
+import MuseumBreadcrumb            from '../components/MuseumBreadcrumb';
 import toast                       from 'react-hot-toast';
 
 // ─── 전시관 타입 정의 (§8 기준) ───────────────────────────────────────────────
@@ -47,7 +48,7 @@ export default function MuseumPage() {
   const navigate      = useNavigate();
 
   const { user, isAuthenticated, isCuratorOf, logout, lang, setLang, fetchMe } = useAuthStore();
-  const { fetchTree, setSiteId, navKey, isLoading: treeLoading, error: treeError } = useTreeStore();
+  const { fetchTree, setSiteId, setDisplayName, navKey, isLoading: treeLoading, error: treeError } = useTreeStore();
 
   const [museum,       setMuseum]       = useState(null);   // GET /api/museum/:subdomain
   const [exhibitions,  setExhibitions]  = useState([]);     // 공개 전시관 목록
@@ -150,6 +151,11 @@ export default function MuseumPage() {
 
   const museumName = formatMuseumName(museum?.curator_name) ?? `${subdomain} 가족유산박물관`;
 
+  // §24-5: 박물관 표시명을 treeStore에 저장 (MuseumBreadcrumb + navigateTo 기록용)
+  useEffect(() => {
+    if (museum) setDisplayName(museumName);
+  }, [museum, museumName]);
+
   // ── 접근 불가 화면 (§16 문패만) ─────────────────────────────────────────────
   if (access === false) {
     return (
@@ -194,6 +200,9 @@ export default function MuseumPage() {
         isAuthenticated={isAuthenticated} onLogout={handleLogout}
         isCurator={isCurator}
       />
+
+      {/* §24-5 네비게이션 히스토리 — 웜홀 이동 후에만 표시 */}
+      <BreadcrumbBar museumName={museumName} />
 
       <MenuBar exhibitions={exhibitions} subdomain={subdomain} navigate={navigate} />
 
@@ -241,6 +250,19 @@ function MuseumHeader({ museumName, lang, setLang, isAuthenticated, onLogout, is
         }
       </div>
     </header>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// BreadcrumbBar — §24-5: 웜홀 이동 시 경로 표시 (navHistory 있을 때만)
+// ══════════════════════════════════════════════════════════════════════════════
+function BreadcrumbBar({ museumName }) {
+  const { navHistory } = useTreeStore();
+  if (!navHistory.length) return null;
+  return (
+    <div style={s.breadcrumbBar}>
+      <MuseumBreadcrumb currentLabel={museumName} />
+    </div>
   );
 }
 
@@ -431,6 +453,9 @@ const s = {
   headerRight: { display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 },
   langSelect:  { padding: '4px 8px', border: '1px solid #C4A882', borderRadius: 4, background: '#FAFAF5', fontSize: 13, color: '#8B7355', cursor: 'pointer' },
   logoutBtn:   { padding: '5px 12px', background: 'none', border: '1px solid #C4A882', borderRadius: 4, fontSize: 13, color: '#8B7355', cursor: 'pointer' },
+
+  // §24-5 빵부스러기 바
+  breadcrumbBar: { display: 'flex', alignItems: 'center', padding: '5px 20px', background: '#FDFBF7', borderBottom: '1px solid #EDE8E0', minHeight: 30 },
 
   // MenuBar §12
   menuBar:     { display: 'flex', flexWrap: 'wrap', gap: 8, padding: '10px 20px', background: '#FDFBF7', borderBottom: '1px solid #E8DFD0' },
