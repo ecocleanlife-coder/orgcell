@@ -53,14 +53,39 @@ function getParentIds(personId, rels) {
     .map(r => Number(r.person1_id));
 }
 
-// 형제/자매 ID 배열
+// 형제/자매 ID 배열 — 명시적 sibling 관계 OR 공통 부모를 통한 파생
+// §23: LEE-1/f의 자녀들 중 LEE-1 제외 = 형제
 function getSiblingIds(personId, rels) {
-  return rels
+  const pid = Number(personId);
+
+  // 명시적 sibling 관계
+  const explicit = rels
     .filter(r =>
       (r.relation_type === 'sibling' || r.relation_type === 'half_sibling') &&
-      (Number(r.person1_id) === Number(personId) || Number(r.person2_id) === Number(personId))
+      (Number(r.person1_id) === pid || Number(r.person2_id) === pid)
     )
-    .map(r => Number(r.person1_id) === Number(personId) ? Number(r.person2_id) : Number(r.person1_id));
+    .map(r => Number(r.person1_id) === pid ? Number(r.person2_id) : Number(r.person1_id));
+
+  // 공통 부모를 통한 파생: 내 부모의 다른 자녀들 = 형제
+  const parentIds = rels
+    .filter(r =>
+      (r.relation_type === 'parent' || r.relation_type === 'parent-child') &&
+      Number(r.person2_id) === pid
+    )
+    .map(r => Number(r.person1_id));
+
+  const derived = [];
+  for (const parentId of parentIds) {
+    rels
+      .filter(r =>
+        (r.relation_type === 'parent' || r.relation_type === 'parent-child') &&
+        Number(r.person1_id) === parentId &&
+        Number(r.person2_id) !== pid
+      )
+      .forEach(r => derived.push(Number(r.person2_id)));
+  }
+
+  return [...new Set([...explicit, ...derived])];
 }
 
 // 생년월일 오름차순 정렬 (§23: 자녀 순서)

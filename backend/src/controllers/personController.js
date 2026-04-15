@@ -196,9 +196,35 @@ exports.createPerson = async (req, res) => {
         if (relation_type === 'parent') {
             autoOpsPath = await uniqueSimplePath(isMale ? 'f' : 'm');
         } else if (relation_type === 'child') {
+            // §26-1: 계층형 ops_path — 부모의 ops_path가 있으면 prefix로 붙임
+            // 예: 이상훈(s1)의 아들 → s1/s1, s1/s2
+            //     이하영(d1)의 아들 → d1/s1
+            //     이순호(f)의 딸   → f/d1
             const prefix = isMale ? 's' : 'd';
-            const num = await nextOpsPathNum(prefix);
-            autoOpsPath = `${prefix}${num}`;
+            let parentOpsPath = null;
+            const parentPersonId = relative_id || parent1_id;
+            if (parentPersonId) {
+                const { rows: parentRows } = await db.query(
+                    'SELECT ops_path FROM persons WHERE id = $1 LIMIT 1',
+                    [Number(parentPersonId)]
+                );
+                parentOpsPath = parentRows[0]?.ops_path || null;
+            }
+            if (parentOpsPath) {
+                // 계층형 번호 부여: 해당 부모의 자녀만 집계
+                const fullPrefix = `${parentOpsPath}/${prefix}`;
+                const escapedPrefix = fullPrefix.replace(/\//g, '\\/');
+                const { rows: numRows } = await db.query(
+                    `SELECT COALESCE(MAX(CAST(SUBSTRING(ops_path FROM ${fullPrefix.length + 1}) AS INT)), 0) + 1 AS next_num
+                     FROM persons WHERE site_id = $1 AND ops_path ~ $2`,
+                    [Number(siteId), `^${escapedPrefix}[0-9]+$`]
+                );
+                autoOpsPath = `${fullPrefix}${numRows[0]?.next_num ?? 1}`;
+            } else {
+                // 최상위 자녀: s1, s2, d1, d2 ...
+                const num = await nextOpsPathNum(prefix);
+                autoOpsPath = `${prefix}${num}`;
+            }
         } else if (relation_type === 'spouse') {
             // §30-4: 배우자는 자기 아버지 박물관의 d{n}/s{n}에 귀속
             // 현재 박물관에는 임시 저장 (h 또는 w)
