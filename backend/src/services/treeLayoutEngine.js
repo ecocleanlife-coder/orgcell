@@ -150,8 +150,10 @@ function classifyZ0(curatorId, personById, rels) {
     }
   }
 
-  // 4. 관장 형제 + 배우자
-  const curatorSibIds = getSiblingIds(curatorId, rels).filter(id => personById.has(id));
+  // 4. 관장 형제 + 배우자 (직계 부모는 형제에서 제외 — 조부모가 직계부모로 잘못 등록된 경우 방어)
+  const curatorParentIds = new Set(getParentIds(curatorId, rels));
+  const curatorSibIds = getSiblingIds(curatorId, rels)
+    .filter(id => personById.has(id) && !curatorParentIds.has(id));
   for (const sId of curatorSibIds) {
     markZ0(sId, 0, 'sibling');
     const sSp = getSpouseId(sId, rels);
