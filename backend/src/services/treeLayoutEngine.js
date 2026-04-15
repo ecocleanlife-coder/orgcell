@@ -266,9 +266,9 @@ function buildNodes(curatorId, personById, rels, z0Set, depthMap, roleMap, spous
     ...(spouseId ? getChildrenIds(spouseId, rels) : []),
   ])].filter(id => personById.has(id) && z0Set.has(id));
 
-  // 중복 배치 방지: 잘못된 person_relations(예: 동일 인물이 parent1_id 컬럼과
-  // relation 양쪽에 등록된 경우) 로 인한 같은 인물 이중 배치 및 갭 발생 차단
-  const bfsPlacedIds = new Set();
+  // 중복 배치 방지: step1(관장/배우자) + BFS 자녀 모두 추적
+  // step1에서 이미 배치된 관장·배우자가 형제/자녀로 다시 배치되는 경우 차단
+  const bfsPlacedIds = new Set([curatorId, ...(spouseId ? [spouseId] : [])]);
 
   const bfsQueue = [{ childIds: rootChildIds, depth: 1, parentY: 0, parentBlockX: 0 }];
 
