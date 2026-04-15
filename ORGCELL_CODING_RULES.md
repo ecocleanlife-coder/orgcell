@@ -290,6 +290,56 @@ ORGCELL_CODING_RULES.md 파일을 아래 내용으로 완전히 교체해서 저
 
 ---
 
+### §8-E 작품실 세부 정책
+
+공개명: 작품전시관
+
+#### 지원 파일형식
+- 이미지: jpg / png / heic (썸네일 그리드 + 라이트박스)
+- 문서:   pdf (PDF 아이콘 + 다운로드 링크)
+- 영상:   mp4 (영상 아이콘 + 다운로드 버튼, v1 스트리밍 미지원)
+
+#### 항목별 필드
+- 작품 제목 (필수, VARCHAR 255)
+- 제작연도 (선택, SMALLINT)
+- 설명 (선택, TEXT) ← 사진자료실 '메모'와 동일 역할
+
+#### 편집 권한
+- 관장 본인: 항상 가능
+- 박물관 미보유 가족 구성원: 가능
+- 해당 인물 계정 생성 후: 권한 자동 이전, 관장 편집 권한 박탈
+
+#### 공개 정책
+- 작품별 is_public 개별 선택
+- 공개 작품 1개 이상 → 작품전시관 메뉴 자동 노출
+
+#### 용량 정책
+- 주요자료실 + 작품실 합산 1GB (무료)
+- GET /api/artwork-folders/:siteId/usage → 합산 bytes 반환
+
+#### API 경로: /api/artwork-folders
+- GET    /:siteId                            — 폴더 목록 (작품 수 포함)
+- POST   /:siteId                            — 폴더 생성 (person_id 전달)
+- PUT    /:siteId/reorder                    — 드래그 순서 저장
+- GET    /:siteId/usage                      — 용량 현황
+- PUT    /:siteId/:folderId                  — 이름 변경
+- DELETE /:siteId/:folderId                  — 폴더+작품 삭제
+- GET    /:siteId/:folderId/artworks         — 작품 목록
+- POST   /:siteId/:folderId/artworks         — 업로드 (단건, 1GB 검증)
+- PATCH  /:siteId/:folderId/artworks/:id     — title/year_created/description/is_representative/is_public 수정
+- DELETE /:siteId/:folderId/artworks/:id     — 삭제
+
+#### DB 구조
+- `artwork_folders` (id, site_id, person_id NOT NULL, name, sort_order, created_at)
+- `artworks` (id, site_id, person_id, folder_id, title NOT NULL, file_url, filename, file_type, file_size, year_created SMALLINT, description, is_representative, is_public, created_at)
+
+#### mp4 처리 (v1)
+- 업로드 허용, 다운로드 전용
+- 스트리밍 미구현 (v2 예정)
+- 파일 크기 제한: 500MB per file
+
+---
+
 ## 9. 관계 탭 동작 규칙
 - 탭 선택 시 해당 인물 기존 데이터 자동 로드
 - 등록된 인물 → [수정][제거] 활성화, [생성] 비활성화

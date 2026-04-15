@@ -390,6 +390,74 @@ export async function uploadAutoFile(siteId, personId, file) {
   return json;
 }
 
+// ── §8-E 작품실 (artwork_folders) ────────────────────────────────────────────
+
+const artworkBase = (siteId) => `/api/artwork-folders/${siteId}`;
+
+export async function fetchArtworkFolders(siteId) {
+  const d = await apiFetch(artworkBase(siteId));
+  return d.data ?? [];
+}
+
+export async function createArtworkFolder(siteId, name, sort_order = 0, person_id) {
+  return apiFetch(artworkBase(siteId), {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ name, sort_order, person_id }),
+  });
+}
+
+export async function renameArtworkFolder(siteId, folderId, name) {
+  return apiFetch(`${artworkBase(siteId)}/${folderId}`, {
+    method:  'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ name }),
+  });
+}
+
+export async function deleteArtworkFolder(siteId, folderId) {
+  return apiFetch(`${artworkBase(siteId)}/${folderId}`, { method: 'DELETE' });
+}
+
+export async function reorderArtworkFolders(siteId, orders) {
+  return apiFetch(`${artworkBase(siteId)}/reorder`, {
+    method:  'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ orders }),
+  });
+}
+
+export async function fetchFolderArtworks(siteId, folderId) {
+  const d = await apiFetch(`${artworkBase(siteId)}/${folderId}/artworks`);
+  return d.data ?? [];
+}
+
+export async function uploadArtwork(siteId, folderId, file, meta = {}) {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('title', meta.title || file.name);
+  if (meta.year_created) form.append('year_created', String(meta.year_created));
+  if (meta.description)  form.append('description',  meta.description);
+  form.append('is_public', meta.is_public ? 'true' : 'false');
+  if (meta.person_id)    form.append('person_id', String(meta.person_id));
+  const res  = await fetch(`${artworkBase(siteId)}/${folderId}/artworks`, { method: 'POST', body: form, credentials: 'include' });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.message || '업로드 실패');
+  return json;
+}
+
+export async function updateArtwork(siteId, folderId, artId, fields) {
+  return apiFetch(`${artworkBase(siteId)}/${folderId}/artworks/${artId}`, {
+    method:  'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(fields),
+  });
+}
+
+export async function deleteArtwork(siteId, folderId, artId) {
+  return apiFetch(`${artworkBase(siteId)}/${folderId}/artworks/${artId}`, { method: 'DELETE' });
+}
+
 /**
  * POST /api/persons/:siteId/:personId/divorce
  * 이혼 처리 (§30-2: spouse 관계 해제)

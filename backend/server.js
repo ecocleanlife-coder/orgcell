@@ -122,6 +122,7 @@ const ROUTE_MAP = {
     'documentFolderRoutes': '/api/document-folders',
     'careerRoutes':         '/api/career',
     'autobiographyRoutes':  '/api/autobiography',
+    'artworkFolderRoutes':  '/api/artwork-folders',
 };
 
 const routesDir = path.join(__dirname, 'src', 'routes');
