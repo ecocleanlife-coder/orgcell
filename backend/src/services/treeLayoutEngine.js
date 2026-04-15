@@ -160,9 +160,13 @@ function classifyZ0(curatorId, personById, rels) {
     if (sSp) markZ0(sSp, 0, 'sibling-spouse');
   }
 
-  // 5. 관장 배우자의 형제 + 배우자
+  // 5. 관장 배우자의 형제 + 배우자 (직계 부모는 형제에서 제외 — 조부모가 직계부모로 잘못 등록된 경우 방어)
+  const spouseParentIds = spouseId
+    ? new Set(getParentIds(spouseId, rels))
+    : new Set();
   const spouseSibIds = spouseId
-    ? getSiblingIds(spouseId, rels).filter(id => personById.has(id))
+    ? getSiblingIds(spouseId, rels)
+        .filter(id => personById.has(id) && !spouseParentIds.has(id))
     : [];
   for (const sId of spouseSibIds) {
     markZ0(sId, 0, 'spouse-sibling');

@@ -448,11 +448,11 @@ const s = {
 
   // Header
   header:      { display: 'flex', alignItems: 'center', padding: '0 24px', height: 56, background: '#FDFBF7', borderBottom: '1px solid #C4A882', position: 'sticky', top: 0, zIndex: 100 },
-  headerLogo:  { fontFamily: 'serif', fontSize: 22, fontWeight: 700, color: '#8B7355', letterSpacing: 2, cursor: 'pointer', flexShrink: 0 },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: 700, color: '#5a4a35', letterSpacing: 1 },
+  headerLogo:  { fontFamily: 'serif', fontSize: 18, fontWeight: 700, color: '#8B7355', letterSpacing: 2, cursor: 'pointer', flexShrink: 0 },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: 700, color: '#5a4a35', letterSpacing: 1 },
   headerRight: { display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 },
-  langSelect:  { padding: '4px 8px', border: '1px solid #C4A882', borderRadius: 4, background: '#FAFAF5', fontSize: 22, color: '#8B7355', cursor: 'pointer' },
-  logoutBtn:   { padding: '5px 12px', background: 'none', border: '1px solid #C4A882', borderRadius: 4, fontSize: 22, color: '#8B7355', cursor: 'pointer' },
+  langSelect:  { padding: '4px 8px', border: '1px solid #C4A882', borderRadius: 4, background: '#FAFAF5', fontSize: 18, color: '#8B7355', cursor: 'pointer' },
+  logoutBtn:   { padding: '5px 12px', background: 'none', border: '1px solid #C4A882', borderRadius: 4, fontSize: 18, color: '#8B7355', cursor: 'pointer' },
 
   // §24-5 빵부스러기 바
   breadcrumbBar: { display: 'flex', alignItems: 'center', padding: '5px 20px', background: '#FDFBF7', borderBottom: '1px solid #EDE8E0', minHeight: 30 },
@@ -460,14 +460,14 @@ const s = {
   // MenuBar §12
   menuBar:     { display: 'flex', flexWrap: 'wrap', gap: 8, padding: '10px 20px', background: '#FDFBF7', borderBottom: '1px solid #E8DFD0' },
   vendingBtn:  {
-    padding: '7px 16px', fontSize: 22, fontWeight: 600, cursor: 'pointer',
+    padding: '7px 16px', fontSize: 18, fontWeight: 600, cursor: 'pointer',
     background: '#FDF8F0', border: '1px solid #C4A882',
     borderBottom: '2px solid #9a7a50', borderRight: '2px solid #b09060',
     borderRadius: 6, color: '#7a5c38', transition: 'transform 0.05s',
     boxShadow: '1px 1px 0 #c4a87a',
   },
   vendingAlbum:{
-    padding: '7px 16px', fontSize: 22, fontWeight: 600, cursor: 'pointer',
+    padding: '7px 16px', fontSize: 18, fontWeight: 600, cursor: 'pointer',
     background: '#F0F5FD', border: '1px solid #8BA5C4',
     borderBottom: '2px solid #6080A0', borderRight: '2px solid #7090B0',
     borderRadius: 6, color: '#3060A0', transition: 'transform 0.05s',
@@ -478,8 +478,8 @@ const s = {
   banner:         { position: 'relative', height: 'clamp(180px, 28vh, 300px)', overflow: 'hidden', flexShrink: 0 },
   bannerBg:       { position: 'absolute', inset: 0, backgroundSize: 'cover', backgroundPosition: 'center', transition: 'opacity 0.5s' },
   bannerOverlay:  { position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 60%)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '16px 24px' },
-  bannerName:     { color: '#fff', fontSize: 22, fontWeight: 700, textShadow: '0 1px 4px rgba(0,0,0,0.6)' },
-  bannerDesc:     { color: 'rgba(255,255,255,0.9)', fontSize: 22, textShadow: '0 1px 3px rgba(0,0,0,0.5)' },
+  bannerName:     { color: '#fff', fontSize: 18, fontWeight: 700, textShadow: '0 1px 4px rgba(0,0,0,0.6)' },
+  bannerDesc:     { color: 'rgba(255,255,255,0.9)', fontSize: 18, textShadow: '0 1px 3px rgba(0,0,0,0.5)' },
   bannerControls: { position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 },
   bannerDot:      { width: 7, height: 7, borderRadius: '50%', background: '#fff', cursor: 'pointer', display: 'inline-block' },
   bannerClickArea:{ position: 'absolute', inset: 0, cursor: 'pointer' },
@@ -487,26 +487,26 @@ const s = {
   bannerLogo:     { display: 'flex', alignItems: 'center', gap: 10 },
   bannerLogoIcon: { fontSize: 36, animation: 'logoPulse 3s ease-in-out infinite' },
   bannerLogoText: { fontSize: 28, fontWeight: 800, color: '#C4A882', letterSpacing: 4, fontFamily: 'serif', textShadow: '0 2px 12px rgba(196,168,130,0.4)' },
-  bannerMsg:      { fontSize: 22, color: '#FDFBF7', letterSpacing: 1, textAlign: 'center', padding: '0 24px', lineHeight: 1.6, fontWeight: 500 },
-  settingBtn:     { position: 'absolute', top: 10, right: 12, padding: '4px 10px', fontSize: 22, background: 'rgba(255,255,255,0.85)', border: '1px solid #C4A882', borderRadius: 4, cursor: 'pointer', color: '#5a4a35', zIndex: 10 },
+  bannerMsg:      { fontSize: 18, color: '#FDFBF7', letterSpacing: 1, textAlign: 'center', padding: '0 24px', lineHeight: 1.6, fontWeight: 500 },
+  settingBtn:     { position: 'absolute', top: 10, right: 12, padding: '4px 10px', fontSize: 18, background: 'rgba(255,255,255,0.85)', border: '1px solid #C4A882', borderRadius: 4, cursor: 'pointer', color: '#5a4a35', zIndex: 10 },
   settingPanel:   { position: 'absolute', top: 40, right: 12, background: '#FDFBF7', border: '1px solid #C4A882', borderRadius: 6, padding: '14px 16px', zIndex: 20, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: 180 },
   settingRow:     { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 },
-  settingLabel:   { fontSize: 22, color: '#5a4a35' },
-  settingSelect:  { padding: '4px 8px', border: '1px solid #C4A882', borderRadius: 4, fontSize: 22, background: '#FAFAF5' },
-  settingClose:   { width: '100%', padding: '5px 0', fontSize: 22, background: 'none', border: '1px solid #C4A882', borderRadius: 4, color: '#8B7355', cursor: 'pointer' },
+  settingLabel:   { fontSize: 18, color: '#5a4a35' },
+  settingSelect:  { padding: '4px 8px', border: '1px solid #C4A882', borderRadius: 4, fontSize: 18, background: '#FAFAF5' },
+  settingClose:   { width: '100%', padding: '5px 0', fontSize: 18, background: 'none', border: '1px solid #C4A882', borderRadius: 4, color: '#8B7355', cursor: 'pointer' },
 
   // Tree
   treeArea:    { flex: 1, position: 'relative', overflow: 'hidden', minHeight: 400 },
-  treeLoading: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#8B7355', fontSize: 22 },
-  treeError:   { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#C0392B', fontSize: 22 },
+  treeLoading: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#8B7355', fontSize: 18 },
+  treeError:   { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#C0392B', fontSize: 18 },
 
   // Access gate §16
   gateWrap:  { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 },
   gateCard:  { background: '#FDFBF7', border: '1px solid #C4A882', borderRight: '2px solid #b09060', borderBottom: '2px solid #9a7a50', boxShadow: '2px 2px 0 #c4a87a', borderRadius: 4, padding: '48px 40px', textAlign: 'center', maxWidth: 360 },
-  gateTitle: { fontSize: 22, fontWeight: 700, color: '#5a4a35', margin: '0 0 12px', fontFamily: 'serif' },
-  gateHint:  { fontSize: 22, color: '#8B7355', margin: '0 0 24px', lineHeight: 1.6 },
-  reqBtn:    { display: 'block', width: '100%', padding: '11px 0', background: '#8B7355', color: '#fff', border: 'none', borderRadius: 4, fontSize: 22, fontWeight: 600, cursor: 'pointer', marginBottom: 10 },
-  loginBtn:  { display: 'block', width: '100%', padding: '9px 0', background: 'none', border: '1px solid #C4A882', borderRadius: 4, fontSize: 22, color: '#8B7355', cursor: 'pointer' },
+  gateTitle: { fontSize: 18, fontWeight: 700, color: '#5a4a35', margin: '0 0 12px', fontFamily: 'serif' },
+  gateHint:  { fontSize: 18, color: '#8B7355', margin: '0 0 24px', lineHeight: 1.6 },
+  reqBtn:    { display: 'block', width: '100%', padding: '11px 0', background: '#8B7355', color: '#fff', border: 'none', borderRadius: 4, fontSize: 18, fontWeight: 600, cursor: 'pointer', marginBottom: 10 },
+  loginBtn:  { display: 'block', width: '100%', padding: '9px 0', background: 'none', border: '1px solid #C4A882', borderRadius: 4, fontSize: 18, color: '#8B7355', cursor: 'pointer' },
 };
 
 // ── §31 헤더 박물관명 포맷 ──────────────────────────────────────────────────────

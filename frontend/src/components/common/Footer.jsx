@@ -158,7 +158,7 @@ const s = {
     background:  'rgba(196,168,130,0.08)',
     borderBottom:'1px solid rgba(196,168,130,0.15)',
   },
-  warningIcon: { fontSize: 22, flexShrink: 0 },
+  warningIcon: { fontSize: 18, flexShrink: 0 },
   warningText: {
     fontSize:   22,
     color:      '#C4A882',
@@ -174,8 +174,8 @@ const s = {
     gap:             8,
   },
   leftCol: { display: 'flex', flexDirection: 'column', gap: 3 },
-  logo:    { fontSize: 22, fontWeight: 700, color: '#C4A882' },
-  copy:    { fontSize: 22, color: '#7a6a55' },
+  logo:    { fontSize: 18, fontWeight: 700, color: '#C4A882' },
+  copy:    { fontSize: 18, color: '#7a6a55' },
   links:   { display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   linkBtn: {
     background:  'none',
@@ -186,8 +186,8 @@ const s = {
     padding:      0,
     textDecoration:'underline',
   },
-  linkA: { color: '#9a8a75', fontSize: 22, textDecoration: 'underline' },
-  sep:   { color: '#5a4a35', fontSize: 22 },
+  linkA: { color: '#9a8a75', fontSize: 18, textDecoration: 'underline' },
+  sep:   { color: '#5a4a35', fontSize: 18 },
 
   // ── minimal 버전 ──────────────────────────────────────────────────────────
   minimal: {
@@ -200,7 +200,7 @@ const s = {
     borderTop:      '1px solid rgba(196,168,130,0.2)',
     flexShrink:      0,
   },
-  minimalText: { fontSize: 22, color: '#9a8a75' },
+  minimalText: { fontSize: 18, color: '#9a8a75' },
   minimalLink: {
     background:    'none',
     border:        'none',
@@ -245,10 +245,10 @@ const s = {
     borderBottom:'1px solid #E8DFD0',
     flexShrink:   0,
   },
-  modalTitle: { fontSize: 22, fontWeight: 700, color: '#3a2a1a', margin: 0, flex: 1 },
+  modalTitle: { fontSize: 18, fontWeight: 700, color: '#3a2a1a', margin: 0, flex: 1 },
   modalClose: {
     background: 'none', border: 'none',
-    fontSize: 22, color: '#9a8a75', cursor: 'pointer', padding: '2px 4px',
+    fontSize: 18, color: '#9a8a75', cursor: 'pointer', padding: '2px 4px',
   },
   modalBody: {
     flex:      1,

@@ -138,7 +138,7 @@ const s = {
     flexShrink: 0,
   },
   ellipsis: {
-    fontSize: 22,
+    fontSize: 18,
     color:    '#B09060',
   },
   crumbGroup: {
