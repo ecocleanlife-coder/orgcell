@@ -15,7 +15,8 @@ const C = {
   CARD_HEIGHT:      220,    // §24-1 (정사각형)
   ROW_GAP:          280,    // Q1 확정
   SIBLING_GAP:      260,    // §23: 남편 형제 왼쪽 / 아내 형제 오른쪽 260px씩
-  CHILD_BLOCK_STEP: 500,    // Q2 확정: COUPLE_WIDTH(440) + GAP(60)
+  SINGLE_BLOCK_W:   236,    // §24-6: 단독 자녀 블록 너비 (CARD_WIDTH + BLOCK_PADDING×2)
+  CHILD_GAP:         40,    // §24-6: 블록 간 최소 간격 40px (카드 끝-끝 기준)
   PARENT_X:        -300,    // §24-2: 관장 부모, 형제 없을 때
   PARENT_IN_LAW_X:  300,    // §24-2: 배우자 부모, 형제 없을 때
   OPACITY_DEEP:     0.3,    // §22: 증손주(depth=3) opacity
@@ -280,12 +281,20 @@ function buildNodes(curatorId, personById, rels, z0Set, depthMap, roleMap, spous
     const y = parentY + C.ROW_GAP;
     const opacity = depth >= 3 ? C.OPACITY_DEEP : 1.0;
 
-    for (let i = 0; i < N; i++) {
-      const child    = children[i];
-      const blockX   = parentBlockX + (i - (N - 1) / 2) * C.CHILD_BLOCK_STEP;
+    // §24-6: 블록 너비 기준 가변 위치 계산 (단독=SINGLE_BLOCK_W, 부부=COUPLE_WIDTH, 간격=CHILD_GAP)
+    const childBlocks = children.map(child => {
       const cSpouseId = getSpouseId(child.id, rels);
       const cSpouse   = (cSpouseId && z0Set.has(cSpouseId)) ? personById.get(cSpouseId) : null;
-      const cId       = mkCId(`d${depth}c${i}`);
+      return { child, cSpouse, cSpouseId, width: cSpouse ? C.COUPLE_WIDTH : C.SINGLE_BLOCK_W };
+    });
+
+    const totalW = childBlocks.reduce((s, b) => s + b.width, 0) + C.CHILD_GAP * Math.max(0, N - 1);
+    let curLeft  = parentBlockX - totalW / 2;
+
+    for (let i = 0; i < N; i++) {
+      const { child, cSpouse, cSpouseId, width } = childBlocks[i];
+      const blockX = curLeft + width / 2;
+      const cId    = mkCId(`d${depth}c${i}`);
 
       bfsPlacedIds.add(child.id);
       if (cSpouseId) bfsPlacedIds.add(cSpouseId);
@@ -305,6 +314,8 @@ function buildNodes(curatorId, personById, rels, z0Set, depthMap, roleMap, spous
         ])].filter(id => personById.has(id) && z0Set.has(id));
         if (grandIds.length) bfsQueue.push({ childIds: grandIds, depth: depth + 1, parentY: y, parentBlockX: blockX });
       }
+
+      curLeft += width + C.CHILD_GAP;
     }
   }
 
