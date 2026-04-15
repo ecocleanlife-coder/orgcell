@@ -124,6 +124,7 @@ const ROUTE_MAP = {
     'autobiographyRoutes':  '/api/autobiography',
     'artworkFolderRoutes':  '/api/artwork-folders',
     'mediaRoutes':          '/api/media',
+    'sharedAlbumRoutes':    '/api/shared-album',
 };
 
 const routesDir = path.join(__dirname, 'src', 'routes');

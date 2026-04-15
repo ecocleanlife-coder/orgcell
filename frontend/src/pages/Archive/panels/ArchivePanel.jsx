@@ -15,6 +15,8 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { toast }                                     from 'react-hot-toast';
+import { useParams }                                 from 'react-router-dom';
+import { useAuthStore }                              from '../../../store/authStore';
 import {
   fetchExhibitionItems,
   uploadExhibitionFile,
@@ -26,6 +28,7 @@ import CareerSection          from './CareerSection';
 import AutobiographySection   from './AutobiographySection';
 import ArtworkSection         from './ArtworkSection';
 import MediaSection           from './MediaSection';
+import SharedAlbumSection     from './SharedAlbumSection';
 
 // ── 메뉴 정의 ─────────────────────────────────────────────────────────────────
 const MENU_BTNS = [
@@ -48,7 +51,11 @@ const isImage = (url = '', mime = '') =>
   /\.(jpg|jpeg|png|gif|webp|avif)$/i.test(url) || mime?.startsWith('image/');
 
 // ── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
-export default function ArchivePanel({ siteId, personId }) {
+export default function ArchivePanel({ siteId, personId, subdomain }) {
+  const { subdomain: routeSubdomain } = useParams();
+  const sub = subdomain || routeSubdomain;
+  const isCurator = useAuthStore(s => s.isCuratorOf)(sub);
+
   const [activeMenu, setActiveMenu] = useState(null);
   const [lightbox,   setLightbox]   = useState(null); // { url, title }
 
@@ -131,7 +138,11 @@ export default function ArchivePanel({ siteId, personId }) {
             <MediaSection key="media" siteId={siteId} personId={personId} />
           )}
 
-          {activeMenu && activeMeta && activeMenu !== 'photo' && activeMenu !== 'main' && activeMenu !== 'career' && activeMenu !== 'memoir' && activeMenu !== 'artwork' && activeMenu !== 'media' && (
+          {activeMenu === 'album' && (
+            <SharedAlbumSection key="album" siteId={siteId} isCurator={isCurator} />
+          )}
+
+          {activeMenu && activeMeta && activeMenu !== 'photo' && activeMenu !== 'main' && activeMenu !== 'career' && activeMenu !== 'memoir' && activeMenu !== 'artwork' && activeMenu !== 'media' && activeMenu !== 'album' && (
             <ExhibitionSection
               key={activeMenu}
               siteId={siteId}

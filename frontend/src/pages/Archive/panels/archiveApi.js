@@ -511,6 +511,66 @@ export async function deleteMediaItem(siteId, id) {
   return apiFetch(`${mediaBase(siteId)}/${id}`, { method: 'DELETE' });
 }
 
+// ── §8-G 공유앨범 ────────────────────────────────────────────────────────────
+
+const albumBase = (siteId) => `/api/shared-album/${siteId}`;
+
+/** GET /api/shared-album/:siteId — 앨범 + 사진 목록 */
+export async function fetchSharedAlbum(siteId) {
+  return apiFetch(albumBase(siteId));
+}
+
+/** POST /api/shared-album/:siteId/photos — 사진 업로드 */
+export async function uploadSharedPhoto(siteId, file, uploaderName) {
+  const form = new FormData();
+  form.append('photo', file);
+  if (uploaderName) form.append('uploader_name', uploaderName);
+  const res  = await fetch(`${albumBase(siteId)}/photos`, { method: 'POST', body: form, credentials: 'include' });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(json.message || '업로드 실패'), { code: json.code });
+  return json;
+}
+
+/** DELETE /api/shared-album/:siteId/photos/:id */
+export async function deleteSharedPhoto(siteId, id) {
+  return apiFetch(`${albumBase(siteId)}/photos/${id}`, { method: 'DELETE' });
+}
+
+/** PATCH /api/shared-album/:siteId/settings — 공개범위/다운로드 설정 */
+export async function updateAlbumSettings(siteId, fields) {
+  return apiFetch(`${albumBase(siteId)}/settings`, {
+    method:  'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(fields),
+  });
+}
+
+/** POST /api/shared-album/:siteId/share-link — 공유 링크 생성 */
+export async function createShareLink(siteId) {
+  return apiFetch(`${albumBase(siteId)}/share-link`, { method: 'POST' });
+}
+
+/** DELETE /api/shared-album/:siteId/share-link — 링크 무효화 */
+export async function revokeShareLink(siteId) {
+  return apiFetch(`${albumBase(siteId)}/share-link`, { method: 'DELETE' });
+}
+
+/** GET /api/shared-album/link/:token — 토큰으로 앨범 접근 */
+export async function fetchAlbumByToken(token) {
+  return apiFetch(`/api/shared-album/link/${token}`);
+}
+
+/** POST /api/shared-album/link/:token/photos — 비로그인 업로드 */
+export async function uploadByToken(token, file, uploaderName) {
+  const form = new FormData();
+  form.append('photo', file);
+  if (uploaderName) form.append('uploader_name', uploaderName);
+  const res  = await fetch(`/api/shared-album/link/${token}/photos`, { method: 'POST', body: form, credentials: 'include' });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(json.message || '업로드 실패'), { code: json.code });
+  return json;
+}
+
 /**
  * POST /api/persons/:siteId/:personId/divorce
  * 이혼 처리 (§30-2: spouse 관계 해제)

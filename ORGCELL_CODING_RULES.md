@@ -93,250 +93,142 @@ ORGCELL_CODING_RULES.md 파일을 아래 내용으로 완전히 교체해서 저
 
 ---
 
-## 8. 자료실 레이아웃
+## 8. 자료실 — 기술 결정사항
 
-좌측:
-- 180×180 사진창 (업로드, 드래그 위치 조정, 크기 조절 핸들)
-- 인물 정보 입력: 이름, 영문 성/이름, 성별, 생년월일, 고인 여부/사망일
-  (대표정보1,2,3 표시 없음)
-- 좌측 하단 [관계] 탭:
-  - 부모 / 자녀 / 배우자 / 형제자매 선택
-  - 등록된 인물 → [수정][제거] 활성, [생성] 비활성
-  - 미등록 인물 → [생성] 활성, [수정][제거] 비활성
-  - [제거] 클릭 시 "정말 관계를 해제하시겠습니까?" 확인 후 person_relations 삭제
+자료실(ArchivePanel)은 7개 섹션 + 유틸 3개로 구성된다.
 
-우측: 메뉴 버튼 (세로 배치)
+### §8-A 사진자료실
 
-우측 메뉴 버튼:
-[사진자료실]  → 공개 시 "사진전시관"
-[주요자료실]  → 공개 시 "자료전시관"
-[주요약력]    → 공개 시 "약력전시관"
-[자서전]      → 공개 시 "자서전전시관"
-[작품실]      → 공개 시 "작품전시관"
-[육성녹음]    → 공개 시 "음성전시관"
-[공유앨범]    → 생성 즉시 상단 메뉴에 노출
-─────────────
-[초대하기]
-[입장권 발급]
-[접근요청관리]
+- 메뉴 라벨: `사진자료실` / 공개 시: `사진전시관`
+- 지원 형식: jpg / png / heic / gif / webp
+- 폴더 기반 (photo_folders), 사진별 theme_tag, is_representative
+- 무료 200장 상한, 초과 시 BYOS(§19) 또는 유료(§18) 유도
 
-버튼 클릭 시 하단에 해당 내용 표시.
-자료실 내 부모 노드는 해당 당사자 카드 바로 위 수직 정렬 (부부 박스 중앙 아님).
+**API: `/api/photo-folders`**
+- GET /:siteId — 폴더+사진 목록
+- POST /:siteId — 폴더 생성
+- PATCH /:siteId/:folderId — 이름 변경 / 순서
+- DELETE /:siteId/:folderId — 폴더+사진 삭제
 
-### §8-A 사진자료실 세부 정책
-
-#### 분류 구조 — 사용자 정의 폴더
-- 폴더는 사용자가 직접 생성, 이름 직접 입력 필수
-- 폴더 수 제한 없음, 순서 드래그로 변경 가능
-- 폴더 삭제 시 "이 폴더의 사진도 함께 삭제됩니다" 확인 모달
-
-최초 진입 시 템플릿 선택 안내 1회 표시:
-  [인생 단계별] 유아기 / 유년기·청소년기 / 청년기 / 중년기 / 노년기
-  [연도별] 1980년대 / 1990년대 / 2000년대 / 2010년대 / 2020년대
-  [직접 만들기] 빈 폴더에서 시작
-템플릿 선택 시 해당 폴더 자동 생성. 이후 폴더 추가/삭제/이름변경 자유.
-
-각 사진에 테마 태그 추가 가능 (폴더와 별개): 가족 / 직업 / 취미 / 여행 / 기타
-
-#### 첫 진입 안내문 (localStorage 기록 후 재표시 안 함)
-"가장 소중한 순간들을 골라 담아주세요. 폴더를 직접 만들어 본인만의 방식으로
-정리할 수 있습니다. 방문자들이 집중해서 볼 수 있도록 각 폴더는 핵심적인 사진들로
-채워두시면 더욱 의미 있는 유산이 됩니다."
-
-#### 폴더별 초과 안내 (10장 초과 시 폴더당 최초 1회 토스트)
-"방문자가 한 폴더에서 집중력을 유지하는 사진은 보통 10장 내외입니다.
-가장 중요한 순간들을 남겨주세요." — 강제 차단 없음
-
-#### 메모 정책
-- 일반 사진: 메모 없어도 공개 가능 (강제 없음)
-- 대표 사진(폴더당 1컷)에만 메모 권고
-- 대표 사진에 메모 없으면 "이 사진에 한 줄 설명을 남겨보세요" 표시, 클릭 시 입력창
-- 메모 있는 사진은 슬라이드 배너에서 설명 오버레이 노출
-
-#### 대표 사진
-- 폴더마다 대표 1컷 설정 가능 (is_representative)
-- 박물관 슬라이드 배너에 대표 사진 우선 노출
-- 대표 사진 미설정 시 가장 최근 업로드 사진 자동 대표
-
-#### 용량 정책
-- 무료 플랜: 1인당 최대 200장
-- 200장 도달 시 안내 모달 1회:
-  "200장은 한 사람의 일생을 충분히 담을 수 있는 분량입니다.
-  더 많은 사진을 등록하려면 본인의 클라우드를 연결하거나 유료 플랜을 이용해주세요."
-- 초과 시 선택: BYOS(§19) 연결 또는 유료 플랜(§18)
-
-#### DB 구조
-- `photo_folders` (id, site_id, person_id, name, sort_order, created_at)
-- `archive_photos` (id, site_id, folder_id, filename, url, mime_type, file_size, theme_tag, is_representative, memo, uploaded_by, created_at)
+**DB:**
+- `photo_folders` (id, site_id, person_id, name, sort_order)
+- `archive_photos` (id, site_id, folder_id, url, mime_type, file_size, theme_tag, is_representative, memo, uploaded_by)
 
 ---
 
-### §8-B 주요자료실 세부 정책
+### §8-B 주요자료실
 
-공개명: 자료전시관
+- 메뉴 라벨: `주요자료실` / 공개 시: `자료전시관`
+- 지원 형식: jpg / png / heic / pdf / doc / docx / hwp(다운로드 전용)
+- 폴더 기반 (document_folders), 항목별 is_public
 
-#### 지원 파일형식
-- 이미지: jpg / png / heic
-- 문서: pdf / doc / docx
-- 한글문서: hwp / hwpx → 텍스트 추출 불가, 다운로드 전용
-  (파일 목록에 HWP 아이콘 + [다운로드] 버튼, 썸네일 없음)
+**API: `/api/document-folders`**
+- GET /:siteId — 폴더+자료 목록
+- GET /:siteId/usage — 용량 (bytes)
 
-#### 업로드/편집 권한
-- 관장 본인: 항상 가능
-- 박물관 미보유 가족 구성원: 가능
-- 가족이 본인 계정 생성 후: 해당 자료실 권한 본인에게 자동 이전, 관장 편집 권한 박탈
-
-#### 분류 구조 — 사용자 정의 폴더 (§8-A 동일 패턴)
-- 폴더 삭제 시 "이 폴더의 자료도 함께 삭제됩니다" 확인 모달
-
-최초 진입 시 템플릿 선택 모달 1회:
-  [공식문서] 졸업·학위증 / 수상·표창 / 자격·면허 / 임명·발령
-  [가족관계] 결혼·혼인 / 출생·호적 / 유언·상속
-  [법적문서] 부동산·계약 / 소송·판결 / 기타법문서
-  [언론·기록] 신문기사 / 인터뷰·방송 / 출판·저서
-  [개인기록] 편지·서신 / 일기·수필 / 메모·스케치
-  [직접 만들기] 빈 폴더에서 시작
-
-#### 첫 진입 안내문 (localStorage 1회)
-"살아온 흔적을 기록으로 남겨주세요. 졸업장, 상장, 편지, 기사 등
-어떤 형태의 자료든 괜찮습니다. 후세가 당신의 삶을 이해하는 데
-가장 중요한 단서가 됩니다."
-
-#### 폴더당 초과 안내 (20건 초과 시 폴더당 최초 1회 토스트)
-"한 폴더에 자료가 많아지면 방문자가 핵심을 찾기 어렵습니다.
-가장 중요한 것들 위주로 정리해주세요." — 강제 차단 없음
-
-#### 메모 정책
-- 모든 자료에 메모 권고 (강제 아님)
-- 메모 없는 자료: "이 자료에 대한 설명을 추가하면 더 의미 있는 기록이 됩니다" 안내
-- 클릭 시 메모 입력창 열림
-
-#### 대표 자료
-- 폴더당 1건 설정 가능 (is_representative)
-- 미설정 시 가장 최근 업로드 항목 자동 대표
-
-#### 용량 정책
-- 주요자료실 + 작품실 + 음성·동영상 합산 1GB (무료)
-- 초과 시 선택: BYOS(§19) 연결 또는 유료 플랜(§18)
-- 백엔드 API: GET /api/document-folders/:siteId/usage (bytes 반환)
-
-#### DB 구조
-- `document_folders` (id, site_id, person_id, name, sort_order, created_at)
-- `documents` (id, site_id, person_id, folder_id, title, file_url, file_type, file_size, memo, is_representative, is_public, created_at)
+**DB:**
+- `document_folders` (id, site_id, person_id, name, sort_order)
+- `documents` (id, site_id, person_id, folder_id, title, file_url, file_type, file_size, memo, is_representative, is_public)
 
 ---
 
-### §8-C 주요약력 세부 정책
+### §8-C 주요약력
 
-공개명: 약력전시관
+- 메뉴 라벨: `주요약력` / 공개 시: `약력전시관`
+- 파일 없음, 텍스트 항목(연도+내용+보조설명), 항목별 is_public
 
-#### 입력 구조
-- 항목당: 연도(필수, SMALLINT) | 내용(필수, VARCHAR 300) | 보조설명(선택, TEXT)
-- 항목 수 제한 없음, 파일 업로드 없음, 용량 합산 제외
+**API: `/api/career`**
+- GET/POST /:siteId, PUT /:siteId/reorder, PUT/DELETE /:siteId/:itemId
 
-#### 공개 정책
-- 항목별 is_public 개별 선택
-- 공개 항목 1개 이상 → 약력전시관 메뉴 자동 노출
-- 비공개 항목: 관장에게만 표시 (흐리게), 전시관 미노출
-
-#### 편집 권한
-- 관장 본인: 항상 가능
-- 박물관 미보유 가족 구성원: 가능
-- 해당 인물이 본인 계정 생성 후: 권한 자동 이전, 관장 편집 권한 박탈
-
-#### API 경로: /api/career
-- GET    /:siteId          — 목록 (관장: 전체, 방문자: is_public=true만)
-- POST   /:siteId          — 항목 추가
-- PUT    /:siteId/reorder  — 순서 저장
-- PUT    /:siteId/:itemId  — 수정 (year / content / description / is_public)
-- DELETE /:siteId/:itemId  — 삭제
-
-#### DB 구조
-- `career_items` (id, site_id, person_id, year SMALLINT, content VARCHAR(300), description TEXT, sort_order, is_public, created_at, updated_at)
+**DB:**
+- `career_items` (id, site_id, person_id, year SMALLINT, content VARCHAR(300), description TEXT, sort_order, is_public)
 
 ---
 
-### §8-D 자서전 세부 정책
+### §8-D 자서전
 
-공개명: 자서전전시관
+- 메뉴 라벨: `자서전` / 공개 시: `자서전전시관`
+- TipTap 에디터, 30초 자동저장, 챕터별 is_public
+- 파일 업로드: txt/doc/docx → 텍스트 추출 후 챕터 자동생성, pdf → pdf-parse, hwp → 다운로드 전용
 
-#### 에디터
-- TipTap (@tiptap/react, @tiptap/starter-kit, @tiptap/extension-underline)
-- 저장 포맷: TipTap HTML 문자열 (TEXT 컬럼)
-- 자동저장: 30초 간격, 저장 상태 표시 ('saved' / 'saving' / 'unsaved')
+**API: `/api/autobiography`**
+- GET/POST /:siteId/chapters, PUT /:siteId/chapters/reorder, PUT/DELETE /:siteId/chapters/:id
+- POST /:siteId/upload (50MB 한도)
 
-#### 챕터 구조
-- 챕터별 제목(필수) + TipTap 본문 + is_public
-- 드래그 순서변경, 챕터 수 제한 없음
-- 공개 챕터 1개 이상 → 자서전전시관 메뉴 노출
-
-#### 파일 업로드 처리
-- txt / doc / docx: 텍스트 추출(mammoth) → 단일 챕터 자동 생성
-- pdf: pdf-parse 추출 시도 → 실패 시 원본 보관 + 안내
-- hwp / hwpx: 추출 없음, 다운로드 전용
-  안내문: "편집을 원하시면 docx로 변환 후 업로드해주세요."
-
-#### API 경로: /api/autobiography
-- GET    /:siteId                 — 챕터+파일 목록 (관장: 전체, 방문자: is_public만)
-- POST   /:siteId/chapters        — 챕터 추가
-- PUT    /:siteId/chapters/reorder — 순서 저장
-- PUT    /:siteId/chapters/:id    — 수정 (title/content/is_public)
-- DELETE /:siteId/chapters/:id    — 삭제
-- POST   /:siteId/upload          — 파일 업로드 (50MB 한도)
-
-#### DB 구조
-- `autobiography_chapters` (id, site_id, person_id, title VARCHAR(255), content TEXT, sort_order, is_public, created_at, updated_at)
-- `autobiography_files` (id, site_id, person_id, file_url TEXT, file_type VARCHAR(20), file_name VARCHAR(255), is_extracted, created_at)
+**DB:**
+- `autobiography_chapters` (id, site_id, person_id, title, content TEXT, sort_order, is_public)
+- `autobiography_files` (id, site_id, person_id, file_url, file_type, file_name, is_extracted)
 
 ---
 
-### §8-E 작품실 세부 정책
+### §8-E 작품실
 
-공개명: 작품전시관
+- 메뉴 라벨: `작품실` / 공개 시: `작품전시관`
+- 지원 형식: jpg / png / heic (썸네일) / pdf (다운로드) / mp4 (다운로드, v1 스트리밍 미지원)
+- 항목 필드: title(필수) / year_created(선택) / description(선택) / is_public
+- 용량: 주요자료실+작품실 합산 1GB (무료)
 
-#### 지원 파일형식
-- 이미지: jpg / png / heic (썸네일 그리드 + 라이트박스)
-- 문서:   pdf (PDF 아이콘 + 다운로드 링크)
-- 영상:   mp4 (영상 아이콘 + 다운로드 버튼, v1 스트리밍 미지원)
+**API: `/api/artwork-folders`**
+- 폴더 CRUD + GET /:siteId/usage + 작품 CRUD /:siteId/:folderId/artworks
 
-#### 항목별 필드
-- 작품 제목 (필수, VARCHAR 255)
-- 제작연도 (선택, SMALLINT)
-- 설명 (선택, TEXT) ← 사진자료실 '메모'와 동일 역할
+**DB:**
+- `artwork_folders` (id, site_id, person_id NOT NULL, name, sort_order)
+- `artworks` (id, site_id, person_id, folder_id, title NOT NULL, file_url, filename, file_type, file_size, year_created SMALLINT, description, is_representative, is_public)
 
-#### 편집 권한
-- 관장 본인: 항상 가능
-- 박물관 미보유 가족 구성원: 가능
-- 해당 인물 계정 생성 후: 권한 자동 이전, 관장 편집 권한 박탈
+---
 
-#### 공개 정책
-- 작품별 is_public 개별 선택
-- 공개 작품 1개 이상 → 작품전시관 메뉴 자동 노출
+### §8-F 음성·동영상
 
-#### 용량 정책
-- 주요자료실 + 작품실 합산 1GB (무료)
-- GET /api/artwork-folders/:siteId/usage → 합산 bytes 반환
+- 메뉴 라벨: `음성·동영상` / 공개 시: `음성·영상전시관`
+- 지원 형식: mp3 / m4a / wav / mp4 / mov (브라우저 내장 재생)
+- 차단: avi (업로드 시 "AVI는 지원하지 않습니다. MP4로 변환 후 업로드해주세요." 토스트)
+- 브라우저 직접 녹음: webm 캡처 → ffmpeg(fluent-ffmpeg) mp3 변환 저장
+  - ffmpeg 미설치 시: webm 그대로 저장 (graceful degradation)
+  - Docker: `apk add ffmpeg`
+- 항목 필드: title(필수) / date(선택, DATE) / memo(선택, TEXT)
+- 파일 크기 상한: 500MB
 
-#### API 경로: /api/artwork-folders
-- GET    /:siteId                            — 폴더 목록 (작품 수 포함)
-- POST   /:siteId                            — 폴더 생성 (person_id 전달)
-- PUT    /:siteId/reorder                    — 드래그 순서 저장
-- GET    /:siteId/usage                      — 용량 현황
-- PUT    /:siteId/:folderId                  — 이름 변경
-- DELETE /:siteId/:folderId                  — 폴더+작품 삭제
-- GET    /:siteId/:folderId/artworks         — 작품 목록
-- POST   /:siteId/:folderId/artworks         — 업로드 (단건, 1GB 검증)
-- PATCH  /:siteId/:folderId/artworks/:id     — title/year_created/description/is_representative/is_public 수정
-- DELETE /:siteId/:folderId/artworks/:id     — 삭제
+**API: `/api/media`**
+- GET    /:siteId          — 목록
+- POST   /:siteId/upload   — 파일 업로드 (protect)
+- POST   /:siteId/record   — 브라우저 녹음 저장 (protect, webm→mp3 변환)
+- PATCH  /:siteId/:id      — title/date/memo 수정 (protect)
+- DELETE /:siteId/:id      — 삭제 (protect)
 
-#### DB 구조
-- `artwork_folders` (id, site_id, person_id NOT NULL, name, sort_order, created_at)
-- `artworks` (id, site_id, person_id, folder_id, title NOT NULL, file_url, filename, file_type, file_size, year_created SMALLINT, description, is_representative, is_public, created_at)
+**DB (voice_recordings 테이블 재사용):**
+- `voice_recordings` (id, site_id, person_id, title VARCHAR(255) NOT NULL, file_url TEXT, media_type VARCHAR(20), file_size BIGINT, duration_sec INT, recorded_date DATE, memo TEXT, is_public, created_at)
 
-#### mp4 처리 (v1)
-- 업로드 허용, 다운로드 전용
-- 스트리밍 미구현 (v2 예정)
-- 파일 크기 제한: 500MB per file
+---
+
+### §8-G 공유앨범
+
+- 메뉴 라벨: `공유앨범` / publicLabel: null (전시관 메뉴 미노출)
+- 지원 형식: jpg / jpeg / png / heic (20MB 상한)
+- 업로드 권한: 로그인 필수 (링크 경유 시 비로그인 가능)
+- 삭제 권한: 업로더 본인 또는 관장
+- **중복 감지**: dhash(9×8 resize → grayscale → adjacent diff) + hamming distance ≤ 5 = 중복
+  - 중복 시 409 응답 + `code: 'DUPLICATE'`, 파일 즉시 삭제
+  - 프론트: "이미 같은 사진이 있습니다." 토스트
+- **관장 설정**: 공개범위(public/family/link), 다운로드 허용, 공유링크 생성/무효화
+- **공유링크**: `crypto.randomBytes(24).toString('hex')` → `/shared-album/:token` 경유 비로그인 접근
+
+**API: `/api/shared-album`**
+- GET    /link/:token              — optionalAuth, 토큰으로 앨범 접근
+- POST   /link/:token/photos       — optionalAuth, 비로그인 업로드
+- GET    /:siteId                  — optionalAuth, 앨범+사진 목록 (auto-create)
+- POST   /:siteId/photos           — protect, 사진 업로드
+- DELETE /:siteId/photos/:id       — protect, 삭제 (본인/관장)
+- PATCH  /:siteId/settings         — protect, 관장 전용
+- POST   /:siteId/share-link       — protect, 관장 전용
+- DELETE /:siteId/share-link       — protect, 관장 전용
+
+**라우트 등록 순서**: `/link/:token` 라우트를 `/:siteId` 앞에 등록 (Express 충돌 방지)
+
+**DB:**
+- `shared_albums` (id, site_id UNIQUE, visibility TEXT DEFAULT 'family', allow_download BOOLEAN DEFAULT true, share_token TEXT UNIQUE, created_at)
+- `shared_album_photos` (id, album_id, uploader_id, uploader_name, file_url, dhash TEXT, uploaded_at)
+
+**업로드 미들웨어**: `uploadSharedAlbum.js` — multer diskStorage, dest: `uploads/shared-albums/`, jpg/png/heic 전용, 20MB 상한
 
 ---
 
