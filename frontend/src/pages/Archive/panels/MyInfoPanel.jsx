@@ -351,7 +351,7 @@ const s = {
 
   // 폼
   form:         { marginTop: 14, flex: 1 },
-  lbl:          { display: 'block', fontSize: 11, color: '#8B7355', marginBottom: 3, marginTop: 8 },
-  inp:          { width: '100%', boxSizing: 'border-box', border: '1px solid #C4A882', borderRadius: 4, padding: '6px 8px', fontSize: 13, background: '#FDFBF7', outline: 'none' },
+  lbl:          { display: 'block', fontSize: 13, color: '#8B7355', marginBottom: 3, marginTop: 8 },
+  inp:          { width: '100%', boxSizing: 'border-box', border: '1px solid #C4A882', borderRadius: 4, padding: '6px 8px', fontSize: 15, background: '#FDFBF7', outline: 'none' },
   saveBtn:      { marginTop: 12, width: '100%', padding: '9px 0', background: '#8B7355', color: '#fff', border: 'none', borderRadius: 4, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
 };
