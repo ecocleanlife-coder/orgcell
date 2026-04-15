@@ -469,23 +469,48 @@ function buildConnectors(nodes, curatorCardX, spouseCardX, rels) {
     });
   }
 
-  // §23 CRITICAL: 관장 부모 → 관장 개인 카드 중앙
+  // §23 CRITICAL: 관장 부모 → 관장(+형제) 연결
+  // 형제 없음: elbow(꺾인선)으로 관장 개인 카드 X에 연결 (§23 CRITICAL)
+  // 형제 있음: §23 "여러 자녀" 룰 — 수평 바로 전원 연결 후 중간에서 수직선 → 부모
   const curParentMeta = coupleMeta.get('couple-curator-parents');
   const curNode       = nodes.find(n => n.role === 'curator');
   if (curParentMeta && curNode) {
-    const fromY = curParentMeta.y + HALF_H;
-    const toY   = curNode.y - HALF_H;
-    connectors.push({
-      id:             `conn-${++seq}`,
-      type:           'parent-to-child-individual',  // §23 CRITICAL
-      parentCoupleId: 'couple-curator-parents',
-      childCoupleId:  'couple-main',
-      fromX:          curParentMeta.centerX,
-      fromY,
-      toX:            curatorCardX,   // 관장 개인 카드 중앙 (부부박스 중앙 아님)
-      toY,
-      midY:           Math.round((fromY + toY) / 2),
-    });
+    const fromY    = curParentMeta.y + HALF_H;
+    const toY      = curNode.y - HALF_H;
+    const sibNodes = nodes.filter(n => n.role === 'sibling');
+
+    if (sibNodes.length === 0) {
+      // 형제 없음: 기존 elbow 방식 유지 (부모 X ≠ 관장 X 이므로 꺾인선 필요)
+      connectors.push({
+        id:             `conn-${++seq}`,
+        type:           'parent-to-child-individual',
+        parentCoupleId: 'couple-curator-parents',
+        childCoupleId:  'couple-main',
+        fromX:          curParentMeta.centerX,
+        fromY,
+        toX:            curatorCardX,
+        toY,
+        midY:           Math.round((fromY + toY) / 2),
+      });
+    } else {
+      // 형제 있음: parent-to-children (§23 여러 자녀)
+      // 앵커: 관장 개인 카드 X + 형제 개인 카드 X → X 오름차순 정렬
+      const allAnchors = [
+        { coupleId: 'couple-main', anchorX: curatorCardX },
+        ...sibNodes.map(n => ({ coupleId: n.coupleId, anchorX: n.x })),
+      ].sort((a, b) => a.anchorX - b.anchorX);
+
+      connectors.push({
+        id:             `conn-${++seq}`,
+        type:           'parent-to-children',
+        parentCoupleId: 'couple-curator-parents',
+        fromX:          curParentMeta.centerX,  // §24-2: 자녀 전체 중심 = pCenterX
+        fromY,
+        toY,
+        midY:           Math.round((fromY + toY) / 2),
+        childAnchors:   allAnchors,
+      });
+    }
   }
 
   // §23 CRITICAL: 배우자 부모 → 배우자 개인 카드 중앙
