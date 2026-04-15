@@ -320,7 +320,10 @@ function buildNodes(curatorId, personById, rels, z0Set, depthMap, roleMap, spous
   }
 
   // ── 3. 관장 형제 (Y=0, 관장 왼쪽 §23) ──────────────────────────────────────
-  const sortedCurSibs = sortByBirth(curatorSibIds.map(id => personById.get(id)));
+  // bfsPlacedIds 체크: 이미 자녀로 배치된 인물은 형제로 중복 배치하지 않음
+  const sortedCurSibs = sortByBirth(
+    curatorSibIds.filter(id => !bfsPlacedIds.has(id)).map(id => personById.get(id))
+  );
   for (let i = 0; i < sortedCurSibs.length; i++) {
     const sib       = sortedCurSibs[i];
     const sibCardX  = curatorCardX - C.SIBLING_GAP * (i + 1);
@@ -341,7 +344,10 @@ function buildNodes(curatorId, personById, rels, z0Set, depthMap, roleMap, spous
   }
 
   // ── 4. 배우자 형제 (Y=0, 배우자 오른쪽 §23) ─────────────────────────────────
-  const sortedSpSibs = sortByBirth(spouseSibIds.map(id => personById.get(id)));
+  // bfsPlacedIds 체크: 이미 자녀로 배치된 인물은 배우자 형제로 중복 배치하지 않음
+  const sortedSpSibs = sortByBirth(
+    spouseSibIds.filter(id => !bfsPlacedIds.has(id)).map(id => personById.get(id))
+  );
   for (let i = 0; i < sortedSpSibs.length; i++) {
     const sib       = sortedSpSibs[i];
     const sibCardX  = (spouseCardX ?? 0) + C.SIBLING_GAP * (i + 1);
