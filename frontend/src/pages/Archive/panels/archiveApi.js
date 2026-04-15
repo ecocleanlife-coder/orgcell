@@ -458,6 +458,59 @@ export async function deleteArtwork(siteId, folderId, artId) {
   return apiFetch(`${artworkBase(siteId)}/${folderId}/artworks/${artId}`, { method: 'DELETE' });
 }
 
+// ── §8-F 음성·동영상 ──────────────────────────────────────────────────────────
+
+const mediaBase = (siteId) => `/api/media/${siteId}`;
+
+/** GET /api/media/:siteId — 목록 */
+export async function fetchMediaItems(siteId) {
+  const d = await apiFetch(mediaBase(siteId));
+  return d.data ?? [];
+}
+
+/** POST /api/media/:siteId/upload — 파일 업로드 */
+export async function uploadMediaFile(siteId, file, meta = {}) {
+  const form = new FormData();
+  form.append('file', file);
+  if (meta.title)       form.append('title',       meta.title);
+  if (meta.recorded_at) form.append('recorded_at', meta.recorded_at);
+  if (meta.memo)        form.append('memo',        meta.memo);
+  if (meta.person_id)   form.append('person_id',   String(meta.person_id));
+  form.append('is_public', meta.is_public ? 'true' : 'false');
+  const res  = await fetch(`${mediaBase(siteId)}/upload`, { method: 'POST', body: form, credentials: 'include' });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.message || '업로드 실패');
+  return json;
+}
+
+/** POST /api/media/:siteId/record — 브라우저 녹음 저장 */
+export async function saveRecording(siteId, blob, meta = {}) {
+  const form = new FormData();
+  form.append('file', blob, 'recording.webm');
+  if (meta.title)       form.append('title',       meta.title);
+  if (meta.recorded_at) form.append('recorded_at', meta.recorded_at);
+  if (meta.memo)        form.append('memo',        meta.memo);
+  if (meta.person_id)   form.append('person_id',   String(meta.person_id));
+  const res  = await fetch(`${mediaBase(siteId)}/record`, { method: 'POST', body: form, credentials: 'include' });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.message || '저장 실패');
+  return json;
+}
+
+/** PATCH /api/media/:siteId/:id — 수정 */
+export async function updateMediaItem(siteId, id, fields) {
+  return apiFetch(`${mediaBase(siteId)}/${id}`, {
+    method:  'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(fields),
+  });
+}
+
+/** DELETE /api/media/:siteId/:id — 삭제 */
+export async function deleteMediaItem(siteId, id) {
+  return apiFetch(`${mediaBase(siteId)}/${id}`, { method: 'DELETE' });
+}
+
 /**
  * POST /api/persons/:siteId/:personId/divorce
  * 이혼 처리 (§30-2: spouse 관계 해제)

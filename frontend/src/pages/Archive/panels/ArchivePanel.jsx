@@ -25,6 +25,7 @@ import DocumentArchiveSection from './DocumentArchiveSection';
 import CareerSection          from './CareerSection';
 import AutobiographySection   from './AutobiographySection';
 import ArtworkSection         from './ArtworkSection';
+import MediaSection           from './MediaSection';
 
 // ── 메뉴 정의 ─────────────────────────────────────────────────────────────────
 const MENU_BTNS = [
@@ -33,7 +34,7 @@ const MENU_BTNS = [
   { key: 'career',  label: '주요약력',   publicLabel: '약력전시관',   accept: '.pdf,.doc,.docx,.txt', multi: false },
   { key: 'memoir',  label: '자서전',     publicLabel: '자서전전시관', accept: '.pdf,.doc,.docx',      multi: false },
   { key: 'artwork', label: '작품실',     publicLabel: '작품전시관',   accept: 'image/*,video/*',      multi: true  },
-  { key: 'voice',   label: '육성녹음',   publicLabel: '음성전시관',   accept: 'audio/*',              multi: true  },
+  { key: 'media',   label: '음성·동영상', publicLabel: '음성·영상전시관', accept: 'audio/*,video/*',      multi: true  },
   { key: 'album',   label: '공유앨범',   publicLabel: null,           accept: 'image/*',              multi: true  },
 ];
 
@@ -126,7 +127,11 @@ export default function ArchivePanel({ siteId, personId }) {
             <ArtworkSection key="artwork" siteId={siteId} personId={personId} />
           )}
 
-          {activeMenu && activeMeta && activeMenu !== 'photo' && activeMenu !== 'main' && activeMenu !== 'career' && activeMenu !== 'memoir' && activeMenu !== 'artwork' && (
+          {activeMenu === 'media' && (
+            <MediaSection key="media" siteId={siteId} personId={personId} />
+          )}
+
+          {activeMenu && activeMeta && activeMenu !== 'photo' && activeMenu !== 'main' && activeMenu !== 'career' && activeMenu !== 'memoir' && activeMenu !== 'artwork' && activeMenu !== 'media' && (
             <ExhibitionSection
               key={activeMenu}
               siteId={siteId}

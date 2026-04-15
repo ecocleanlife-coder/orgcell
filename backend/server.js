@@ -123,6 +123,7 @@ const ROUTE_MAP = {
     'careerRoutes':         '/api/career',
     'autobiographyRoutes':  '/api/autobiography',
     'artworkFolderRoutes':  '/api/artwork-folders',
+    'mediaRoutes':          '/api/media',
 };
 
 const routesDir = path.join(__dirname, 'src', 'routes');
