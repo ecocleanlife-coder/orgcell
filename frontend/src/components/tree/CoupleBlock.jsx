@@ -160,9 +160,11 @@ function FolderCard({ node, isCuratorCard, subdomain, isLeft, isRight, onDoubleC
       // §6/§30-1 개정: matchStatus 무관 — 모든 타인 카드 클릭 시 웜홀 모달
       if (!isCuratorCard) {
         onWormhole({
-          subdomain:   node.matchStatus === 'linked' ? node.personId : null,
-          personDbId:  node.id,
-          name:        node.name,
+          subdomain:       node.matchStatus === 'linked' ? node.personId : null,
+          parentSubdomain: subdomain,
+          opsPath:         node.opsPath,
+          personDbId:      node.id,
+          name:            node.name,
         });
       }
     }, DBL_CLICK_MS);

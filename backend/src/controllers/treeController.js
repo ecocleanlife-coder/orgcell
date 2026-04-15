@@ -73,7 +73,7 @@ async function getAllPersons(siteId) {
       const pathMap = new Map(pathRows.map(r => [r.person_id, r.path]));
       for (const p of rows) {
         const vId = p.person_id || p.oc_id;
-        if (vId) p.ops_path = pathMap.get(vId) || null;
+        if (vId) p.ops_path = pathMap.get(vId) ?? p.ops_path ?? null;
         p.oc_id = vId || String(p.id);
       }
     } catch {

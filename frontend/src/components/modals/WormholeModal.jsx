@@ -32,9 +32,15 @@ export default function WormholeModal() {
 
   if (!wormholeTarget || phase === 'idle') return null;
 
-  const { subdomain, personDbId, name } = wormholeTarget;
-  // linked 박물관이면 /:subdomain, 미개설이면 /person/:dbId
-  const destPath = subdomain ? `/${subdomain}` : `/person/${personDbId}`;
+  const { subdomain, parentSubdomain, opsPath, personDbId, name } = wormholeTarget;
+  // linked 박물관 → /:subdomain
+  // 같은 박물관 내 인물 (ops_path 있음) → /:parentSubdomain/:opsPath/archive
+  // 미개설 박물관 → /person/:dbId
+  const destPath = subdomain
+    ? `/${subdomain}`
+    : (parentSubdomain && opsPath)
+      ? `/${parentSubdomain}/${opsPath}/archive`
+      : `/person/${personDbId}`;
 
   // ── 이동 확인 ────────────────────────────────────────────────────────────────
   async function handleConfirm() {
@@ -42,7 +48,7 @@ export default function WormholeModal() {
     setTimeout(() => setPhase('moving'), FADE_DURATION_MS);
     setTimeout(async () => {
       if (subdomain) {
-        await navigateTo(subdomain);   // 트리 캐시 초기화 + 재fetch
+        await navigateTo(subdomain);   // 다른 박물관: 트리 캐시 초기화 + 재fetch
       }
       navigate(destPath);
       setPhase('idle');
@@ -64,7 +70,7 @@ export default function WormholeModal() {
       }}>
         <div style={s.movingText}>
           <span style={s.movingDot}>●</span>
-          <span>{name}님의 박물관으로 이동합니다...</span>
+          <span>{name}님의 {(parentSubdomain && opsPath && !subdomain) ? '자료실로' : '박물관으로'} 이동합니다...</span>
         </div>
       </div>
     );
@@ -85,11 +91,16 @@ export default function WormholeModal() {
 
         <p style={s.title}>박물관 이동</p>
         <p style={s.message}>
-          <strong style={s.nameHighlight}>{name}</strong>님의 박물관으로<br />
+          <strong style={s.nameHighlight}>{name}</strong>님의{' '}
+          {(parentSubdomain && opsPath && !subdomain) ? '자료실로' : '박물관으로'}<br />
           이동하시겠습니까?
         </p>
         <p style={s.subMessage}>
-          {subdomain ? `${subdomain} 가족유산박물관` : '아직 개설되지 않은 박물관'}
+          {subdomain
+            ? `${subdomain} 가족유산박물관`
+            : (parentSubdomain && opsPath)
+              ? `/${parentSubdomain}/${opsPath}/archive`
+              : '아직 개설되지 않은 박물관'}
         </p>
 
         <div style={s.btnRow}>
