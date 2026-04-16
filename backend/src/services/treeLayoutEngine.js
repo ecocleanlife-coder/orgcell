@@ -25,13 +25,30 @@ const C = {
 // ─── 관계 헬퍼 ─────────────────────────────────────────────────────────────────
 
 // 활성 배우자 ID 반환
+// 다중 배우자 관계가 존재할 경우: 자녀를 공유하는 배우자 우선, 없으면 첫 번째(rel_id ASC)
 function getSpouseId(personId, rels) {
   const pid = Number(personId);
-  const r = rels.find(r =>
+  const spouseRels = rels.filter(r =>
     r.relation_type === 'spouse' &&
     (Number(r.person1_id) === pid || Number(r.person2_id) === pid)
   );
-  return r ? (Number(r.person1_id) === pid ? Number(r.person2_id) : Number(r.person1_id)) : null;
+  if (spouseRels.length === 0) return null;
+
+  const toOther = r => Number(r.person1_id) === pid ? Number(r.person2_id) : Number(r.person1_id);
+
+  if (spouseRels.length === 1) return toOther(spouseRels[0]);
+
+  // 다중 배우자: 공통 자녀를 가진 배우자 우선 선택 (잘못된 관계 방어)
+  const myChildren = new Set(getChildrenIds(pid, rels));
+  if (myChildren.size > 0) {
+    for (const r of spouseRels) {
+      const otherId = toOther(r);
+      const otherChildren = getChildrenIds(otherId, rels);
+      if (otherChildren.some(cId => myChildren.has(cId))) return otherId;
+    }
+  }
+
+  return toOther(spouseRels[0]); // 공통 자녀 없으면 첫 번째
 }
 
 // 자녀 ID 배열 (person1=부모, person2=자녀)
@@ -288,10 +305,12 @@ function buildNodes(curatorId, personById, rels, z0Set, depthMap, roleMap, spous
     const opacity = depth >= 3 ? C.OPACITY_DEEP : 1.0;
 
     // §24-6: 블록 너비 기준 가변 위치 계산 (단독=SINGLE_BLOCK_W, 부부=COUPLE_WIDTH, 간격=CHILD_GAP)
+    // bfsPlacedIds에 이미 다른 depth로 배치된 인물은 배우자로 쓰지 않음 (다중 배우자 관계 방어)
     const childBlocks = children.map(child => {
       const cSpouseId = getSpouseId(child.id, rels);
-      const cSpouse   = (cSpouseId && z0Set.has(cSpouseId)) ? personById.get(cSpouseId) : null;
-      return { child, cSpouse, cSpouseId, width: cSpouse ? C.COUPLE_WIDTH : C.SINGLE_BLOCK_W };
+      const cSpouse   = (cSpouseId && z0Set.has(cSpouseId) && !bfsPlacedIds.has(cSpouseId))
+                        ? personById.get(cSpouseId) : null;
+      return { child, cSpouse, cSpouseId: cSpouse ? cSpouseId : null, width: cSpouse ? C.COUPLE_WIDTH : C.SINGLE_BLOCK_W };
     });
 
     const totalW = childBlocks.reduce((s, b) => s + b.width, 0) + C.CHILD_GAP * Math.max(0, N - 1);
