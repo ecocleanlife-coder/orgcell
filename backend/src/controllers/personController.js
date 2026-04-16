@@ -609,7 +609,7 @@ exports.updatePerson = async (req, res) => {
                     `INSERT INTO person_relations (site_id, person1_id, person2_id, relation_type, is_active)
                      VALUES ($1, $2, $3, 'spouse', true)
                      ON CONFLICT (site_id, person1_id, person2_id, relation_type) DO NOTHING`,
-                    [siteId, Math.min(newPersonId, spouse_id), Math.max(newPersonId, spouse_id)]
+                    [siteId, Math.min(Number(personId), newSpouseId), Math.max(Number(personId), newSpouseId)]
                 );
                 // 과도기: 상대방 persons.spouse_id도 동기화
                 await db.query(
