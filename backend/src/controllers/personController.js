@@ -1472,3 +1472,104 @@ exports.getPerson = async (req, res) => {
         return res.status(500).json({ success: false, message: '인물 조회 실패', detail: err.message });
     }
 };
+
+// GET /api/persons/:siteId/search-site?q=검색어
+// 인물 추가 시 기존 인물 검색 (이름 포함 검색)
+exports.searchPersonsInSite = async (req, res) => {
+    try {
+        const { siteId } = req.params;
+        const q = (req.query.q || '').trim();
+        if (!q) return res.json({ success: true, data: [] });
+
+        let siteIntId;
+        if (!isNaN(siteId)) {
+            const { rows } = await db.query(`SELECT id FROM family_sites WHERE id = $1`, [siteId]);
+            if (!rows[0]) return res.status(404).json({ success: false, message: 'Site not found' });
+            siteIntId = rows[0].id;
+        } else {
+            const { rows } = await db.query(`SELECT id FROM family_sites WHERE subdomain = $1`, [siteId]);
+            if (!rows[0]) return res.status(404).json({ success: false, message: 'Site not found' });
+            siteIntId = rows[0].id;
+        }
+
+        const search = `%${q}%`;
+        const { rows } = await db.query(
+            `SELECT id,
+                    COALESCE(last_name,'') || COALESCE(first_name,'') AS name,
+                    name_en, gender, birth_date, photo_url
+             FROM persons
+             WHERE site_id = $1
+               AND (COALESCE(last_name,'') || COALESCE(first_name,'') ILIKE $2
+                    OR name ILIKE $2
+                    OR name_en ILIKE $2)
+             ORDER BY id
+             LIMIT 20`,
+            [siteIntId, search]
+        );
+        res.json({ success: true, data: rows });
+    } catch (err) {
+        console.error('searchPersonsInSite error:', err);
+        res.status(500).json({ success: false, message: '검색 실패' });
+    }
+};
+
+// POST /api/persons/:siteId/link-person
+// 기존 인물 간 관계 연결 (새 인물 생성 없이)
+exports.linkExistingPerson = async (req, res) => {
+    try {
+        const { siteId } = req.params;
+        const userId = req.user?.id;
+        if (!await checkSiteAccess(userId, siteId)) {
+            return res.status(403).json({ success: false, message: 'Forbidden' });
+        }
+
+        const { existing_person_id, relation_type, relative_id } = req.body;
+        if (!existing_person_id || !relation_type || !relative_id) {
+            return res.status(400).json({ success: false, message: 'existing_person_id, relation_type, relative_id 필요' });
+        }
+
+        let siteIntId;
+        if (!isNaN(siteId)) {
+            siteIntId = Number(siteId);
+        } else {
+            const { rows } = await db.query(`SELECT id FROM family_sites WHERE subdomain = $1`, [siteId]);
+            if (!rows[0]) return res.status(404).json({ success: false, message: 'Site not found' });
+            siteIntId = rows[0].id;
+        }
+
+        const p1 = Number(relative_id);
+        const p2 = Number(existing_person_id);
+
+        // relation_type → DB relation_type 변환 + person1/person2 방향 결정
+        // parent: existing이 부모, relative가 자녀
+        // child:  relative가 부모, existing이 자녀
+        // spouse/sibling: LEAST/GREATEST
+        let dbPerson1, dbPerson2, dbRelType;
+        if (relation_type === 'parent') {
+            dbPerson1 = p2; dbPerson2 = p1; dbRelType = 'parent';
+        } else if (relation_type === 'child') {
+            dbPerson1 = p1; dbPerson2 = p2; dbRelType = 'parent';
+        } else {
+            dbPerson1 = Math.min(p1, p2); dbPerson2 = Math.max(p1, p2);
+            dbRelType = relation_type; // 'spouse' or 'sibling'
+        }
+
+        await db.query(
+            `INSERT INTO person_relations (site_id, person1_id, person2_id, relation_type, is_active)
+             VALUES ($1, $2, $3, $4, true)
+             ON CONFLICT (site_id, person1_id, person2_id, relation_type) DO NOTHING`,
+            [siteIntId, dbPerson1, dbPerson2, dbRelType]
+        );
+
+        // 배우자면 persons.spouse_id 양방향 동기화
+        if (relation_type === 'spouse') {
+            await db.query(`UPDATE persons SET spouse_id = $1 WHERE id = $2 AND site_id = $3`, [p2, p1, siteIntId]);
+            await db.query(`UPDATE persons SET spouse_id = $1 WHERE id = $2 AND site_id = $3`, [p1, p2, siteIntId]);
+        }
+
+        res.json({ success: true, message: '관계 연결 완료' });
+    } catch (err) {
+        console.error('linkExistingPerson error:', err);
+        res.status(500).json({ success: false, message: '연결 실패' });
+    }
+};

@@ -16,11 +16,12 @@
  * 보완 구조: 마운트 시 관계 누락 인물 자동 복구
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { toast }                        from 'react-hot-toast';
 import { useTreeStore }                 from '../../../store/treeStore';
 import {
   createPerson, savePerson, deleteRelation, divorceSpouse, uploadPhoto, repairRelations, fetchPersonById,
+  searchPersonsInSite, linkExistingPerson,
 } from './archiveApi';
 
 // ── 상수 ─────────────────────────────────────────────────────────────────────
@@ -245,6 +246,13 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
   const [saving,            setSaving]            = useState(false);
   const [uploading,         setUploading]         = useState(false);
 
+  // ── 인물 검색 (추가 모드) ──────────────────────────────────────────────────
+  const [searchQuery,   setSearchQuery]   = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const searchTimerRef = useRef(null);
+
   const [preview,     setPreview]     = useState(null);
   const [photoOffset, setPhotoOffset] = useState({ x: 0, y: 0 });
   const [photoScale,  setPhotoScale]  = useState(1);
@@ -341,6 +349,9 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
     setIsAddMode(true);
     setPreview(null);
     setForm(EMPTY_FORM);
+    setSearchQuery('');
+    setSearchResults([]);
+    setShowCreateForm(false);
   }
 
   function cancelEdit() {
@@ -349,6 +360,44 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
     setIsAddMode(false);
     setPreview(null);
     setForm(EMPTY_FORM);
+    setSearchQuery('');
+    setSearchResults([]);
+    setShowCreateForm(false);
+  }
+
+  // ── 검색어 변경 → 디바운스 300ms 후 API 호출 ──────────────────────────────
+  const handleSearchChange = useCallback((val) => {
+    setSearchQuery(val);
+    setSearchResults([]);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (!val.trim()) { setSearchLoading(false); return; }
+    setSearchLoading(true);
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        const results = await searchPersonsInSite(siteId, val);
+        setSearchResults(results);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300);
+  }, [siteId]);
+
+  // ── 기존 인물 선택 → 관계 연결 ────────────────────────────────────────────
+  async function handleLinkPerson(existingPersonId) {
+    setSaving(true);
+    try {
+      await linkExistingPerson(siteId, existingPersonId, relTab, personId);
+      await invalidate();
+      await refreshRelations();
+      cancelEdit();
+      toast.success('관계가 연결됐습니다.');
+    } catch (err) {
+      toast.error(err.message || '연결 실패');
+    } finally {
+      setSaving(false);
+    }
   }
 
   function findRelation(otherId) {
@@ -517,8 +566,47 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
       {/* ── 헤더 ── */}
       <div style={s.header}>{headerLabel}</div>
 
-      {/* ── 180×180 사진박스 ── */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+      {/* ── 추가 모드: 검색 먼저 ── */}
+      {isAddMode && !showCreateForm && (
+        <div style={s.searchBox}>
+          <input
+            autoFocus
+            style={s.searchInp}
+            value={searchQuery}
+            onChange={e => handleSearchChange(e.target.value)}
+            placeholder="이름으로 검색 (예: 공우영, LEE)"
+          />
+          {searchLoading && <div style={s.searchHint}>검색 중...</div>}
+          {!searchLoading && searchQuery.trim() && searchResults.length === 0 && (
+            <div style={s.searchHint}>검색 결과 없음</div>
+          )}
+          {searchResults.length > 0 && (
+            <div style={s.searchList}>
+              {searchResults.map(p => (
+                <button
+                  key={p.id}
+                  style={s.searchItem}
+                  onClick={() => handleLinkPerson(p.id)}
+                  disabled={saving}
+                >
+                  <span style={s.searchItemName}>{p.name || `#${p.id}`}</span>
+                  {p.name_en && <span style={s.searchItemSub}>{p.name_en}</span>}
+                  {p.birth_date && <span style={s.searchItemSub}>{p.birth_date.slice(0,4)}년생</span>}
+                </button>
+              ))}
+            </div>
+          )}
+          <button style={{ ...s.btnSec, width: '100%', marginTop: 8 }} onClick={() => setShowCreateForm(true)}>
+            + 새 인물 직접 추가
+          </button>
+          <button style={{ ...s.btnSec, width: '100%', marginTop: 4 }} onClick={cancelEdit}>
+            취소
+          </button>
+        </div>
+      )}
+
+      {/* ── 180×180 사진박스 (선택 또는 새 인물 생성 폼일 때) ── */}
+      {(!isAddMode || showCreateForm) && <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
         <div
           style={{ ...s.photoBox, cursor: (canPhotoUpload && preview) ? 'grab' : (canPhotoUpload ? 'pointer' : 'default') }}
           onPointerDown={(canPhotoUpload && preview) ? handleDragStart : undefined}
@@ -559,9 +647,9 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
             </div>
           )}
         </div>
-      </div>
+      </div>}
       <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onInput={handleFile} />
-      {canPhotoUpload && (
+      {(!isAddMode || showCreateForm) && canPhotoUpload && (
         <div style={{ textAlign: 'center', marginBottom: 8 }}>
           <button style={s.btnSec} onClick={() => fileRef.current?.click()}>
             {preview ? '사진 변경' : '사진 추가'}
@@ -569,8 +657,8 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
         </div>
       )}
 
-      {/* ── 인물정보 폼 ── */}
-      <div style={s.form}>
+      {/* ── 인물정보 폼 (선택 또는 새 인물 생성) ── */}
+      {(!isAddMode || showCreateForm) && <div style={s.form}>
 
         <div style={s.row2}>
           <div>
@@ -661,7 +749,7 @@ export default function FamilyPanel({ curatorNode, personId, siteId, relations, 
             <button style={s.btnSec} onClick={cancelEdit}>취소</button>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* ── 간이 가계도 (항상 하단 표시) ── */}
       <MiniTree
@@ -762,6 +850,15 @@ const s = {
   btnPri:       { padding: '8px 12px', background: '#8B7355', color: '#fff', border: 'none', borderRadius: 4, fontSize: 12, cursor: 'pointer', fontWeight: 600 },
   btnSec:       { padding: '7px 10px', background: 'none', border: `1px solid ${LINE}`, borderRadius: 4, fontSize: 12, color: '#8B7355', cursor: 'pointer' },
   btnDng:       { padding: '7px 10px', background: '#C0392B', color: '#fff', border: 'none', borderRadius: 4, fontSize: 12, cursor: 'pointer', fontWeight: 600 },
+
+  // ── 인물 검색 ──────────────────────────────────────────────────────────────
+  searchBox:      { display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12 },
+  searchInp:      { width: '100%', boxSizing: 'border-box', border: `1px solid ${LINE}`, borderRadius: 4, padding: '7px 9px', fontSize: 12, background: '#FAFAF5', outline: 'none' },
+  searchHint:     { fontSize: 11, color: '#9a8a75', textAlign: 'center', padding: '4px 0' },
+  searchList:     { border: `1px solid ${LINE}`, borderRadius: 4, overflow: 'hidden', background: '#FDFBF7' },
+  searchItem:     { display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '7px 10px', background: 'none', border: 'none', borderBottom: `1px solid #F0EAE0`, cursor: 'pointer', textAlign: 'left', transition: 'background 0.1s' },
+  searchItemName: { fontSize: 13, fontWeight: 600, color: '#3a2a1a', flex: 1 },
+  searchItemSub:  { fontSize: 11, color: '#9a8a75' },
 
   overlay:      { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   modal:        { background: '#FDFBF7', border: `1px solid ${LINE}`, borderRadius: 8, padding: '28px 32px', minWidth: 280, textAlign: 'center' },

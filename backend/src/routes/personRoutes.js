@@ -18,6 +18,11 @@ router.post('/', protect, ctrl.createPersonOPS);
 // OPS path 조회 — /:siteId 보다 먼저 등록 (라우팅 충돌 방지)
 router.get('/path/*', optionalAuth, ctrl.getPersonByPath);
 
+// 사이트 내 인물 이름 검색 (인물 추가 시 기존 인물 검색용)
+router.get('/:siteId/search-site', protect, ctrl.searchPersonsInSite);
+// 기존 인물 간 관계 연결 (새 인물 생성 없이)
+router.post('/:siteId/link-person', protect, ctrl.linkExistingPerson);
+
 // 조회는 optionalAuth (비로그인도 public 데이터 볼 수 있음)
 router.get('/:siteId', optionalAuth, ctrl.listPersons);
 router.get('/:siteId/:personId(\\d+)', optionalAuth, ctrl.getPerson);

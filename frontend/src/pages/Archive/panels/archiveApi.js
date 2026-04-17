@@ -572,6 +572,32 @@ export async function uploadByToken(token, file, uploaderName) {
 }
 
 /**
+ * GET /api/persons/:siteId/search-site?q=이름
+ * 인물 추가 시 기존 인물 검색 (이름 포함)
+ */
+export async function searchPersonsInSite(siteId, q) {
+  if (!q || !q.trim()) return [];
+  const d = await apiFetch(`/api/persons/${siteId}/search-site?q=${encodeURIComponent(q.trim())}`);
+  return d.data ?? [];
+}
+
+/**
+ * POST /api/persons/:siteId/link-person
+ * 기존 인물과 관계 연결 (새 인물 생성 없이)
+ */
+export async function linkExistingPerson(siteId, existingPersonId, relationType, relativeId) {
+  return apiFetch(`/api/persons/${siteId}/link-person`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({
+      existing_person_id: existingPersonId,
+      relation_type:      relationType,
+      relative_id:        relativeId,
+    }),
+  });
+}
+
+/**
  * POST /api/persons/:siteId/:personId/divorce
  * 이혼 처리 (§30-2: spouse 관계 해제)
  */
