@@ -11,6 +11,11 @@ router.post('/search', ctrl.searchPersons);
 // ── 기존 인물에 계정 연결 (온보딩 §26-4) ── 인증 필요
 router.post('/link-account', protect, ctrl.linkAccount);
 
+// ── 연결 요청 (관장 승인 필요, 온보딩 §26-5) ──
+router.post('/link-request', protect, ctrl.requestLink);
+router.get('/link-request/:token/approve', ctrl.approveLink);
+router.get('/link-request/:token/reject',  ctrl.rejectLink);
+
 // ── OPS 파이프라인 (§26): 인물 생성 + 관계 + path 배정 ──
 // POST /api/persons  (siteId 없음 — subdomain + anchor로 식별)
 router.post('/', protect, ctrl.createPersonOPS);

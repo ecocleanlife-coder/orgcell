@@ -17,6 +17,7 @@ const MODE = {
   NO_MATCH:    'no_match',
   ADDITIONAL:  'additional',
   CONFIRM_NEW: 'confirm_new',
+  PENDING:     'pending',
 };
 
 function apiFetch(path, opts = {}) {
@@ -30,6 +31,7 @@ function apiFetch(path, opts = {}) {
 function modeToStep(mode) {
   if (mode === MODE.INPUT) return 1;
   if ([MODE.CANDIDATES, MODE.NO_MATCH, MODE.ADDITIONAL].includes(mode)) return 2;
+  if (mode === MODE.PENDING) return 3;
   return 3;
 }
 
@@ -203,19 +205,23 @@ export default function OnboardingPage() {
     }
   }
 
-  async function handleLinkAccount() {
+  async function handleRequestLink() {
     if (!selectedCandidate) return;
     setBusy(true);
     try {
-      const res = await apiFetch('/api/persons/link-account', {
+      await apiFetch('/api/persons/link-request', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ site_id: selectedCandidate.site_id, person_id: selectedCandidate.person_id }),
+        body: JSON.stringify({
+          site_id:        selectedCandidate.site_id,
+          db_id:          selectedCandidate.db_id,
+          requester_name: `${lastName.trim()}${firstName.trim()}`,
+          requester_email: null, // 서버에서 req.user 통해 조회
+        }),
       });
-      toast.success('기존 박물관에 계정이 연결되었습니다!');
-      navigate(`/${res.subdomain}`);
+      setMode(MODE.PENDING);
     } catch (err) {
-      toast.error(`연결 실패: ${err.message}`);
+      toast.error(`요청 실패: ${err.message}`);
     } finally {
       setBusy(false);
     }
@@ -318,6 +324,10 @@ export default function OnboardingPage() {
           />
         )}
 
+        {mode === MODE.PENDING && selectedCandidate && (
+          <PendingStep candidate={selectedCandidate} />
+        )}
+
         <div style={s.btnRow}>
           {mode === MODE.CANDIDATES && (
             <button style={s.prevBtn} onClick={() => setMode(MODE.INPUT)} disabled={busy}>← 이전</button>
@@ -336,8 +346,8 @@ export default function OnboardingPage() {
             </button>
           )}
           {mode === MODE.ADDITIONAL && (
-            <button style={{ ...s.nextBtn, opacity: busy ? 0.7 : 1 }} onClick={handleLinkAccount} disabled={busy}>
-              {busy ? '연결 중…' : '이분이 맞습니다 — 계정 연결'}
+            <button style={{ ...s.nextBtn, opacity: busy ? 0.7 : 1 }} onClick={handleRequestLink} disabled={busy}>
+              {busy ? '요청 중…' : '이분이 맞습니다 — 연결 요청'}
             </button>
           )}
           {(mode === MODE.NO_MATCH || mode === MODE.CONFIRM_NEW) && (
@@ -561,6 +571,27 @@ function ConfirmNewStep({ lastName, firstName, gender, birthDate, lunarBirth, bo
         </tbody>
       </table>
       <p style={s.hint}>정보가 맞으면 아래 버튼을 눌러 박물관을 개설합니다.</p>
+    </div>
+  );
+}
+
+// ── Step 3: 승인 대기 ─────────────────────────────────────────────────────────
+function PendingStep({ candidate }) {
+  return (
+    <div style={{ ...s.stepBody, alignItems: 'center', textAlign: 'center', justifyContent: 'center' }}>
+      <div style={{ fontSize: 48, marginBottom: 8 }}>⏳</div>
+      <p style={s.stepLabel}>연결 요청 완료</p>
+      <p style={{ ...s.hint, maxWidth: 320, marginTop: 8 }}>
+        <strong>{candidate.last_name}{candidate.first_name}</strong> 인물이 속한 박물관의 관장에게
+        승인 요청을 보냈습니다.
+      </p>
+      <p style={{ ...s.hint, marginTop: 8 }}>
+        관장이 승인하면 이메일로 안내드립니다.
+      </p>
+      <div style={{ marginTop: 20, padding: '12px 16px', background: '#F0ECE4', borderRadius: 4, fontSize: 13, color: '#6a5a45', textAlign: 'left' }}>
+        <div><strong>박물관:</strong> orgcell.com/{candidate.subdomain}</div>
+        <div style={{ marginTop: 4 }}><strong>인물:</strong> {candidate.last_name}{candidate.first_name}</div>
+      </div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ const path = require("path");
 const { generateOcId, resolveCountryCode } = require("../utils/ocIdGenerator");
 const { assignPath, assignCuratorPath, getAnchorPath } = require("../services/pathAssigner");
 const { matchAndMerge } = require("../services/personMatcher");
+const emailService = require("../services/emailService");
 
 const PERSON_UPLOADS_DIR = path.join(__dirname, "../../uploads/persons"); // 레거시 경로 (구 데이터 호환)
 const UPLOADS_BASE_DIR   = path.join(__dirname, "../../uploads");          // §19/§26 신규 경로 기준
@@ -992,11 +993,7 @@ exports.searchPersons = async (req, res) => {
         const birthDate = birth_date || null;
         const isLunar   = !!birth_lunar;
 
-        // §26-3: 이름 + 생년월일 매칭 (linked 인물만)
-        // - families JOIN 제거: persons.bon_gwan, family_sites.bon_gwan 직접 사용
-        // - name_legal_first/last 제거: 컬럼 미존재 가능성
-        // - name_other jsonb 조건: 컬럼 없을 경우 에러 방지를 위해 try/catch 대신 IS NOT NULL 체크
-        // - birthDate null 시 ::date cast 에러 방지: $4 조건에 IS NOT NULL 추가
+        // §26-3: 이름 + 생년월일 매칭 (ghost 포함 — 관장 승인 후 연결)
         const { rows } = await db.query(
             `SELECT
                p.id, p.first_name, p.last_name,
@@ -1005,8 +1002,7 @@ exports.searchPersons = async (req, res) => {
                COALESCE(p.bon_gwan, fs.bon_gwan) AS bon_gwan
              FROM persons p
              JOIN family_sites fs ON fs.id = p.site_id
-             WHERE p.match_status = 'linked'
-               AND p.first_name ILIKE $1
+             WHERE p.first_name ILIKE $1
                AND p.last_name  ILIKE $2
                AND ($3::VARCHAR IS NULL
                     OR p.bon_gwan  ILIKE $3
@@ -1038,12 +1034,14 @@ exports.searchPersons = async (req, res) => {
 
             return {
                 person_id:      row.oc_id,
+                db_id:          row.id,
                 name:           `${row.last_name}${row.first_name}`,
                 first_name:     row.first_name,
                 last_name:      row.last_name,
                 birth_date:     row.birth_date,
                 birth_lunar:    row.birth_lunar,
                 gender:         row.gender,
+                match_status:   row.match_status,
                 subdomain:      row.subdomain,
                 site_id:        row.site_id,
                 bon_gwan:       row.bon_gwan,
@@ -1571,5 +1569,169 @@ exports.linkExistingPerson = async (req, res) => {
     } catch (err) {
         console.error('linkExistingPerson error:', err);
         res.status(500).json({ success: false, message: '연결 실패' });
+    }
+};
+
+// POST /api/persons/link-request
+// 온보딩: 기존 인물(ghost/linked)에 계정 연결 요청 → 관장에게 승인 이메일
+exports.requestLink = async (req, res) => {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, message: '인증 필요' });
+
+    const { site_id, db_id, requester_name, requester_email } = req.body;
+    if (!site_id || !db_id) {
+        return res.status(400).json({ success: false, message: 'site_id, db_id 필수' });
+    }
+
+    try {
+        // 요청자 이메일 — 클라이언트에서 못 받으면 DB에서 조회
+        let reqEmail = requester_email || null;
+        if (!reqEmail) {
+            const uRes = await db.query(`SELECT email FROM users WHERE id = $1`, [userId]);
+            reqEmail = uRes.rows[0]?.email || null;
+        }
+
+        const { rows } = await db.query(
+            `INSERT INTO link_requests (person_id, site_id, requester_user_id, requester_name, requester_email)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING id, token`,
+            [db_id, site_id, userId, requester_name || '(이름 미입력)', reqEmail]
+        );
+        const { token } = rows[0];
+
+        // 관장 이메일 + 인물명 + 서브도메인 조회
+        const infoRes = await db.query(
+            `SELECT fs.subdomain, fs.owner_email,
+                    u.email AS curator_email, u.name AS curator_name,
+                    p.last_name, p.first_name
+             FROM family_sites fs
+             LEFT JOIN users u ON u.id = fs.user_id
+             LEFT JOIN persons p ON p.id = $1
+             WHERE fs.id = $2`,
+            [db_id, site_id]
+        );
+        const info = infoRes.rows[0];
+        const curatorEmail = info?.curator_email || info?.owner_email;
+        const personName = info ? `${info.last_name}${info.first_name}` : '(인물)';
+        const baseUrl = process.env.BACKEND_URL || 'https://orgcell.com';
+
+        if (curatorEmail) {
+            const approveUrl = `${baseUrl}/api/persons/link-request/${token}/approve`;
+            const rejectUrl  = `${baseUrl}/api/persons/link-request/${token}/reject`;
+            const { getGmailTransporter } = emailService;
+            const transporter = await getGmailTransporter();
+            await transporter.sendMail({
+                from: '"Orgcell" <noreply@orgcell.com>',
+                to:   curatorEmail,
+                subject: `[Orgcell] 계정 연결 요청 — ${requester_name || '신규 가입자'}`,
+                html: `
+                    <p>${info?.curator_name || '관장'}님,</p>
+                    <p><strong>${requester_name}</strong>님이 <strong>${personName}</strong> 인물에 계정 연결을 요청했습니다.</p>
+                    <p style="margin-top:20px">
+                      <a href="${approveUrl}" style="background:#5a8a55;color:#fff;padding:10px 24px;border-radius:4px;text-decoration:none;margin-right:12px;font-weight:600">승인</a>
+                      <a href="${rejectUrl}"  style="background:#C0392B;color:#fff;padding:10px 24px;border-radius:4px;text-decoration:none;font-weight:600">거절</a>
+                    </p>
+                    <p style="font-size:12px;color:#888;margin-top:16px">orgcell.com/${info?.subdomain}</p>
+                `,
+            });
+        }
+
+        return res.json({ success: true, message: '연결 요청이 전송되었습니다.' });
+    } catch (err) {
+        console.error('requestLink error:', err);
+        return res.status(500).json({ success: false, message: '요청 실패' });
+    }
+};
+
+// GET /api/persons/link-request/:token/approve
+exports.approveLink = async (req, res) => {
+    const { token } = req.params;
+    try {
+        const { rows } = await db.query(
+            `UPDATE link_requests SET status = 'approved', resolved_at = NOW()
+             WHERE token = $1 AND status = 'pending'
+             RETURNING id, person_id, site_id, requester_user_id, requester_name, requester_email`,
+            [token]
+        );
+        if (!rows.length) {
+            return res.status(200).send('<html><body style="font-family:sans-serif;text-align:center;padding:60px"><p>이미 처리된 요청이거나 유효하지 않은 링크입니다.</p></body></html>');
+        }
+        const lr = rows[0];
+
+        if (lr.requester_user_id) {
+            await db.query(
+                `UPDATE persons SET user_id = $1, match_status = 'linked' WHERE id = $2`,
+                [lr.requester_user_id, lr.person_id]
+            );
+        }
+
+        const siteRes = await db.query(`SELECT subdomain FROM family_sites WHERE id = $1`, [lr.site_id]);
+        const subdomain = siteRes.rows[0]?.subdomain;
+
+        if (lr.requester_email) {
+            const { getGmailTransporter } = emailService;
+            const transporter = await getGmailTransporter();
+            await transporter.sendMail({
+                from: '"Orgcell" <noreply@orgcell.com>',
+                to:   lr.requester_email,
+                subject: '[Orgcell] 계정 연결이 승인되었습니다',
+                html: `
+                    <p>${lr.requester_name}님, 계정 연결이 승인되었습니다.</p>
+                    <p><a href="https://orgcell.com/${subdomain}" style="color:#8B7355">박물관 바로가기 →</a></p>
+                `,
+            });
+        }
+
+        return res.send(`
+            <html><body style="font-family:sans-serif;text-align:center;padding:60px;background:#F5F0E8">
+              <h2 style="color:#5a8a55">✓ 승인 완료</h2>
+              <p>${lr.requester_name}님의 계정 연결이 승인되었습니다.</p>
+              <p style="font-size:13px;color:#888">해당 사용자에게 이메일이 발송되었습니다.</p>
+            </body></html>
+        `);
+    } catch (err) {
+        console.error('approveLink error:', err);
+        return res.status(500).send('<p>오류가 발생했습니다.</p>');
+    }
+};
+
+// GET /api/persons/link-request/:token/reject
+exports.rejectLink = async (req, res) => {
+    const { token } = req.params;
+    try {
+        const { rows } = await db.query(
+            `UPDATE link_requests SET status = 'rejected', resolved_at = NOW()
+             WHERE token = $1 AND status = 'pending'
+             RETURNING id, requester_name, requester_email`,
+            [token]
+        );
+        if (!rows.length) {
+            return res.status(200).send('<html><body style="font-family:sans-serif;text-align:center;padding:60px"><p>이미 처리된 요청이거나 유효하지 않은 링크입니다.</p></body></html>');
+        }
+        const lr = rows[0];
+
+        if (lr.requester_email) {
+            const { getGmailTransporter } = emailService;
+            const transporter = await getGmailTransporter();
+            await transporter.sendMail({
+                from: '"Orgcell" <noreply@orgcell.com>',
+                to:   lr.requester_email,
+                subject: '[Orgcell] 계정 연결 요청이 거절되었습니다',
+                html: `
+                    <p>${lr.requester_name}님, 아쉽게도 계정 연결 요청이 거절되었습니다.</p>
+                    <p>문의사항이 있으시면 해당 박물관 관장에게 직접 연락하세요.</p>
+                `,
+            });
+        }
+
+        return res.send(`
+            <html><body style="font-family:sans-serif;text-align:center;padding:60px;background:#F5F0E8">
+              <h2 style="color:#C0392B">거절 완료</h2>
+              <p>${lr.requester_name}님의 계정 연결 요청이 거절되었습니다.</p>
+            </body></html>
+        `);
+    } catch (err) {
+        console.error('rejectLink error:', err);
+        return res.status(500).send('<p>오류가 발생했습니다.</p>');
     }
 };
